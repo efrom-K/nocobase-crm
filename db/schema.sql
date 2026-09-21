@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict VQQxHNupqGwKSol3olf0RBpcrAnjLqXZZk2H6COb61owzgOR2bIySVEoIm0jb29
+\restrict CMT9h8Te2x1nOMPJhN71HHYGa7I3pfHu4ndyUwhAMaFEwDOKYlunmfsq6l3436x
 
 -- Dumped from database version 14.24
 -- Dumped by pg_dump version 14.24
@@ -456,7 +456,9 @@ CREATE TABLE public.rental_contracts (
     end_date date,
     bank_name character varying(255),
     corr_account character varying(255),
-    total_amount double precision
+    total_amount double precision,
+    contract_status character varying(255),
+    payment_status character varying(255)
 );
 
 
@@ -784,5 +786,5 @@ CREATE UNIQUE INDEX user_table_settings_uq ON public.user_table_settings USING b
 -- PostgreSQL database dump complete
 --
 
-\unrestrict VQQxHNupqGwKSol3olf0RBpcrAnjLqXZZk2H6COb61owzgOR2bIySVEoIm0jb29
+\unrestrict CMT9h8Te2x1nOMPJhN71HHYGa7I3pfHu4ndyUwhAMaFEwDOKYlunmfsq6l3436x
 

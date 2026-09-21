@@ -1079,8 +1079,15 @@ async function logFieldChanges(type, id, oldRec, values) {
 async function updateWithHistory(collection, id, values) {
   let old = null;
   try { old = histPayload(await ctx.api.resource(collection).get({ filterByTk: id })); } catch (e) { old = null; }
+  let derived = {};
+  if (old && DERIVED_COLLECTIONS[collection]) {
+    derived = derivedUpdates(old, values);
+    if (Object.keys(derived).length) values = Object.assign({}, values, derived);
+  }
   const res = await ctx.api.resource(collection).update({ filterByTk: id, values: values });
   if (old) await logFieldChanges(HIST_TYPE_BY_COLL[collection] || 'active', id, old, values);
+  if (Object.keys(derived).length) syncDerivedDom(derived);
+  try { res.__cmDerived = derived; } catch (e) { /* ignore */ }
   return res;
 }
 async function moveHistory(fromType, fromId, toType, toId) {
@@ -1164,6 +1171,357 @@ function wireHistory(overlay, prefix, type, id) {
   });
 }
 
+// ---------- связанные поля и график цены аренды ----------
+function numOf(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(String(v).replace(/[\s ]/g, '').replace(',', '.'));
+  return isFinite(n) ? n : null;
+}
+function round2(n) { return Math.round(n * 100) / 100; }
+const DERIVED_COLLECTIONS = { rental_contracts: true, forming_contracts: true };
+const DERIVED_SOURCES = ['area_sqm', 'rent_per_sqm', 'utility_per_sqm', 'rent_amount', 'utility_amount'];
+const DERIVED_PAIRS = [{ target: 'rent_amount', per: 'rent_per_sqm' }, { target: 'utility_amount', per: 'utility_per_sqm' }];
+function derivedTol(area) { return Math.max(1, (area || 0) * 0.005); }
+function hasKey(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+
+// Мягкий пересчёт: что изменится в БД вместе с сохранением. Сумма пересчитывается только если она пустая
+// или совпадала с прежним расчётом (то есть не правилась вручную); ставка — только если пустая.
+function derivedUpdates(oldRec, values) {
+  if (!DERIVED_SOURCES.some(function(k) { return hasKey(values, k); })) return {};
+  const nr = Object.assign({}, oldRec, values);
+  const upd = {};
+  const areaOld = numOf(oldRec.area_sqm), areaNew = numOf(nr.area_sqm);
+  DERIVED_PAIRS.forEach(function(p) {
+    const perOld = numOf(oldRec[p.per]), perNew = numOf(nr[p.per]);
+    const tgtOld = numOf(oldRec[p.target]);
+    const hasTarget = hasKey(values, p.target), hasPer = hasKey(values, p.per);
+    if (!hasTarget && areaNew > 0 && perNew > 0) {
+      const expNew = round2(perNew * areaNew);
+      const expOld = (areaOld > 0 && perOld > 0) ? round2(perOld * areaOld) : null;
+      const untouched = tgtOld === null || (expOld !== null && Math.abs(tgtOld - expOld) <= derivedTol(areaOld));
+      if (untouched && (tgtOld === null || Math.abs(tgtOld - expNew) > 0.004)) upd[p.target] = expNew;
+    }
+    const tgtNew = hasTarget ? numOf(values[p.target]) : tgtOld;
+    if (!hasPer && perNew === null && tgtNew > 0 && areaNew > 0 && (hasTarget || hasKey(values, 'area_sqm'))) upd[p.per] = round2(tgtNew / areaNew);
+  });
+  return upd;
+}
+function syncDerivedDom(derived) {
+  Object.keys(derived || {}).forEach(function(name) {
+    document.querySelectorAll('#contract-modal-root [data-field="' + name + '"], #forming-modal-root [data-field="' + name + '"]').forEach(function(el) {
+      if (document.activeElement === el) return;
+      const txt = String(derived[name]).replace('.', ',');
+      el.value = txt;
+      if (FIELD_RULES[name]) { el.__origNorm = normalizeValue(name, txt); showFieldState(el); }
+    });
+  });
+}
+function renderAllActiveReadonly(root, r) {
+  ACTIVE_BLOCK_DEFS.forEach(function(block) {
+    const el = root.querySelector('[data-active-readonly="' + block.key + '"]');
+    if (!el) return;
+    el.innerHTML = block.readonlyRenderer ? block.readonlyRenderer(r)
+      : '<div class="cm-grid">' + block.fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
+  });
+}
+// подсказки под полями АП/ЭС: «По ставке × площади = … — подставить»
+function wireDerivedHints(root) {
+  if (!root || root.__cmDerivedHints) return;
+  root.__cmDerivedHints = true;
+  function valueOf(n) { const el = root.querySelector('[data-field="' + n + '"]'); return el ? numOf(el.value) : null; }
+  function refresh() {
+    DERIVED_PAIRS.forEach(function(p) {
+      const el = root.querySelector('[data-field="' + p.target + '"]');
+      if (!el || !el.parentNode) return;
+      let h = el.parentNode.querySelector('.cm-derived-hint');
+      if (!h) { h = document.createElement('div'); h.className = 'cm-derived-hint'; el.parentNode.appendChild(h); }
+      const area = valueOf('area_sqm'), per = valueOf(p.per);
+      if (!(area > 0 && per > 0)) { h.textContent = ''; return; }
+      const exp = round2(per * area), cur = numOf(el.value);
+      if (cur !== null && Math.abs(cur - exp) <= derivedTol(area)) { h.textContent = ''; return; }
+      h.innerHTML = 'По ставке ' + escRaw(formatNum(per)) + ' × ' + escRaw(formatNum(area)) + ' м² = <a href="#" class="cm-derived-apply">' + escRaw(formatNum(exp)) + '</a> — подставить';
+      h.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        el.value = String(exp).replace('.', ',');
+        fireInput(el);
+        refresh();
+      });
+    });
+  }
+  root.addEventListener('input', refresh);
+  refresh();
+}
+
+async function moveSide(collection, fromType, fromId, toType, toId) {
+  try {
+    await fetch('/api/' + collection + ':update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: fromType, contract_ref_id: fromId })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contract_type: toType, contract_ref_id: toId })
+    });
+  } catch (e) { /* best-effort */ }
+}
+
+// ----- график цены -----
+const PRICE_BASIS = { fixed: 'Фиксированная сумма', per_sqm: 'За 1 кв.м.' };
+const PRICE_UNIT_TITLES = { month: 'в месяц', week: 'в неделю', day: 'в день', year: 'в год' };
+const PRICE_UNIT_FACTOR = { month: 1, week: 52 / 12, day: 365 / 12, year: 1 / 12 };   // пересчёт в «в месяц»
+function isoToDate(s) {
+  const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+}
+function dateToIso(d) {
+  const p = function(n) { return n < 10 ? '0' + n : '' + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+function daysInclusive(a, b) { return Math.round((b.getTime() - a.getTime()) / 86400000) + 1; }
+// сколько «единиц срока» (месяцев/недель/дней/лет) укладывается в период; месяц — по календарю, неполный — пропорционально дням
+function unitsInPeriod(from, to, unit) {
+  const days = daysInclusive(from, to);
+  if (days <= 0) return 0;
+  if (unit === 'day') return days;
+  if (unit === 'week') return days / 7;
+  if (unit === 'year') return days / 365;
+  let total = 0, cur = from;
+  while (cur.getTime() <= to.getTime()) {
+    const monthEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+    const segEnd = monthEnd.getTime() < to.getTime() ? monthEnd : to;
+    total += daysInclusive(cur, segEnd) / monthEnd.getDate();
+    cur = addDays(segEnd, 1);
+  }
+  return total;
+}
+function periodCost(p, area) {
+  const from = isoToDate(p.date_from), to = isoToDate(p.date_to), amt = Number(p.amount);
+  if (!from || !to || !isFinite(amt)) return null;
+  const mult = p.basis === 'per_sqm' ? area : 1;
+  if (p.basis === 'per_sqm' && !(area > 0)) return null;
+  return round2(amt * mult * unitsInPeriod(from, to, p.unit || 'month'));
+}
+function periodMonthly(p, area) {
+  const amt = Number(p.amount);
+  if (!isFinite(amt)) return null;
+  if (p.basis === 'per_sqm' && !(area > 0)) return null;
+  return round2(amt * (p.basis === 'per_sqm' ? area : 1) * (PRICE_UNIT_FACTOR[p.unit || 'month'] || 1));
+}
+function fmtDate(iso) { return fromISODateDisplay(iso); }
+function priceLabel(p) {
+  return formatNum(p.amount) + ' ₽ ' + (p.basis === 'per_sqm' ? 'за 1 кв.м. ' : '') + (PRICE_UNIT_TITLES[p.unit || 'month'] || '');
+}
+
+function renderPricesSection(prefix) {
+  return '<div class="cm-section" id="' + prefix + '-prices-section">'
+    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">График цены аренды</div>'
+    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;">+ Период</button></div>'
+    + '<div class="cm-price-hint">Цена может меняться со временем: задайте отдельную цену на каждый промежуток (месяц, неделя или любой срок). Цену можно указать фиксированной суммой или за 1 кв.м.</div>'
+    + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
+    + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
+    + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
+    + '<div class="cm-price-form-grid">'
+    + '<div><label>Действует с</label><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
+    + '<div><label>Действует по</label><input type="date" class="cm-field-input" id="' + prefix + '-price-to"></div>'
+    + '<div><label>Как задана цена</label><select class="cm-field-input" id="' + prefix + '-price-basis"><option value="per_sqm">За 1 кв.м.</option><option value="fixed">Фиксированная сумма</option></select></div>'
+    + '<div><label>За какой срок</label><select class="cm-field-input" id="' + prefix + '-price-unit"><option value="month">В месяц</option><option value="week">В неделю</option><option value="day">В день</option><option value="year">В год</option></select></div>'
+    + '<div><label>Цена, ₽</label><input type="text" class="cm-field-input" id="' + prefix + '-price-amount" inputmode="decimal" placeholder="0,00"></div>'
+    + '<div><label>Примечание</label><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="например, скидка на ремонт"></div>'
+    + '</div>'
+    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" id="' + prefix + '-price-save">Сохранить</button>'
+    + '<button class="cm-btn-save" id="' + prefix + '-price-cancel">Отмена</button>'
+    + '<span id="' + prefix + '-price-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
+    + '</div>'
+    + '<div id="' + prefix + '-price-actions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">'
+    + '<button class="cm-btn-save" id="' + prefix + '-price-calc">Рассчитать «Сумму договора» по графику</button>'
+    + '<button class="cm-btn-save" id="' + prefix + '-price-today">Обновить ставку по цене на сегодня</button></div>'
+    + '</div>';
+}
+
+async function loadPricePeriods(type, id) {
+  const res = await ctx.api.resource('contract_price_periods').list({
+    filter: { contract_type: type, contract_ref_id: id }, sort: ['date_from', 'id'], pageSize: 200
+  });
+  const p = histPayload(res);
+  return Array.isArray(p) ? p : [];
+}
+
+async function wirePrices(overlay, prefix, type, id, canEdit, r) {
+  const q = function(s) { return overlay.querySelector('#' + prefix + s); };
+  const listEl = q('-price-list');
+  if (!listEl) return;
+  const summaryEl = q('-price-summary'), addBtn = q('-price-add-btn'), formEl = q('-price-form'), actionsEl = q('-price-actions');
+  const fromEl = q('-price-from'), toEl = q('-price-to'), basisEl = q('-price-basis'), unitEl = q('-price-unit'), amountEl = q('-price-amount'), noteEl = q('-price-note');
+  const saveBtn = q('-price-save'), cancelBtn = q('-price-cancel'), statusEl = q('-price-status');
+  const coll = type === 'forming' ? 'forming_contracts' : (type === 'completed' ? 'completed_contracts' : 'rental_contracts');
+  let items = [];
+  let editId = null;
+
+  function recVal(name) {
+    const el = overlay.querySelector('[data-field="' + name + '"]');
+    if (el) return el.value;
+    return r ? r[name] : null;
+  }
+  function ctxInfo() {
+    const startIso = recVal('date_act') || recVal('date_signed') || recVal('actual_start_date');
+    return { area: numOf(recVal('area_sqm')), start: isoToDate(startIso), end: isoToDate(recVal('end_date')), per: numOf(recVal('rent_per_sqm')), amt: numOf(recVal('rent_amount')) };
+  }
+  function today() { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+
+  function renderSummary() {
+    const c = ctxInfo();
+    if (!items.length) { summaryEl.style.display = 'none'; actionsEl.style.display = 'none'; return; }
+    let total = 0, unknown = 0;
+    items.forEach(function(p) { const v = periodCost(p, c.area); if (v === null) unknown++; else total += v; });
+    const lines = [];
+    lines.push('Итого по графику: <b>' + escRaw(formatNum(round2(total))) + ' ₽</b>' + (unknown ? ' <span class="warn">(не хватает площади для ' + unknown + ' периода(ов) «за 1 кв.м.»)</span>' : ''));
+    const t = today();
+    const nowP = items.find(function(p) { const a = isoToDate(p.date_from), b = isoToDate(p.date_to); return a && b && a.getTime() <= t.getTime() && t.getTime() <= b.getTime(); });
+    if (nowP) {
+      const mo = periodMonthly(nowP, c.area);
+      lines.push('Сегодня действует: <b>' + escRaw(priceLabel(nowP)) + '</b>' + (mo !== null ? ' (≈ ' + escRaw(formatNum(mo)) + ' ₽ в месяц)' : ''));
+    }
+    if (c.start && c.end && c.end.getTime() >= c.start.getTime()) {
+      const gaps = [];
+      let cur = c.start;
+      const sorted = items.slice().sort(function(a, b) { return String(a.date_from).localeCompare(String(b.date_from)); });
+      sorted.forEach(function(p) {
+        const a = isoToDate(p.date_from), b = isoToDate(p.date_to);
+        if (!a || !b) return;
+        if (a.getTime() > cur.getTime() && cur.getTime() <= c.end.getTime()) gaps.push([cur, addDays(a, -1)]);
+        if (addDays(b, 1).getTime() > cur.getTime()) cur = addDays(b, 1);
+      });
+      if (cur.getTime() <= c.end.getTime()) gaps.push([cur, c.end]);
+      if (gaps.length) lines.push('<span class="warn">Нет цены на: ' + gaps.slice(0, 3).map(function(g) { return fmtDate(dateToIso(g[0])) + ' — ' + fmtDate(dateToIso(g[1])); }).join('; ') + (gaps.length > 3 ? '…' : '') + '</span>');
+      else lines.push('Срок договора (' + fmtDate(dateToIso(c.start)) + ' — ' + fmtDate(dateToIso(c.end)) + ') покрыт ценами полностью.');
+    }
+    summaryEl.innerHTML = lines.join('<br>');
+    summaryEl.style.display = 'block';
+    actionsEl.style.display = canEdit ? 'flex' : 'none';
+  }
+  function renderList() {
+    const c = ctxInfo();
+    if (!items.length) { listEl.innerHTML = '<div style="color:#bbb;font-size:12px;">Периодов пока нет' + (canEdit ? ' — добавьте кнопкой «+ Период»' : '') + '</div>'; return; }
+    const t = today();
+    listEl.innerHTML = items.map(function(p) {
+      const cost = periodCost(p, c.area), mo = periodMonthly(p, c.area);
+      const a = isoToDate(p.date_from), b = isoToDate(p.date_to);
+      const now = a && b && a.getTime() <= t.getTime() && t.getTime() <= b.getTime();
+      return '<div class="cm-price-row' + (now ? ' now' : '') + '"><div class="cm-price-main">'
+        + '<div class="cm-price-dates">' + escRaw(fmtDate(p.date_from)) + ' — ' + escRaw(fmtDate(p.date_to)) + (now ? ' <span style="color:#389e0d;font-weight:400;font-size:12px;">· сейчас</span>' : '') + '</div>'
+        + '<div class="cm-price-line">' + escRaw(priceLabel(p)) + (mo !== null && (p.unit !== 'month' || p.basis === 'per_sqm') ? ' · ≈ ' + escRaw(formatNum(mo)) + ' ₽ в месяц' : '') + '</div>'
+        + '<div class="cm-price-line">За период: <span class="cm-price-total">' + (cost !== null ? escRaw(formatNum(cost)) + ' ₽' : '— (укажите площадь)') + '</span>' + (p.note ? ' · ' + escRaw(p.note) : '') + '</div>'
+        + '</div>'
+        + (canEdit ? '<div class="cm-contact-actions"><a data-price-edit="' + p.id + '" title="Изменить">✎</a><a data-price-del="' + p.id + '" title="Удалить">✕</a></div>' : '')
+        + '</div>';
+    }).join('');
+    if (!canEdit) return;
+    listEl.querySelectorAll('[data-price-edit]').forEach(function(a) {
+      a.addEventListener('click', function() { const p = items.find(function(x) { return String(x.id) === a.getAttribute('data-price-edit'); }); if (p) openForm(p); });
+    });
+    listEl.querySelectorAll('[data-price-del]').forEach(function(a) {
+      a.addEventListener('click', async function() {
+        const p = items.find(function(x) { return String(x.id) === a.getAttribute('data-price-del'); });
+        if (!p) return;
+        if (!(await cmConfirm('Удалить период ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + '?'))) return;
+        try {
+          await ctx.api.resource('contract_price_periods').destroy({ filterByTk: p.id });
+          logHistory(type, id, [{ action: 'price', text: 'Удалён период цены ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + ': ' + priceLabel(p) }]);
+          await refresh();
+        } catch (e) { cmToast('Не удалось удалить период'); }
+      });
+    });
+  }
+  async function refresh() {
+    try { items = await loadPricePeriods(type, id); }
+    catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить график цены</span>'; return; }
+    renderList(); renderSummary();
+  }
+  await refresh();
+  // сумма/ставка/даты могут меняться в других блоках — пересчитываем итоги
+  overlay.addEventListener('input', function() { if (items.length) { renderList(); renderSummary(); } });
+  if (!canEdit || !addBtn) return;
+  addBtn.style.display = '';
+
+  amountEl.addEventListener('input', function() { sanitizeInput(amountEl, 'money'); });
+  function openForm(p) {
+    editId = p ? p.id : null;
+    const c = ctxInfo();
+    const last = items.length ? items[items.length - 1] : null;
+    if (p) {
+      fromEl.value = p.date_from || ''; toEl.value = p.date_to || ''; basisEl.value = p.basis || 'per_sqm'; unitEl.value = p.unit || 'month';
+      amountEl.value = p.amount === null || p.amount === undefined ? '' : String(p.amount).replace('.', ','); noteEl.value = p.note || '';
+    } else {
+      const start = last ? addDays(isoToDate(last.date_to) || new Date(), 1) : c.start;
+      fromEl.value = start ? dateToIso(start) : '';
+      toEl.value = (c.end && start && c.end.getTime() >= start.getTime()) ? dateToIso(c.end) : '';
+      basisEl.value = last ? (last.basis || 'per_sqm') : (c.per > 0 ? 'per_sqm' : 'fixed');
+      unitEl.value = last ? (last.unit || 'month') : 'month';
+      const suggested = last ? last.amount : (basisEl.value === 'per_sqm' ? c.per : c.amt);
+      amountEl.value = suggested > 0 ? String(suggested).replace('.', ',') : '';
+      noteEl.value = '';
+    }
+    formEl.style.display = 'block';
+    amountEl.focus();
+  }
+  function closeForm() { formEl.style.display = 'none'; editId = null; statusEl.textContent = ''; }
+  addBtn.addEventListener('click', function() { if (formEl.style.display === 'none') openForm(null); else closeForm(); });
+  cancelBtn.addEventListener('click', closeForm);
+  saveBtn.addEventListener('click', async function() {
+    const amount = numOf(amountEl.value);
+    const a = isoToDate(fromEl.value), b = isoToDate(toEl.value);
+    if (!a || !b) { cmToast('Укажите даты «с» и «по»'); return; }
+    if (b.getTime() < a.getTime()) { cmToast('Дата «по» раньше даты «с»'); return; }
+    if (!(amount > 0)) { cmToast('Укажите цену больше нуля'); return; }
+    const clash = items.find(function(p) {
+      if (editId && String(p.id) === String(editId)) return false;
+      const pa = isoToDate(p.date_from), pb = isoToDate(p.date_to);
+      return pa && pb && a.getTime() <= pb.getTime() && b.getTime() >= pa.getTime();
+    });
+    if (clash) { cmToast('Пересекается с периодом ' + fmtDate(clash.date_from) + ' — ' + fmtDate(clash.date_to)); return; }
+    const values = { contract_type: type, contract_ref_id: id, date_from: fromEl.value, date_to: toEl.value, basis: basisEl.value, unit: unitEl.value, amount: amount, note: noteEl.value.trim() };
+    saveBtn.disabled = true; statusEl.textContent = 'Сохранение…';
+    try {
+      if (editId) await ctx.api.resource('contract_price_periods').update({ filterByTk: editId, values: values });
+      else await ctx.api.resource('contract_price_periods').create({ values: values });
+      logHistory(type, id, [{ action: 'price', text: (editId ? 'Изменён период цены ' : 'Добавлен период цены ') + fmtDate(values.date_from) + ' — ' + fmtDate(values.date_to) + ': ' + priceLabel(values) }]);
+      closeForm();
+      await refresh();
+    } catch (e) { cmToast('Не удалось сохранить период'); statusEl.textContent = ''; }
+    finally { saveBtn.disabled = false; }
+  });
+
+  async function applyToContract(updates) {
+    const resp = await updateWithHistory(coll, id, updates);
+    const all = Object.assign({}, updates, (resp && resp.__cmDerived) || {});
+    if (r) Object.assign(r, all);
+    syncDerivedDom(all);
+    if (type === 'active' && r) renderAllActiveReadonly(overlay, r);
+    return all;
+  }
+  q('-price-calc').addEventListener('click', async function() {
+    const c = ctxInfo();
+    let total = 0;
+    for (let i = 0; i < items.length; i++) {
+      const v = periodCost(items[i], c.area);
+      if (v === null) { cmToast('Не хватает площади для расчёта периодов «за 1 кв.м.»'); return; }
+      total += v;
+    }
+    try {
+      await applyToContract({ total_amount: round2(total) });
+      cmToast('Сумма договора: ' + formatNum(round2(total)) + ' ₽');
+    } catch (e) { cmToast('Не удалось записать сумму договора'); }
+  });
+  q('-price-today').addEventListener('click', async function() {
+    const c = ctxInfo(), t = today();
+    const p = items.find(function(x) { const pa = isoToDate(x.date_from), pb = isoToDate(x.date_to); return pa && pb && pa.getTime() <= t.getTime() && t.getTime() <= pb.getTime(); });
+    if (!p) { cmToast('На сегодня в графике нет цены'); return; }
+    const factor = PRICE_UNIT_FACTOR[p.unit || 'month'] || 1;
+    try {
+      if (p.basis === 'per_sqm') await applyToContract({ rent_per_sqm: round2(Number(p.amount) * factor) });
+      else await applyToContract({ rent_amount: round2(Number(p.amount) * factor) });
+      cmToast('Ставка обновлена по цене на сегодня');
+    } catch (e) { cmToast('Не удалось обновить ставку'); }
+  });
+}
+
 // ---------- допстили: банк по БИК, контакты ----------
 if (!document.getElementById('cm-extra-style')) {
   const st = document.createElement('style');
@@ -1171,6 +1529,21 @@ if (!document.getElementById('cm-extra-style')) {
   st.textContent = `
     .cm-bik-hint { font-size: 12px; margin-top: 3px; min-height: 0; }
     .cm-field-msg { font-size: 12px; color: #cf1322; margin-top: 3px; }
+    .cm-derived-hint { font-size: 12px; color: #8c8c8c; margin-top: 3px; }
+    .cm-derived-hint a { color: #1677ff; text-decoration: none; font-weight: 600; }
+    .cm-price-hint { font-size: 12px; color: #8c8c8c; margin: 0 0 8px; }
+    .cm-price-summary { background: #fafafa; border: 1px solid #f0f0f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 8px; line-height: 1.6; }
+    .cm-price-summary b { color: #262626; }
+    .cm-price-summary .warn { color: #d48806; }
+    .cm-price-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+    .cm-price-row.now { background: #f6ffed; margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }
+    .cm-price-main { flex: 1; min-width: 0; }
+    .cm-price-dates { font-weight: 600; font-size: 13.5px; color: #262626; }
+    .cm-price-line { font-size: 13px; color: #595959; margin-top: 2px; }
+    .cm-price-total { color: #262626; font-weight: 600; }
+    .cm-price-form { margin-top: 10px; padding: 10px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
+    .cm-price-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+    .cm-price-form-grid label { font-size: 12px; color: #8c8c8c; display: block; margin-bottom: 2px; }
     .cm-hist-row { padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
     .cm-hist-meta { color: #8c8c8c; font-size: 11.5px; margin-bottom: 1px; }
     .cm-hist-body { color: #262626; word-break: break-word; }
@@ -1260,7 +1633,7 @@ function attachBikLookup(el) {
 
 async function purgeContractSideData(type, id) {
   const q = '?filter=' + encodeURIComponent(JSON.stringify({ contract_type: type, contract_ref_id: id }));
-  const names = ['contract_contacts', 'contract_addendums', 'contract_history'];
+  const names = ['contract_contacts', 'contract_addendums', 'contract_history', 'contract_price_periods'];
   for (let i = 0; i < names.length; i++) {
     try { await fetch('/api/' + names[i] + ':destroy' + q, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken() } }); }
     catch (e) { /* best-effort */ }
@@ -1476,7 +1849,7 @@ async function openCompletedContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
 
     let html = '<div class="cm-completed-banner">Договор в архиве · только просмотр</div>';
-    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
+    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
       + '<div id="cm-completed-files-list">' + renderFilesList(files, null) + '</div></div>'
@@ -1489,6 +1862,7 @@ async function openCompletedContractModal(id) {
     const addAddBtn = overlay.querySelector('#cm-completed-addendum-add-btn');
     if (addAddBtn) addAddBtn.style.display = 'none';
     await wireContacts(overlay, 'cm-completed', 'completed', id, false);
+    await wirePrices(overlay, 'cm-completed', 'completed', id, false, r);
     wireHistory(overlay, 'cm-completed', 'completed', id);
     bindFileOpenLinks(overlay);
 
@@ -1591,7 +1965,7 @@ async function openContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state);
 
     let html = '';
-    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'counterparty' ? renderContactsSection('cm-active') : ''); }).join('');
+    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-active') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-active') : ''); }).join('');
 
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-active-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
@@ -1606,6 +1980,8 @@ async function openContractModal(id) {
     body.innerHTML = html;
     await wireAddendums(overlay, 'cm-active', 'active', id, currentUser);
     await wireContacts(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser));
+    await wirePrices(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser), r);
+    wireDerivedHints(overlay);
     wireHistory(overlay, 'cm-active', 'active', id);
     wireActiveBlockEdits(overlay, id, r, currentUser);
 
@@ -1980,8 +2356,9 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       btn.disabled = true;
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
-        await updateWithHistory('rental_contracts', id, values);
-        Object.assign(r, values);
+        const upResp = await updateWithHistory('rental_contracts', id, values);
+        Object.assign(r, values, (upResp && upResp.__cmDerived) || {});
+        renderAllActiveReadonly(root, r);
         readonly.innerHTML = block.readonlyRenderer
           ? block.readonlyRenderer(r)
           : '<div class="cm-grid">' + block.fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
@@ -2043,6 +2420,7 @@ function renderFormingBody(r, currentUser) {
     html += '</div>';
   });
 
+  html += renderPricesSection('cm-forming');
   html += renderContactsSection('cm-forming');
   const files = r.contract_files || [];
   html += '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
@@ -2496,6 +2874,7 @@ async function completeContract(id, members, contractNumber) {
     });
   } catch (e) { /* best-effort */ }
 
+  await moveSide('contract_price_periods', 'active', id, 'completed', newId);
   await moveHistory('active', id, 'completed', newId);
   await logHistory('completed', newId, [{ action: 'status', text: 'Договор завершён и перенесён в «Архив»' }]);
   memberIds.forEach(function(uid) {
@@ -2561,6 +2940,7 @@ async function finalizeContract(id, members, contractNumber) {
     });
   } catch (e) { /* best-effort */ }
 
+  await moveSide('contract_price_periods', 'forming', id, 'active', newId);
   await moveHistory('forming', id, 'active', newId);
   await logHistory('active', newId, [{ action: 'status', text: 'Оформление завершено, договор переведён в «Активные»' }]);
   memberIds.forEach(function(uid) {
@@ -2681,6 +3061,8 @@ async function openFormingContractModal(id) {
     body.innerHTML = renderFormingBody(r, currentUser);
     await wireAddendums(overlay, 'cm-forming', 'forming', id, currentUser);
     await wireContacts(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser));
+    await wirePrices(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser), r);
+    wireDerivedHints(overlay);
     wireHistory(overlay, 'cm-forming', 'forming', id);
 
     if ((r.current_stage || 0) === 0) {

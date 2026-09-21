@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9EjlFBnqkU4adQzhUy3MGBWJuGXSJzFrTDu7xG9osSUlvs79lLI9HNR9rZzaqeK
+\restrict VQQxHNupqGwKSol3olf0RBpcrAnjLqXZZk2H6COb61owzgOR2bIySVEoIm0jb29
 
 -- Dumped from database version 14.24
 -- Dumped by pg_dump version 14.24
@@ -319,6 +319,42 @@ ALTER SEQUENCE public.contract_objects_id_seq OWNED BY public.contract_objects.i
 
 
 --
+-- Name: contract_price_periods; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_price_periods (
+    id bigint NOT NULL,
+    contract_type character varying(255),
+    contract_ref_id bigint,
+    date_from date,
+    date_to date,
+    basis character varying(255),
+    unit character varying(255),
+    amount double precision,
+    note character varying(255)
+);
+
+
+--
+-- Name: contract_price_periods_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.contract_price_periods_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: contract_price_periods_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.contract_price_periods_id_seq OWNED BY public.contract_price_periods.id;
+
+
+--
 -- Name: forming_contracts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -543,6 +579,13 @@ ALTER TABLE ONLY public.contract_objects ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: contract_price_periods id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_price_periods ALTER COLUMN id SET DEFAULT nextval('public.contract_price_periods_id_seq'::regclass);
+
+
+--
 -- Name: forming_contracts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -628,6 +671,14 @@ ALTER TABLE ONLY public.contract_objects
 
 
 --
+-- Name: contract_price_periods contract_price_periods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_price_periods
+    ADD CONSTRAINT contract_price_periods_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: forming_contracts forming_contracts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -709,6 +760,13 @@ CREATE INDEX contract_history_ref_idx ON public.contract_history USING btree (co
 
 
 --
+-- Name: cpp_ref_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cpp_ref_idx ON public.contract_price_periods USING btree (contract_type, contract_ref_id, date_from);
+
+
+--
 -- Name: t_contract_scan_f_b8nptmc4moz; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -726,5 +784,5 @@ CREATE UNIQUE INDEX user_table_settings_uq ON public.user_table_settings USING b
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9EjlFBnqkU4adQzhUy3MGBWJuGXSJzFrTDu7xG9osSUlvs79lLI9HNR9rZzaqeK
+\unrestrict VQQxHNupqGwKSol3olf0RBpcrAnjLqXZZk2H6COb61owzgOR2bIySVEoIm0jb29
 

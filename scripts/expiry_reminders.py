@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Напоминания об окончании срока активных договоров (строка попадает в contract_notifications с channel='deadlines'; дальше workflow «Уведомления по договорам → колокольчик» доставляет её в штатный колокольчик NocoBase).
+"""Напоминания об окончании срока активных договоров (сообщения кладутся прямо в штатный центр уведомлений NocoBase, канал «Сроки договоров»).
 
 Порог напоминания: за 90 / 60 / 30 / 14 / 7 дней и в день окончания (0); по истёкшим — один раз (-1).
 Каждый порог по конкретной дате окончания отправляется один раз (таблица contract_reminders_log);
@@ -12,9 +12,10 @@
     expiry_reminders.py --seed     # записать в журнал как «уже отправлено» без уведомлений (для истёкших при первом запуске)
 Запуск: cron ежедневно, например 0 9 * * *
 """
-import json, re, subprocess, sys
+import json, os, re, subprocess, sys
 from datetime import date
 
+REGISTRY_PAGE = os.environ.get('NB_REGISTRY_PAGE', 'b5znz7yxpy3')   # uid страницы реестра (ссылка «Открыть» в сообщении)
 DRY = '--dry-run' in sys.argv
 SEED = '--seed' in sys.argv
 THRESHOLDS = [0, 7, 14, 30, 60, 90]
@@ -73,7 +74,10 @@ for c in contracts:
     stmts.append("insert into contract_reminders_log(contract_id,threshold,end_date) values(%s,%s,%s);" % (c['id'], th, q(c['end_date'])))
     if not SEED:
         for uid in rcpt:
-            stmts.append("insert into contract_notifications(user_id,contract_id,title,text,is_read,created_at,source,channel) values(%s,%s,%s,%s,false,now(),'active','deadlines');" % (uid, c['id'], q(title), q(msg)))
+            # напрямую в штатный центр уведомлений: запись в contract_notifications обычным SQL НЕ запускает workflow доставки
+            stmts.append("insert into \"notificationInAppMessages\"(id,\"createdAt\",\"updatedAt\",\"userId\",\"channelName\",title,content,status,\"receiveTimestamp\",options) "
+                         "values (gen_random_uuid(),now(),now(),%s,'deadlines',%s,%s,'unread',(extract(epoch from now())*1000)::bigint,%s::json);"
+                         % (uid, q(title), q(msg), q(json.dumps({'url': '/admin/%s?open=active:%s' % (REGISTRY_PAGE, c['id'])}))))
 
 print('%s: %d напоминаний к отправке' % ('SEED' if SEED else ('DRY-RUN' if DRY else 'SEND'), len(report)))
 for r in report: print('  договор #%s порог %s (дней до конца: %s), получателей %s: %s' % r)

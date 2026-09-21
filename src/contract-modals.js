@@ -1331,7 +1331,7 @@ function renderPricesSection(prefix) {
     + '</div>'
     + '<div id="' + prefix + '-price-actions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">'
     + '<button class="cm-btn-save" id="' + prefix + '-price-calc">Рассчитать «Сумму договора» по графику</button>'
-    + '<button class="cm-btn-save" id="' + prefix + '-price-today">Обновить ставку по цене на сегодня</button></div>'
+    + '<button class="cm-btn-save" id="' + prefix + '-price-today">Применить цену периода на сегодня</button></div>'
     + '</div>';
 }
 
@@ -1425,6 +1425,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
           await ctx.api.resource('contract_price_periods').destroy({ filterByTk: p.id });
           logHistory(type, id, [{ action: 'price', text: 'Удалён период цены ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + ': ' + priceLabel(p) }]);
           await refresh();
+          await applyEffectivePrice(false);
         } catch (e) { cmToast('Не удалось удалить период'); }
       });
     });
@@ -1484,6 +1485,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       logHistory(type, id, [{ action: 'price', text: (editId ? 'Изменён период цены ' : 'Добавлен период цены ') + fmtDate(values.date_from) + ' — ' + fmtDate(values.date_to) + ': ' + priceLabel(values) }]);
       closeForm();
       await refresh();
+      await applyEffectivePrice(false);
     } catch (e) { cmToast('Не удалось сохранить период'); statusEl.textContent = ''; }
     finally { saveBtn.disabled = false; }
   });
@@ -1509,17 +1511,28 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       cmToast('Сумма договора: ' + formatNum(round2(total)) + ' ₽');
     } catch (e) { cmToast('Не удалось записать сумму договора'); }
   });
-  q('-price-today').addEventListener('click', async function() {
+  // Цена действующего сегодня периода становится ставкой и АП договора. Схема связей та же, что у ночного скрипта
+  // (scripts/apply_price_schedule.py): по «за 1 кв.м.» — ставка, АП = ставка × площадь; по фиксированной сумме — АП, ставка = АП / площадь.
+  async function applyEffectivePrice(explicit) {
+    if (!explicit && type !== 'active') return;
     const c = ctxInfo(), t = today();
-    const p = items.find(function(x) { const pa = isoToDate(x.date_from), pb = isoToDate(x.date_to); return pa && pb && pa.getTime() <= t.getTime() && t.getTime() <= pb.getTime(); });
-    if (!p) { cmToast('На сегодня в графике нет цены'); return; }
-    const factor = PRICE_UNIT_FACTOR[p.unit || 'month'] || 1;
+    const covering = items.filter(function(x) { const pa = isoToDate(x.date_from), pb = isoToDate(x.date_to); return pa && pb && pa.getTime() <= t.getTime() && t.getTime() <= pb.getTime(); });
+    const p = covering.length ? covering[covering.length - 1] : null;
+    if (!p) { if (explicit) cmToast('На сегодня в графике нет цены'); return; }
+    const monthly = Number(p.amount) * (PRICE_UNIT_FACTOR[p.unit || 'month'] || 1);
+    const upd = {};
+    if (p.basis === 'per_sqm') { upd.rent_per_sqm = round2(monthly); if (c.area > 0) upd.rent_amount = round2(upd.rent_per_sqm * c.area); }
+    else { upd.rent_amount = round2(monthly); if (c.area > 0) upd.rent_per_sqm = round2(monthly / c.area); }
+    const cur = { rent_per_sqm: numOf(recVal('rent_per_sqm')), rent_amount: numOf(recVal('rent_amount')) };
+    Object.keys(upd).forEach(function(k) { if (cur[k] !== null && Math.abs(cur[k] - upd[k]) < 0.005) delete upd[k]; });
+    if (!Object.keys(upd).length) { if (explicit) cmToast('Ставка уже соответствует графику'); return; }
     try {
-      if (p.basis === 'per_sqm') await applyToContract({ rent_per_sqm: round2(Number(p.amount) * factor) });
-      else await applyToContract({ rent_amount: round2(Number(p.amount) * factor) });
-      cmToast('Ставка обновлена по цене на сегодня');
-    } catch (e) { cmToast('Не удалось обновить ставку'); }
-  });
+      await applyToContract(upd);
+      logHistory(type, id, [{ action: 'price', text: 'Цена по графику применена (период ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + '): ' + priceLabel(p) }]);
+      cmToast('Цена по графику применена: ' + priceLabel(p));
+    } catch (e) { cmToast('Не удалось применить цену по графику'); }
+  }
+  q('-price-today').addEventListener('click', function() { applyEffectivePrice(true); });
 }
 
 // ---------- допстили: банк по БИК, контакты ----------

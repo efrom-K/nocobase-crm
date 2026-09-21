@@ -319,3 +319,73 @@ if (!window.__cmColsDocBound) {
   document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeColsPanel(); });
 }
 initColumnSettings();
+
+// ---------- подсветка договоров, по которым есть непрочитанные уведомления ----------
+// Ссылка в сообщении вида ...?open=<active|forming|completed>:<id> показывает, к какому договору оно относится;
+// строка договора в таблице подсвечивается, на вкладке видно число таких договоров. Пока сообщение не прочитано в колокольчике.
+const NOTIF_TABLE_BY_SOURCE = { active: 'ozazmpm4o4v', forming: 'formtbl000001', completed: 'ipb7gfluldk' };
+window.__cmNotifRows = window.__cmNotifRows || {};
+if (!document.getElementById('cm-notif-style')) {
+  const nst = document.createElement('style');
+  nst.id = 'cm-notif-style';
+  nst.textContent = `
+    @keyframes cm-notif-pulse { 0%, 100% { box-shadow: inset 4px 0 0 #fa8c16; } 50% { box-shadow: inset 4px 0 0 #ffd591; } }
+    .ant-table-tbody > tr.cm-notif-row > td { background: #fff7e6 !important; }
+    .main-registry-clickable-rows .ant-table-tbody > tr.cm-notif-row:hover > td { background: #ffe7ba !important; }
+    .ant-table-tbody > tr.cm-notif-row > td:first-child { animation: cm-notif-pulse 2s ease-in-out infinite; }
+    .cm-tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; margin-left: 6px; background: #fa8c16; color: #fff; font-size: 11px; font-weight: 600; text-align: center; vertical-align: 1px; }
+  `;
+  document.head.appendChild(nst);
+}
+function paintNotifRows() {
+  const map = window.__cmNotifRows || {};
+  TABLES.forEach(function(uid) {
+    const ids = map[uid] || {};
+    document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-tbody > tr[data-row-key]').forEach(function(tr) {
+      const msgs = ids[tr.getAttribute('data-row-key')];
+      if (msgs) {
+        if (!tr.classList.contains('cm-notif-row')) tr.classList.add('cm-notif-row');
+        const tip = 'Непрочитанные уведомления по этому договору:\n' + msgs.slice(0, 4).join('\n') + (msgs.length > 4 ? '\n…' : '');
+        if (tr.title !== tip) tr.title = tip;
+      } else if (tr.classList.contains('cm-notif-row')) {
+        tr.classList.remove('cm-notif-row');
+        tr.removeAttribute('title');
+      }
+    });
+    const tab = document.querySelector('.registry-local-tab[data-table="' + uid + '"] .ant-tabs-tab-btn');
+    if (tab) {
+      let badge = tab.querySelector('.cm-tab-badge');
+      const n = Object.keys(ids).length;
+      if (n) {
+        if (!badge) { badge = document.createElement('span'); badge.className = 'cm-tab-badge'; tab.appendChild(badge); }
+        if (badge.textContent !== String(n)) badge.textContent = String(n);
+        badge.title = 'Договоров с непрочитанными уведомлениями: ' + n;
+      } else if (badge) badge.remove();
+    }
+  });
+}
+async function refreshNotifRows() {
+  try {
+    const r = await fetch('/api/myInAppMessages:list?filter[status]=unread&pageSize=200', { headers: colAuthHeaders() });
+    const j = await r.json();
+    const list = (j && j.data && j.data.messages) ? j.data.messages : [];
+    const map = {};
+    list.forEach(function(m) {
+      const url = m.options && m.options.url ? String(m.options.url) : '';
+      const mm = url.match(/[?&]open=(forming|active|completed):(\d+)/);
+      if (!mm) return;
+      const uid = NOTIF_TABLE_BY_SOURCE[mm[1]];
+      map[uid] = map[uid] || {};
+      map[uid][mm[2]] = (map[uid][mm[2]] || []).concat([(m.title ? m.title + ': ' : '') + (m.content || '')]);
+    });
+    window.__cmNotifRows = map;
+  } catch (e) { /* остаёмся на прошлом состоянии */ }
+  paintNotifRows();
+}
+if (!window.__cmNotifTimers) {
+  window.__cmNotifTimers = true;
+  refreshNotifRows();
+  setInterval(refreshNotifRows, 8000);      // подтягиваем новые/прочитанные сообщения
+  setInterval(paintNotifRows, 600);         // строки таблицы пересоздаются при сортировке и листании — перекрашиваем
+  window.addEventListener('focus', refreshNotifRows);
+}

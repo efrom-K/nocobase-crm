@@ -162,6 +162,8 @@ function nbSetup() {
         if (!contractId) return;
         if (source === 'forming' && window.openFormingContractModal) {
           window.openFormingContractModal(contractId);
+        } else if (source === 'completed' && window.openCompletedContractModal) {
+          window.openCompletedContractModal(contractId);
         } else if (window.openContractModal) {
           window.openContractModal(contractId);
         }

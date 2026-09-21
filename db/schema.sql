@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict EMndJf06AlCj98NYeYqofOuKPVU5AGjaGDlMFBtfsIRqpNIsCcEm27JlrGg6tN1
+\restrict VPvUgb6FIsKTZwJ0MKWgXDMgd0ezrzl6G1oOeR9zRvCbYepQSFl2H4IYVTS1Vnb
 
 -- Dumped from database version 14.24
 -- Dumped by pg_dump version 14.24
@@ -212,6 +212,43 @@ CREATE SEQUENCE public.contract_contacts_id_seq
 --
 
 ALTER SEQUENCE public.contract_contacts_id_seq OWNED BY public.contract_contacts.id;
+
+
+--
+-- Name: contract_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_history (
+    id bigint NOT NULL,
+    contract_type character varying(255),
+    contract_ref_id bigint,
+    author_id bigint,
+    action character varying(255),
+    field character varying(255),
+    old_value text,
+    new_value text,
+    text text,
+    created_at timestamp with time zone
+);
+
+
+--
+-- Name: contract_history_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.contract_history_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: contract_history_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.contract_history_id_seq OWNED BY public.contract_history.id;
 
 
 --
@@ -450,6 +487,13 @@ ALTER TABLE ONLY public.contract_contacts ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
+-- Name: contract_history id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_history ALTER COLUMN id SET DEFAULT nextval('public.contract_history_id_seq'::regclass);
+
+
+--
 -- Name: contract_notifications id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -515,6 +559,14 @@ ALTER TABLE ONLY public.contract_chat_messages
 
 ALTER TABLE ONLY public.contract_contacts
     ADD CONSTRAINT contract_contacts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contract_history contract_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_history
+    ADD CONSTRAINT contract_history_pkey PRIMARY KEY (id);
 
 
 --
@@ -600,6 +652,20 @@ CREATE INDEX contract_chat_messages_contract_id ON public.contract_chat_messages
 
 
 --
+-- Name: contract_history_author_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX contract_history_author_id ON public.contract_history USING btree (author_id);
+
+
+--
+-- Name: contract_history_ref_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX contract_history_ref_idx ON public.contract_history USING btree (contract_type, contract_ref_id, created_at);
+
+
+--
 -- Name: t_contract_scan_f_b8nptmc4moz; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -610,5 +676,5 @@ CREATE INDEX t_contract_scan_f_b8nptmc4moz ON public.t_contract_scan USING btree
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EMndJf06AlCj98NYeYqofOuKPVU5AGjaGDlMFBtfsIRqpNIsCcEm27JlrGg6tN1
+\unrestrict VPvUgb6FIsKTZwJ0MKWgXDMgd0ezrzl6G1oOeR9zRvCbYepQSFl2H4IYVTS1Vnb
 

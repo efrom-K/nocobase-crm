@@ -1129,7 +1129,8 @@ function renderHistorySection(prefix) {
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-history-toggle">Показать</button></div>'
     + '<div id="' + prefix + '-history-list" style="display:none;margin-top:6px;"></div></div>';
 }
-function histShort(v) {
+function histShort(v, field) {
+  if (field && STATUS_OPTIONS[field]) { const o = STATUS_OPTIONS[field].find(function(x) { return x.value === String(v); }); if (o) return o.label; }
   const s = /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? fromISODateDisplay(v) : String(v);
   return s.length > 140 ? s.slice(0, 140) + '…' : s;
 }
@@ -1140,8 +1141,8 @@ function renderHistoryList(items) {
     let body;
     if (h.action === 'field') {
       body = '<b>' + esc(fieldLabel(h.field)) + '</b>: '
-        + '<span style="color:#8c8c8c;">' + (h.old_value ? esc(histShort(h.old_value)) : 'пусто') + '</span>'
-        + ' → <span style="color:#262626;">' + (h.new_value ? esc(histShort(h.new_value)) : 'пусто') + '</span>';
+        + '<span style="color:#8c8c8c;">' + (h.old_value ? esc(histShort(h.old_value, h.field)) : 'пусто') + '</span>'
+        + ' → <span style="color:#262626;">' + (h.new_value ? esc(histShort(h.new_value, h.field)) : 'пусто') + '</span>';
     } else {
       body = esc(h.text || h.action);
     }
@@ -1535,6 +1536,33 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   q('-price-today').addEventListener('click', function() { applyEffectivePrice(true); });
 }
 
+// ---------- статусы-светофоры (только активные договоры) ----------
+const STATUS_TONES = {
+  green: { bg: '#f6ffed', border: '#b7eb8f', fg: '#389e0d' },
+  amber: { bg: '#fffbe6', border: '#ffe58f', fg: '#d48806' },
+  red: { bg: '#fff2f0', border: '#ffccc7', fg: '#cf1322' }
+};
+// значения имеют числовой префикс, чтобы при сортировке по столбцу проблемные («красные») шли первыми
+const STATUS_OPTIONS = {
+  contract_status: [
+    { value: '3_ok', label: 'В порядке', tone: 'green' },
+    { value: '2_attention', label: 'Требует внимания', tone: 'amber' },
+    { value: '1_problem', label: 'Проблема', tone: 'red' }
+  ],
+  payment_status: [
+    { value: '3_paid', label: 'Оплачено', tone: 'green' },
+    { value: '2_waiting', label: 'Ожидает оплаты', tone: 'amber' },
+    { value: '1_overdue', label: 'Просрочка', tone: 'red' }
+  ]
+};
+function statusPill(name, value) {
+  if (!value) return '<span style="color:#bfbfbf;">Не задан</span>';
+  const o = (STATUS_OPTIONS[name] || []).find(function(x) { return x.value === value; });
+  if (!o) return escRaw(value);
+  const t = STATUS_TONES[o.tone];
+  return '<span class="cm-pill" style="background:' + t.bg + ';border-color:' + t.border + ';color:' + t.fg + ';">' + escRaw(o.label) + '</span>';
+}
+
 // ---------- допстили: банк по БИК, контакты ----------
 if (!document.getElementById('cm-extra-style')) {
   const st = document.createElement('style');
@@ -1542,6 +1570,7 @@ if (!document.getElementById('cm-extra-style')) {
   st.textContent = `
     .cm-bik-hint { font-size: 12px; margin-top: 3px; min-height: 0; }
     .cm-field-msg { font-size: 12px; color: #cf1322; margin-top: 3px; }
+    .cm-pill { display: inline-block; border: 1px solid; border-radius: 6px; padding: 4px 12px; font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
     .cm-derived-hint { font-size: 12px; color: #8c8c8c; margin-top: 3px; }
     .cm-derived-hint a { color: #1677ff; text-decoration: none; font-weight: 600; }
     .cm-price-hint { font-size: 12px; color: #8c8c8c; margin: 0 0 8px; }
@@ -1862,7 +1891,7 @@ async function openCompletedContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
 
     let html = '<div class="cm-completed-banner">Договор в архиве · только просмотр</div>';
-    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
+    html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
       + '<div id="cm-completed-files-list">' + renderFilesList(files, null) + '</div></div>'
@@ -2086,6 +2115,7 @@ function readonlyFieldValue(f, r) {
   if (f.name === 'end_date' && r.__kind === 'active') return esc(fromISODateDisplay(v)) + expiryBadge(v, r.termination_date);
   if (f.type === 'date') return esc(fromISODateDisplay(v));
   if (f.type === 'money') return money(v);
+  if (f.type === 'status') return statusPill(f.name, v);
   if (f.type === 'url') return linkHtml(v);
   if (f.type === 'textarea') return linkifyText(v);
   if (f.name === 'area_sqm') return formatNum(v);
@@ -2118,6 +2148,12 @@ function renderEditableField(f, value) {
       return '<option value="' + escAttr(o) + '"' + (value === o ? ' selected' : '') + '>' + esc(o) + '</option>';
     }).join('');
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><select class="cm-field-input" data-field="' + f.name + '"><option value=""' + (!value ? ' selected' : '') + '>Не выбрано</option>' + opts + '</select></div>';
+  }
+  if (f.type === 'status') {
+    const opts = (STATUS_OPTIONS[f.name] || []).map(function(o) {
+      return '<option value="' + escAttr(o.value) + '"' + (value === o.value ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+    }).join('');
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><select class="cm-field-input" data-field="' + f.name + '"><option value=""' + (!value ? ' selected' : '') + '>Не задан</option>' + opts + '</select></div>';
   }
   if (f.type === 'url') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="url" class="cm-field-input" data-field="' + f.name + '" placeholder="https://…" value="' + escAttr(value) + '"></div>';
@@ -2219,6 +2255,10 @@ function bindComboField(root, fieldName, options) {
 }
 
 const ACTIVE_BLOCK_DEFS = [
+  { key: 'status', title: 'Статусы', activeOnly: true, fields: [
+      { name: 'contract_status', label: 'Статус договора', type: 'status' },
+      { name: 'payment_status', label: 'Статус оплаты', type: 'status' }
+  ]},
   { key: 'data', title: 'Блок Данных по договору', fields: [
       { name: 'object_name', label: 'Объект', type: 'text' },
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
@@ -2311,6 +2351,8 @@ function collectFormValues(formEl, fieldTypes) {
     if (el.type === 'checkbox') {
       values[name] = el.checked;
     } else if (fieldTypes[name] === 'date') {
+      values[name] = el.value ? el.value : null;
+    } else if (fieldTypes[name] === 'status') {
       values[name] = el.value ? el.value : null;
     } else {
       values[name] = toApiValue(name, normalizeValue(name, el.value));
@@ -3220,7 +3262,7 @@ if (!window.__mainRowClickBound) {
   document.addEventListener('click', (e) => {
     const row = e.target.closest ? e.target.closest('.ant-table-tbody > tr') : null;
     if (!row) return;
-    if (e.target.closest('button, a, .ant-btn')) return;
+    if (e.target.closest('button, a, .ant-btn, .edit-icon, .ant-select, .ant-popover, .ant-select-dropdown')) return;
     const table = row.closest('table');
     if (!table) return;
     const ths = table.querySelectorAll('thead th');

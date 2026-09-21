@@ -18,12 +18,14 @@ def psql(sql, tuples=True):
 def uid():
     return ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(11))
 TABLES = [('ozazmpm4o4v','rental_contracts'),('formtbl000001','forming_contracts'),('ipb7gfluldk','completed_contracts')]
-ORDER = ['contract_number','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','end_date','rent_amount','deposit_amount','inn']
-NEW = ['total_amount','end_date','rent_amount','deposit_amount','inn']
+ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','end_date','rent_amount','deposit_amount','inn']
+NEW = ['contract_status','payment_status','total_amount','end_date','rent_amount','deposit_amount','inn']
+ACTIVE_ONLY = {'contract_status', 'payment_status'}     # статусы-светофоры есть только у активных договоров (rental_contracts)
+STATUS_FIELDS = ACTIVE_ONLY
 HIDDEN_DEFAULT = {'end_date','rent_amount','deposit_amount','inn'}
 DATES = {'date_signed','date_act','end_date'}
 NUMS = {'area_sqm','total_amount','rent_amount','deposit_amount'}
-def model_for(f): return 'DisplayDateTimeFieldModel' if f in DATES else ('DisplayNumberFieldModel' if f in NUMS else 'DisplayTextFieldModel')
+def model_for(f): return 'DisplayEnumFieldModel' if f in STATUS_FIELDS else ('DisplayDateTimeFieldModel' if f in DATES else ('DisplayNumberFieldModel' if f in NUMS else 'DisplayTextFieldModel'))
 def q(s): return "'" + str(s).replace("'", "''") + "'"
 stmts = ['begin;']
 for table_uid, coll in TABLES:
@@ -36,11 +38,18 @@ for table_uid, coll in TABLES:
             stmts.append("update \"flowModels\" set options = jsonb_set(options::jsonb, '{sortIndex}', %d::text::jsonb)::json where uid=%s;" % (i, q(cu)))
             # тип отображения у существующих столбцов
             stmts.append("update \"flowModels\" set options = jsonb_set(options::jsonb, '{use}', %s::jsonb)::json where options::json->>'parentId'=%s and options::json->>'subKey'='field';" % (q(json.dumps(model_for(fp))), q(cu)))
+        elif fp in ACTIVE_ONLY and coll != 'rental_contracts':
+            continue
         else:
             cu, fu = uid(), uid()
             col = {'use':'TableColumnModel','parentId':table_uid,'subKey':'columns','subType':'array','sortIndex':i,'props':{'sorter':True},
                    'stepParams':{'fieldSettings':{'init':{'dataSourceKey':'main','collectionName':coll,'fieldPath':fp}},'tableColumnSettings':{'sorter':{'sorter':True}}}}
             if fp in HIDDEN_DEFAULT: col['hidden'] = True
+            if fp in STATUS_FIELDS:      # правка значения прямо в ячейке таблицы (штатная «быстрая правка»)
+                col['props']['editable'] = True
+                col['stepParams']['tableColumnSettings']['quickEdit'] = {'editable': True}
+                col['stepParams']['tableColumnSettings']['width'] = {'width': 190}
+                col['props']['width'] = 190
             fld = {'use':model_for(fp),'parentId':cu,'subKey':'field','subType':'object','sortIndex':0,'props':{},'stepParams':{}}
             stmts.append("insert into \"flowModels\"(uid,name,options) values (%s,%s,%s::json);" % (q(cu), q(cu), q(json.dumps(col))))
             stmts.append("insert into \"flowModels\"(uid,name,options) values (%s,%s,%s::json);" % (q(fu), q(fu), q(json.dumps(fld))))
@@ -61,7 +70,7 @@ def psql(sql, tuples=True):
     return r.stdout.decode()
 def q(s): return "'" + str(s).replace("'", "''") + "'"
 TABLES = ['ozazmpm4o4v','formtbl000001','ipb7gfluldk']
-ORDER = ['contract_number','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','end_date','rent_amount','deposit_amount','inn']
+ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','end_date','rent_amount','deposit_amount','inn']
 MONEY = {'total_amount','rent_amount','deposit_amount'}
 AREA = {'area_sqm'}
 stmts = ['begin;']

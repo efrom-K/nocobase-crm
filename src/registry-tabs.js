@@ -101,6 +101,14 @@ function applyColCfg(uid, cfg) {
   if (!cols.length) return false;
   const def = colDefaults[uid] || { order: [] };
   const order = (cfg.order || []).filter(function(n) { return cols.some(function(c) { return colName(c) === n; }); });
+  // столбцы, которых нет в сохранённом порядке пользователя (добавлены позже), встают после ближайшего предшествующего
+  // им столбца по умолчанию, а не уезжают в конец таблицы
+  (def.order || []).forEach(function(n, i) {
+    if (order.indexOf(n) !== -1 || !cols.some(function(c) { return colName(c) === n; })) return;
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) { const k = order.indexOf(def.order[j]); if (k !== -1) { at = k + 1; break; } }
+    order.splice(at, 0, n);
+  });
   const known = {};
   order.forEach(function(n, i) { known[n] = i; });
   const hidden = {};
@@ -333,6 +341,10 @@ if (!document.getElementById('cm-notif-style')) {
     .ant-table-tbody > tr.cm-notif-row > td { background: #fff7e6 !important; }
     .main-registry-clickable-rows .ant-table-tbody > tr.cm-notif-row:hover > td { background: #ffe7ba !important; }
     .ant-table-tbody > tr.cm-notif-row > td:first-child { animation: cm-notif-pulse 2s ease-in-out infinite; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag { border-radius: 6px; padding: 3px 12px; margin: 0; font-size: 12px; line-height: 18px; font-weight: 500; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-gold { background: #fffbe6; border-color: #ffe58f; color: #d48806; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-red { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }
     .cm-tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; margin-left: 6px; background: #fa8c16; color: #fff; font-size: 11px; font-weight: 600; text-align: center; vertical-align: 1px; }
   `;
   document.head.appendChild(nst);

@@ -31,4 +31,16 @@ for (const p of fs.readdirSync(base)) {
     if (touched) { fs.writeFileSync(ruF, JSON.stringify(ru, null, 2) + '\n'); locChanged++; }
   }
 }
+// явные переопределения: { "plugin-имя": { "Ключ": "Перевод" } } — применяются всегда (даже поверх существующего перевода)
+const ovF = path.join(path.dirname(process.argv[2] || '/tmp/ru_dict.json'), 'overrides.json');
+if (fs.existsSync(ovF)) {
+  const OV = JSON.parse(fs.readFileSync(ovF, 'utf8'));
+  for (const [plugin, kv] of Object.entries(OV)) {
+    const ruF = path.join(base, plugin, 'dist/locale/ru-RU.json');
+    const ru = fs.existsSync(ruF) ? JSON.parse(fs.readFileSync(ruF, 'utf8')) : {};
+    let touched = false;
+    for (const [k, v] of Object.entries(kv)) if (ru[k] !== v) { ru[k] = v; touched = true; }
+    if (touched) { fs.writeFileSync(ruF, JSON.stringify(ru, null, 2) + '\n'); locChanged++; }
+  }
+}
 console.log('package.json изменено:', pkgChanged, '| ru-RU.json изменено/создано:', locChanged);

@@ -1385,7 +1385,7 @@ async function openCompletedContractModal(id) {
             <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
           </div>
           <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
-            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Завершённый договор</div>
+            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Договор в архиве</div>
           </div>
           <div class="cm-body-flex" style="flex:1;min-height:0;">
             <div class="cm-chat-col" id="cm-chat-col">
@@ -1434,7 +1434,7 @@ async function openCompletedContractModal(id) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
       delBtn.style.display = '';
       delBtn.addEventListener('click', async function() {
-        if (!(await cmConfirm('Удалить завершённый договор «' + contractNumber + '» безвозвратно? Это действие нельзя отменить.'))) return;
+        if (!(await cmConfirm('Удалить договор из архива «' + contractNumber + '» безвозвратно? Это действие нельзя отменить.'))) return;
         delBtn.disabled = true;
         try {
           await ctx.api.resource('completed_contracts').destroy({ filterByTk: id });
@@ -1456,7 +1456,7 @@ async function openCompletedContractModal(id) {
 
     initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
 
-    let html = '<div class="cm-completed-banner">Договор завершён · только просмотр</div>';
+    let html = '<div class="cm-completed-banner">Договор в архиве · только просмотр</div>';
     html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
@@ -2424,7 +2424,7 @@ async function advanceStage(id, root, currentUser) {
 }
 
 async function completeContract(id, members, contractNumber) {
-  if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перевести в «Завершённые»?'))) return;
+  if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перенести в «Архив»?'))) return;
   const res = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const payload = {
@@ -2475,9 +2475,9 @@ async function completeContract(id, members, contractNumber) {
   } catch (e) { /* best-effort */ }
 
   await moveHistory('active', id, 'completed', newId);
-  await logHistory('completed', newId, [{ action: 'status', text: 'Договор завершён и перенесён в «Завершённые»' }]);
+  await logHistory('completed', newId, [{ action: 'status', text: 'Договор завершён и перенесён в «Архив»' }]);
   memberIds.forEach(function(uid) {
-    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор завершён и перенесён в раздел «Завершённые»', 'completed', 'status');
+    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор завершён и перенесён в раздел «Архив»', 'completed', 'status');
   });
 
   try {
@@ -2486,7 +2486,7 @@ async function completeContract(id, members, contractNumber) {
     cmToast('Договор перенесён, но исходная запись не удалилась — уберите вручную');
   }
   closeContractModal();
-  cmToast('Готово: договор переведён в «Завершённые»');
+  cmToast('Готово: договор перенесён в «Архив»');
   setTimeout(function() { location.reload(); }, 400);
 }
 

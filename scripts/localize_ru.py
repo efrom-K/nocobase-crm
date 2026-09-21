@@ -6,7 +6,7 @@
 Часть 2 — подписи плагинов (описания в package.json и недостающие ключи ru-RU.json) — scripts/ru/patch_plugins_ru.js,
 запускается внутри контейнера:  docker cp scripts/ru/. nocobase-app-1:/tmp/ru/ && docker exec nocobase-app-1 node /tmp/ru/patch_plugins_ru.js /tmp/ru/ru_dict.json
 и затем docker restart. После обновления образа NocoBase часть 2 нужно прогнать заново.
-Язык системы: systemSettings.enabledLanguages = ["ru-RU","en-US"], appLang = "ru-RU".
+Язык системы: systemSettings.enabledLanguages = ["ru-RU"] (ТОЛЬКО русский: иначе сохранённый в браузере en-US перебивает системный язык), appLang = "ru-RU".
 """
 import json, os, re, sys, urllib.request, urllib.error
 BASE = os.environ.get('NB_URL', 'http://localhost:13000').rstrip('/')

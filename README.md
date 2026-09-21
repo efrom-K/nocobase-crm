@@ -94,6 +94,10 @@ python3 scripts/bik_load.py        # разовая загрузка (нужен
 
 В репозитории нет данных арендаторов и секретов. Дампы базы с данными в git не добавлять (в `.gitignore` есть шаблоны).
 
+## Пайплайн
+
+Проверки — GitHub Actions (`.github/workflows/ci.yml`, `scripts/ci_checks.py`), выкладка — агент на сервере, который вытягивает зелёные коммиты `main` и обновляет JS-блоки. Подробно: [`docs/deploy.md`](docs/deploy.md).
+
 ## Лицензия
 
 MIT, см. `LICENSE`. Сам NocoBase распространяется на своих условиях (AGPL-3.0 / коммерческая лицензия), см. https://github.com/nocobase/nocobase.

@@ -1,0 +1,79 @@
+# nocobase-crm
+
+**EN:** A rental-contracts CRM built on top of [NocoBase](https://www.nocobase.com/) (Docker Compose + PostgreSQL), written for a Russian-language
+office, so the UI is in Russian. Contracts move through three stages — *Forming* (6-step approval by role) → *Active* → *Completed* — and are shown in a
+registry with modal contract cards. Highlights: multiple extra contacts per contract, bank name and correspondent account auto-filled from the Russian
+Central Bank BIK directory (weekly sync from the official ED807 file), read-only view of completed contracts, per-contract chat, files and addenda.
+The custom UI is a set of NocoBase JS blocks (`src/`), the DB schema (no data) and a page snapshot are in `db/`, and `docs/flow-engine-notes.md`
+collects hard-won notes about the NocoBase flow-engine. MIT licensed.
+
+---
+
+CRM для учёта арендных договоров на базе [NocoBase](https://www.nocobase.com/) (Docker Compose + PostgreSQL).
+Главный экран — **«Реестр договоров»** с тремя вкладками по жизненному циклу договора:
+
+**Формирующиеся** → (оформление по 6 этапам с ролями) → **Активные** → («Завершить договор») → **Завершённые**
+
+## Что умеет
+
+- Карточка договора в модальном окне: данные договора, помещение, расчёты, контрагент, примечания, файлы, доп. соглашения.
+- Оформление нового договора по этапам (заявка → объявление → согласование → подписание → оплата → финал); подтверждать этап может только своя роль (Отдел аренды / Юр. отдел / Бухгалтерия).
+- Чат по договору, сотрудники по договору, уведомления.
+- **Дополнительные контакты** (`contract_contacts`): у договора может быть сколько угодно контактных лиц — ФИО, должность, телефон, почта. Основной контакт остаётся в полях договора (по нему работают колонки таблицы), остальные — отдельным списком. При смене статуса договора контакты переезжают вместе с ним.
+- **Автоподстановка банка по БИК**: при вводе 9 цифр БИК подставляются название банка и корр. счёт из справочника ЦБ РФ (`bik_directory`, обновляется раз в неделю из ED807). Если БИК не найден — подсказка, поля можно заполнить вручную.
+- Просмотр **завершённых** договоров (только чтение: все блоки, контакты, файлы, доп. соглашения, чат, сотрудники).
+
+## Структура репозитория
+
+| Путь | Что там |
+|---|---|
+| `docker-compose.yml`, `.env.example` | NocoBase + PostgreSQL. Секреты только в `.env` (в git не попадает) |
+| `src/contract-modals.js` | Основной код: все модальные карточки, контакты, БИК, перенос между статусами |
+| `src/registry-tabs.js`, `objects-sidebar.js`, `global-search.js`, `notification-bell.js` | Остальные JS-блоки страницы реестра |
+| `db/schema.sql` | Схема кастомных таблиц (**без данных**) |
+| `db/registry-page.*.json` | Снимок конфигурации страницы реестра (`flowModels` + `flowModelTreePath`); JS-код блоков вынесен в `src/` и подставляется по ссылке `{"$file": ...}` |
+| `scripts/deploy_block.py` | Выкладка JS-файла в блок NocoBase |
+| `scripts/bik_load.py` | Загрузка справочника БИК ЦБ (cron, раз в неделю) |
+| `docs/flow-engine-notes.md` | Грабли NocoBase flow-engine, на которые уже наступили |
+
+## Запуск
+
+```bash
+cp .env.example .env        # заполнить APP_KEY и DB_PASSWORD
+docker compose up -d        # NocoBase на http://localhost:13000
+```
+
+Дальше в NocoBase: создать коллекции по `db/schema.sql` (либо загрузить схему в БД и добавить коллекции через
+«Менеджер источников данных» / API `collections:create`), собрать страницу реестра по снимку из `db/`.
+Автоматического импорта снимка страницы в репозитории нет — он нужен как справка и для ручного восстановления.
+
+### Выкладка изменений в JS
+
+```bash
+scripts/deploy_block.py ie2yqcr89cg src/contract-modals.js --ssh user@server   # или без --ssh для локального docker
+```
+Код блока подхватывается при перезагрузке страницы, рестарт не нужен. Перед правкой блока сделайте бэкап `flowModels`.
+Соответствие `uid` → файл: см. `$file` в `db/registry-page.flowModels.json`.
+
+### Справочник БИК
+
+```bash
+python3 scripts/bik_load.py        # разовая загрузка (нужен docker и доступ к cbr.ru)
+# cron, раз в неделю:
+0 4 * * 1 /usr/bin/python3 /path/to/scripts/bik_load.py >> /var/log/bik_load.log 2>&1
+```
+Источник — официальный файл ЦБ `https://www.cbr.ru/s/newbik` (ED807). Если разбор дал меньше 1000 записей, скрипт ничего не трогает.
+
+## Модель данных (кратко)
+
+- `forming_contracts`, `rental_contracts` (активные), `completed_contracts` — одна и та же схема полей; договор физически переезжает между таблицами при смене статуса.
+- `contract_contacts`, `contract_addendums`, `contract_chat_messages`, `contract_notifications` — «боковые» данные, привязка по паре (`contract_type` ∈ `forming|active|completed`, `contract_ref_id`).
+- `bik_directory` — справочник банков (`bik` уникален).
+
+## Безопасность
+
+В репозитории нет данных арендаторов и секретов. Дампы базы с данными в git не добавлять (в `.gitignore` есть шаблоны).
+
+## Лицензия
+
+MIT, см. `LICENSE`. Сам NocoBase распространяется на своих условиях (AGPL-3.0 / коммерческая лицензия), см. https://github.com/nocobase/nocobase.

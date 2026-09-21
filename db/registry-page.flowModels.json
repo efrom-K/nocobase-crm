@@ -1,0 +1,1283 @@
+[
+  {
+    "uid": "1zhcp3lc38l",
+    "name": "na0a6llq84b",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 3,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "object_name"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "3a5tmdx7for",
+    "name": "s7xanxi21xc",
+    "options": {
+      "use": "JSBlockModel",
+      "props": {},
+      "subKey": "items",
+      "subType": "array",
+      "parentId": "9r8030mskby",
+      "sortIndex": 0,
+      "stepParams": {
+        "jsSettings": {
+          "runJs": {
+            "code": {
+              "$file": "src/global-search.js"
+            },
+            "version": "v2"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "3jj0cy56eq8",
+    "name": "k50tm2pdyme",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 8,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "tenant_fio"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "4m4psguto87",
+    "name": "w7pixjgi6b3",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "6yxp9eqo3e0",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "4vq8z2s6jvi",
+    "name": "ugwrycpzy2f",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 4,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "tenant_name"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "5mbjv6l97v1",
+    "name": "h3p38dnnt9w",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 0,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "contract_number"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "5whd1o1bdwu",
+    "name": "2unuplmh5bu",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "4vq8z2s6jvi",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "6iix3z2222z",
+    "name": "wf9cqjecast",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "kvpu0n3pxhl",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "6yxp9eqo3e0",
+    "name": "2yy8vewl96p",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 2,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "date_act"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "933u3y5olj0",
+    "name": "yb64omnrvfm",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "1zhcp3lc38l",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "94dc7e408c7",
+    "name": "94dc7e408c7",
+    "options": {
+      "use": "JSItemActionModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "actions",
+      "subType": "array",
+      "props": {},
+      "stepParams": {},
+      "sortIndex": 1,
+      "flowRegistry": {}
+    }
+  },
+  {
+    "uid": "9r8030mskby",
+    "name": "oupckq663cg",
+    "options": {
+      "use": "BlockGridModel",
+      "parentId": "n3u0ryxmh0a",
+      "subKey": "grid",
+      "subType": "object",
+      "props": {
+        "layout": {
+          "version": 2,
+          "rows": [
+            {
+              "id": "h6lta5xkrfi",
+              "cells": [
+                {
+                  "id": "h6lta5xkrfi:cell:0",
+                  "items": [
+                    "objlistnew01"
+                  ]
+                },
+                {
+                  "id": "h6lta5xkrfi:cell:1",
+                  "items": [
+                    "3a5tmdx7for",
+                    "regtabswitch1",
+                    "ozazmpm4o4v",
+                    "formtbl000001",
+                    "ipb7gfluldk"
+                  ]
+                }
+              ],
+              "sizes": [
+                4,
+                20
+              ]
+            }
+          ]
+        },
+        "rows": {
+          "h6lta5xkrfi": [
+            [
+              "objlistnew01"
+            ],
+            [
+              "3a5tmdx7for",
+              "regtabswitch1",
+              "ozazmpm4o4v",
+              "formtbl000001",
+              "ipb7gfluldk"
+            ]
+          ]
+        },
+        "sizes": {
+          "h6lta5xkrfi": [
+            4,
+            20
+          ]
+        },
+        "rowOrder": [
+          "h6lta5xkrfi"
+        ],
+        "rowGap": 16,
+        "colGap": 16
+      },
+      "stepParams": {
+        "gridSettings": {
+          "grid": {
+            "layout": {
+              "version": 2,
+              "rows": [
+                {
+                  "id": "h6lta5xkrfi",
+                  "cells": [
+                    {
+                      "id": "h6lta5xkrfi:cell:0",
+                      "items": [
+                        "objlistnew01"
+                      ]
+                    },
+                    {
+                      "id": "h6lta5xkrfi:cell:1",
+                      "items": [
+                        "3a5tmdx7for",
+                        "regtabswitch1",
+                        "ozazmpm4o4v",
+                        "formtbl000001",
+                        "ipb7gfluldk"
+                      ]
+                    }
+                  ],
+                  "sizes": [
+                    4,
+                    20
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "parent": "n3u0ryxmh0a",
+      "sortIndex": 0,
+      "flowRegistry": {},
+      "filterManager": []
+    }
+  },
+  {
+    "uid": "aigdxsrjjuv",
+    "name": "4okz89gq5uk",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "contract_number"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "bf2zf2jcdr8",
+    "name": "xo0g14fgwcl",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "rkbl04satg4",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "c1wgdu5eohi",
+    "name": "t6weub66rd8",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 4,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "tenant_name"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "cyv4kzbqaay",
+    "name": "lh91uhw13pz",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "x0g2i7abyac",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "evw3cmag4pc",
+    "name": "qo9jdi5o2k4",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "c1wgdu5eohi",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "fmgqjf34pf6",
+    "name": "8fw020trd6k",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "5mbjv6l97v1",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol01",
+    "name": "formcol01",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "contract_number"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol01z",
+    "name": "formcol01z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol01",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol02",
+    "name": "formcol02",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 2,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "date_signed"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol02z",
+    "name": "formcol02z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol02",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol03",
+    "name": "formcol03",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 3,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "date_act"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol03z",
+    "name": "formcol03z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol03",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol04",
+    "name": "formcol04",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 4,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "object_name"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol04z",
+    "name": "formcol04z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol04",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol05",
+    "name": "formcol05",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 5,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "tenant_name"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol05z",
+    "name": "formcol05z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol05",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol06",
+    "name": "formcol06",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 6,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "area_sqm"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol06z",
+    "name": "formcol06z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol06",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol07",
+    "name": "formcol07",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 7,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "email"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol07z",
+    "name": "formcol07z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol07",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol08",
+    "name": "formcol08",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 8,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "phone"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol08z",
+    "name": "formcol08z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol08",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formcol09",
+    "name": "formcol09",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "formtbl000001",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 9,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts",
+            "fieldPath": "tenant_fio"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "formcol09z",
+    "name": "formcol09z",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "formcol09",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "formtbl000001",
+    "name": "formtbl000001",
+    "options": {
+      "use": "TableBlockModel",
+      "parentId": "9r8030mskby",
+      "subKey": "items",
+      "subType": "array",
+      "sortIndex": 5,
+      "props": {},
+      "stepParams": {
+        "resourceSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "forming_contracts"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "ft1bypi5px5",
+    "name": "fr6q2ym589y",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "q7vddklri30",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "ie2yqcr89cg",
+    "name": "ie2yqcr89cg",
+    "options": {
+      "use": "JSBlockModel",
+      "props": {},
+      "subKey": "items",
+      "subType": "array",
+      "parentId": "9r8030mskby",
+      "sortIndex": 3,
+      "stepParams": {
+        "jsSettings": {
+          "runJs": {
+            "code": {
+              "$file": "src/contract-modals.js"
+            },
+            "version": 1
+          }
+        }
+      },
+      "flowRegistry": {}
+    }
+  },
+  {
+    "uid": "ipb7gfluldk",
+    "name": "qxv6sc4xh8d",
+    "options": {
+      "use": "TableBlockModel",
+      "parentId": "9r8030mskby",
+      "subKey": "items",
+      "subType": "array",
+      "sortIndex": 6,
+      "props": {},
+      "stepParams": {
+        "resourceSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "filter": {
+              "$and": [
+                {
+                  "contract_number": "__no_match_placeholder__"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "k5h6l767taq",
+    "name": "x5s3d9yb8g5",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "3jj0cy56eq8",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "kj3998oehyj",
+    "name": "zfic1gfv5pr",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "lck0bemiztl",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "kvpu0n3pxhl",
+    "name": "17tlz4jml2o",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 6,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "email"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "lck0bemiztl",
+    "name": "y4iucd0z08y",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 1,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "date_signed"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "nohag1xosup",
+    "name": "2flu0eyaofj",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 3,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "object_name"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "notifbell01",
+    "name": "notifbell01",
+    "options": {
+      "use": "JSBlockModel",
+      "parentId": "9r8030mskby",
+      "subKey": "items",
+      "subType": "array",
+      "sortIndex": 10,
+      "props": {},
+      "stepParams": {
+        "jsSettings": {
+          "runJs": {
+            "version": 1,
+            "code": {
+              "$file": "src/notification-bell.js"
+            }
+          }
+        }
+      },
+      "flowRegistry": {}
+    }
+  },
+  {
+    "uid": "objlistnew01",
+    "name": "objlistnew01",
+    "options": {
+      "use": "JSBlockModel",
+      "parentId": "9r8030mskby",
+      "subKey": "items",
+      "subType": "array",
+      "sortIndex": -1,
+      "props": {},
+      "stepParams": {
+        "jsSettings": {
+          "runJs": {
+            "version": "v2",
+            "code": {
+              "$file": "src/objects-sidebar.js"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "ozazmpm4o4v",
+    "name": "zwbygxfxfm1",
+    "options": {
+      "use": "TableBlockModel",
+      "props": {},
+      "subKey": "items",
+      "subType": "array",
+      "parentId": "9r8030mskby",
+      "sortIndex": 4,
+      "stepParams": {
+        "resourceSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "q16nacgln36",
+    "name": "vuj7fra3t5o",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "aigdxsrjjuv",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "q7vddklri30",
+    "name": "oxig7kcp7qk",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 1,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "date_signed"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "ql53i9xt70a",
+    "name": "vqvnjyvdrl2",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "tae27zm6lbn",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "r2t5p527ylq",
+    "name": "iq41cqtabxo",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "nohag1xosup",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "rc6jnm7oy82",
+    "name": "zl51hajnqgv",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 7,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "phone"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "regtabswitch1",
+    "name": "regtabswitch1",
+    "options": {
+      "use": "JSBlockModel",
+      "props": {},
+      "subKey": "items",
+      "subType": "array",
+      "parentId": "9r8030mskby",
+      "sortIndex": 1,
+      "stepParams": {
+        "jsSettings": {
+          "runJs": {
+            "code": {
+              "$file": "src/registry-tabs.js"
+            },
+            "version": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "rkbl04satg4",
+    "name": "rg5857oua8h",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 8,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "tenant_fio"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "rqxwz69jdka",
+    "name": "jtg8g90y7d0",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "taz04jtkzwi",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "ss6ufj9dlte",
+    "name": "fusma3ahgxm",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "ybjql3q0v8i",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "tae27zm6lbn",
+    "name": "dsqxnwvc6fl",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 5,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "area_sqm"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "taz04jtkzwi",
+    "name": "xr43yfax8jp",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 2,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "date_act"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "u28c679n5g2",
+    "name": "cnnas3b8emd",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "rc6jnm7oy82",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  },
+  {
+    "uid": "x0g2i7abyac",
+    "name": "bcckpybra6e",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 5,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "area_sqm"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "xuhhzmah0s9",
+    "name": "7mq4xs4pb3l",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ozazmpm4o4v",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 6,
+      "props": {
+        "sorter": true
+      },
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "rental_contracts",
+            "fieldPath": "email"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "ybjql3q0v8i",
+    "name": "e765qju518n",
+    "options": {
+      "use": "TableColumnModel",
+      "parentId": "ipb7gfluldk",
+      "subKey": "columns",
+      "subType": "array",
+      "sortIndex": 7,
+      "props": {},
+      "stepParams": {
+        "fieldSettings": {
+          "init": {
+            "dataSourceKey": "main",
+            "collectionName": "completed_contracts",
+            "fieldPath": "phone"
+          }
+        }
+      }
+    }
+  },
+  {
+    "uid": "ydjmbbt9shv",
+    "name": "8pi78knnzm5",
+    "options": {
+      "use": "DisplayTextFieldModel",
+      "parentId": "xuhhzmah0s9",
+      "subKey": "field",
+      "subType": "object",
+      "sortIndex": 0,
+      "props": {},
+      "stepParams": {}
+    }
+  }
+]

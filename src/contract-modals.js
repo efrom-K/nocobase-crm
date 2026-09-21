@@ -1,0 +1,2369 @@
+ctx.render('');
+
+function esc(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function money(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return esc(v) + ' ₽';
+}
+function fmtSize(n) {
+  if (!n && n !== 0) return '';
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(1) + ' MB';
+}
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+  return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function initials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+const AVATAR_COLORS = ['#1677ff', '#722ed1', '#13a8a8', '#d4380d', '#08979c', '#c41d7f', '#2f54eb', '#389e0d'];
+function avatarColor(id) {
+  const n = Number(id) || 0;
+  return AVATAR_COLORS[n % AVATAR_COLORS.length];
+}
+
+if (!document.getElementById('contract-modal-style')) {
+  const style = document.createElement('style');
+  style.id = 'contract-modal-style';
+  style.textContent = `
+    .cm-section { margin-bottom: 18px; }
+    .cm-section-title { font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #1a1a1a; }
+    .cm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 24px; }
+    .cm-row { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .cm-row.full { grid-column: 1 / -1; }
+    .cm-label { color: #8c8c8c; font-size: 12px; margin-bottom: 2px; }
+    .cm-value { color: #262626; font-size: 14px; }
+    .cm-file-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f0f0f0; }
+    .cm-file-row:last-child { border-bottom: none; }
+    #contract-modal-root .ant-modal-mask { opacity: 0; transition: opacity .22s cubic-bezier(0.36,0.66,0.04,1); }
+    #contract-modal-root .ant-modal { transform: scale(0.82) translateY(-8px); opacity: 0; transition: transform .25s cubic-bezier(0.34,1.56,0.64,1), opacity .2s ease; }
+    #contract-modal-root.cm-open .ant-modal-mask { opacity: 1; }
+    #contract-modal-root.cm-open .ant-modal { transform: scale(1) translateY(0); opacity: 1; }
+
+    .cm-body-flex { display: flex; align-items: stretch; min-height: 0; }
+    .cm-chat-col { width: clamp(320px, 34vw, 560px); flex: 0 0 clamp(320px, 34vw, 560px); border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; min-height: 0; background: #fafafa; }
+    .cm-chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; color: #1a1a1a; border-bottom: 1px solid #f0f0f0; background: #fff; cursor: pointer; transition: background .12s; flex-shrink: 0; }
+    .cm-chat-head:hover { background: #f5f8ff; }
+    .cm-chat-title { font-weight: 700; font-size: 14px; }
+    .cm-chat-head-hint { font-size: 11px; color: #9aa1ac; white-space: nowrap; }
+    .cm-info-panel { width: 300px; flex: 0 0 300px; border-right: 1px solid #f0f0f0; display: none; flex-direction: column; background: #fbfcfe; min-height: 0; }
+    .cm-info-panel.open { display: flex; }
+    .cm-info-head { padding: 13px 16px; border-bottom: 1px solid #eef0f3; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .cm-info-head b { font-size: 14px; }
+    .cm-info-close { cursor: pointer; color: #9aa1ac; font-size: 18px; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .cm-info-close:hover { background: #eef0f3; }
+    .cm-info-tabs { display: flex; padding: 8px 12px 0; gap: 4px; flex-shrink: 0; }
+    .cm-info-tab { flex: 1; text-align: center; padding: 8px 6px; font-size: 12.5px; font-weight: 600; color: #9aa1ac; cursor: pointer; border-bottom: 2px solid transparent; }
+    .cm-info-tab.active { color: #2f88ff; border-bottom-color: #2f88ff; }
+    .cm-info-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px 14px; }
+    .cm-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px; }
+    .cm-member-row:hover { background: #f2f5fa; }
+    .cm-member-row-meta { flex: 1; min-width: 0; }
+    .cm-member-row-name { font-size: 13px; font-weight: 600; color: #1a1d24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cm-member-row-status { font-size: 11.5px; display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+    .cm-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #c5cad3; flex-shrink: 0; }
+    .cm-status-dot.online { background: #3ba55c; box-shadow: 0 0 0 2px rgba(59,165,92,.18); }
+    .cm-status-online-text { color: #3ba55c; }
+    .cm-status-offline-text { color: #9aa1ac; }
+    .cm-media-search { margin: 2px 4px 10px; position: relative; }
+    .cm-media-search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #b7bcc7; }
+    .cm-media-search input { width: 100%; box-sizing: border-box; padding: 7px 10px 7px 28px; border-radius: 16px; border: 1px solid #e9ebf0; background: #fff; font-size: 12.5px; outline: none; }
+    .cm-media-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; padding: 0 4px; }
+    .cm-media-thumb { width: 100%; aspect-ratio: 1; border-radius: 8px; background: #eef0f3 center/cover no-repeat; cursor: pointer; }
+    .cm-info-file-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px; cursor: pointer; }
+    .cm-info-file-row:hover { background: #f2f5fa; }
+    .cm-info-file-icon { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg,#2f88ff,#5cb8ff); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cm-info-file-meta { flex: 1; min-width: 0; }
+    .cm-info-file-name { font-size: 12.5px; font-weight: 600; color: #1a1d24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cm-info-file-size { font-size: 11px; color: #9aa1ac; }
+    .cm-chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 200px; }
+    .cm-chat-msg-row { display: flex; margin-bottom: 6px; animation: cmFadeIn .15s ease; }
+    .cm-chat-msg-row.own { justify-content: flex-end; }
+    @keyframes cmFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .cm-bubble-wrap { display: flex; gap: 6px; max-width: 88%; align-items: flex-end; }
+    .cm-chat-msg-row.own .cm-bubble-wrap { flex-direction: row-reverse; }
+    .cm-chat-msg-avatar { width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cm-bubble { padding: 7px 10px; border-radius: 13px; font-size: 12.5px; line-height: 1.42; word-wrap: break-word; white-space: pre-wrap; position: relative; box-shadow: 0 1px 2px rgba(20,30,60,.06); }
+    .cm-chat-msg-row.own .cm-bubble { background: linear-gradient(135deg,#2f88ff,#5cb8ff); color: #fff; border-bottom-right-radius: 4px; }
+    .cm-chat-msg-row:not(.own) .cm-bubble { background: #fff; color: #1a1d24; border: 1px solid #eceff1; border-bottom-left-radius: 4px; }
+    .cm-bubble-author { font-size: 10px; font-weight: 700; color: #2f88ff; display: block; margin-bottom: 2px; }
+    .cm-chat-msg-row.own .cm-bubble-author { color: rgba(255,255,255,.85); }
+    .cm-bubble-time { font-size: 9px; opacity: .65; margin-left: 8px; float: right; margin-top: 4px; }
+    .cm-att-image { max-width: 170px; max-height: 170px; border-radius: 9px; display: block; cursor: pointer; background: #eef0f3; }
+    .cm-att-file { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 9px; background: rgba(255,255,255,.18); min-width: 140px; cursor: pointer; }
+    .cm-chat-msg-row:not(.own) .cm-att-file { background: #f7f8fb; }
+    .cm-att-file-icon { width: 26px; height: 26px; border-radius: 7px; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cm-chat-msg-row.own .cm-att-file-icon { background: rgba(255,255,255,.3); color: #fff; }
+    .cm-chat-msg-row:not(.own) .cm-att-file-icon { background: linear-gradient(135deg,#2f88ff,#5cb8ff); color: #fff; }
+    .cm-att-file-name { font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+    .cm-att-file-size { font-size: 9px; opacity: .75; }
+    .cm-chat-empty { color: #b0b0b0; font-size: 13px; text-align: center; padding: 24px 8px; }
+    .cm-chat-input-wrap { border-top: 1px solid #f0f0f0; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; background: #fff; }
+    .cm-attach-btn { width: 32px; height: 32px; border-radius: 50%; background: #f7f8fb; border: 1px solid #e6e9ee; color: #8a90a0; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background .12s; }
+    .cm-attach-btn:hover { background: #eef2f8; color: #2f88ff; }
+    .cm-chat-textarea { flex: 1; resize: none; border: 1px solid #d9d9d9; border-radius: 16px; padding: 7px 12px; font-size: 13px; font-family: inherit; min-height: 34px; max-height: 90px; background: #f7f8fb; }
+    .cm-chat-textarea:focus { outline: none; border-color: #4096ff; background: #fff; }
+    .cm-chat-send { border: none; background: linear-gradient(135deg,#2f88ff,#5cb8ff); color: #fff; border-radius: 50%; width: 34px; height: 34px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .cm-chat-send:disabled { background: #bfbfbf; cursor: default; }
+    .cm-chat-readonly { padding: 14px 16px; font-size: 12.5px; color: #b0851f; background: #fffbe6; border-top: 1px solid #ffe58f; text-align: center; }
+
+    .cm-data-col { flex: 1; padding: 20px 24px; overflow-y: auto; min-width: 0; }
+
+    .cm-members-footer { border-top: 1px solid #f0f0f0; padding: 14px 24px; flex-shrink: 0; }
+    .cm-members-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; position: relative; }
+    .cm-members-title { font-weight: 700; font-size: 14px; color: #1a1a1a; }
+    .cm-members-add-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #1677ff; background: #fff; color: #1677ff; font-size: 16px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
+    .cm-members-add-btn:hover { background: #1677ff; color: #fff; }
+    .cm-members-add-btn:disabled { border-color: #e0e0e0; color: #ccc; cursor: default; background: #fff; }
+    .cm-members-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .cm-member-chip { display: inline-flex; align-items: center; gap: 6px; background: #f5f5f5; border-radius: 16px; padding: 4px 8px 4px 4px; font-size: 13px; color: #262626; }
+    .cm-member-avatar { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cm-member-remove { border: none; background: transparent; cursor: pointer; color: #999; font-size: 12px; padding: 0 2px; line-height: 1; margin-left: 2px; }
+    .cm-member-remove:hover { color: #c0392b; }
+    .cm-members-empty { color: #b0b0b0; font-size: 13px; }
+
+    .cm-add-popover { position: absolute; bottom: calc(100% + 8px); top: auto; right: 0; width: 250px; max-height: min(320px, 60vh); display: flex; flex-direction: column; background: #fff; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); border: 1px solid #f0f0f0; z-index: 10; overflow: hidden; opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
+    .cm-add-popover.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .cm-add-popover-title { font-size: 12px; color: #8c8c8c; padding: 10px 12px 6px; flex-shrink: 0; }
+    .cm-add-popover-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px; }
+    .cm-add-popover-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #262626; }
+    .cm-add-popover-item:hover { background: #f0f6ff; }
+    .cm-add-popover-empty { padding: 16px 12px; text-align: center; color: #b0b0b0; font-size: 13px; }
+
+    .cm-modal-toolbar { position: absolute; top: 12px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; }
+
+    @media (max-width: 900px) {
+      .cm-body-flex { flex-direction: column; }
+      .cm-chat-col { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #f0f0f0; max-height: 300px; }
+      .cm-info-panel { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #f0f0f0; max-height: 300px; }
+    }
+
+    @media (max-width: 560px) {
+      #contract-modal-root .ant-modal-wrap, #forming-modal-root .ant-modal-wrap { padding: 10px 6px !important; }
+      #contract-modal-root .cm-modal-toolbar, #forming-modal-root .cm-modal-toolbar { position: static !important; justify-content: flex-end; padding: 8px 12px 0; flex-wrap: wrap; }
+      #contract-modal-root .ant-modal-header, #forming-modal-root .ant-modal-header { padding: 10px 16px !important; }
+      #contract-modal-root .cm-data-col, #forming-modal-root .cm-data-col { padding: 14px 14px !important; }
+      #contract-modal-root .cm-members-footer, #forming-modal-root .cm-members-footer { padding: 12px 14px !important; }
+    }
+
+    .cm-stage-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+    .cm-stage-pill { font-size: 11.5px; padding: 4px 10px; border-radius: 12px; background: #f5f5f5; color: #999; white-space: nowrap; }
+    .cm-stage-pill.done { background: #e6f7e6; color: #389e0d; }
+    .cm-stage-pill.active { background: #1677ff; color: #fff; font-weight: 600; }
+    .cm-stage-done-badge { font-size: 11px; font-weight: 400; color: #389e0d; background: #e6f7e6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+    .cm-field-row { margin-bottom: 12px; }
+    .cm-field-row .cm-label { margin-bottom: 4px; }
+    .cm-field-input { width: 100%; border: 1px solid #d9d9d9; border-radius: 6px; padding: 6px 8px; font-size: 13.5px; font-family: inherit; box-sizing: border-box; }
+    .cm-field-input:focus { outline: none; border-color: #4096ff; }
+    .cm-field-checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 10px; cursor: pointer; }
+    .cm-stage-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+    .cm-btn-save { border: 1px solid #d9d9d9; background: #fff; color: #262626; border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; }
+    .cm-btn-save:disabled { color: #ccc; cursor: default; }
+    .cm-btn-advance { border: none; background: #52c41a; color: #fff; border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
+    .cm-btn-advance:disabled { background: #d9d9d9; cursor: not-allowed; }
+    .cm-btn-finalize { background: #1677ff; }
+    .cm-role-hint { font-size: 12px; color: #999; }
+    .cm-upload-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+    .cm-upload-btn { border: 1px dashed #d9d9d9; background: #fafafa; color: #595959; border-radius: 6px; padding: 6px 14px; font-size: 12.5px; cursor: pointer; }
+    .cm-upload-btn:disabled { color: #ccc; cursor: default; }
+    .cm-combo-list { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: #fff; border: 1px solid #d9d9d9; border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 18px rgba(0,0,0,0.14); z-index: 20; }
+    .cm-combo-item { padding: 7px 12px; cursor: pointer; font-size: 13.5px; color: #262626; }
+    .cm-combo-item:hover { background: #f0f6ff; }
+    .cm-section-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .cm-stage-collapse-btn { border: none; background: transparent; cursor: pointer; font-size: 12px; color: #8c8c8c; padding: 2px 4px; flex-shrink: 0; }
+    .cm-stage-collapse-btn:hover { color: #1677ff; }
+    .cm-stage-edit-toggle { border: 1px solid #d9d9d9; background: #fff; color: #595959; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
+    .cm-stage-edit-toggle:hover { border-color: #1677ff; color: #1677ff; }
+    .cm-save-status { font-size: 11.5px; color: #b0b0b0; margin-top: 6px; min-height: 15px; }
+    .cm-stage-edit-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .cm-file-delete { color: #999; text-decoration: none; margin-left: 4px; }
+    .cm-file-delete:hover { color: #c0392b; }
+  `;
+  document.head.appendChild(style);
+}
+
+function closeContractModal() {
+  const root = document.getElementById('contract-modal-root');
+  if (!root) return;
+  root.classList.remove('cm-open');
+  setTimeout(function() { if (root && root.parentNode) root.remove(); }, 220);
+  document.removeEventListener('keydown', onModalEscape);
+}
+function onModalEscape(e) {
+  if (e.key === 'Escape') closeContractModal();
+}
+
+function row(label, value, full) {
+  return '<div class="cm-row' + (full ? ' full' : '') + '"><div class="cm-label">' + label + '</div><div class="cm-value">' + value + '</div></div>';
+}
+
+function renderFilesList(files, currentUser) {
+  if (!files.length) return '<span style="color:#999;">Файлы не загружены</span>';
+  return files.map(function(f) {
+    const name = esc(f.title ? (f.title + (f.extname || '')) : f.filename);
+    const canDelete = !!(currentUser && (currentUser.__isAdmin || currentUser.id === f.createdById));
+    return '<div class="cm-file-row" data-file-id="' + f.id + '"><span style="flex:1;">' + name + '</span>'
+      + '<span style="color:#999;font-size:12px;">' + fmtSize(f.size) + '</span>'
+      + '<a href="#" class="cm-file-open" data-url="' + esc(f.url) + '">Открыть</a>'
+      + '<a href="' + esc(f.url) + '" download="' + name + '">Скачать</a>'
+      + (canDelete ? '<a href="#" class="cm-file-delete" data-file-id="' + f.id + '" title="Удалить файл">✕</a>' : '')
+      + '</div>';
+  }).join('');
+}
+
+function bindFileOpenLinks(root) {
+  root.querySelectorAll('.cm-file-open').forEach(function(a) {
+    if (a.__cmBound) return;
+    a.__cmBound = true;
+    a.addEventListener('click', async function(e) {
+      e.preventDefault();
+      const url = a.getAttribute('data-url');
+      const original = a.textContent;
+      a.textContent = 'Открытие…';
+      try {
+        const res2 = await fetch(url, { credentials: 'include' });
+        const blob = await res2.blob();
+        window.open(URL.createObjectURL(blob), '_blank');
+      } catch (err) {
+        window.open(url, '_blank');
+      } finally {
+        a.textContent = original;
+      }
+    });
+  });
+}
+
+function bindFileDeleteLinks(root, contractId, collectionName, onDone) {
+  root.querySelectorAll('.cm-file-delete').forEach(function(a) {
+    if (a.__cmBound) return;
+    a.__cmBound = true;
+    a.addEventListener('click', async function(e) {
+      e.preventDefault();
+      if (!(await cmConfirm('Удалить этот файл?'))) return;
+      const fileId = Number(a.getAttribute('data-file-id'));
+      try {
+        await fetch('/api/' + collectionName + '/' + contractId + '/contract_files:remove', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify([fileId])
+        });
+        try {
+          await fetch('/api/attachments:destroy?filterByTk=' + fileId, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken() } });
+        } catch (e2) { /* best-effort, ownership scope may block this — detach still succeeded */ }
+        if (onDone) await onDone();
+      } catch (e2) {
+        cmToast('Не удалось удалить файл');
+      }
+    });
+  });
+}
+
+function authToken() {
+  try { return localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return null; }
+}
+
+function escAttr(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function cmToast(msg) {
+  let el = document.getElementById('cm-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'cm-toast';
+    el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#262626;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;z-index:3000;box-shadow:0 4px 16px rgba(0,0,0,0.25);max-width:80vw;text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(el.__cmToastTimer);
+  el.__cmToastTimer = setTimeout(function() { el.style.display = 'none'; }, 3500);
+}
+
+function cmConfirm(msg) {
+  return new Promise(function(resolve) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3001;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = '<div style="background:#fff;border-radius:8px;padding:22px;max-width:380px;box-shadow:0 8px 28px rgba(0,0,0,0.22);">'
+      + '<div style="font-size:14px;color:#262626;margin-bottom:20px;line-height:1.5;">' + esc(msg) + '</div>'
+      + '<div style="display:flex;gap:10px;justify-content:flex-end;">'
+      + '<button id="cm-confirm-no" style="border:1px solid #d9d9d9;background:#fff;color:#262626;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;">Отмена</button>'
+      + '<button id="cm-confirm-yes" style="border:none;background:#1677ff;color:#fff;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;">Да</button>'
+      + '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#cm-confirm-yes').addEventListener('click', function() { overlay.remove(); resolve(true); });
+    overlay.querySelector('#cm-confirm-no').addEventListener('click', function() { overlay.remove(); resolve(false); });
+  });
+}
+
+async function createNotification(userId, contractId, title, text, source) {
+  try {
+    await ctx.api.resource('contract_notifications').create({
+      values: {
+        user_id: userId,
+        contract_id: contractId,
+        title: title,
+        text: text,
+        is_read: false,
+        source: source || 'active',
+        created_at: new Date().toISOString()
+      }
+    });
+  } catch (e) { /* best-effort, notification failure must not block the main action */ }
+}
+
+let __cmCurrentUser = null;
+async function getCurrentUser() {
+  if (__cmCurrentUser) return __cmCurrentUser;
+  try {
+    const res = await fetch('/api/auth:check', { headers: { Authorization: 'Bearer ' + authToken() } });
+    const data = await res.json();
+    const u = (data && data.data) ? data.data : null;
+    if (u) {
+      const roleNames = (u.roles || []).map(function(r) { return r.name; });
+      u.__isAdmin = roleNames.indexOf('admin') !== -1 || roleNames.indexOf('root') !== -1;
+    }
+    __cmCurrentUser = u;
+  } catch (e) { __cmCurrentUser = null; }
+  return __cmCurrentUser;
+}
+
+async function loadChatMessages(contractId, source) {
+  const res = await ctx.api.resource('contract_chat_messages').list({
+    filter: { owner_contract_id: contractId, source: source || 'active' },
+    appends: ['author', 'attachment'],
+    sort: ['created_at'],
+    pageSize: 200
+  });
+  const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+  return Array.isArray(payload) ? payload : [];
+}
+
+function renderChatMessages(container, list, currentUser) {
+  if (!list.length) {
+    container.innerHTML = '<div class="cm-chat-empty">Пока нет сообщений.<br>Начните переписку по договору.</div>';
+    return;
+  }
+  const meId = currentUser && currentUser.id;
+  container.innerHTML = list.map(function(m) {
+    const authorName = (m.author && (m.author.nickname || m.author.username)) || 'Пользователь';
+    const own = m.author_id === meId;
+    const att = m.attachment;
+    let attHtml = '';
+    if (att) {
+      if (isImageMime(att.mimetype)) {
+        attHtml = '<img class="cm-att-image" data-att-url="' + esc(att.url) + '" style="min-height:60px;min-width:90px">';
+      } else {
+        attHtml = '<div class="cm-att-file" data-att-url="' + esc(att.url) + '" data-att-name="' + esc((att.title || 'file') + (att.extname || '')) + '">'
+          + '<div class="cm-att-file-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>'
+          + '<div><div class="cm-att-file-name">' + esc((att.title || 'file') + (att.extname || '')) + '</div>'
+          + '<div class="cm-att-file-size">' + formatBytes(att.size) + '</div></div>'
+        + '</div>';
+      }
+    }
+    return '<div class="cm-chat-msg-row' + (own ? ' own' : '') + '">'
+      + '<div class="cm-bubble-wrap">'
+      + '<div class="cm-chat-msg-avatar" style="background:' + avatarColor(m.author_id) + '">' + esc(initials(authorName)) + '</div>'
+      + '<div class="cm-bubble">'
+      + (!own ? '<span class="cm-bubble-author">' + esc(authorName) + '</span>' : '')
+      + attHtml
+      + (m.message ? '<div' + (att ? ' style="margin-top:4px"' : '') + '>' + esc(m.message) + '</div>' : '')
+      + '<span class="cm-bubble-time">' + esc(fmtDateTime(m.created_at)) + '</span>'
+      + '</div></div></div>';
+  }).join('');
+  cmHydrateChatImages(container);
+  cmWireChatFileOpen(container);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function loadContractPresenceMap(userIds) {
+  if (!userIds || !userIds.length) return {};
+  try {
+    const res = await ctx.api.resource('chat_presence').list({ filter: { user_id: { '$in': userIds } }, pageSize: 500 });
+    const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+    const map = {};
+    (Array.isArray(payload) ? payload : []).forEach(function(r) { map[r.user_id] = r.last_seen_at; });
+    return map;
+  } catch (e) { return {}; }
+}
+function presenceLabelCM(iso) {
+  if (!iso) return 'нет данных';
+  const diffSec = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diffSec < 40) return 'в сети';
+  return 'был(а) в сети ' + fmtDateTime(iso);
+}
+
+function toggleChatInfoPanel(root, contractId, source, members, currentUser) {
+  const panel = root.querySelector('#cm-info-panel');
+  if (!panel) return;
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    return;
+  }
+  panel.classList.add('open');
+  renderChatInfoPanel(root, contractId, source, members, currentUser, 'members');
+}
+
+async function renderChatInfoPanel(root, contractId, source, members, currentUser, tab) {
+  const panel = root.querySelector('#cm-info-panel');
+  if (!panel) return;
+  panel.innerHTML = '<div class="cm-info-head"><b>Информация по договору</b><span class="cm-info-close" id="cm-info-close">&times;</span></div>'
+    + '<div class="cm-info-tabs">'
+    + '<div class="cm-info-tab" data-cm-info-tab="members">Участники</div>'
+    + '<div class="cm-info-tab" data-cm-info-tab="media">Медиа</div>'
+    + '</div>'
+    + '<div class="cm-info-body" id="cm-info-body"></div>';
+  panel.querySelector('#cm-info-close').addEventListener('click', function(e) {
+    e.stopPropagation();
+    panel.classList.remove('open');
+  });
+  panel.querySelectorAll('[data-cm-info-tab]').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      renderChatInfoPanel(root, contractId, source, members, currentUser, el.getAttribute('data-cm-info-tab'));
+    });
+  });
+  const activeTabEl = panel.querySelector('[data-cm-info-tab="' + tab + '"]');
+  if (activeTabEl) activeTabEl.classList.add('active');
+
+  const body = panel.querySelector('#cm-info-body');
+  if (tab === 'media') {
+    body.innerHTML = '<div class="cm-media-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>'
+      + '<input id="cm-media-search-input" placeholder="Поиск по файлам"></div>'
+      + '<div id="cm-media-list"><div class="cm-chat-empty">Загрузка…</div></div>';
+    let withMedia = [];
+    try {
+      const res = await ctx.api.resource('contract_chat_messages').list({
+        filter: { owner_contract_id: contractId, source: source || 'active', attachment_id: { '$ne': null } },
+        appends: ['attachment'], sort: ['-created_at'], pageSize: 300
+      });
+      const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+      withMedia = (Array.isArray(payload) ? payload : []).filter(function(m) { return m.attachment; });
+    } catch (e) {}
+
+    function draw(filterText) {
+      const listEl = body.querySelector('#cm-media-list');
+      if (!listEl) return;
+      let items = withMedia;
+      if (filterText) {
+        items = items.filter(function(m) {
+          return ((m.attachment.title || '') + (m.attachment.extname || '')).toLowerCase().indexOf(filterText.toLowerCase()) !== -1;
+        });
+      }
+      if (!items.length) { listEl.innerHTML = '<div class="cm-chat-empty">Файлов не найдено</div>'; return; }
+      const images = items.filter(function(m) { return isImageMime(m.attachment.mimetype); });
+      const files = items.filter(function(m) { return !isImageMime(m.attachment.mimetype); });
+      let html = '';
+      if (images.length) {
+        html += '<div class="cm-media-grid">' + images.map(function(m) {
+          return '<div class="cm-media-thumb" data-att-url="' + esc(m.attachment.url) + '"></div>';
+        }).join('') + '</div>';
+      }
+      if (files.length) {
+        html += (images.length ? '<div style="height:10px"></div>' : '') + files.map(function(m) {
+          return '<div class="cm-info-file-row" data-att-url="' + esc(m.attachment.url) + '" data-att-name="' + esc((m.attachment.title || 'file') + (m.attachment.extname || '')) + '">'
+            + '<div class="cm-info-file-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>'
+            + '<div class="cm-info-file-meta"><div class="cm-info-file-name">' + esc((m.attachment.title || 'file') + (m.attachment.extname || '')) + '</div>'
+            + '<div class="cm-info-file-size">' + formatBytes(m.attachment.size) + '</div></div>'
+          + '</div>';
+        }).join('');
+      }
+      listEl.innerHTML = html;
+      listEl.querySelectorAll('.cm-media-thumb[data-att-url]').forEach(async function(el) {
+        const url = el.getAttribute('data-att-url');
+        try { el.style.backgroundImage = 'url(' + (await cmFetchBlobUrl(url)) + ')'; } catch (e) {}
+      });
+      listEl.querySelectorAll('.cm-info-file-row, .cm-media-thumb').forEach(function(el) {
+        el.addEventListener('click', async function() {
+          const url = el.getAttribute('data-att-url');
+          const name = el.getAttribute('data-att-name') || 'file';
+          try {
+            const blobUrl = await cmFetchBlobUrl(url);
+            const a = document.createElement('a');
+            a.href = blobUrl; a.download = name; a.target = '_blank';
+            document.body.appendChild(a); a.click(); a.remove();
+          } catch (e) {}
+        });
+      });
+    }
+    draw('');
+    const searchInput = body.querySelector('#cm-media-search-input');
+    if (searchInput) searchInput.addEventListener('input', function(e) { draw(e.target.value); });
+  } else {
+    body.innerHTML = '<div class="cm-chat-empty">Загрузка…</div>';
+    const list = members || [];
+    const memberIds = list.map(function(m) { return m.id; });
+    const presence = await loadContractPresenceMap(memberIds);
+    body.innerHTML = list.length ? list.map(function(m) {
+      const name = m.nickname || m.username || ('#' + m.id);
+      const iso = presence[m.id];
+      const online = iso && (Date.now() - new Date(iso).getTime()) / 1000 < 40;
+      const label = (currentUser && m.id === currentUser.id) ? 'это вы' : presenceLabelCM(iso);
+      return '<div class="cm-member-row"><div class="cm-chat-msg-avatar" style="width:38px;height:38px;font-size:13px;background:' + avatarColor(m.id) + '">' + esc(initials(name)) + '</div>'
+        + '<div class="cm-member-row-meta"><div class="cm-member-row-name">' + esc(name) + '</div>'
+        + '<div class="cm-member-row-status"><span class="cm-status-dot' + (online ? ' online' : '') + '"></span>'
+        + '<span class="' + (online ? 'cm-status-online-text' : 'cm-status-offline-text') + '">' + esc(label) + '</span></div></div>'
+      + '</div>';
+    }).join('') : '<div class="cm-chat-empty">Сотрудники ещё не назначены</div>';
+  }
+}
+
+async function initChat(contractId, root, currentUser, isMember, contractNumber, state, source) {
+  source = source || 'active';
+  const chatCol = root.querySelector('#cm-chat-col');
+  const messagesEl = root.querySelector('#cm-chat-messages');
+  const canWrite = !!(currentUser && (currentUser.__isAdmin || isMember));
+
+  const chatHead = root.querySelector('#cm-chat-head');
+  if (chatHead) {
+    chatHead.addEventListener('click', function() {
+      toggleChatInfoPanel(root, contractId, source, state.members || [], currentUser);
+    });
+  }
+
+  const inputWrap = root.querySelector('#cm-chat-input-area');
+  if (canWrite) {
+    inputWrap.innerHTML = '<div class="cm-chat-input-wrap">'
+      + '<input type="file" id="cm-chat-file-input" style="display:none;">'
+      + '<button id="cm-chat-attach" class="cm-attach-btn" title="Прикрепить файл"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.19 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>'
+      + '<textarea id="cm-chat-textarea" class="cm-chat-textarea" placeholder="Написать сообщение…" rows="1"></textarea>'
+      + '<button id="cm-chat-send" class="cm-chat-send" title="Отправить"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 21.5L23 12 2.5 2.5 2.5 10 17 12 2.5 14z"/></svg></button>'
+      + '</div>';
+  } else {
+    inputWrap.innerHTML = '<div class="cm-chat-readonly">Писать могут только сотрудники, добавленные к этому договору</div>';
+  }
+
+  async function refresh() {
+    try {
+      const list = await loadChatMessages(contractId, source);
+      if (!chatCol.isConnected) return;
+      renderChatMessages(messagesEl, list, currentUser);
+    } catch (e) {
+      messagesEl.innerHTML = '<div class="cm-chat-empty">Ошибка загрузки чата</div>';
+    }
+  }
+
+  function notifyOthers(preview) {
+    const authorName = currentUser.nickname || currentUser.username || 'Пользователь';
+    (state.members || []).forEach(function(m) {
+      if (m.id === currentUser.id) return;
+      createNotification(m.id, contractId, 'Договор ' + contractNumber, 'Новое сообщение от ' + authorName + ': ' + preview, source);
+    });
+  }
+
+  if (canWrite) {
+    const textarea = root.querySelector('#cm-chat-textarea');
+    const sendBtn = root.querySelector('#cm-chat-send');
+    const attachBtn = root.querySelector('#cm-chat-attach');
+    const fileInput = root.querySelector('#cm-chat-file-input');
+
+    async function send() {
+      const text = textarea.value.trim();
+      if (!text) return;
+      sendBtn.disabled = true;
+      try {
+        await ctx.api.resource('contract_chat_messages').create({
+          values: {
+            message: text,
+            owner_contract_id: contractId,
+            author_id: currentUser.id,
+            source: source,
+            created_at: new Date().toISOString()
+          }
+        });
+        textarea.value = '';
+        textarea.style.height = '34px';
+        await refresh();
+        notifyOthers(text.length > 80 ? text.slice(0, 80) + '…' : text);
+      } catch (e) {
+        cmToast('Не удалось отправить сообщение');
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    async function sendFile(file) {
+      attachBtn.disabled = true; sendBtn.disabled = true;
+      try {
+        const attId = await uploadFileGetId(file);
+        const caption = textarea.value.trim();
+        await ctx.api.resource('contract_chat_messages').create({
+          values: {
+            message: caption,
+            attachment_id: attId,
+            owner_contract_id: contractId,
+            author_id: currentUser.id,
+            source: source,
+            created_at: new Date().toISOString()
+          }
+        });
+        textarea.value = ''; textarea.style.height = '34px';
+        await refresh();
+        notifyOthers(caption || ('📎 ' + file.name));
+      } catch (e) {
+        cmToast('Не удалось отправить файл');
+      } finally {
+        attachBtn.disabled = false; sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', send);
+    attachBtn.addEventListener('click', function() { fileInput.click(); });
+    fileInput.addEventListener('change', function() {
+      if (fileInput.files && fileInput.files[0]) {
+        sendFile(fileInput.files[0]);
+        fileInput.value = '';
+      }
+    });
+    textarea.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+    textarea.addEventListener('input', function() {
+      textarea.style.height = '34px';
+      textarea.style.height = Math.min(textarea.scrollHeight, 90) + 'px';
+    });
+  }
+
+  await refresh();
+}
+
+async function loadAllUsers() {
+  const res = await ctx.api.resource('users').list({ fields: ['id', 'nickname', 'username'], pageSize: 100 });
+  const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+  return Array.isArray(payload) ? payload : [];
+}
+
+function closeAddPopover(root) {
+  const pop = root.querySelector('#cm-add-popover');
+  if (pop) pop.classList.remove('open');
+}
+
+function renderMembers(root, contractId, members, allUsers, isAdmin, contractNumber, state, collectionName, notifSource) {
+  collectionName = collectionName || 'rental_contracts';
+  notifSource = notifSource || 'active';
+  const listEl = root.querySelector('#cm-members-list');
+  const addBtn = root.querySelector('#cm-members-add-btn');
+  const popoverList = root.querySelector('#cm-add-popover-list');
+
+  if (!members.length) {
+    listEl.innerHTML = '<div class="cm-members-empty">Ответственные сотрудники ещё не назначены</div>';
+  } else {
+    listEl.innerHTML = members.map(function(u) {
+      const name = u.nickname || u.username || ('#' + u.id);
+      return '<span class="cm-member-chip" data-user-id="' + u.id + '">'
+        + '<span class="cm-member-avatar" style="background:' + avatarColor(u.id) + '">' + esc(initials(name)) + '</span>'
+        + esc(name)
+        + (isAdmin ? '<button class="cm-member-remove" data-remove-id="' + u.id + '" title="Убрать из договора">✕</button>' : '')
+        + '</span>';
+    }).join('');
+  }
+
+  if (!isAdmin) {
+    addBtn.style.display = 'none';
+    return;
+  }
+  addBtn.style.display = '';
+
+  const memberIds = members.map(function(m) { return m.id; });
+  const available = allUsers.filter(function(u) { return memberIds.indexOf(u.id) === -1; });
+  addBtn.disabled = false;
+
+  if (!available.length) {
+    popoverList.innerHTML = '<div class="cm-add-popover-empty">Все сотрудники уже добавлены</div>';
+  } else {
+    popoverList.innerHTML = available.map(function(u) {
+      const name = u.nickname || u.username || ('#' + u.id);
+      return '<div class="cm-add-popover-item" data-add-id="' + u.id + '">'
+        + '<span class="cm-member-avatar" style="background:' + avatarColor(u.id) + '">' + esc(initials(name)) + '</span>'
+        + esc(name) + '</div>';
+    }).join('');
+  }
+
+  listEl.querySelectorAll('.cm-member-remove').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const uid = btn.getAttribute('data-remove-id');
+      btn.disabled = true;
+      try {
+        await fetch('/api/' + collectionName + '/' + contractId + '/contract_members:remove', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify([Number(uid)])
+        });
+        await refreshMembers(root, contractId, allUsers, isAdmin, contractNumber, state, collectionName, notifSource);
+      } catch (e2) {
+        cmToast('Не удалось убрать сотрудника');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  popoverList.querySelectorAll('.cm-add-popover-item').forEach(function(item) {
+    item.addEventListener('click', async function() {
+      const uid = item.getAttribute('data-add-id');
+      try {
+        await fetch('/api/' + collectionName + '/' + contractId + '/contract_members:add', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify([Number(uid)])
+        });
+        createNotification(Number(uid), contractId, 'Договор ' + contractNumber, 'Вас добавили к договору ' + contractNumber, notifSource);
+        await refreshMembers(root, contractId, allUsers, isAdmin, contractNumber, state, collectionName, notifSource);
+      } catch (e2) {
+        cmToast('Не удалось добавить сотрудника');
+      }
+    });
+  });
+}
+
+async function refreshMembers(root, contractId, allUsers, isAdmin, contractNumber, state, collectionName, notifSource) {
+  collectionName = collectionName || 'rental_contracts';
+  const res = await ctx.api.resource(collectionName).get({ filterByTk: contractId, appends: ['contract_members'] });
+  const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  if (state) state.members = r.contract_members || [];
+  renderMembers(root, contractId, r.contract_members || [], allUsers, isAdmin, contractNumber, state, collectionName, notifSource);
+  return r.contract_members || [];
+}
+
+async function initMembers(contractId, root, initialMembers, isAdmin, contractNumber, state, collectionName, notifSource) {
+  let allUsers = [];
+  try { allUsers = await loadAllUsers(); } catch (e) { allUsers = []; }
+  renderMembers(root, contractId, initialMembers, allUsers, isAdmin, contractNumber, state, collectionName, notifSource);
+
+  const addBtn = root.querySelector('#cm-members-add-btn');
+  const popover = root.querySelector('#cm-add-popover');
+  if (!isAdmin) return;
+
+  addBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    popover.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e) {
+    if (!popover.contains(e.target) && e.target !== addBtn) {
+      popover.classList.remove('open');
+    }
+  });
+}
+
+
+// ---------- допстили: банк по БИК, контакты ----------
+if (!document.getElementById('cm-extra-style')) {
+  const st = document.createElement('style');
+  st.id = 'cm-extra-style';
+  st.textContent = `
+    .cm-bik-hint { font-size: 12px; margin-top: 3px; min-height: 0; }
+    .cm-completed-banner { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px; }
+    .cm-contact-card { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+    .cm-contact-main { flex: 1; min-width: 0; }
+    .cm-contact-name { font-weight: 600; font-size: 13.5px; color: #262626; }
+    .cm-contact-pos { font-weight: 400; color: #8c8c8c; font-size: 12.5px; }
+    .cm-contact-lines { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 2px; font-size: 13px; }
+    .cm-contact-lines a { color: #1677ff; text-decoration: none; }
+    .cm-contact-lines a:hover { text-decoration: underline; }
+    .cm-contact-actions { display: flex; gap: 10px; flex-shrink: 0; }
+    .cm-contact-actions a { color: #8c8c8c; text-decoration: none; cursor: pointer; }
+    .cm-contact-actions a:hover { color: #1677ff; }
+    .cm-contact-form { margin-top: 10px; padding: 10px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
+    .cm-contact-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+  `;
+  document.head.appendChild(st);
+}
+
+const bikCache = {};
+async function lookupBik(bik) {
+  if (Object.prototype.hasOwnProperty.call(bikCache, bik)) return bikCache[bik];
+  const res = await ctx.api.resource('bik_directory').list({ filter: { bik: bik }, pageSize: 1 });
+  const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+  const rec = (Array.isArray(payload) && payload[0]) ? payload[0] : null;
+  bikCache[bik] = rec;
+  return rec;
+}
+function fireInput(el) {
+  try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ }
+}
+function attachBikLookup(el) {
+  if (el.__cmBikLookup) return;
+  el.__cmBikLookup = true;
+  const scope = el.closest('.cm-stage-form') || el.closest('form') || el.parentNode;
+  const hint = document.createElement('div');
+  hint.className = 'cm-bik-hint';
+  el.parentNode.appendChild(hint);
+  let auto = null;
+  function clearAuto() {
+    if (!auto) return;
+    const bn = scope.querySelector('[data-field="bank_name"]');
+    const ca = scope.querySelector('[data-field="corr_account"]');
+    if (bn && bn.value === auto.bank) { bn.value = ''; fireInput(bn); }
+    if (ca && ca.value === auto.corr) { ca.value = ''; fireInput(ca); }
+    auto = null;
+  }
+  el.addEventListener('input', async function() {
+    const v = el.value;
+    if (v.length !== 9) { hint.textContent = ''; clearAuto(); return; }
+    hint.style.color = '#8c8c8c';
+    hint.textContent = 'Ищу банк…';
+    let rec = null;
+    try { rec = await lookupBik(v); }
+    catch (e) { hint.style.color = '#cf1322'; hint.textContent = 'Не удалось запросить справочник БИК'; return; }
+    if (el.value !== v) return;
+    if (!rec) { clearAuto(); hint.style.color = '#d48806'; hint.textContent = 'БИК не найден в справочнике ЦБ — банк можно ввести вручную'; return; }
+    hint.style.color = '#389e0d';
+    hint.textContent = '✓ ' + rec.bank_name;
+    const bn = scope.querySelector('[data-field="bank_name"]');
+    const ca = scope.querySelector('[data-field="corr_account"]');
+    auto = { bank: rec.bank_name || '', corr: rec.corr_account || '' };
+    if (bn) { bn.value = auto.bank; fireInput(bn); }
+    if (ca) { ca.value = auto.corr; fireInput(ca); }
+  });
+}
+
+async function purgeContractSideData(type, id) {
+  const q = '?filter=' + encodeURIComponent(JSON.stringify({ contract_type: type, contract_ref_id: id }));
+  const names = ['contract_contacts', 'contract_addendums'];
+  for (let i = 0; i < names.length; i++) {
+    try { await fetch('/api/' + names[i] + ':destroy' + q, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken() } }); }
+    catch (e) { /* best-effort */ }
+  }
+}
+
+function renderContactsSection(prefix) {
+  return '<div class="cm-section" id="' + prefix + '-contacts-section">'
+    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные контакты</div>'
+    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-contact-add-btn" style="display:none;">+ Контакт</button></div>'
+    + '<div id="' + prefix + '-contacts-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
+    + '<div class="cm-contact-form" id="' + prefix + '-contact-form" style="display:none;">'
+    + '<div class="cm-contact-form-grid">'
+    + '<input type="text" class="cm-field-input" id="' + prefix + '-contact-name" placeholder="ФИО">'
+    + '<input type="text" class="cm-field-input" id="' + prefix + '-contact-position" placeholder="Должность / комментарий">'
+    + '<input type="tel" class="cm-field-input" id="' + prefix + '-contact-phone" placeholder="+7 (___) ___-__-__">'
+    + '<input type="email" class="cm-field-input" id="' + prefix + '-contact-email" placeholder="name@example.com">'
+    + '</div>'
+    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" id="' + prefix + '-contact-save">Сохранить</button>'
+    + '<button class="cm-btn-save" id="' + prefix + '-contact-cancel">Отмена</button>'
+    + '<span id="' + prefix + '-contact-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
+    + '</div></div>';
+}
+
+function renderContactsList(items, canEdit) {
+  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Дополнительных контактов нет' + (canEdit ? ' — добавьте кнопкой «+ Контакт»' : '') + '</div>';
+  return items.map(function(c) {
+    const lines = (c.phone ? '<a href="tel:' + escAttr(String(c.phone).replace(/[^\d+]/g, '')) + '">' + esc(c.phone) + '</a>' : '')
+      + (c.email ? '<a href="mailto:' + escAttr(c.email) + '">' + esc(c.email) + '</a>' : '');
+    return '<div class="cm-contact-card" data-contact-id="' + c.id + '"><div class="cm-contact-main">'
+      + '<div class="cm-contact-name">' + (c.name ? esc(c.name) : '<span style="color:#8c8c8c;">Без имени</span>')
+      + (c.position ? '<span class="cm-contact-pos"> · ' + esc(c.position) + '</span>' : '') + '</div>'
+      + (lines ? '<div class="cm-contact-lines">' + lines + '</div>' : '')
+      + '</div>'
+      + (canEdit ? '<div class="cm-contact-actions"><a data-contact-edit="' + c.id + '" title="Изменить">✎</a><a data-contact-del="' + c.id + '" title="Удалить">✕</a></div>' : '')
+      + '</div>';
+  }).join('');
+}
+
+async function loadContacts(contractType, contractId) {
+  const res = await ctx.api.resource('contract_contacts').list({
+    filter: { contract_type: contractType, contract_ref_id: contractId }, sort: ['id'], pageSize: 200
+  });
+  const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+  return Array.isArray(payload) ? payload : [];
+}
+
+async function wireContacts(overlay, prefix, contractType, contractId, canEdit) {
+  const listEl = overlay.querySelector('#' + prefix + '-contacts-list');
+  if (!listEl) return;
+  const addBtn = overlay.querySelector('#' + prefix + '-contact-add-btn');
+  const formEl = overlay.querySelector('#' + prefix + '-contact-form');
+  const nameEl = overlay.querySelector('#' + prefix + '-contact-name');
+  const posEl = overlay.querySelector('#' + prefix + '-contact-position');
+  const phoneEl = overlay.querySelector('#' + prefix + '-contact-phone');
+  const emailEl = overlay.querySelector('#' + prefix + '-contact-email');
+  const saveBtn = overlay.querySelector('#' + prefix + '-contact-save');
+  const cancelBtn = overlay.querySelector('#' + prefix + '-contact-cancel');
+  const statusEl = overlay.querySelector('#' + prefix + '-contact-status');
+  let items = [];
+  let editId = null;
+
+  async function refresh() {
+    try { items = await loadContacts(contractType, contractId); }
+    catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить контакты</span>'; return; }
+    listEl.innerHTML = renderContactsList(items, canEdit);
+    if (!canEdit) return;
+    listEl.querySelectorAll('[data-contact-edit]').forEach(function(a) {
+      a.addEventListener('click', function() {
+        const c = items.find(function(x) { return String(x.id) === a.getAttribute('data-contact-edit'); });
+        if (c) openForm(c);
+      });
+    });
+    listEl.querySelectorAll('[data-contact-del]').forEach(function(a) {
+      a.addEventListener('click', async function() {
+        const c = items.find(function(x) { return String(x.id) === a.getAttribute('data-contact-del'); });
+        if (!c) return;
+        if (!(await cmConfirm('Удалить контакт «' + (c.name || c.phone || c.email || 'без имени') + '»?'))) return;
+        try { await ctx.api.resource('contract_contacts').destroy({ filterByTk: c.id }); await refresh(); }
+        catch (e) { cmToast('Не удалось удалить контакт'); }
+      });
+    });
+  }
+  await refresh();
+  if (!canEdit || !addBtn) return;
+
+  addBtn.style.display = '';
+  phoneEl.addEventListener('input', function() { formatPhoneInput(phoneEl); });
+  phoneEl.addEventListener('focus', function() { if (!phoneEl.value) formatPhoneInput(phoneEl); });
+
+  function openForm(c) {
+    editId = c ? c.id : null;
+    nameEl.value = c ? (c.name || '') : '';
+    posEl.value = c ? (c.position || '') : '';
+    phoneEl.value = c ? (c.phone || '') : '';
+    emailEl.value = c ? (c.email || '') : '';
+    formEl.style.display = 'block';
+    nameEl.focus();
+  }
+  function closeForm() { formEl.style.display = 'none'; editId = null; statusEl.textContent = ''; }
+
+  addBtn.addEventListener('click', function() { if (formEl.style.display === 'none') openForm(null); else closeForm(); });
+  cancelBtn.addEventListener('click', closeForm);
+  saveBtn.addEventListener('click', async function() {
+    const phoneDigits = phoneEl.value.replace(/\D/g, '');
+    const values = {
+      contract_type: contractType, contract_ref_id: contractId,
+      name: nameEl.value.trim(), position: posEl.value.trim(),
+      phone: phoneDigits.length > 1 ? phoneEl.value.trim() : '', email: emailEl.value.trim()
+    };
+    if (!values.name && !values.phone && !values.email) { cmToast('Заполните хотя бы ФИО, телефон или почту'); return; }
+    if (values.email && !/^\S+@\S+\.\S+$/.test(values.email)) { cmToast('Проверьте адрес почты'); return; }
+    saveBtn.disabled = true;
+    statusEl.textContent = 'Сохранение…';
+    try {
+      if (editId) await ctx.api.resource('contract_contacts').update({ filterByTk: editId, values: values });
+      else await ctx.api.resource('contract_contacts').create({ values: values });
+      closeForm();
+      await refresh();
+    } catch (e) {
+      cmToast('Не удалось сохранить контакт');
+      statusEl.textContent = '';
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+}
+
+async function openCompletedContractModal(id) {
+  const overlay = document.createElement('div');
+  overlay.id = 'contract-modal-root';
+  overlay.innerHTML = `
+    <div class="ant-modal-mask" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;"></div>
+    <div class="ant-modal-wrap" style="position:fixed;inset:0;z-index:1001;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;">
+      <div class="ant-modal" style="width:100%;max-width:min(1800px, 96vw);">
+        <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
+          <div class="cm-modal-toolbar">
+            <button id="cm-delete-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
+            <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
+          </div>
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
+            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Завершённый договор</div>
+          </div>
+          <div class="cm-body-flex" style="flex:1;min-height:0;">
+            <div class="cm-chat-col" id="cm-chat-col">
+              <div class="cm-chat-head" id="cm-chat-head" title="Участники и медиафайлы по договору">
+                <div class="cm-chat-title">Переписка по договору</div>
+                <div class="cm-chat-head-hint">Участники · Медиа ›</div>
+              </div>
+              <div class="cm-chat-messages" id="cm-chat-messages">Загрузка…</div>
+              <div id="cm-chat-input-area"></div>
+            </div>
+            <div class="cm-info-panel" id="cm-info-panel"></div>
+            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;">Загрузка…</div>
+          </div>
+          <div class="cm-members-footer" id="cm-members-footer">
+            <div class="cm-members-head">
+              <div class="cm-members-title">Сотрудники по договору</div>
+              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;">+</button>
+              <div class="cm-add-popover" id="cm-add-popover">
+                <div class="cm-add-popover-title">Добавить сотрудника</div>
+                <div class="cm-add-popover-list" id="cm-add-popover-list">Загрузка…</div>
+              </div>
+            </div>
+            <div id="cm-members-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.ant-modal-mask').addEventListener('click', closeContractModal);
+  overlay.querySelector('#cm-close-btn').addEventListener('click', closeContractModal);
+  document.addEventListener('keydown', onModalEscape);
+  setTimeout(function() { overlay.classList.add('cm-open'); }, 20);
+
+  const body = overlay.querySelector('#cm-body');
+  try {
+    const currentUser = await getCurrentUser();
+    const res = await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+    const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+    const members = r.contract_members || [];
+    const isMember = !!(currentUser && members.some(function(m) { return m.id === currentUser.id; }));
+    const contractNumber = r.contract_number || ('#' + id);
+    const state = { members: members };
+
+    if (currentUser && currentUser.__isAdmin) {
+      const delBtn = overlay.querySelector('#cm-delete-btn');
+      delBtn.style.display = '';
+      delBtn.addEventListener('click', async function() {
+        if (!(await cmConfirm('Удалить завершённый договор «' + contractNumber + '» безвозвратно? Это действие нельзя отменить.'))) return;
+        delBtn.disabled = true;
+        try {
+          await ctx.api.resource('completed_contracts').destroy({ filterByTk: id });
+          await purgeContractSideData('completed', id);
+          try {
+            await fetch('/api/contract_chat_messages:destroy?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: 'completed' })), {
+              method: 'POST', headers: { Authorization: 'Bearer ' + authToken() }
+            });
+          } catch (e) { /* best-effort */ }
+          closeContractModal();
+          cmToast('Договор удалён');
+          setTimeout(function() { location.reload(); }, 400);
+        } catch (e) {
+          cmToast('Не удалось удалить договор');
+          delBtn.disabled = false;
+        }
+      });
+    }
+
+    initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
+
+    let html = '<div class="cm-completed-banner">Договор завершён · только просмотр</div>';
+    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
+    const files = r.contract_files || [];
+    html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
+      + '<div id="cm-completed-files-list">' + renderFilesList(files, null) + '</div></div>'
+      + renderAddendumsSection('cm-completed');
+
+    body.style.color = '';
+    body.innerHTML = html;
+    await wireAddendums(overlay, 'cm-completed', 'completed', id, currentUser);
+    const addAddBtn = overlay.querySelector('#cm-completed-addendum-add-btn');
+    if (addAddBtn) addAddBtn.style.display = 'none';
+    await wireContacts(overlay, 'cm-completed', 'completed', id, false);
+    bindFileOpenLinks(overlay);
+
+    initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state, 'completed_contracts', 'completed');
+  } catch (e) {
+    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
+  }
+}
+
+async function openContractModal(id) {
+  const overlay = document.createElement('div');
+  overlay.id = 'contract-modal-root';
+  overlay.innerHTML = `
+    <div class="ant-modal-mask" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;"></div>
+    <div class="ant-modal-wrap" style="position:fixed;inset:0;z-index:1001;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;">
+      <div class="ant-modal" style="width:100%;max-width:min(1800px, 96vw);">
+        <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
+          <div class="cm-modal-toolbar">
+            <button id="cm-complete-btn" style="display:none;border:1px solid #b7eb8f;background:#f6ffed;color:#389e0d;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Завершить договор</button>
+            <button id="cm-delete-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
+            <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
+          </div>
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
+            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Карточка договора</div>
+          </div>
+          <div class="cm-body-flex" style="flex:1;min-height:0;">
+            <div class="cm-chat-col" id="cm-chat-col">
+              <div class="cm-chat-head" id="cm-chat-head" title="Участники и медиафайлы по договору">
+                <div class="cm-chat-title">Переписка по договору</div>
+                <div class="cm-chat-head-hint">Участники · Медиа ›</div>
+              </div>
+              <div class="cm-chat-messages" id="cm-chat-messages">Загрузка…</div>
+              <div id="cm-chat-input-area"></div>
+            </div>
+            <div class="cm-info-panel" id="cm-info-panel"></div>
+            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;">Загрузка…</div>
+          </div>
+          <div class="cm-members-footer" id="cm-members-footer">
+            <div class="cm-members-head">
+              <div class="cm-members-title">Сотрудники по договору</div>
+              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;">+</button>
+              <div class="cm-add-popover" id="cm-add-popover">
+                <div class="cm-add-popover-title">Добавить сотрудника</div>
+                <div class="cm-add-popover-list" id="cm-add-popover-list">Загрузка…</div>
+              </div>
+            </div>
+            <div id="cm-members-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.ant-modal-mask').addEventListener('click', closeContractModal);
+  overlay.querySelector('#cm-close-btn').addEventListener('click', closeContractModal);
+  document.addEventListener('keydown', onModalEscape);
+  setTimeout(function() { overlay.classList.add('cm-open'); }, 20);
+
+  const body = overlay.querySelector('#cm-body');
+  try {
+    const currentUser = await getCurrentUser();
+    const res = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+    const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+    const members = r.contract_members || [];
+    const isMember = !!(currentUser && members.some(function(m) { return m.id === currentUser.id; }));
+    const contractNumber = r.contract_number || ('#' + id);
+    const state = { members: members };
+
+    if (currentUser && currentUser.__isAdmin) {
+      const delBtn = overlay.querySelector('#cm-delete-btn');
+      delBtn.style.display = '';
+      delBtn.addEventListener('click', async function() {
+        if (!(await cmConfirm('Удалить договор «' + contractNumber + '» безвозвратно? Это действие нельзя отменить.'))) return;
+        delBtn.disabled = true;
+        try {
+          await ctx.api.resource('rental_contracts').destroy({ filterByTk: id });
+          await purgeContractSideData('active', id);
+          try {
+            await fetch('/api/contract_chat_messages:destroy?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: 'active' })), {
+              method: 'POST', headers: { Authorization: 'Bearer ' + authToken() }
+            });
+          } catch (e) { /* best-effort */ }
+          closeContractModal();
+          cmToast('Договор удалён');
+          setTimeout(function() { location.reload(); }, 400);
+        } catch (e) {
+          cmToast('Не удалось удалить договор');
+          delBtn.disabled = false;
+        }
+      });
+
+      const compBtn = overlay.querySelector('#cm-complete-btn');
+      compBtn.style.display = '';
+      compBtn.addEventListener('click', async function() {
+        await completeContract(id, members, contractNumber);
+      });
+    }
+
+    initChat(id, overlay, currentUser, isMember, contractNumber, state);
+
+    let html = '';
+    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'counterparty' ? renderContactsSection('cm-active') : ''); }).join('');
+
+    const files = r.contract_files || [];
+    html += '<div class="cm-section" id="cm-active-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
+      + '<div id="cm-active-files-list">' + renderFilesList(files, currentUser) + '</div>'
+      + '<div class="cm-upload-row"><input type="file" id="cm-active-file-input" style="display:none;">'
+      + '<button class="cm-upload-btn" id="cm-active-upload-btn">+ Прикрепить файл</button>'
+      + '<span id="cm-active-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
+      + renderAddendumsSection('cm-active');
+
+    body.style.color = '';
+    body.innerHTML = html;
+    await wireAddendums(overlay, 'cm-active', 'active', id, currentUser);
+    await wireContacts(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser));
+    wireActiveBlockEdits(overlay, id, r, currentUser);
+
+    async function refreshActiveFiles() {
+      const res2 = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files'] });
+      const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
+      const listEl = overlay.querySelector('#cm-active-files-list');
+      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser);
+      bindFileOpenLinks(overlay);
+      bindFileDeleteLinks(overlay, id, 'rental_contracts', refreshActiveFiles);
+    }
+
+    bindFileOpenLinks(overlay);
+    bindFileDeleteLinks(overlay, id, 'rental_contracts', refreshActiveFiles);
+    bindFileUpload(overlay, id, 'rental_contracts', { input: 'cm-active-file-input', btn: 'cm-active-upload-btn', status: 'cm-active-upload-status' }, refreshActiveFiles);
+
+    initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state);
+  } catch (e) {
+    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
+  }
+}
+window.openContractModal = openContractModal;
+
+const STAGE_DEFS = [
+  { title: 'Заявка на аренду', role: 'rental_dept', fields: [
+      { name: 'object_name', label: 'Объект', type: 'combo', listId: 'cm-object-datalist' },
+      { name: 'area_sqm', label: 'Площадь, кв.м.', type: 'text' },
+      { name: 'rent_per_sqm', label: 'Аренда / 1 кв.м.', type: 'text' },
+      { name: 'utility_per_sqm', label: 'Э.С. / 1 кв.м.', type: 'text' },
+      { name: 'comment_stage0', label: 'Комментарий по заявке', type: 'textarea' }
+  ]},
+  { title: 'Размещение объявления', role: 'rental_dept', fields: [
+      { name: 'avito_url', label: 'Ссылка Авито', type: 'text' },
+      { name: 'cian_url', label: 'Ссылка Циан', type: 'text' },
+      { name: 'other_url', label: 'Ссылка ещё где-то', type: 'text' }
+  ]},
+  { title: 'Согласование условий', role: 'legal_dept', fields: [
+      { name: 'date_signed', label: 'Дата подписания Договора', type: 'date' },
+      { name: 'date_act', label: 'Дата подписания Акта', type: 'date' },
+      { name: 'purpose', label: 'Назначение по Договору', type: 'text' },
+      { name: 'comment_stage2', label: 'Комментарий по условиям', type: 'textarea' }
+  ]},
+  { title: 'Подписание договора / Данные контрагента', role: 'accounting_dept', fields: [
+      { name: 'contract_number', label: 'Номер Договора', type: 'text' },
+      { name: 'end_date', label: 'Дата окончания Договора', type: 'date' },
+      { name: 'tenant_name', label: 'Арендатор', type: 'text' },
+      { name: 'inn', label: 'ИНН', type: 'text' },
+      { name: 'tenant_fio', label: 'Контактное лицо', type: 'text' },
+      { name: 'email', label: 'Эл. почта', type: 'email' },
+      { name: 'phone', label: 'Телефон', type: 'tel' },
+      { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
+      { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
+      { name: 'bank_name', label: 'Банк', type: 'text' },
+      { name: 'corr_account', label: 'Корр. счёт', type: 'text' },
+      { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
+      { name: 'notes', label: 'Примечания', type: 'textarea' }
+  ]},
+  { title: 'Оплата счетов', role: 'legal_dept', fields: [
+      { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'text' },
+      { name: 'deposit_invoiced', label: 'Счёт ОП выставлен', type: 'checkbox' },
+      { name: 'deposit_paid', label: 'Счёт ОП оплачен', type: 'checkbox' },
+      { name: 'rent_amount', label: 'Арендная плата (АП)', type: 'text' },
+      { name: 'rent_invoiced', label: 'Счёт АП выставлен', type: 'checkbox' },
+      { name: 'rent_paid', label: 'Счёт АП оплачен', type: 'checkbox' },
+      { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС)', type: 'text' },
+      { name: 'utility_invoiced', label: 'Счёт ЭС выставлен', type: 'checkbox' },
+      { name: 'utility_paid', label: 'Счёт ЭС оплачен', type: 'checkbox' },
+      { name: 'comment_stage4', label: 'Комментарий по счетам', type: 'textarea' }
+  ]},
+  { title: 'Финал (Акт и Скан)', role: 'legal_dept', fields: [
+      { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
+      { name: 'contract_scan_url', label: 'Скан подписанного Договора (имя файла)', type: 'text' },
+      { name: 'act_scan_url', label: 'Скан подписанного Акта (имя файла)', type: 'text' }
+  ]}
+];
+const STAGE_ROLE_TITLES = { rental_dept: 'Отдел Аренды', legal_dept: 'Юр. отдел - Договоры', accounting_dept: 'Бухгалтерия' };
+
+function hasRole(user, roleName) {
+  if (!user) return false;
+  if (user.__isAdmin) return true;
+  const names = (user.roles || []).map(function(r) { return r.name; });
+  return names.indexOf(roleName) !== -1;
+}
+
+function readonlyFieldValue(f, r) {
+  const v = r[f.name];
+  if (f.type === 'checkbox') return v ? 'Да' : 'Нет';
+  if (f.type === 'date') return esc(fromISODateDisplay(v));
+  if (f.type === 'money') return money(v);
+  return esc(v);
+}
+
+function renderEditableField(f, value) {
+  if (f.type === 'checkbox') {
+    return '<label class="cm-field-checkbox"><input type="checkbox" data-field="' + f.name + '" ' + (value ? 'checked' : '') + '> ' + esc(f.label) + '</label>';
+  }
+  if (f.type === 'textarea') {
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><textarea class="cm-field-input" data-field="' + f.name + '" rows="2">' + escAttr(value) + '</textarea></div>';
+  }
+  if (f.type === 'combo') {
+    return '<div class="cm-field-row" style="position:relative;"><div class="cm-label">' + esc(f.label) + '</div>'
+      + '<input type="text" class="cm-field-input" data-field="' + f.name + '" data-combo="1" autocomplete="off" placeholder="Введите или выберите из списка" value="' + escAttr(value) + '">'
+      + '<div class="cm-combo-list" id="cm-combo-list-' + f.name + '" style="display:none;"></div></div>';
+  }
+  if (f.type === 'date') {
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="date" class="cm-field-input" data-field="' + f.name + '" value="' + escAttr(toISODate(value)) + '"></div>';
+  }
+  if (f.type === 'tel') {
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="tel" class="cm-field-input" data-field="' + f.name + '" data-mask="phone" placeholder="+7 (___) ___-__-__" value="' + escAttr(value) + '"></div>';
+  }
+  if (f.type === 'email') {
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="email" class="cm-field-input" data-field="' + f.name + '" placeholder="name@example.com" value="' + escAttr(value) + '"></div>';
+  }
+  if (f.type === 'select') {
+    const opts = (f.options || []).map(function(o) {
+      return '<option value="' + escAttr(o) + '"' + (value === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+    }).join('');
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><select class="cm-field-input" data-field="' + f.name + '"><option value=""' + (!value ? ' selected' : '') + '>Не выбрано</option>' + opts + '</select></div>';
+  }
+  const maskAttr = f.mask ? ' data-mask="' + f.mask + '"' : '';
+  const maskPlaceholder = f.mask === 'bankaccount' ? ' placeholder="0000 0000 0000 0000 0000"' : (f.mask === 'bik' ? ' placeholder="000000000"' : '');
+  return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '"></div>';
+}
+
+function toISODate(v) {
+  if (!v) return '';
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return '';
+}
+function fromISODateDisplay(v) {
+  if (!v) return '';
+  const s = String(v).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return m[3] + '.' + m[2] + '.' + m[1];
+  return s;
+}
+function formatPhoneInput(el) {
+  let digits = el.value.replace(/\D/g, '');
+  if (digits.charAt(0) === '8') digits = '7' + digits.slice(1);
+  if (digits.charAt(0) !== '7') digits = '7' + digits;
+  digits = digits.slice(0, 11);
+  let out = '+7';
+  if (digits.length > 1) out += ' (' + digits.slice(1, 4);
+  if (digits.length >= 4) out += ')';
+  if (digits.length > 4) out += ' ' + digits.slice(4, 7);
+  if (digits.length > 7) out += '-' + digits.slice(7, 9);
+  if (digits.length > 9) out += '-' + digits.slice(9, 11);
+  el.value = out;
+}
+function formatBankAccountInput(el) {
+  const digits = el.value.replace(/\D/g, '').slice(0, 20);
+  el.value = (digits.match(/.{1,4}/g) || []).join(' ');
+}
+function formatBikInput(el) {
+  el.value = el.value.replace(/\D/g, '').slice(0, 9);
+}
+function wireFieldMasks(root, stageIndex) {
+  const formEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+  if (!formEl) return;
+  formEl.querySelectorAll('[data-mask="phone"]').forEach(function(el) {
+    if (el.__cmMaskBound) return;
+    el.__cmMaskBound = true;
+    el.addEventListener('input', function() { formatPhoneInput(el); });
+    el.addEventListener('focus', function() { if (!el.value) formatPhoneInput(el); });
+  });
+  formEl.querySelectorAll('[data-mask="bankaccount"]').forEach(function(el) {
+    if (el.__cmMaskBound) return;
+    el.__cmMaskBound = true;
+    el.addEventListener('input', function() { formatBankAccountInput(el); });
+  });
+  formEl.querySelectorAll('[data-mask="bik"]').forEach(function(el) {
+    if (el.__cmMaskBound) return;
+    el.__cmMaskBound = true;
+    el.addEventListener('input', function() { formatBikInput(el); });
+    attachBikLookup(el);
+  });
+}
+
+async function loadObjectOptions() {
+  try {
+    const res = await ctx.api.resource('contract_objects').list({ fields: ['name'], pageSize: 100, sort: ['name'] });
+    const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+    return Array.isArray(payload) ? payload.map(function(x) { return x.name; }).filter(Boolean) : [];
+  } catch (e) { return []; }
+}
+
+function bindComboField(root, fieldName, options) {
+  const input = root.querySelector('[data-field="' + fieldName + '"][data-combo="1"]');
+  const listEl = root.querySelector('#cm-combo-list-' + fieldName);
+  if (!input || !listEl) return;
+
+  function renderOptions(filterText) {
+    const f = (filterText || '').toLowerCase();
+    const matches = options.filter(function(n) { return n.toLowerCase().indexOf(f) !== -1; });
+    if (!matches.length) { listEl.style.display = 'none'; return; }
+    listEl.innerHTML = matches.map(function(n) { return '<div class="cm-combo-item">' + esc(n) + '</div>'; }).join('');
+    listEl.style.display = 'block';
+    listEl.querySelectorAll('.cm-combo-item').forEach(function(item) {
+      item.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        input.value = item.textContent;
+        listEl.style.display = 'none';
+      });
+    });
+  }
+
+  input.addEventListener('focus', function() { renderOptions(input.value); });
+  input.addEventListener('input', function() { renderOptions(input.value); });
+  input.addEventListener('blur', function() { setTimeout(function() { listEl.style.display = 'none'; }, 150); });
+}
+
+const ACTIVE_BLOCK_DEFS = [
+  { key: 'data', title: 'Блок Данных по договору', fields: [
+      { name: 'object_name', label: 'Объект', type: 'text' },
+      { name: 'contract_number', label: 'Номер Договора', type: 'text' },
+      { name: 'tenant_name', label: 'Арендатор', type: 'text' },
+      { name: 'purpose', label: 'Назначение по Договору', type: 'text' },
+      { name: 'date_signed', label: 'Заключение (дата)', type: 'date' },
+      { name: 'date_act', label: 'Акт ПП (дата)', type: 'date' },
+      { name: 'end_date', label: 'Окончание (дата)', type: 'date' },
+      { name: 'termination_date', label: 'Расторжение (дата)', type: 'date' }
+  ]},
+  { key: 'room', title: 'Блок Характеристик помещения', fields: [
+      { name: 'rooms_list', label: 'Список комнат', type: 'textarea', full: true },
+      { name: 'room_ids', label: 'ID комнат', type: 'text' },
+      { name: 'area_sqm', label: 'Площадь, кв.м.', type: 'text' },
+      { name: 'rent_per_sqm', label: 'Аренда / 1 кв.м.', type: 'money' },
+      { name: 'utility_per_sqm', label: 'Э.С. / 1 кв.м.', type: 'money' }
+  ]},
+  { key: 'pay', title: 'Блок Расчётов оплат', fields: [
+      { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'money' },
+      { name: 'rent_amount', label: 'Арендная плата (АП)', type: 'money' },
+      { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС)', type: 'money' }
+  ]},
+  { key: 'counterparty', title: 'Блок Контрагента', fields: [
+      { name: 'inn', label: 'ИНН', type: 'text' },
+      { name: 'phone', label: 'Телефон', type: 'tel' },
+      { name: 'contact_person', label: 'Контактное лицо', type: 'text' },
+      { name: 'email', label: 'Эл. почта', type: 'email' },
+      { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
+      { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
+      { name: 'bank_name', label: 'Банк', type: 'text' },
+      { name: 'corr_account', label: 'Корр. счёт', type: 'text' }
+  ]},
+  { key: 'notes', title: 'Примечания', fields: [
+      { name: 'notes', label: 'Текст примечания', type: 'textarea', full: true }
+  ], readonlyRenderer: function(r) {
+      return '<div style="white-space:pre-wrap;color:#262626;font-size:14px;">' + esc(r.notes) + '</div>';
+  } }
+];
+
+function canEditActiveBlocks(user) {
+  return !!(user && (user.__isAdmin || hasRole(user, 'rental_dept') || hasRole(user, 'legal_dept') || hasRole(user, 'accounting_dept')));
+}
+
+function renderActiveBlockSection(block, r) {
+  const readonlyHtml = block.readonlyRenderer
+    ? block.readonlyRenderer(r)
+    : '<div class="cm-grid">' + block.fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
+  return '<div class="cm-section" data-active-block="' + block.key + '">'
+    + '<div class="cm-section-title-row">'
+    + '<div class="cm-section-title" style="margin-bottom:0;flex:1;">' + esc(block.title) + '</div>'
+    + '<button class="cm-stage-edit-toggle" data-active-edit-toggle="' + block.key + '" style="display:none;">✎ Редактировать</button>'
+    + '</div>'
+    + '<div data-active-readonly="' + block.key + '">' + readonlyHtml + '</div>'
+    + '<div class="cm-stage-form" data-active-form="' + block.key + '" style="display:none;">'
+    + block.fields.map(function(f) { return renderEditableField(f, r[f.name]); }).join('')
+    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-active-save="' + block.key + '">Сохранить</button>'
+    + '<button class="cm-btn-save" data-active-cancel="' + block.key + '">Отмена</button></div>'
+    + '</div>'
+    + '<div class="cm-save-status" id="cm-active-save-status-' + block.key + '"></div>'
+    + '</div>';
+}
+
+function wireGenericFieldMasks(formEl) {
+  if (!formEl) return;
+  formEl.querySelectorAll('[data-mask="phone"]').forEach(function(el) {
+    if (el.__cmMaskBound) return;
+    el.__cmMaskBound = true;
+    el.addEventListener('input', function() { formatPhoneInput(el); });
+    el.addEventListener('focus', function() { if (!el.value) formatPhoneInput(el); });
+  });
+  formEl.querySelectorAll('[data-mask="bankaccount"]').forEach(function(el) {
+    if (el.__cmMaskBound) return;
+    el.__cmMaskBound = true;
+    el.addEventListener('input', function() { formatBankAccountInput(el); });
+  });
+  formEl.querySelectorAll('[data-mask="bik"]').forEach(function(el) {
+    if (el.__cmMaskBound) return;
+    el.__cmMaskBound = true;
+    el.addEventListener('input', function() { formatBikInput(el); });
+    attachBikLookup(el);
+  });
+}
+
+function collectFormValues(formEl, fieldTypes) {
+  const values = {};
+  if (!formEl) return values;
+  formEl.querySelectorAll('[data-field]').forEach(function(el) {
+    const name = el.getAttribute('data-field');
+    if (el.type === 'checkbox') {
+      values[name] = el.checked;
+    } else if (fieldTypes[name] === 'date') {
+      values[name] = fromISODateDisplay(el.value);
+    } else {
+      values[name] = el.value;
+    }
+  });
+  return values;
+}
+
+function wireActiveBlockEdits(root, id, r, currentUser) {
+  if (!canEditActiveBlocks(currentUser)) return;
+  root.querySelectorAll('[data-active-edit-toggle]').forEach(function(btn) { btn.style.display = ''; });
+
+  root.querySelectorAll('[data-active-edit-toggle]').forEach(function(btn) {
+    if (btn.__cmBound) return;
+    btn.__cmBound = true;
+    btn.addEventListener('click', function() {
+      const key = btn.getAttribute('data-active-edit-toggle');
+      const readonly = root.querySelector('[data-active-readonly="' + key + '"]');
+      const form = root.querySelector('[data-active-form="' + key + '"]');
+      readonly.style.display = 'none';
+      form.style.display = 'block';
+      btn.style.display = 'none';
+      wireGenericFieldMasks(form);
+    });
+  });
+
+  root.querySelectorAll('[data-active-cancel]').forEach(function(btn) {
+    if (btn.__cmBound) return;
+    btn.__cmBound = true;
+    btn.addEventListener('click', function() {
+      const key = btn.getAttribute('data-active-cancel');
+      const readonly = root.querySelector('[data-active-readonly="' + key + '"]');
+      const form = root.querySelector('[data-active-form="' + key + '"]');
+      const toggleBtn = root.querySelector('[data-active-edit-toggle="' + key + '"]');
+      form.style.display = 'none';
+      readonly.style.display = '';
+      if (toggleBtn) toggleBtn.style.display = '';
+    });
+  });
+
+  root.querySelectorAll('[data-active-save]').forEach(function(btn) {
+    if (btn.__cmBound) return;
+    btn.__cmBound = true;
+    btn.addEventListener('click', async function() {
+      const key = btn.getAttribute('data-active-save');
+      const block = ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === key; });
+      const form = root.querySelector('[data-active-form="' + key + '"]');
+      const readonly = root.querySelector('[data-active-readonly="' + key + '"]');
+      const toggleBtn = root.querySelector('[data-active-edit-toggle="' + key + '"]');
+      const statusEl = root.querySelector('#cm-active-save-status-' + key);
+      const fieldTypes = {};
+      block.fields.forEach(function(f) { fieldTypes[f.name] = f.type; });
+      const values = collectFormValues(form, fieldTypes);
+      btn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Сохранение…';
+      try {
+        await ctx.api.resource('rental_contracts').update({ filterByTk: id, values: values });
+        Object.assign(r, values);
+        readonly.innerHTML = block.readonlyRenderer
+          ? block.readonlyRenderer(r)
+          : '<div class="cm-grid">' + block.fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
+        form.style.display = 'none';
+        readonly.style.display = '';
+        if (toggleBtn) toggleBtn.style.display = '';
+        if (statusEl) statusEl.textContent = '';
+        cmToast('Сохранено');
+      } catch (e) {
+        if (statusEl) statusEl.textContent = 'Не удалось сохранить';
+        cmToast('Не удалось сохранить изменения');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function renderFormingBody(r, currentUser) {
+  const cur = r.current_stage || 0;
+  let html = '<div class="cm-stage-bar">' + STAGE_DEFS.map(function(s, i) {
+    const state = i < cur ? 'done' : (i === cur ? 'active' : '');
+    return '<div class="cm-stage-pill ' + state + '">' + (i + 1) + '. ' + esc(s.title) + '</div>';
+  }).join('') + '</div>';
+
+  STAGE_DEFS.forEach(function(stage, i) {
+    if (i > cur) return;
+    const isCurrent = i === cur;
+    const isDone = i < cur;
+    const canEdit = isDone && !!(currentUser && (currentUser.__isAdmin || hasRole(currentUser, stage.role)));
+
+    html += '<div class="cm-section" data-stage-section="' + i + '">';
+    html += '<div class="cm-section-title-row">';
+    if (isDone) {
+      html += '<button class="cm-stage-collapse-btn" data-stage-collapse="' + i + '" title="Свернуть/развернуть">▸</button>';
+    }
+    html += '<div class="cm-section-title" style="margin-bottom:0;flex:1;">' + (i + 1) + '. ' + esc(stage.title)
+      + (isDone ? '<span class="cm-stage-done-badge">пройден</span>' : '') + '</div>';
+    if (canEdit) {
+      html += '<button class="cm-stage-edit-toggle" data-stage-edit-toggle="' + i + '">✎ Редактировать</button>';
+    }
+    html += '</div>';
+
+    html += '<div class="cm-stage-content" data-stage-content="' + i + '" style="display:' + (isDone ? 'none' : 'block') + ';">';
+    if (isDone) {
+      html += '<div class="cm-grid" data-stage-readonly="' + i + '">' + stage.fields.map(function(f) {
+        return row(f.label, readonlyFieldValue(f, r));
+      }).join('') + '</div>';
+    }
+    html += '<div class="cm-stage-form" data-stage="' + i + '" style="display:' + (isCurrent ? 'block' : 'none') + ';">'
+      + stage.fields.map(function(f) { return renderEditableField(f, r[f.name]); }).join('');
+    if (isDone) {
+      html += '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-edit-save="' + i + '">Сохранить</button>'
+        + '<button class="cm-btn-save" data-edit-cancel="' + i + '">Готово</button></div>';
+    }
+    html += '</div>';
+    html += '<div class="cm-save-status" id="cm-save-status-' + i + '"></div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += renderContactsSection('cm-forming');
+  const files = r.contract_files || [];
+  html += '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
+    + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser) + '</div>'
+    + '<div class="cm-upload-row"><input type="file" id="cm-forming-file-input" style="display:none;">'
+    + '<button class="cm-upload-btn" id="cm-forming-upload-btn">+ Прикрепить файл</button>'
+    + '<span id="cm-forming-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
+    + renderAddendumsSection('cm-forming');
+
+  return html;
+}
+
+function wireAutoSave(root, id, stageIndex, statusElId) {
+  const formEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+  const statusEl = root.querySelector('#' + statusElId);
+  if (!formEl || formEl.__cmFlush) return;
+  let timer = null;
+  function doSave() {
+    const values = collectStageValues(root, stageIndex);
+    if (statusEl) statusEl.textContent = 'Сохранение…';
+    return ctx.api.resource('forming_contracts').update({ filterByTk: id, values: values }).then(function() {
+      if (statusEl) {
+        statusEl.textContent = 'Сохранено';
+        setTimeout(function() { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 1500);
+      }
+    }).catch(function() {
+      if (statusEl) statusEl.textContent = 'Не удалось сохранить';
+    });
+  }
+  function scheduleSave() {
+    clearTimeout(timer);
+    timer = setTimeout(doSave, 700);
+  }
+  formEl.querySelectorAll('[data-field]').forEach(function(el) {
+    const evt = (el.type === 'checkbox') ? 'change' : 'input';
+    el.addEventListener(evt, scheduleSave);
+  });
+  formEl.__cmFlush = function() { clearTimeout(timer); return doSave(); };
+}
+
+function wireStageCollapseToggles(root) {
+  root.querySelectorAll('[data-stage-collapse]').forEach(function(btn) {
+    if (btn.__cmBound) return;
+    btn.__cmBound = true;
+    btn.addEventListener('click', function() {
+      const i = btn.getAttribute('data-stage-collapse');
+      const content = root.querySelector('[data-stage-content="' + i + '"]');
+      const collapsed = content.style.display === 'none';
+      content.style.display = collapsed ? 'block' : 'none';
+      btn.textContent = collapsed ? '▾' : '▸';
+    });
+  });
+}
+
+function wireStageEditToggles(root, id) {
+  root.querySelectorAll('[data-stage-edit-toggle]').forEach(function(btn) {
+    if (btn.__cmBound) return;
+    btn.__cmBound = true;
+    btn.addEventListener('click', function() {
+      const i = btn.getAttribute('data-stage-edit-toggle');
+      const content = root.querySelector('[data-stage-content="' + i + '"]');
+      const readonly = root.querySelector('[data-stage-readonly="' + i + '"]');
+      const form = root.querySelector('.cm-stage-form[data-stage="' + i + '"]');
+      content.style.display = 'block';
+      const collapseBtn = root.querySelector('[data-stage-collapse="' + i + '"]');
+      if (collapseBtn) collapseBtn.textContent = '▾';
+      if (readonly) readonly.style.display = 'none';
+      form.style.display = 'block';
+      btn.style.display = 'none';
+      wireAutoSave(root, id, Number(i), 'cm-save-status-' + i);
+      wireFieldMasks(root, Number(i));
+    });
+  });
+
+  root.querySelectorAll('[data-edit-cancel]').forEach(function(btn) {
+    if (btn.__cmBound) return;
+    btn.__cmBound = true;
+    btn.addEventListener('click', async function() {
+      const i = btn.getAttribute('data-edit-cancel');
+      const form = root.querySelector('.cm-stage-form[data-stage="' + i + '"]');
+      if (form.__cmFlush) await form.__cmFlush();
+      const res2 = await ctx.api.resource('forming_contracts').get({ filterByTk: id });
+      const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
+      const stage = STAGE_DEFS[Number(i)];
+      const readonly = root.querySelector('[data-stage-readonly="' + i + '"]');
+      readonly.innerHTML = stage.fields.map(function(f) {
+        return row(f.label, readonlyFieldValue(f, r2));
+      }).join('');
+      readonly.style.display = 'block';
+      form.style.display = 'none';
+      const editBtn = root.querySelector('[data-stage-edit-toggle="' + i + '"]');
+      if (editBtn) editBtn.style.display = '';
+    });
+  });
+
+  root.querySelectorAll('[data-edit-save]').forEach(function(btn) {
+    if (btn.__cmBound) return;
+    btn.__cmBound = true;
+    btn.addEventListener('click', async function() {
+      const i = btn.getAttribute('data-edit-save');
+      const form = root.querySelector('.cm-stage-form[data-stage="' + i + '"]');
+      if (form.__cmFlush) await form.__cmFlush();
+      cmToast('Сохранено');
+    });
+  });
+}
+
+function collectStageValues(root, stageIndex) {
+  const formEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+  const values = {};
+  if (!formEl) return values;
+  const stage = STAGE_DEFS[Number(stageIndex)];
+  const fieldTypes = {};
+  if (stage) stage.fields.forEach(function(f) { fieldTypes[f.name] = f.type; });
+  formEl.querySelectorAll('[data-field]').forEach(function(el) {
+    const name = el.getAttribute('data-field');
+    if (el.type === 'checkbox') {
+      values[name] = el.checked;
+    } else if (fieldTypes[name] === 'date') {
+      values[name] = fromISODateDisplay(el.value);
+    } else {
+      values[name] = el.value;
+    }
+  });
+  return values;
+}
+
+function isImageMime(mt) { return !!mt && mt.indexOf('image/') === 0; }
+function formatBytes(n) {
+  if (n == null) return '';
+  if (n < 1024) return n + ' Б';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' КБ';
+  return (n / 1024 / 1024).toFixed(1) + ' МБ';
+}
+async function cmFetchBlobUrl(url) {
+  const res = await fetch(url, { credentials: 'include' });
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+function cmHydrateChatImages(scope) {
+  scope.querySelectorAll('img.cm-att-image[data-att-url]').forEach(async function(img) {
+    const url = img.getAttribute('data-att-url');
+    img.removeAttribute('data-att-url');
+    try { img.src = await cmFetchBlobUrl(url); } catch (e) {}
+  });
+}
+function cmWireChatFileOpen(scope) {
+  scope.querySelectorAll('.cm-att-file[data-att-url]').forEach(function(el) {
+    if (el.__wired) return;
+    el.__wired = true;
+    el.addEventListener('click', async function() {
+      try {
+        const blobUrl = await cmFetchBlobUrl(el.getAttribute('data-att-url'));
+        const a = document.createElement('a');
+        a.href = blobUrl; a.download = el.getAttribute('data-att-name'); a.target = '_blank';
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch (e) {}
+    });
+  });
+}
+
+async function uploadFileGetId(file) {
+  const boundary = '----addBoundary' + Math.random().toString(16).slice(2);
+  const parts = [];
+  parts.push('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + file.name + '"\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n');
+  const tail = '\r\n--' + boundary + '--\r\n';
+  const blob = new Blob([parts.join(''), file, tail]);
+  const res = await fetch('/api/attachments:upload', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+    body: blob
+  });
+  const data = await res.json();
+  const attId = data && data.data && data.data.id;
+  if (!attId) throw new Error('upload failed');
+  return attId;
+}
+
+function renderAddendumsSection(prefix) {
+  return '<div class="cm-section" id="' + prefix + '-addendums-section" style="margin-bottom:0;">'
+    + '<div class="cm-section-title" style="display:flex;justify-content:space-between;align-items:center;">'
+    + '<span>Доп. соглашения</span>'
+    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-add-btn" style="font-size:12px;">+ Доп. соглашение</button></div>'
+    + '<div id="' + prefix + '-addendums-list" style="margin-top:6px;"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
+    + '<div id="' + prefix + '-addendum-form" style="display:none;margin-top:10px;padding:10px;border:1px solid #f0f0f0;border-radius:6px;background:#fafafa;">'
+    + '<input type="text" id="' + prefix + '-addendum-title" placeholder="Название (например, Доп. соглашение №1)" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;">'
+    + '<textarea id="' + prefix + '-addendum-desc" placeholder="Описание/условия" rows="2" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;resize:vertical;"></textarea>'
+    + '<div style="display:flex;align-items:center;gap:8px;">'
+    + '<input type="file" id="' + prefix + '-addendum-file" style="display:none;">'
+    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;">Выбрать файл</button>'
+    + '<span id="' + prefix + '-addendum-filename" style="font-size:12px;color:#999;">Файл не выбран</span>'
+    + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;">'
+    + '<button id="' + prefix + '-addendum-save-btn" style="background:#1677ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Сохранить</button>'
+    + '<button id="' + prefix + '-addendum-cancel-btn" style="background:#f0f0f0;color:#333;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Отмена</button>'
+    + '<span id="' + prefix + '-addendum-status" style="font-size:12px;color:#999;align-self:center;"></span>'
+    + '</div></div></div>';
+}
+
+function renderAddendumsList(items) {
+  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет доп. соглашений</div>';
+  return items.map(function(a) {
+    const fileHtml = a.file
+      ? '<span class="cm-addendum-file" data-att-url="' + esc(a.file.url) + '" data-att-name="' + esc((a.file.title || 'file') + (a.file.extname || '')) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc((a.file.title || 'file') + (a.file.extname || '')) + '</span>'
+      : '';
+    return '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;">'
+      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Доп. соглашение') + '</div>'
+      + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
+      + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + (fileHtml ? ' · ' + fileHtml : '') + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function nbFmtDateTimeLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+  return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+async function loadAddendums(contractType, contractId) {
+  const res = await ctx.api.resource('contract_addendums').list({
+    filter: { contract_type: contractType, contract_ref_id: contractId }, appends: ['file', 'author'], sort: ['created_at']
+  });
+  const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+  return Array.isArray(payload) ? payload : [];
+}
+
+function wireAddendumFileOpen(root) {
+  root.querySelectorAll('.cm-addendum-file[data-att-url]').forEach(function(el) {
+    if (el.__wired) return;
+    el.__wired = true;
+    el.addEventListener('click', async function() {
+      try {
+        const res = await fetch(el.getAttribute('data-att-url'), { credentials: 'include' });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = el.getAttribute('data-att-name'); a.target = '_blank';
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch (e) { /* best-effort */ }
+    });
+  });
+}
+
+async function wireAddendums(overlay, prefix, contractType, contractId, currentUser) {
+  const listEl = overlay.querySelector('#' + prefix + '-addendums-list');
+  const addBtn = overlay.querySelector('#' + prefix + '-addendum-add-btn');
+  const formEl = overlay.querySelector('#' + prefix + '-addendum-form');
+  const titleInput = overlay.querySelector('#' + prefix + '-addendum-title');
+  const descInput = overlay.querySelector('#' + prefix + '-addendum-desc');
+  const fileInput = overlay.querySelector('#' + prefix + '-addendum-file');
+  const pickBtn = overlay.querySelector('#' + prefix + '-addendum-pick-btn');
+  const filenameSpan = overlay.querySelector('#' + prefix + '-addendum-filename');
+  const saveBtn = overlay.querySelector('#' + prefix + '-addendum-save-btn');
+  const cancelBtn = overlay.querySelector('#' + prefix + '-addendum-cancel-btn');
+  const statusSpan = overlay.querySelector('#' + prefix + '-addendum-status');
+  if (!listEl || !addBtn) return;
+
+  async function refresh() {
+    const items = await loadAddendums(contractType, contractId);
+    listEl.innerHTML = renderAddendumsList(items);
+    wireAddendumFileOpen(overlay);
+  }
+  await refresh();
+
+  addBtn.addEventListener('click', function() {
+    formEl.style.display = formEl.style.display === 'none' ? 'block' : 'none';
+  });
+  cancelBtn.addEventListener('click', function() {
+    formEl.style.display = 'none';
+    titleInput.value = ''; descInput.value = ''; fileInput.value = '';
+    filenameSpan.textContent = 'Файл не выбран';
+  });
+  pickBtn.addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function() {
+    filenameSpan.textContent = fileInput.files[0] ? fileInput.files[0].name : 'Файл не выбран';
+  });
+  saveBtn.addEventListener('click', async function() {
+    const title = titleInput.value.trim();
+    if (!title) { cmToast('Укажите название'); return; }
+    saveBtn.disabled = true;
+    statusSpan.textContent = 'Сохранение…';
+    try {
+      let fileId = null;
+      if (fileInput.files[0]) {
+        statusSpan.textContent = 'Загрузка файла…';
+        fileId = await uploadFileGetId(fileInput.files[0]);
+      }
+      await ctx.api.resource('contract_addendums').create({
+        values: {
+          contract_type: contractType, contract_ref_id: contractId,
+          title: title, description: descInput.value.trim(),
+          file_id: fileId, author_id: currentUser.id, created_at: new Date().toISOString()
+        }
+      });
+      titleInput.value = ''; descInput.value = ''; fileInput.value = '';
+      filenameSpan.textContent = 'Файл не выбран';
+      formEl.style.display = 'none';
+      statusSpan.textContent = '';
+      await refresh();
+    } catch (e) {
+      cmToast('Не удалось сохранить доп. соглашение');
+      statusSpan.textContent = '';
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+}
+
+async function uploadContractFile(file, contractId, collectionName) {
+  const boundary = '----cmBoundary' + Math.random().toString(16).slice(2);
+  const parts = [];
+  parts.push('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + file.name + '"\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n');
+  const tail = '\r\n--' + boundary + '--\r\n';
+  const blob = new Blob([parts.join(''), file, tail]);
+  const res = await fetch('/api/attachments:upload', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+    body: blob
+  });
+  const data = await res.json();
+  const attId = data && data.data && data.data.id;
+  if (!attId) throw new Error('upload failed');
+  await fetch('/api/' + collectionName + '/' + contractId + '/contract_files:add', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify([attId])
+  });
+}
+
+function bindFileUpload(root, contractId, collectionName, ids, onDone) {
+  const input = root.querySelector('#' + ids.input);
+  const btn = root.querySelector('#' + ids.btn);
+  const status = root.querySelector('#' + ids.status);
+  if (!input || !btn) return;
+  btn.addEventListener('click', function() { input.click(); });
+  input.addEventListener('change', async function() {
+    const file = input.files[0];
+    if (!file) return;
+    btn.disabled = true;
+    status.textContent = 'Загрузка…';
+    try {
+      await uploadContractFile(file, contractId, collectionName);
+      status.textContent = 'Готово';
+      if (onDone) await onDone();
+    } catch (e) {
+      status.textContent = '';
+      cmToast('Не удалось загрузить файл');
+    } finally {
+      btn.disabled = false;
+      input.value = '';
+    }
+  });
+}
+
+async function saveStage(id, stageIndex, root) {
+  const values = collectStageValues(root, stageIndex);
+  await ctx.api.resource('forming_contracts').update({ filterByTk: id, values: values });
+  return values;
+}
+
+async function advanceStage(id, root, currentUser) {
+  const res = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_members'] });
+  const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  const stageIndex = r.current_stage || 0;
+  const stage = STAGE_DEFS[stageIndex];
+  if (!hasRole(currentUser, stage.role)) {
+    cmToast('Подтвердить этот этап может только роль «' + STAGE_ROLE_TITLES[stage.role] + '»');
+    return;
+  }
+  const currentFormEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+  if (currentFormEl && currentFormEl.__cmFlush) {
+    await currentFormEl.__cmFlush();
+  } else {
+    await saveStage(id, stageIndex, root);
+  }
+  const contractNumber = r.contract_number || r.object_name || ('#' + id);
+  const members = r.contract_members || [];
+
+  if (stageIndex === STAGE_DEFS.length - 1) {
+    await finalizeContract(id, members, contractNumber);
+    return;
+  }
+
+  await ctx.api.resource('forming_contracts').update({ filterByTk: id, values: { current_stage: stageIndex + 1 } });
+  members.forEach(function(m) {
+    createNotification(m.id, id, 'Договор ' + contractNumber, 'Этап «' + stage.title + '» пройден, договор переходит на этап «' + STAGE_DEFS[stageIndex + 1].title + '»', 'forming');
+  });
+  closeFormingModal(true);
+  await openFormingContractModal(id);
+}
+
+async function completeContract(id, members, contractNumber) {
+  if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перевести в «Завершённые»?'))) return;
+  const res = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+  const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  const payload = {
+    contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
+    object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
+    end_date: f.end_date, termination_date: f.termination_date, purpose: f.purpose,
+    rooms_list: f.rooms_list, room_ids: f.room_ids,
+    rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
+    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount,
+    inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
+    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
+  };
+  const createRes = await ctx.api.resource('completed_contracts').create({ values: payload });
+  const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
+  const newId = newRec.id;
+
+  const fileIds = (f.contract_files || []).map(function(x) { return x.id; });
+  if (fileIds.length) {
+    await fetch('/api/completed_contracts/' + newId + '/contract_files:add', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(fileIds)
+    });
+  }
+  const memberIds = (f.contract_members || []).map(function(x) { return x.id; });
+  if (memberIds.length) {
+    await fetch('/api/completed_contracts/' + newId + '/contract_members:add', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(memberIds)
+    });
+  }
+  try {
+    await fetch('/api/contract_chat_messages:update?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: 'active' })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ owner_contract_id: newId, source: 'completed' })
+    });
+  } catch (e) { /* best-effort */ }
+
+  try {
+    await fetch('/api/contract_addendums:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'active', contract_ref_id: id })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contract_type: 'completed', contract_ref_id: newId })
+    });
+  } catch (e) { /* best-effort */ }
+  try {
+    await fetch('/api/contract_contacts:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'active', contract_ref_id: id })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contract_type: 'completed', contract_ref_id: newId })
+    });
+  } catch (e) { /* best-effort */ }
+
+  memberIds.forEach(function(uid) {
+    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор завершён и перенесён в раздел «Завершённые»', 'completed');
+  });
+
+  try {
+    await ctx.api.resource('rental_contracts').destroy({ filterByTk: id });
+  } catch (e) {
+    cmToast('Договор перенесён, но исходная запись не удалилась — уберите вручную');
+  }
+  closeContractModal();
+  cmToast('Готово: договор переведён в «Завершённые»');
+  setTimeout(function() { location.reload(); }, 400);
+}
+
+async function finalizeContract(id, members, contractNumber) {
+  if (!(await cmConfirm('Завершить оформление и перевести договор в «Активные»?'))) return;
+  const res = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+  const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  const payload = {
+    contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
+    object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
+    end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
+    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount,
+    inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
+    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
+  };
+  const createRes = await ctx.api.resource('rental_contracts').create({ values: payload });
+  const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
+  const newId = newRec.id;
+
+  const fileIds = (f.contract_files || []).map(function(x) { return x.id; });
+  if (fileIds.length) {
+    await fetch('/api/rental_contracts/' + newId + '/contract_files:add', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(fileIds)
+    });
+  }
+  const memberIds = (f.contract_members || []).map(function(x) { return x.id; });
+  if (memberIds.length) {
+    await fetch('/api/rental_contracts/' + newId + '/contract_members:add', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(memberIds)
+    });
+  }
+  try {
+    await fetch('/api/contract_chat_messages:update?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: 'forming' })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ owner_contract_id: newId, source: 'active' })
+    });
+  } catch (e) { /* best-effort */ }
+
+  try {
+    await fetch('/api/contract_addendums:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'forming', contract_ref_id: id })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contract_type: 'active', contract_ref_id: newId })
+    });
+  } catch (e) { /* best-effort */ }
+  try {
+    await fetch('/api/contract_contacts:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'forming', contract_ref_id: id })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contract_type: 'active', contract_ref_id: newId })
+    });
+  } catch (e) { /* best-effort */ }
+
+  memberIds.forEach(function(uid) {
+    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор полностью оформлен и переведён в раздел «Активные»', 'active');
+  });
+
+  try {
+    await ctx.api.resource('forming_contracts').destroy({ filterByTk: id });
+  } catch (e) {
+    cmToast('Договор перенесён, но черновик не удалился — уберите вручную');
+  }
+  closeFormingModal();
+  cmToast('Готово: договор переведён в «Активные»');
+  setTimeout(function() { location.reload(); }, 400);
+}
+
+function closeFormingModal(immediate) {
+  const root = document.getElementById('forming-modal-root');
+  if (!root) return;
+  root.querySelectorAll('.cm-stage-form').forEach(function(f) { if (f.__cmFlush) f.__cmFlush(); });
+  document.removeEventListener('keydown', onFormingModalEscape);
+  if (immediate) {
+    root.remove();
+    return;
+  }
+  root.classList.remove('cm-open');
+  setTimeout(function() { if (root && root.parentNode) root.remove(); }, 220);
+}
+function onFormingModalEscape(e) {
+  if (e.key === 'Escape') closeFormingModal();
+}
+
+async function openFormingContractModal(id) {
+  const overlay = document.createElement('div');
+  overlay.id = 'forming-modal-root';
+  overlay.innerHTML = `
+    <div class="ant-modal-mask" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;"></div>
+    <div class="ant-modal-wrap" style="position:fixed;inset:0;z-index:1001;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;">
+      <div class="ant-modal" style="width:100%;max-width:min(1800px, 96vw);">
+        <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
+          <div class="cm-modal-toolbar">
+            <button id="cm-delete-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
+            <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
+          </div>
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
+            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Оформление договора</div>
+          </div>
+          <div class="cm-body-flex" style="flex:1;min-height:0;">
+            <div class="cm-chat-col" id="cm-chat-col">
+              <div class="cm-chat-head" id="cm-chat-head" title="Участники и медиафайлы по договору">
+                <div class="cm-chat-title">Переписка по договору</div>
+                <div class="cm-chat-head-hint">Участники · Медиа ›</div>
+              </div>
+              <div class="cm-chat-messages" id="cm-chat-messages">Загрузка…</div>
+              <div id="cm-chat-input-area"></div>
+            </div>
+            <div class="cm-info-panel" id="cm-info-panel"></div>
+            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;">Загрузка…</div>
+          </div>
+          <div class="cm-members-footer" id="cm-members-footer">
+            <div class="cm-members-head">
+              <div class="cm-members-title">Сотрудники по договору</div>
+              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;">+</button>
+              <div class="cm-add-popover" id="cm-add-popover">
+                <div class="cm-add-popover-title">Добавить сотрудника</div>
+                <div class="cm-add-popover-list" id="cm-add-popover-list">Загрузка…</div>
+              </div>
+            </div>
+            <div id="cm-members-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.ant-modal-mask').addEventListener('click', closeFormingModal);
+  overlay.querySelector('#cm-close-btn').addEventListener('click', closeFormingModal);
+  document.addEventListener('keydown', onFormingModalEscape);
+  setTimeout(function() { overlay.classList.add('cm-open'); }, 20);
+
+  const body = overlay.querySelector('#cm-body');
+  try {
+    const currentUser = await getCurrentUser();
+    const res = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+    const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+    const members = r.contract_members || [];
+    const isMember = !!(currentUser && members.some(function(m) { return m.id === currentUser.id; }));
+    const contractNumber = r.contract_number || r.object_name || ('#' + id);
+    const state = { members: members };
+
+    if (currentUser && currentUser.__isAdmin) {
+      const delBtn = overlay.querySelector('#cm-delete-btn');
+      delBtn.style.display = '';
+      delBtn.addEventListener('click', async function() {
+        if (!(await cmConfirm('Удалить черновик договора «' + contractNumber + '» безвозвратно? Это действие нельзя отменить.'))) return;
+        delBtn.disabled = true;
+        try {
+          await ctx.api.resource('forming_contracts').destroy({ filterByTk: id });
+          await purgeContractSideData('forming', id);
+          try {
+            await fetch('/api/contract_chat_messages:destroy?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: 'forming' })), {
+              method: 'POST', headers: { Authorization: 'Bearer ' + authToken() }
+            });
+          } catch (e) { /* best-effort */ }
+          closeFormingModal();
+          cmToast('Черновик удалён');
+          setTimeout(function() { location.reload(); }, 400);
+        } catch (e) {
+          cmToast('Не удалось удалить договор');
+          delBtn.disabled = false;
+        }
+      });
+    }
+
+    initChat(id, overlay, currentUser, isMember, contractNumber, state, 'forming');
+
+    body.style.color = '';
+    body.innerHTML = renderFormingBody(r, currentUser);
+    await wireAddendums(overlay, 'cm-forming', 'forming', id, currentUser);
+    await wireContacts(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser));
+
+    if ((r.current_stage || 0) === 0) {
+      loadObjectOptions().then(function(names) {
+        bindComboField(body, 'object_name', names);
+      });
+    }
+
+    async function refreshFormingFiles() {
+      const res2 = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_files'] });
+      const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
+      const listEl = overlay.querySelector('#cm-forming-files-list');
+      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser);
+      bindFileOpenLinks(overlay);
+      bindFileDeleteLinks(overlay, id, 'forming_contracts', refreshFormingFiles);
+    }
+    bindFileOpenLinks(overlay);
+    bindFileDeleteLinks(overlay, id, 'forming_contracts', refreshFormingFiles);
+    bindFileUpload(overlay, id, 'forming_contracts', { input: 'cm-forming-file-input', btn: 'cm-forming-upload-btn', status: 'cm-forming-upload-status' }, refreshFormingFiles);
+
+    wireStageCollapseToggles(overlay);
+    wireStageEditToggles(overlay, id);
+
+    const stageIndex = r.current_stage || 0;
+    const stage = STAGE_DEFS[stageIndex];
+    const canAdvance = hasRole(currentUser, stage.role);
+    const isLast = stageIndex === STAGE_DEFS.length - 1;
+    const actionsHtml = '<div class="cm-stage-actions">'
+      + '<button class="cm-btn-save" id="cm-stage-save">Сохранить</button>'
+      + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance"' + (canAdvance ? '' : ' disabled') + '>'
+      + (isLast ? 'Завершить оформление → Активные' : 'Подтвердить этап и перейти дальше') + '</button>'
+      + (canAdvance ? '' : '<span class="cm-role-hint">Подтверждает роль «' + esc(STAGE_ROLE_TITLES[stage.role]) + '»</span>')
+      + '</div>';
+    const currentContent = overlay.querySelector('[data-stage-content="' + stageIndex + '"]');
+    currentContent.insertAdjacentHTML('beforeend', actionsHtml);
+
+    wireAutoSave(overlay, id, stageIndex, 'cm-save-status-' + stageIndex);
+    wireFieldMasks(overlay, stageIndex);
+
+    overlay.querySelector('#cm-stage-save').addEventListener('click', async function(e) {
+      const btn = e.target;
+      btn.disabled = true;
+      try {
+        const formEl = overlay.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+        if (formEl && formEl.__cmFlush) await formEl.__cmFlush();
+        else await saveStage(id, stageIndex, overlay);
+      } catch (err) {
+        cmToast('Не удалось сохранить');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    overlay.querySelector('#cm-stage-advance').addEventListener('click', async function(e) {
+      e.target.disabled = true;
+      try {
+        await advanceStage(id, overlay, currentUser);
+      } catch (err) {
+        cmToast('Не удалось перейти на следующий этап');
+        e.target.disabled = false;
+      }
+    });
+
+    initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state, 'forming_contracts', 'forming');
+  } catch (e) {
+    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
+  }
+}
+window.openFormingContractModal = openFormingContractModal;
+
+function injectCreateContractButton() {
+  if (document.getElementById('cm-create-btn')) return;
+  const search = document.getElementById('global-search-input');
+  if (!search || !search.parentElement) { setTimeout(injectCreateContractButton, 300); return; }
+  const parent = search.parentElement;
+  parent.style.display = 'flex';
+  parent.style.alignItems = 'center';
+  parent.style.gap = '12px';
+  search.style.width = '';
+  search.style.flex = '1';
+  search.style.minWidth = '0';
+  search.style.maxWidth = '420px';
+
+  const btn = document.createElement('button');
+  btn.id = 'cm-create-btn';
+  btn.textContent = '+ Создать договор';
+  btn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:none;background:#1677ff;color:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
+  btn.addEventListener('click', async function() {
+    btn.disabled = true;
+    try {
+      const res = await ctx.api.resource('forming_contracts').create({ values: { current_stage: 0 } });
+      const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
+      await openFormingContractModal(rec.id);
+    } catch (e) {
+      cmToast('Не удалось создать договор');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  parent.appendChild(btn);
+}
+injectCreateContractButton();
+
+function markTables() {
+  document.querySelectorAll('table').forEach(table => {
+    const ths = table.querySelectorAll('thead th');
+    const isMain = Array.from(ths).some(th => th.textContent.trim() === 'Номер договора');
+    const card = table.closest('.ant-card');
+    if (card) {
+      card.classList.toggle('main-registry-clickable-rows', isMain);
+    }
+  });
+}
+markTables();
+if (!window.__mainRegistryMarkInterval) {
+  window.__mainRegistryMarkInterval = setInterval(markTables, 500);
+}
+if (!document.getElementById('main-registry-row-style')) {
+  const style = document.createElement('style');
+  style.id = 'main-registry-row-style';
+  style.textContent = '.main-registry-clickable-rows .ant-table-tbody > tr:hover > td { cursor: pointer; background: #f5f5f5 !important; }';
+  document.head.appendChild(style);
+}
+if (!window.__mainRowClickBound) {
+  window.__mainRowClickBound = true;
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest ? e.target.closest('.ant-table-tbody > tr') : null;
+    if (!row) return;
+    if (e.target.closest('button, a, .ant-btn')) return;
+    const table = row.closest('table');
+    if (!table) return;
+    const ths = table.querySelectorAll('thead th');
+    const isMain = Array.from(ths).some(th => th.textContent.trim() === 'Номер договора');
+    if (!isMain) return;
+    const key = row.getAttribute('data-row-key');
+    if (!key) return;
+    const blockEl = table.closest('[data-uid]');
+    const uid = blockEl ? blockEl.getAttribute('data-uid') : null;
+    if (uid === 'formtbl000001') {
+      openFormingContractModal(key);
+    } else if (uid === 'ipb7gfluldk') {
+      openCompletedContractModal(key);
+    } else {
+      openContractModal(key);
+    }
+  });
+}

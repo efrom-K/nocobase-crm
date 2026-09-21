@@ -378,7 +378,7 @@ function renderChatMessages(container, list, currentUser) {
       + '<div class="cm-bubble">'
       + (!own ? '<span class="cm-bubble-author">' + esc(authorName) + '</span>' : '')
       + attHtml
-      + (m.message ? '<div' + (att ? ' style="margin-top:4px"' : '') + '>' + esc(m.message) + '</div>' : '')
+      + (m.message ? '<div' + (att ? ' style="margin-top:4px"' : '') + '>' + linkifyText(m.message) + '</div>' : '')
       + '<span class="cm-bubble-time">' + esc(fmtDateTime(m.created_at)) + '</span>'
       + '</div></div></div>';
   }).join('');
@@ -760,12 +760,223 @@ async function initMembers(contractId, root, initialMembers, isAdmin, contractNu
 }
 
 
+// ---------- правила ввода, нормализация и валидация ----------
+const FIELD_RULES = {
+  area_sqm: { kind: 'decimal' },
+  rent_per_sqm: { kind: 'money' }, utility_per_sqm: { kind: 'money' },
+  deposit_amount: { kind: 'money' }, rent_amount: { kind: 'money' }, utility_amount: { kind: 'money' },
+  inn: { kind: 'inn' }, bank_account: { kind: 'account' }, corr_account: { kind: 'account' }, bik: { kind: 'bik' },
+  phone: { kind: 'phone' }, email: { kind: 'email' },
+  tenant_fio: { kind: 'fio' }, contact_person: { kind: 'fio' },
+  avito_url: { kind: 'url' }, cian_url: { kind: 'url' }, other_url: { kind: 'url' }
+};
+
+function digitsOnly(s) { return String(s === null || s === undefined ? '' : s).replace(/\D/g, ''); }
+function escRaw(v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function sanitizeFio(v) { return String(v).replace(/[^A-Za-zА-Яа-яЁё .'’-]/g, ''); }
+
+function normalizeValue(name, raw) {
+  const rule = FIELD_RULES[name];
+  let v = (raw === null || raw === undefined) ? '' : String(raw);
+  if (!rule) return v;
+  switch (rule.kind) {
+    case 'decimal': case 'money': return v.replace(/[\s ]/g, '').replace(/\./g, ',');
+    case 'inn': case 'bik': case 'account': return digitsOnly(v);
+    case 'phone': {
+      const d = digitsOnly(v);
+      if (d.length <= 1) return '';
+      if (d.length === 11 && (d[0] === '7' || d[0] === '8')) return '+7' + d.slice(1);
+      if (d.length === 10) return '+7' + d;
+      return v.trim();
+    }
+    case 'email': return v.trim().toLowerCase();
+    case 'url': { v = v.trim(); return (v && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) ? 'https://' + v : v; }
+    case 'fio': return v.trim().replace(/\s+/g, ' ');
+  }
+  return v;
+}
+
+function innValid(d) {
+  const n = function(coef, len) { let s = 0; for (let i = 0; i < len; i++) s += Number(d[i]) * coef[i]; return (s % 11) % 10; };
+  if (d.length === 10) return n([2, 4, 10, 3, 5, 9, 4, 6, 8], 9) === Number(d[9]);
+  if (d.length === 12) return n([7, 2, 4, 10, 3, 5, 9, 4, 6, 8], 10) === Number(d[10]) && n([3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8], 11) === Number(d[11]);
+  return false;
+}
+function accountChecksumOk(prefix, account) {
+  const s = prefix + account;
+  const w = [7, 1, 3];
+  let sum = 0;
+  for (let i = 0; i < s.length; i++) sum += (Number(s[i]) * w[i % 3]) % 10;
+  return sum % 10 === 0;
+}
+function formatPhoneDisplay(v) {
+  const n = normalizeValue('phone', v);
+  if (!/^\+7\d{10}$/.test(n)) return v;
+  return '+7 (' + n.slice(2, 5) + ') ' + n.slice(5, 8) + '-' + n.slice(8, 10) + '-' + n.slice(10, 12);
+}
+
+// возвращает текст ошибки или '' (значение уже нормализовано)
+function validateValue(name, val, el) {
+  const rule = FIELD_RULES[name];
+  if (!rule || val === '' || val === null || val === undefined) return '';
+  switch (rule.kind) {
+    case 'decimal': case 'money':
+      return /^\d{1,9}(,\d{1,2})?$/.test(val) ? '' : 'только цифры, дробная часть через запятую (не более 2 знаков)';
+    case 'inn':
+      if (!/^(\d{10}|\d{12})$/.test(val)) return 'ИНН — это 10 или 12 цифр';
+      return innValid(val) ? '' : 'некорректный ИНН (не сходится контрольная сумма)';
+    case 'bik':
+      if (!/^\d{9}$/.test(val)) return 'БИК — ровно 9 цифр';
+      if (val.slice(0, 2) !== '04') return 'БИК российского банка начинается с 04';
+      if (el && el.__bikState === 'bad') return 'БИК не найден в справочнике ЦБ';
+      return '';
+    case 'account': {
+      if (!/^\d{20}$/.test(val)) return 'счёт — ровно 20 цифр';
+      const scope = el ? (el.closest('.cm-stage-form') || el.closest('form')) : null;
+      const bikEl = scope ? scope.querySelector('[data-field="bik"]') : null;
+      const bik = bikEl ? digitsOnly(bikEl.value) : '';
+      if (bik.length === 9 && bik.slice(0, 2) === '04') {
+        const isCorr = name === 'corr_account';
+        const prefix = isCorr ? ('0' + bik.slice(4, 6)) : bik.slice(6, 9);
+        if (!accountChecksumOk(prefix, val)) return 'счёт не соответствует указанному БИК (не сходится контрольный ключ)';
+      }
+      return '';
+    }
+    case 'phone': return /^\+7\d{10}$/.test(val) ? '' : 'введите номер полностью: +7 (XXX) XXX-XX-XX';
+    case 'email': return /^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(val) ? '' : 'некорректный адрес почты';
+    case 'url': {
+      let u = null;
+      try { u = new URL(val); } catch (e) { u = null; }
+      return (u && (u.protocol === 'http:' || u.protocol === 'https:') && u.hostname.indexOf('.') > 0) ? '' : 'некорректная ссылка (нужен адрес вида https://…)';
+    }
+    case 'fio':
+      return /^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё .'’-]*$/.test(val) ? '' : 'только буквы, без цифр и символов';
+  }
+  return '';
+}
+
+function fieldLabel(name) {
+  let label = name;
+  const scan = function(defs) { (defs || []).forEach(function(d) { (d.fields || []).forEach(function(f) { if (f.name === name) label = f.label; }); }); };
+  try { scan(STAGE_DEFS); scan(ACTIVE_BLOCK_DEFS); } catch (e) { /* ignore */ }
+  return label;
+}
+
+function sanitizeInput(el, kind) {
+  let v = el.value;
+  if (kind === 'decimal' || kind === 'money') {
+    v = v.replace(/[^\d.,]/g, '').replace(/\./g, ',');
+    const i = v.indexOf(',');
+    let ip = i >= 0 ? v.slice(0, i) : v;
+    let fp = i >= 0 ? v.slice(i + 1).replace(/,/g, '').slice(0, 2) : '';
+    ip = ip.slice(0, 9);
+    v = i >= 0 ? ip + ',' + fp : ip;
+  } else if (kind === 'inn') v = v.replace(/\D/g, '').slice(0, 12);
+  else if (kind === 'fio') v = sanitizeFio(v);
+  else if (kind === 'email' || kind === 'url') v = v.replace(/\s/g, '');
+  if (v !== el.value) el.value = v;
+}
+
+function validateElement(el, strict) {
+  const name = el.getAttribute('data-field');
+  if (!FIELD_RULES[name]) return '';
+  const norm = normalizeValue(name, el.value);
+  if (!strict && norm === el.__origNorm) return '';
+  return validateValue(name, norm, el);
+}
+function showFieldState(el) {
+  const err = validateElement(el, false);
+  el.__cmErr = err;
+  el.style.borderColor = err ? '#ff4d4f' : (el.__bikState === 'ok' ? '#52c41a' : '');
+  if (el.__cmMsg && el.getAttribute('data-field') !== 'bik') el.__cmMsg.textContent = err ? '✗ ' + err : '';
+}
+function revalidateAccounts(scope) {
+  if (!scope || !scope.querySelectorAll) return;
+  scope.querySelectorAll('[data-field="bank_account"],[data-field="corr_account"]').forEach(function(a) { if (a.__cmRules) showFieldState(a); });
+}
+function validateForm(formEl, strict) {
+  if (!formEl) return null;
+  const els = formEl.querySelectorAll('[data-field]');
+  for (let i = 0; i < els.length; i++) {
+    const err = validateElement(els[i], strict);
+    if (err) {
+      const name = els[i].getAttribute('data-field');
+      showFieldState(els[i]);
+      return { el: els[i], name: name, msg: fieldLabel(name) + ': ' + err };
+    }
+  }
+  return null;
+}
+function invalidFieldNames(formEl) {
+  const names = [];
+  if (!formEl) return names;
+  formEl.querySelectorAll('[data-field]').forEach(function(el) { if (validateElement(el, false)) names.push(el.getAttribute('data-field')); });
+  return names;
+}
+
+function wireFieldRules(formEl) {
+  if (!formEl) return;
+  formEl.querySelectorAll('[data-field]').forEach(function(el) {
+    const name = el.getAttribute('data-field');
+    const rule = FIELD_RULES[name];
+    if (!rule || el.__cmRules) return;
+    el.__cmRules = true;
+    el.__origNorm = normalizeValue(name, el.value);
+    const kind = rule.kind;
+    el.setAttribute('autocomplete', 'off');
+    el.spellcheck = false;
+    if (kind === 'decimal' || kind === 'money') el.setAttribute('inputmode', 'decimal');
+    else if (kind === 'inn' || kind === 'bik' || kind === 'account') el.setAttribute('inputmode', 'numeric');
+    else if (kind === 'phone') el.setAttribute('inputmode', 'tel');
+    if (kind === 'phone' && el.value) el.value = formatPhoneDisplay(el.value);
+    if (el.getAttribute('data-mask') === 'bankaccount' && el.value) formatBankAccountInput(el);
+    const msg = document.createElement('div');
+    msg.className = 'cm-field-msg';
+    el.parentNode.appendChild(msg);
+    el.__cmMsg = msg;
+    el.addEventListener('input', function() { sanitizeInput(el, kind); showFieldState(el); });
+    el.addEventListener('blur', function() {
+      if (kind === 'url' && el.value.trim()) el.value = normalizeValue(name, el.value);
+      showFieldState(el);
+    });
+  });
+}
+
+function linkHtml(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const s = String(v).trim();
+  let u = null;
+  try { u = new URL(s); } catch (e) { u = null; }
+  if (u && (u.protocol === 'http:' || u.protocol === 'https:')) {
+    return '<a href="' + escAttr(s) + '" target="_blank" rel="noopener noreferrer" style="color:#1677ff;word-break:break-all;">' + escRaw(s) + '</a>';
+  }
+  return esc(v);
+}
+function linkifyText(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const s = String(v);
+  const re = /https?:\/\/[^\s<>"']+/g;
+  let out = '', last = 0, m;
+  while ((m = re.exec(s))) {
+    let url = m[0], tail = '';
+    const t = url.match(/[.,;:!?)\]]+$/);
+    if (t) { tail = t[0]; url = url.slice(0, url.length - tail.length); }
+    out += escRaw(s.slice(last, m.index))
+      + '<a href="' + escAttr(url) + '" target="_blank" rel="noopener noreferrer" style="color:#1677ff;word-break:break-all;">' + escRaw(url) + '</a>'
+      + escRaw(tail);
+    last = m.index + m[0].length;
+  }
+  return out + escRaw(s.slice(last));
+}
+
+
 // ---------- допстили: банк по БИК, контакты ----------
 if (!document.getElementById('cm-extra-style')) {
   const st = document.createElement('style');
   st.id = 'cm-extra-style';
   st.textContent = `
     .cm-bik-hint { font-size: 12px; margin-top: 3px; min-height: 0; }
+    .cm-field-msg { font-size: 12px; color: #cf1322; margin-top: 3px; }
     .cm-completed-banner { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px; }
     .cm-contact-card { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
     .cm-contact-main { flex: 1; min-width: 0; }
@@ -803,32 +1014,51 @@ function attachBikLookup(el) {
   hint.className = 'cm-bik-hint';
   el.parentNode.appendChild(hint);
   let auto = null;
+  let seq = 0;
+  function setHint(color, text) { hint.style.color = color; hint.textContent = text; }
+  function bankFields() {
+    return { bn: scope.querySelector('[data-field="bank_name"]'), ca: scope.querySelector('[data-field="corr_account"]') };
+  }
+  function lock(inp, on) {
+    if (!inp) return;
+    inp.readOnly = !!on;
+    inp.style.background = on ? '#f5f5f5' : '';
+  }
+  function unlockBank() { const f = bankFields(); lock(f.bn, false); lock(f.ca, false); }
   function clearAuto() {
+    unlockBank();
     if (!auto) return;
-    const bn = scope.querySelector('[data-field="bank_name"]');
-    const ca = scope.querySelector('[data-field="corr_account"]');
-    if (bn && bn.value === auto.bank) { bn.value = ''; fireInput(bn); }
-    if (ca && ca.value === auto.corr) { ca.value = ''; fireInput(ca); }
+    const f = bankFields();
+    if (f.bn && f.bn.value === auto.bank) { f.bn.value = ''; fireInput(f.bn); }
+    if (f.ca && f.ca.value === auto.corr) { f.ca.value = ''; fireInput(f.ca); }
     auto = null;
   }
-  el.addEventListener('input', async function() {
+  function paint() {
+    el.style.borderColor = el.__bikState === 'ok' ? '#52c41a' : (el.__bikState === 'bad' ? '#ff4d4f' : '');
+    if (typeof revalidateAccounts === 'function') revalidateAccounts(scope);
+  }
+  async function run() {
+    const my = ++seq;
     const v = el.value;
-    if (v.length !== 9) { hint.textContent = ''; clearAuto(); return; }
-    hint.style.color = '#8c8c8c';
-    hint.textContent = 'Ищу банк…';
+    if (!v) { el.__bikState = ''; setHint('#8c8c8c', ''); clearAuto(); paint(); return; }
+    if (v.length !== 9) { el.__bikState = 'partial'; setHint('#8c8c8c', 'Введите 9 цифр БИК (ещё ' + (9 - v.length) + ')'); clearAuto(); paint(); return; }
+    if (v.slice(0, 2) !== '04') { el.__bikState = 'bad'; setHint('#cf1322', '✗ Некорректный БИК: у российских банков он начинается с 04'); clearAuto(); paint(); return; }
+    el.__bikState = 'pending'; setHint('#8c8c8c', 'Проверяю БИК…'); paint();
     let rec = null;
     try { rec = await lookupBik(v); }
-    catch (e) { hint.style.color = '#cf1322'; hint.textContent = 'Не удалось запросить справочник БИК'; return; }
-    if (el.value !== v) return;
-    if (!rec) { clearAuto(); hint.style.color = '#d48806'; hint.textContent = 'БИК не найден в справочнике ЦБ — банк можно ввести вручную'; return; }
-    hint.style.color = '#389e0d';
-    hint.textContent = '✓ ' + rec.bank_name;
-    const bn = scope.querySelector('[data-field="bank_name"]');
-    const ca = scope.querySelector('[data-field="corr_account"]');
+    catch (e) { if (my !== seq) return; el.__bikState = 'unknown'; setHint('#d48806', 'Справочник БИК сейчас недоступен — данные банка введите вручную'); paint(); return; }
+    if (my !== seq || el.value !== v) return;
+    if (!rec) { el.__bikState = 'bad'; clearAuto(); setHint('#cf1322', '✗ Некорректный БИК — банка с таким БИК нет в справочнике ЦБ'); paint(); return; }
+    el.__bikState = 'ok';
+    setHint('#389e0d', '✓ БИК корректен · ' + rec.bank_name + (rec.city ? ' · ' + rec.city : ''));
+    const f = bankFields();
     auto = { bank: rec.bank_name || '', corr: rec.corr_account || '' };
-    if (bn) { bn.value = auto.bank; fireInput(bn); }
-    if (ca) { ca.value = auto.corr; fireInput(ca); }
-  });
+    if (f.bn) { if (f.bn.value !== auto.bank) { f.bn.value = auto.bank; fireInput(f.bn); } lock(f.bn, !!auto.bank); }
+    if (f.ca) { if (f.ca.value !== auto.corr) { f.ca.value = auto.corr; fireInput(f.ca); } lock(f.ca, !!auto.corr); }
+    paint();
+  }
+  el.addEventListener('input', run);
+  if (el.value) run();
 }
 
 async function purgeContractSideData(type, id) {
@@ -861,7 +1091,7 @@ function renderContactsSection(prefix) {
 function renderContactsList(items, canEdit) {
   if (!items.length) return '<div style="color:#bbb;font-size:12px;">Дополнительных контактов нет' + (canEdit ? ' — добавьте кнопкой «+ Контакт»' : '') + '</div>';
   return items.map(function(c) {
-    const lines = (c.phone ? '<a href="tel:' + escAttr(String(c.phone).replace(/[^\d+]/g, '')) + '">' + esc(c.phone) + '</a>' : '')
+    const lines = (c.phone ? '<a href="tel:' + escAttr(String(c.phone).replace(/[^\d+]/g, '')) + '">' + esc(formatPhoneDisplay(c.phone)) + '</a>' : '')
       + (c.email ? '<a href="mailto:' + escAttr(c.email) + '">' + esc(c.email) + '</a>' : '');
     return '<div class="cm-contact-card" data-contact-id="' + c.id + '"><div class="cm-contact-main">'
       + '<div class="cm-contact-name">' + (c.name ? esc(c.name) : '<span style="color:#8c8c8c;">Без имени</span>')
@@ -922,13 +1152,14 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
 
   addBtn.style.display = '';
   phoneEl.addEventListener('input', function() { formatPhoneInput(phoneEl); });
-  phoneEl.addEventListener('focus', function() { if (!phoneEl.value) formatPhoneInput(phoneEl); });
+  nameEl.addEventListener('input', function() { const v = sanitizeFio(nameEl.value); if (v !== nameEl.value) nameEl.value = v; });
+  emailEl.addEventListener('input', function() { const v = emailEl.value.replace(/\s/g, ''); if (v !== emailEl.value) emailEl.value = v; });
 
   function openForm(c) {
     editId = c ? c.id : null;
     nameEl.value = c ? (c.name || '') : '';
     posEl.value = c ? (c.position || '') : '';
-    phoneEl.value = c ? (c.phone || '') : '';
+    phoneEl.value = c ? (c.phone ? formatPhoneDisplay(c.phone) : '') : '';
     emailEl.value = c ? (c.email || '') : '';
     formEl.style.display = 'block';
     nameEl.focus();
@@ -938,14 +1169,14 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
   addBtn.addEventListener('click', function() { if (formEl.style.display === 'none') openForm(null); else closeForm(); });
   cancelBtn.addEventListener('click', closeForm);
   saveBtn.addEventListener('click', async function() {
-    const phoneDigits = phoneEl.value.replace(/\D/g, '');
     const values = {
       contract_type: contractType, contract_ref_id: contractId,
-      name: nameEl.value.trim(), position: posEl.value.trim(),
-      phone: phoneDigits.length > 1 ? phoneEl.value.trim() : '', email: emailEl.value.trim()
+      name: normalizeValue('tenant_fio', nameEl.value), position: posEl.value.trim(),
+      phone: normalizeValue('phone', phoneEl.value), email: normalizeValue('email', emailEl.value)
     };
     if (!values.name && !values.phone && !values.email) { cmToast('Заполните хотя бы ФИО, телефон или почту'); return; }
-    if (values.email && !/^\S+@\S+\.\S+$/.test(values.email)) { cmToast('Проверьте адрес почты'); return; }
+    const cErr = validateValue('tenant_fio', values.name, null) || validateValue('phone', values.phone, null) || validateValue('email', values.email, null);
+    if (cErr) { cmToast(cErr); return; }
     saveBtn.disabled = true;
     statusEl.textContent = 'Сохранение…';
     try {
@@ -1204,9 +1435,9 @@ const STAGE_DEFS = [
       { name: 'comment_stage0', label: 'Комментарий по заявке', type: 'textarea' }
   ]},
   { title: 'Размещение объявления', role: 'rental_dept', fields: [
-      { name: 'avito_url', label: 'Ссылка Авито', type: 'text' },
-      { name: 'cian_url', label: 'Ссылка Циан', type: 'text' },
-      { name: 'other_url', label: 'Ссылка ещё где-то', type: 'text' }
+      { name: 'avito_url', label: 'Ссылка Авито', type: 'url' },
+      { name: 'cian_url', label: 'Ссылка Циан', type: 'url' },
+      { name: 'other_url', label: 'Ссылка ещё где-то', type: 'url' }
   ]},
   { title: 'Согласование условий', role: 'legal_dept', fields: [
       { name: 'date_signed', label: 'Дата подписания Договора', type: 'date' },
@@ -1225,7 +1456,7 @@ const STAGE_DEFS = [
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
-      { name: 'corr_account', label: 'Корр. счёт', type: 'text' },
+      { name: 'corr_account', label: 'Корр. счёт', type: 'text', mask: 'bankaccount' },
       { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
       { name: 'notes', label: 'Примечания', type: 'textarea' }
   ]},
@@ -1261,6 +1492,8 @@ function readonlyFieldValue(f, r) {
   if (f.type === 'checkbox') return v ? 'Да' : 'Нет';
   if (f.type === 'date') return esc(fromISODateDisplay(v));
   if (f.type === 'money') return money(v);
+  if (f.type === 'url') return linkHtml(v);
+  if (f.type === 'textarea') return linkifyText(v);
   return esc(v);
 }
 
@@ -1291,6 +1524,9 @@ function renderEditableField(f, value) {
     }).join('');
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><select class="cm-field-input" data-field="' + f.name + '"><option value=""' + (!value ? ' selected' : '') + '>Не выбрано</option>' + opts + '</select></div>';
   }
+  if (f.type === 'url') {
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="url" class="cm-field-input" data-field="' + f.name + '" placeholder="https://…" value="' + escAttr(value) + '"></div>';
+  }
   const maskAttr = f.mask ? ' data-mask="' + f.mask + '"' : '';
   const maskPlaceholder = f.mask === 'bankaccount' ? ' placeholder="0000 0000 0000 0000 0000"' : (f.mask === 'bik' ? ' placeholder="000000000"' : '');
   return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '"></div>';
@@ -1313,6 +1549,7 @@ function fromISODateDisplay(v) {
 }
 function formatPhoneInput(el) {
   let digits = el.value.replace(/\D/g, '');
+  if (!digits) { el.value = ''; return; }
   if (digits.charAt(0) === '8') digits = '7' + digits.slice(1);
   if (digits.charAt(0) !== '7') digits = '7' + digits;
   digits = digits.slice(0, 11);
@@ -1338,7 +1575,6 @@ function wireFieldMasks(root, stageIndex) {
     if (el.__cmMaskBound) return;
     el.__cmMaskBound = true;
     el.addEventListener('input', function() { formatPhoneInput(el); });
-    el.addEventListener('focus', function() { if (!el.value) formatPhoneInput(el); });
   });
   formEl.querySelectorAll('[data-mask="bankaccount"]').forEach(function(el) {
     if (el.__cmMaskBound) return;
@@ -1351,6 +1587,7 @@ function wireFieldMasks(root, stageIndex) {
     el.addEventListener('input', function() { formatBikInput(el); });
     attachBikLookup(el);
   });
+  wireFieldRules(formEl);
 }
 
 async function loadObjectOptions() {
@@ -1417,12 +1654,12 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
-      { name: 'corr_account', label: 'Корр. счёт', type: 'text' }
+      { name: 'corr_account', label: 'Корр. счёт', type: 'text', mask: 'bankaccount' }
   ]},
   { key: 'notes', title: 'Примечания', fields: [
       { name: 'notes', label: 'Текст примечания', type: 'textarea', full: true }
   ], readonlyRenderer: function(r) {
-      return '<div style="white-space:pre-wrap;color:#262626;font-size:14px;">' + esc(r.notes) + '</div>';
+      return '<div style="white-space:pre-wrap;color:#262626;font-size:14px;">' + linkifyText(r.notes) + '</div>';
   } }
 ];
 
@@ -1455,7 +1692,6 @@ function wireGenericFieldMasks(formEl) {
     if (el.__cmMaskBound) return;
     el.__cmMaskBound = true;
     el.addEventListener('input', function() { formatPhoneInput(el); });
-    el.addEventListener('focus', function() { if (!el.value) formatPhoneInput(el); });
   });
   formEl.querySelectorAll('[data-mask="bankaccount"]').forEach(function(el) {
     if (el.__cmMaskBound) return;
@@ -1468,6 +1704,7 @@ function wireGenericFieldMasks(formEl) {
     el.addEventListener('input', function() { formatBikInput(el); });
     attachBikLookup(el);
   });
+  wireFieldRules(formEl);
 }
 
 function collectFormValues(formEl, fieldTypes) {
@@ -1480,7 +1717,7 @@ function collectFormValues(formEl, fieldTypes) {
     } else if (fieldTypes[name] === 'date') {
       values[name] = fromISODateDisplay(el.value);
     } else {
-      values[name] = el.value;
+      values[name] = normalizeValue(name, el.value);
     }
   });
   return values;
@@ -1531,6 +1768,8 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       const fieldTypes = {};
       block.fields.forEach(function(f) { fieldTypes[f.name] = f.type; });
       const values = collectFormValues(form, fieldTypes);
+      const badField = validateForm(form, false);
+      if (badField) { cmToast(badField.msg); if (badField.el) badField.el.focus(); return; }
       btn.disabled = true;
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
@@ -1616,9 +1855,12 @@ function wireAutoSave(root, id, stageIndex, statusElId) {
   let timer = null;
   function doSave() {
     const values = collectStageValues(root, stageIndex);
+    const badNames = invalidFieldNames(formEl);
+    badNames.forEach(function(n) { delete values[n]; });
     if (statusEl) statusEl.textContent = 'Сохранение…';
     return ctx.api.resource('forming_contracts').update({ filterByTk: id, values: values }).then(function() {
       if (statusEl) {
+        if (badNames.length) { statusEl.textContent = 'Не сохранено, исправьте: ' + badNames.map(fieldLabel).join(', '); return; }
         statusEl.textContent = 'Сохранено';
         setTimeout(function() { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 1500);
       }
@@ -1718,7 +1960,7 @@ function collectStageValues(root, stageIndex) {
     } else if (fieldTypes[name] === 'date') {
       values[name] = fromISODateDisplay(el.value);
     } else {
-      values[name] = el.value;
+      values[name] = normalizeValue(name, el.value);
     }
   });
   return values;
@@ -1969,6 +2211,8 @@ async function advanceStage(id, root, currentUser) {
     return;
   }
   const currentFormEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+  const badAdv = currentFormEl ? validateForm(currentFormEl, true) : null;
+  if (badAdv) { cmToast(badAdv.msg); if (badAdv.el) badAdv.el.focus(); return; }
   if (currentFormEl && currentFormEl.__cmFlush) {
     await currentFormEl.__cmFlush();
   } else {
@@ -2277,6 +2521,7 @@ async function openFormingContractModal(id) {
       e.target.disabled = true;
       try {
         await advanceStage(id, overlay, currentUser);
+        e.target.disabled = false;
       } catch (err) {
         cmToast('Не удалось перейти на следующий этап');
         e.target.disabled = false;

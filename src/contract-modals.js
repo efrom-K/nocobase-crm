@@ -754,6 +754,7 @@ function renderMembers(root, contractId, members, allUsers, isAdmin, contractNum
         createNotification(Number(uid), contractId, 'Договор ' + contractNumber, 'Вас добавили к договору ' + contractNumber, notifSource, 'assigned');
         logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'member', text: 'Сотрудник добавлен к договору: ' + userNameById(allUsers, uid) }]);
         await refreshMembers(root, contractId, allUsers, isAdmin, contractNumber, state, collectionName, notifSource);
+        closeAddPopover(root);      // список не должен оставаться открытым поверх карточки
       } catch (e2) {
         cmToast('Не удалось добавить сотрудника');
       }

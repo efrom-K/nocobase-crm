@@ -198,9 +198,10 @@ if (!document.getElementById('cm-cols-style')) {
     #cm-cols-panel .cm-cols-move { border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; color: #595959; line-height: 1; }
     #cm-cols-panel .cm-cols-move:hover:not(:disabled) { border-color: #1677ff; color: #1677ff; }
     #cm-cols-panel .cm-cols-move:disabled { opacity: 0.3; cursor: default; }
-    #cm-cols-panel .cm-cols-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+    #cm-cols-panel .cm-cols-foot { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+    #cm-cols-panel .cm-cols-btns { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
     #cm-cols-panel .cm-cols-sync { font-size: 12px; color: #595959; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-    #cm-cols-panel button.cm-cols-act { border: 1px solid #d9d9d9; background: #fff; border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+    #cm-cols-panel button.cm-cols-act { border: 1px solid #d9d9d9; background: #fff; border-radius: 6px; padding: 5px 16px; font-size: 13px; cursor: pointer; white-space: nowrap; }
     #cm-cols-panel button.cm-cols-act.primary { background: #1677ff; border-color: #1677ff; color: #fff; }
   `;
   document.head.appendChild(st);
@@ -234,7 +235,7 @@ function renderColsPanel() {
           + '<button class="cm-cols-move" data-move="down" data-col="' + n + '"' + (i === names.length - 1 ? ' disabled' : '') + ' title="Ниже">↓</button></div>';
       }).join('')
     + '<div class="cm-cols-foot"><label class="cm-cols-sync"><input type="checkbox" id="cm-cols-sync"' + (colSync ? ' checked' : '') + '> Одинаково для всех вкладок</label>'
-    + '<div><button class="cm-cols-act" id="cm-cols-reset">Сбросить</button> <button class="cm-cols-act primary" id="cm-cols-done">Готово</button></div></div>';
+    + '<div class="cm-cols-btns"><button class="cm-cols-act" id="cm-cols-reset">Сбросить</button><button class="cm-cols-act primary" id="cm-cols-done">Готово</button></div></div>';
 
   function commit(newCfg) {
     const targets = colSync ? TABLES : [uid];

@@ -214,20 +214,6 @@
     }
   },
   {
-    "uid": "94dc7e408c7",
-    "name": "94dc7e408c7",
-    "options": {
-      "use": "JSItemActionModel",
-      "parentId": "ozazmpm4o4v",
-      "subKey": "actions",
-      "subType": "array",
-      "props": {},
-      "stepParams": {},
-      "sortIndex": 1,
-      "flowRegistry": {}
-    }
-  },
-  {
     "uid": "9r8030mskby",
     "name": "oupckq663cg",
     "options": {

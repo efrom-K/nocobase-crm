@@ -37,7 +37,7 @@ CODE_PATH = '{stepParams,jsSettings,runJs,code}'
 def log(msg):
     os.makedirs(HOME, exist_ok=True)
     line = '%s %s' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), msg)
-    print(line)
+    if sys.stdout.isatty(): print(line)     # под cron вывод не дублируем: в файл пишем сами
     with open(LOG, 'a', encoding='utf-8') as f: f.write(line + '\n')
 
 def run(cmd, **kw):

@@ -1,4 +1,3 @@
-// pipeline test 2: изменение в репозитории
 
 if (!document.getElementById('obj-list-style')) {
   const style = document.createElement('style');

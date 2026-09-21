@@ -41,7 +41,7 @@ def plural_days(n): return '%d дн.' % n
 
 psql("create table if not exists contract_reminders_log(contract_id bigint not null, threshold int not null, end_date text not null, sent_at timestamptz default now(), primary key(contract_id, threshold, end_date));")
 today = date.today()
-contracts = jrows("select id, contract_number, object_name, tenant_name, end_date, termination_date from rental_contracts where coalesce(end_date,'')<>''")
+contracts = jrows("select id, contract_number, object_name, tenant_name, end_date::text as end_date, termination_date::text as termination_date from rental_contracts where end_date is not null")
 sent = {(r['contract_id'], r['threshold'], r['end_date']) for r in jrows("select contract_id, threshold, end_date from contract_reminders_log")}
 members = {}
 for r in jrows('select f_f6uc3x0qna1 as cid, f_z8ov78krtg5 as uid from "rentalContractsMembers"'):

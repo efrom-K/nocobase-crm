@@ -22,9 +22,16 @@ function esc(v) {
   if (v === null || v === undefined || v === '') return '—';
   return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function formatNum(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = Number(v);
+  if (!isFinite(n)) return esc(v);
+  try { return n.toLocaleString('ru-RU', { maximumFractionDigits: 2 }); } catch (e) { return String(n).replace('.', ','); }
+}
 function money(v) {
   if (v === null || v === undefined || v === '') return '—';
-  return esc(v) + ' ₽';
+  const n = Number(v);
+  return isFinite(n) ? formatNum(n) + ' ₽' : esc(v) + ' ₽';
 }
 function fmtSize(n) {
   if (!n && n !== 0) return '';
@@ -788,7 +795,7 @@ async function initMembers(contractId, root, initialMembers, isAdmin, contractNu
 const FIELD_RULES = {
   area_sqm: { kind: 'decimal' },
   rent_per_sqm: { kind: 'money' }, utility_per_sqm: { kind: 'money' },
-  deposit_amount: { kind: 'money' }, rent_amount: { kind: 'money' }, utility_amount: { kind: 'money' },
+  deposit_amount: { kind: 'money' }, rent_amount: { kind: 'money' }, utility_amount: { kind: 'money' }, total_amount: { kind: 'money' },
   inn: { kind: 'inn' }, bank_account: { kind: 'account' }, corr_account: { kind: 'account' }, bik: { kind: 'bik' },
   phone: { kind: 'phone' }, email: { kind: 'email' },
   tenant_fio: { kind: 'fio' }, contact_person: { kind: 'fio' },
@@ -816,6 +823,17 @@ function normalizeValue(name, raw) {
     case 'email': return v.trim().toLowerCase();
     case 'url': { v = v.trim(); return (v && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) ? 'https://' + v : v; }
     case 'fio': return v.trim().replace(/\s+/g, ' ');
+  }
+  return v;
+}
+
+// значение для API: числовые поля — Number/null, остальные без изменений
+function toApiValue(name, v) {
+  const rule = FIELD_RULES[name];
+  if (rule && (rule.kind === 'decimal' || rule.kind === 'money')) {
+    if (v === '' || v === null || v === undefined) return null;
+    const n = Number(String(v).replace(',', '.'));
+    return isFinite(n) ? n : null;
   }
   return v;
 }
@@ -945,6 +963,7 @@ function wireFieldRules(formEl) {
     const rule = FIELD_RULES[name];
     if (!rule || el.__cmRules) return;
     el.__cmRules = true;
+    if ((rule.kind === 'decimal' || rule.kind === 'money') && el.value.indexOf('.') >= 0) el.value = el.value.replace('.', ',');
     el.__origNorm = normalizeValue(name, el.value);
     const kind = rule.kind;
     el.setAttribute('autocomplete', 'off');
@@ -1104,7 +1123,7 @@ function renderHistorySection(prefix) {
     + '<div id="' + prefix + '-history-list" style="display:none;margin-top:6px;"></div></div>';
 }
 function histShort(v) {
-  const s = String(v);
+  const s = /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? fromISODateDisplay(v) : String(v);
   return s.length > 140 ? s.slice(0, 140) + '…' : s;
 }
 function renderHistoryList(items) {
@@ -1645,6 +1664,7 @@ const STAGE_DEFS = [
       { name: 'notes', label: 'Примечания', type: 'textarea' }
   ]},
   { title: 'Оплата счетов', role: 'legal_dept', fields: [
+      { name: 'total_amount', label: 'Сумма договора', type: 'money' },
       { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'text' },
       { name: 'deposit_invoiced', label: 'Счёт ОП выставлен', type: 'checkbox' },
       { name: 'deposit_paid', label: 'Счёт ОП оплачен', type: 'checkbox' },
@@ -1679,6 +1699,7 @@ function readonlyFieldValue(f, r) {
   if (f.type === 'money') return money(v);
   if (f.type === 'url') return linkHtml(v);
   if (f.type === 'textarea') return linkifyText(v);
+  if (f.name === 'area_sqm') return formatNum(v);
   return esc(v);
 }
 
@@ -1827,6 +1848,7 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'utility_per_sqm', label: 'Э.С. / 1 кв.м.', type: 'money' }
   ]},
   { key: 'pay', title: 'Блок Расчётов оплат', fields: [
+      { name: 'total_amount', label: 'Сумма договора', type: 'money' },
       { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'money' },
       { name: 'rent_amount', label: 'Арендная плата (АП)', type: 'money' },
       { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС)', type: 'money' }
@@ -1900,9 +1922,9 @@ function collectFormValues(formEl, fieldTypes) {
     if (el.type === 'checkbox') {
       values[name] = el.checked;
     } else if (fieldTypes[name] === 'date') {
-      values[name] = fromISODateDisplay(el.value);
+      values[name] = el.value ? el.value : null;
     } else {
-      values[name] = normalizeValue(name, el.value);
+      values[name] = toApiValue(name, normalizeValue(name, el.value));
     }
   });
   return values;
@@ -2144,9 +2166,9 @@ function collectStageValues(root, stageIndex) {
     if (el.type === 'checkbox') {
       values[name] = el.checked;
     } else if (fieldTypes[name] === 'date') {
-      values[name] = fromISODateDisplay(el.value);
+      values[name] = el.value ? el.value : null;
     } else {
-      values[name] = normalizeValue(name, el.value);
+      values[name] = toApiValue(name, normalizeValue(name, el.value));
     }
   });
   return values;
@@ -2434,7 +2456,7 @@ async function completeContract(id, members, contractNumber) {
     end_date: f.end_date, termination_date: f.termination_date, purpose: f.purpose,
     rooms_list: f.rooms_list, room_ids: f.room_ids,
     rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
-    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount,
+    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
@@ -2499,7 +2521,7 @@ async function finalizeContract(id, members, contractNumber) {
     object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
     end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
-    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount,
+    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };

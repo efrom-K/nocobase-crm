@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict f9a2GddhYipgsVZVvFOX0bLO0swFKTpWGGAsYVKOl1ZiF9aojGqewvui9L2xtdm
+\restrict 9EjlFBnqkU4adQzhUy3MGBWJuGXSJzFrTDu7xG9osSUlvs79lLI9HNR9rZzaqeK
 
 -- Dumped from database version 14.24
 -- Dumped by pg_dump version 14.24
@@ -61,24 +61,24 @@ ALTER SEQUENCE public.bik_directory_id_seq OWNED BY public.bik_directory.id;
 CREATE TABLE public.completed_contracts (
     id bigint NOT NULL,
     contract_number character varying(255),
-    date_signed character varying(255),
-    date_act character varying(255),
+    date_signed date,
+    date_act date,
     object_name character varying(255),
     tenant_name character varying(255),
-    area_sqm character varying(255),
+    area_sqm double precision,
     email character varying(255),
     phone character varying(255),
     tenant_fio character varying(255),
-    end_date character varying(255),
-    termination_date character varying(255),
+    end_date date,
+    termination_date date,
     purpose character varying(255),
     rooms_list character varying(255),
     room_ids character varying(255),
-    rent_per_sqm character varying(255),
-    utility_per_sqm character varying(255),
-    deposit_amount character varying(255),
-    rent_amount character varying(255),
-    utility_amount character varying(255),
+    rent_per_sqm double precision,
+    utility_per_sqm double precision,
+    deposit_amount double precision,
+    rent_amount double precision,
+    utility_amount double precision,
     inn character varying(255),
     contact_person character varying(255),
     bank_account character varying(255),
@@ -87,7 +87,8 @@ CREATE TABLE public.completed_contracts (
     act_scan_url character varying(255),
     notes text,
     bank_name character varying(255),
-    corr_account character varying(255)
+    corr_account character varying(255),
+    total_amount double precision
 );
 
 
@@ -324,36 +325,36 @@ ALTER SEQUENCE public.contract_objects_id_seq OWNED BY public.contract_objects.i
 CREATE TABLE public.forming_contracts (
     id bigint NOT NULL,
     contract_number character varying(255),
-    date_signed character varying(255),
-    date_act character varying(255),
+    date_signed date,
+    date_act date,
     object_name character varying(255),
     tenant_name character varying(255),
-    area_sqm character varying(255),
+    area_sqm double precision,
     email character varying(255),
     phone character varying(255),
     tenant_fio character varying(255),
     current_stage bigint,
-    rent_per_sqm character varying(255),
-    utility_per_sqm character varying(255),
+    rent_per_sqm double precision,
+    utility_per_sqm double precision,
     comment_stage0 text,
     avito_url character varying(255),
     cian_url character varying(255),
     other_url character varying(255),
     purpose character varying(255),
     comment_stage2 text,
-    end_date character varying(255),
+    end_date date,
     notes text,
     signing_method character varying(255),
     inn character varying(255),
     bank_account character varying(255),
     bik character varying(255),
-    deposit_amount character varying(255),
+    deposit_amount double precision,
     deposit_invoiced boolean,
     deposit_paid boolean,
-    rent_amount character varying(255),
+    rent_amount double precision,
     rent_invoiced boolean,
     rent_paid boolean,
-    utility_amount character varying(255),
+    utility_amount double precision,
     utility_invoiced boolean,
     utility_paid boolean,
     comment_stage4 text,
@@ -361,7 +362,8 @@ CREATE TABLE public.forming_contracts (
     contract_scan_url character varying(255),
     act_scan_url character varying(255),
     bank_name character varying(255),
-    corr_account character varying(255)
+    corr_account character varying(255),
+    total_amount double precision
 );
 
 
@@ -391,23 +393,23 @@ ALTER SEQUENCE public.forming_contracts_id_seq OWNED BY public.forming_contracts
 CREATE TABLE public.rental_contracts (
     id bigint NOT NULL,
     contract_number character varying(255),
-    date_signed character varying(255),
-    date_act character varying(255),
+    date_signed date,
+    date_act date,
     object_name character varying(255),
     tenant_name character varying(255),
-    area_sqm character varying(255),
+    area_sqm double precision,
     email character varying(255),
     phone character varying(255),
     tenant_fio character varying(255),
-    termination_date character varying(255),
+    termination_date date,
     purpose character varying(255),
     rooms_list character varying(255),
     room_ids character varying(255),
-    rent_per_sqm character varying(255),
-    utility_per_sqm character varying(255),
-    deposit_amount character varying(255),
-    rent_amount character varying(255),
-    utility_amount character varying(255),
+    rent_per_sqm double precision,
+    utility_per_sqm double precision,
+    deposit_amount double precision,
+    rent_amount double precision,
+    utility_amount double precision,
     inn character varying(255),
     contact_person character varying(255),
     bank_account character varying(255),
@@ -415,9 +417,10 @@ CREATE TABLE public.rental_contracts (
     contract_scan_url character varying(255),
     act_scan_url character varying(255),
     notes text,
-    end_date character varying(255),
+    end_date date,
     bank_name character varying(255),
-    corr_account character varying(255)
+    corr_account character varying(255),
+    total_amount double precision
 );
 
 
@@ -450,6 +453,37 @@ CREATE TABLE public.t_contract_scan (
     f_7v7b5y7s2ig bigint NOT NULL,
     f_b8nptmc4moz bigint NOT NULL
 );
+
+
+--
+-- Name: user_table_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_table_settings (
+    id bigint NOT NULL,
+    user_id bigint,
+    table_uid character varying(255),
+    config json
+);
+
+
+--
+-- Name: user_table_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.user_table_settings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_table_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.user_table_settings_id_seq OWNED BY public.user_table_settings.id;
 
 
 --
@@ -520,6 +554,13 @@ ALTER TABLE ONLY public.forming_contracts ALTER COLUMN id SET DEFAULT nextval('p
 --
 
 ALTER TABLE ONLY public.rental_contracts ALTER COLUMN id SET DEFAULT nextval('public.rental_contracts_id_seq'::regclass);
+
+
+--
+-- Name: user_table_settings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_table_settings ALTER COLUMN id SET DEFAULT nextval('public.user_table_settings_id_seq'::regclass);
 
 
 --
@@ -611,10 +652,11 @@ ALTER TABLE ONLY public.t_contract_scan
 
 
 --
--- Name: bik_directory_bik_uq; Type: INDEX; Schema: public; Owner: -
+-- Name: user_table_settings user_table_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX bik_directory_bik_uq ON public.bik_directory USING btree (bik);
+ALTER TABLE ONLY public.user_table_settings
+    ADD CONSTRAINT user_table_settings_pkey PRIMARY KEY (id);
 
 
 --
@@ -674,8 +716,15 @@ CREATE INDEX t_contract_scan_f_b8nptmc4moz ON public.t_contract_scan USING btree
 
 
 --
+-- Name: user_table_settings_uq; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX user_table_settings_uq ON public.user_table_settings USING btree (user_id, table_uid);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict f9a2GddhYipgsVZVvFOX0bLO0swFKTpWGGAsYVKOl1ZiF9aojGqewvui9L2xtdm
+\unrestrict 9EjlFBnqkU4adQzhUy3MGBWJuGXSJzFrTDu7xG9osSUlvs79lLI9HNR9rZzaqeK
 

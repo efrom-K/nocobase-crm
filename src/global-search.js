@@ -2,7 +2,7 @@
 ctx.render(`<input id="global-search-input" type="text" placeholder="Поиск по номеру, ФИО, объекту, email..." class="ant-input" style="width:100%;padding:6px 12px;border:1px solid #d9d9d9;border-radius:6px;" />`);
 if (ctx.element && ctx.element.addEventListener) {
   let timeout;
-  const FIELDS = ['contract_number','date_signed','date_act','object_name','tenant_name','area_sqm','email','phone','tenant_fio'];
+  const FIELDS = ['contract_number','object_name','tenant_name','email','phone','tenant_fio'];
   ctx.element.addEventListener('input', (e) => {
     clearTimeout(timeout);
     const val = (e.target.value || '').trim();

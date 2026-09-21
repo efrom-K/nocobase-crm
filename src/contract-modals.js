@@ -1,3 +1,10 @@
+// колокольчик: без вкладок «Все / Непрочитанные / Прочитано» (прочитанные сообщения удаляются триггером БД)
+if (!document.getElementById('nb-bell-tabs-style')) {
+  const bellTabsStyle = document.createElement('style');
+  bellTabsStyle.id = 'nb-bell-tabs-style';
+  bellTabsStyle.textContent = '.ant-tabs:has(> .ant-tabs-nav [data-node-key="unread"]):has(> .ant-tabs-nav [data-node-key="read"]) > .ant-tabs-nav { display: none !important; }';
+  document.head.appendChild(bellTabsStyle);
+}
 ctx.render('');
 
 function esc(v) {

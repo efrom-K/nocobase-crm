@@ -310,7 +310,7 @@ function cmConfirm(msg) {
   });
 }
 
-async function createNotification(userId, contractId, title, text, source) {
+async function createNotification(userId, contractId, title, text, source, channel) {
   try {
     await ctx.api.resource('contract_notifications').create({
       values: {
@@ -320,6 +320,7 @@ async function createNotification(userId, contractId, title, text, source) {
         text: text,
         is_read: false,
         source: source || 'active',
+        channel: channel || 'status',
         created_at: new Date().toISOString()
       }
     });
@@ -561,7 +562,7 @@ async function initChat(contractId, root, currentUser, isMember, contractNumber,
     const authorName = currentUser.nickname || currentUser.username || 'Пользователь';
     (state.members || []).forEach(function(m) {
       if (m.id === currentUser.id) return;
-      createNotification(m.id, contractId, 'Договор ' + contractNumber, 'Новое сообщение от ' + authorName + ': ' + preview, source);
+      createNotification(m.id, contractId, 'Договор ' + contractNumber, 'Новое сообщение от ' + authorName + ': ' + preview, source, 'contract_chat');
     });
   }
 
@@ -725,7 +726,7 @@ function renderMembers(root, contractId, members, allUsers, isAdmin, contractNum
           headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify([Number(uid)])
         });
-        createNotification(Number(uid), contractId, 'Договор ' + contractNumber, 'Вас добавили к договору ' + contractNumber, notifSource);
+        createNotification(Number(uid), contractId, 'Договор ' + contractNumber, 'Вас добавили к договору ' + contractNumber, notifSource, 'assigned');
         logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'member', text: 'Сотрудник добавлен к договору: ' + userNameById(allUsers, uid) }]);
         await refreshMembers(root, contractId, allUsers, isAdmin, contractNumber, state, collectionName, notifSource);
       } catch (e2) {
@@ -2398,7 +2399,7 @@ async function advanceStage(id, root, currentUser) {
   await ctx.api.resource('forming_contracts').update({ filterByTk: id, values: { current_stage: stageIndex + 1 } });
   await logHistory('forming', id, [{ action: 'stage', text: 'Этап «' + stage.title + '» подтверждён, переход на этап «' + STAGE_DEFS[stageIndex + 1].title + '»' }]);
   members.forEach(function(m) {
-    createNotification(m.id, id, 'Договор ' + contractNumber, 'Этап «' + stage.title + '» пройден, договор переходит на этап «' + STAGE_DEFS[stageIndex + 1].title + '»', 'forming');
+    createNotification(m.id, id, 'Договор ' + contractNumber, 'Этап «' + stage.title + '» пройден, договор переходит на этап «' + STAGE_DEFS[stageIndex + 1].title + '»', 'forming', 'status');
   });
   closeFormingModal(true);
   await openFormingContractModal(id);
@@ -2458,7 +2459,7 @@ async function completeContract(id, members, contractNumber) {
   await moveHistory('active', id, 'completed', newId);
   await logHistory('completed', newId, [{ action: 'status', text: 'Договор завершён и перенесён в «Завершённые»' }]);
   memberIds.forEach(function(uid) {
-    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор завершён и перенесён в раздел «Завершённые»', 'completed');
+    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор завершён и перенесён в раздел «Завершённые»', 'completed', 'status');
   });
 
   try {
@@ -2523,7 +2524,7 @@ async function finalizeContract(id, members, contractNumber) {
   await moveHistory('forming', id, 'active', newId);
   await logHistory('active', newId, [{ action: 'status', text: 'Оформление завершено, договор переведён в «Активные»' }]);
   memberIds.forEach(function(uid) {
-    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор полностью оформлен и переведён в раздел «Активные»', 'active');
+    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор полностью оформлен и переведён в раздел «Активные»', 'active', 'status');
   });
 
   try {
@@ -2755,6 +2756,20 @@ function markTables() {
     }
   });
 }
+function openFromUrl() {
+  const m = location.search.match(/[?&]open=(forming|active|completed):(\d+)/);
+  if (!m) { window.__cmOpenedKey = null; return; }
+  const key = m[1] + ':' + m[2];
+  if (window.__cmOpenedKey === key) return;
+  window.__cmOpenedKey = key;
+  try { history.replaceState(history.state, '', location.pathname); } catch (e) { /* ignore */ }
+  if (m[1] === 'forming') openFormingContractModal(m[2]);
+  else if (m[1] === 'completed') openCompletedContractModal(m[2]);
+  else openContractModal(m[2]);
+}
+openFromUrl();
+if (!window.__cmOpenFromUrlInterval) window.__cmOpenFromUrlInterval = setInterval(openFromUrl, 700);
+
 markTables();
 if (!window.__mainRegistryMarkInterval) {
   window.__mainRegistryMarkInterval = setInterval(markTables, 500);

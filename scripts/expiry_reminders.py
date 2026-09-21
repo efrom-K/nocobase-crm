@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Напоминания об окончании срока активных договоров (уведомления в колокольчик NocoBase).
+"""Напоминания об окончании срока активных договоров (строка попадает в contract_notifications с channel='deadlines'; дальше workflow «Уведомления по договорам → колокольчик» доставляет её в штатный колокольчик NocoBase).
 
 Порог напоминания: за 90 / 60 / 30 / 14 / 7 дней и в день окончания (0); по истёкшим — один раз (-1).
 Каждый порог по конкретной дате окончания отправляется один раз (таблица contract_reminders_log);
@@ -73,7 +73,7 @@ for c in contracts:
     stmts.append("insert into contract_reminders_log(contract_id,threshold,end_date) values(%s,%s,%s);" % (c['id'], th, q(c['end_date'])))
     if not SEED:
         for uid in rcpt:
-            stmts.append("insert into contract_notifications(user_id,contract_id,title,text,is_read,created_at,source) values(%s,%s,%s,%s,false,now(),'active');" % (uid, c['id'], q(title), q(msg)))
+            stmts.append("insert into contract_notifications(user_id,contract_id,title,text,is_read,created_at,source,channel) values(%s,%s,%s,%s,false,now(),'active','deadlines');" % (uid, c['id'], q(title), q(msg)))
 
 print('%s: %d напоминаний к отправке' % ('SEED' if SEED else ('DRY-RUN' if DRY else 'SEND'), len(report)))
 for r in report: print('  договор #%s порог %s (дней до конца: %s), получателей %s: %s' % r)

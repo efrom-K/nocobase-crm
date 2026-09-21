@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict VPvUgb6FIsKTZwJ0MKWgXDMgd0ezrzl6G1oOeR9zRvCbYepQSFl2H4IYVTS1Vnb
+\restrict f9a2GddhYipgsVZVvFOX0bLO0swFKTpWGGAsYVKOl1ZiF9aojGqewvui9L2xtdm
 
 -- Dumped from database version 14.24
 -- Dumped by pg_dump version 14.24
@@ -263,7 +263,8 @@ CREATE TABLE public.contract_notifications (
     text text,
     is_read boolean DEFAULT false,
     created_at timestamp with time zone,
-    source character varying(255) DEFAULT 'active'::character varying
+    source character varying(255) DEFAULT 'active'::character varying,
+    channel character varying(255)
 );
 
 
@@ -676,5 +677,5 @@ CREATE INDEX t_contract_scan_f_b8nptmc4moz ON public.t_contract_scan USING btree
 -- PostgreSQL database dump complete
 --
 
-\unrestrict VPvUgb6FIsKTZwJ0MKWgXDMgd0ezrzl6G1oOeR9zRvCbYepQSFl2H4IYVTS1Vnb
+\unrestrict f9a2GddhYipgsVZVvFOX0bLO0swFKTpWGGAsYVKOl1ZiF9aojGqewvui9L2xtdm
 

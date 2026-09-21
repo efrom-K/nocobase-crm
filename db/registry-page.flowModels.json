@@ -4,17 +4,24 @@
     "name": "na0a6llq84b",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 3,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "object_name",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "object_name"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -88,17 +95,24 @@
     "name": "ugwrycpzy2f",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 4,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "tenant_name",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "tenant_name"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -163,17 +177,24 @@
     "name": "2yy8vewl96p",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 2,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "date_act",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "date_act"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -318,17 +339,24 @@
     "name": "4okz89gq5uk",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 0,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "contract_number",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "contract_number"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -419,17 +447,24 @@
     "name": "formcol01",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 1,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "contract_number",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "contract_number"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -453,17 +488,24 @@
     "name": "formcol02",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 2,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "date_signed",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "date_signed"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -487,17 +529,24 @@
     "name": "formcol03",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 3,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "date_act",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "date_act"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -521,17 +570,24 @@
     "name": "formcol04",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 4,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "object_name",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "object_name"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -555,17 +611,24 @@
     "name": "formcol05",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 5,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "tenant_name",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "tenant_name"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -589,17 +652,24 @@
     "name": "formcol06",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 6,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "area_sqm",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "area_sqm"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -623,17 +693,24 @@
     "name": "formcol07",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 7,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "email",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "email"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -657,17 +734,24 @@
     "name": "formcol08",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 8,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "phone",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "phone"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -691,17 +775,24 @@
     "name": "formcol09",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "formtbl000001",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "formtbl000001",
       "sortIndex": 9,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "tenant_fio",
             "dataSourceKey": "main",
-            "collectionName": "forming_contracts",
-            "fieldPath": "tenant_fio"
+            "collectionName": "forming_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -834,17 +925,24 @@
     "name": "17tlz4jml2o",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 6,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "email",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "email"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -855,17 +953,24 @@
     "name": "y4iucd0z08y",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 1,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "date_signed",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "date_signed"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -897,29 +1002,6 @@
           }
         }
       }
-    }
-  },
-  {
-    "uid": "notifbell01",
-    "name": "notifbell01",
-    "options": {
-      "use": "JSBlockModel",
-      "parentId": "9r8030mskby",
-      "subKey": "items",
-      "subType": "array",
-      "sortIndex": 10,
-      "props": {},
-      "stepParams": {
-        "jsSettings": {
-          "runJs": {
-            "version": 1,
-            "code": {
-              "$file": "src/notification-bell.js"
-            }
-          }
-        }
-      },
-      "flowRegistry": {}
     }
   },
   {
@@ -1086,17 +1168,24 @@
     "name": "rg5857oua8h",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 8,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "tenant_fio",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "tenant_fio"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -1133,17 +1222,24 @@
     "name": "dsqxnwvc6fl",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 5,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "area_sqm",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "area_sqm"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }
@@ -1251,17 +1347,24 @@
     "name": "e765qju518n",
     "options": {
       "use": "TableColumnModel",
-      "parentId": "ipb7gfluldk",
+      "props": {
+        "sorter": true
+      },
       "subKey": "columns",
       "subType": "array",
+      "parentId": "ipb7gfluldk",
       "sortIndex": 7,
-      "props": {},
       "stepParams": {
         "fieldSettings": {
           "init": {
+            "fieldPath": "phone",
             "dataSourceKey": "main",
-            "collectionName": "completed_contracts",
-            "fieldPath": "phone"
+            "collectionName": "completed_contracts"
+          }
+        },
+        "tableColumnSettings": {
+          "sorter": {
+            "sorter": true
           }
         }
       }

@@ -1037,7 +1037,7 @@ function linkifyText(v) {
 
 // ---------- история изменений ----------
 const HIST_TYPE_BY_COLL = { rental_contracts: 'active', forming_contracts: 'forming', completed_contracts: 'completed', draft_contracts: 'draft' };
-const HIST_SKIP = { current_stage: 1, id: 1 };
+const HIST_SKIP = { current_stage: 1, id: 1, last_activity_at: 1 };
 function histPayload(res) {
   const p = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   return p;
@@ -2541,6 +2541,7 @@ function wireAutoSave(root, id, stageIndex, statusElId, collectionName) {
     const values = collectStageValues(root, stageIndex);
     const badNames = invalidFieldNames(formEl);
     badNames.forEach(function(n) { delete values[n]; });
+    if (collectionName === 'draft_contracts') values.last_activity_at = new Date().toISOString();
     if (statusEl) statusEl.textContent = 'Сохранение…';
     return updateWithHistory(collectionName || 'forming_contracts', id, values).then(function() {
       if (statusEl) {
@@ -3178,7 +3179,7 @@ function wireAutoSaveDraftLazy(root, stageOrQuick, statusElId, isQuick, currentU
     if (!hasAny) { if (statusEl) statusEl.textContent = ''; return Promise.resolve(); }
     creating = true;
     if (statusEl) statusEl.textContent = 'Сохранение…';
-    return ctx.api.resource('draft_contracts').create({ values: Object.assign({}, values, { is_quick: !!isQuick, created_by_id: currentUserId }) })
+    return ctx.api.resource('draft_contracts').create({ values: Object.assign({}, values, { is_quick: !!isQuick, created_by_id: currentUserId, last_activity_at: new Date().toISOString() }) })
       .then(function(res) {
         const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
         if (statusEl) {
@@ -3218,7 +3219,7 @@ async function advanceDraftStage(id, root) {
     await publishDraftContract(id, root);
     return;
   }
-  await ctx.api.resource('draft_contracts').update({ filterByTk: id, values: { current_stage: stageIndex + 1 } });
+  await ctx.api.resource('draft_contracts').update({ filterByTk: id, values: { current_stage: stageIndex + 1, last_activity_at: new Date().toISOString() } });
   await logHistory('draft', id, [{ action: 'stage', text: 'Этап «' + stage.title + '» пройден, переход на этап «' + STAGE_DEFS[stageIndex + 1].title + '»' }]);
   closeDraftModal(true);
   await openDraftModal(id);

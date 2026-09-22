@@ -48,6 +48,7 @@ document.querySelectorAll('.registry-local-tab').forEach(function(tab) {
 if (!window.__activeRegistryTable) {
   window.__activeRegistryTable = "ozazmpm4o4v";
 }
+paintActive(window.__activeRegistryTable); // при первой загрузке страницы подсветку иначе никто не проставляет — она только по клику
 if (!window.__registryVisibilityRetry) {
   window.__registryVisibilityRetry = setInterval(function() {
     const done = applyVisibility(window.__activeRegistryTable);

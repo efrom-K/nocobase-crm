@@ -2476,17 +2476,36 @@ function renderFormingBody(r, currentUser) {
     html += '</div>';
   });
 
-  html += renderPricesSection('cm-forming');
-  html += renderContactsSection('cm-forming');
+  html += renderFormingSideSections(r, currentUser);
+  return html;
+}
+
+function renderFormingSideSections(r, currentUser) {
   const files = r.contract_files || [];
-  html += '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
+  return renderPricesSection('cm-forming') + renderContactsSection('cm-forming')
+    + '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
     + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser) + '</div>'
     + '<div class="cm-upload-row"><input type="file" id="cm-forming-file-input" style="display:none;">'
     + '<button class="cm-upload-btn" id="cm-forming-upload-btn">+ Прикрепить файл</button>'
     + '<span id="cm-forming-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
     + renderAddendumsSection('cm-forming')
     + renderHistorySection('cm-forming');
+}
 
+// «Срочный договор»: все поля из всех этапов в одной форме, без ролевого гейтинга по этапам.
+function renderQuickFormingBody(r, currentUser) {
+  let html = '<div style="background:#fff7e6;border:1px solid #ffd591;color:#ad6800;border-radius:6px;'
+    + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — все поля в одной форме, без этапов оформления</div>';
+  html += '<div class="cm-stage-form" data-stage="quick">' + STAGE_DEFS.map(function(stage) {
+    return '<div class="cm-section"><div class="cm-section-title">' + esc(stage.title) + '</div>'
+      + stage.fields.map(function(f) { return renderEditableField(f, r[f.name]); }).join('') + '</div>';
+  }).join('') + '</div>';
+  html += '<div class="cm-save-status" id="cm-save-status-quick"></div>';
+  html += '<div class="cm-stage-actions">'
+    + '<button class="cm-btn-save" id="cm-quick-save">Сохранить</button>'
+    + '<button class="cm-btn-advance cm-btn-finalize" id="cm-quick-publish">Опубликовать → Активные</button>'
+    + '</div>';
+  html += renderFormingSideSections(r, currentUser);
   return html;
 }
 
@@ -2592,9 +2611,13 @@ function collectStageValues(root, stageIndex) {
   const formEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
   const values = {};
   if (!formEl) return values;
-  const stage = STAGE_DEFS[Number(stageIndex)];
   const fieldTypes = {};
-  if (stage) stage.fields.forEach(function(f) { fieldTypes[f.name] = f.type; });
+  if (stageIndex === 'quick') {
+    STAGE_DEFS.forEach(function(s) { s.fields.forEach(function(f) { fieldTypes[f.name] = f.type; }); });
+  } else {
+    const stage = STAGE_DEFS[Number(stageIndex)];
+    if (stage) stage.fields.forEach(function(f) { fieldTypes[f.name] = f.type; });
+  }
   formEl.querySelectorAll('[data-field]').forEach(function(el) {
     const name = el.getAttribute('data-field');
     if (el.type === 'checkbox') {
@@ -2879,6 +2902,19 @@ async function advanceStage(id, root, currentUser) {
   await openFormingContractModal(id);
 }
 
+async function publishQuickContract(id, root) {
+  const formEl = root.querySelector('.cm-stage-form[data-stage="quick"]');
+  const bad = formEl ? validateForm(formEl, false) : null;
+  if (bad) { cmToast(bad.msg); if (bad.el) bad.el.focus(); return; }
+  if (formEl && formEl.__cmFlush) await formEl.__cmFlush();
+  else await saveStage(id, 'quick', root);
+  const res = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_members'] });
+  const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  const contractNumber = r.contract_number || r.object_name || ('#' + id);
+  const members = r.contract_members || [];
+  await finalizeContract(id, members, contractNumber);
+}
+
 async function completeContract(id, members, contractNumber) {
   if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перенести в «Архив»?'))) return;
   const res = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
@@ -3114,14 +3150,14 @@ async function openFormingContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state, 'forming');
 
     body.style.color = '';
-    body.innerHTML = renderFormingBody(r, currentUser);
+    body.innerHTML = r.is_quick ? renderQuickFormingBody(r, currentUser) : renderFormingBody(r, currentUser);
     await wireAddendums(overlay, 'cm-forming', 'forming', id, currentUser);
     await wireContacts(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser));
     await wirePrices(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser), r);
     wireDerivedHints(overlay);
     wireHistory(overlay, 'cm-forming', 'forming', id);
 
-    if ((r.current_stage || 0) === 0) {
+    if (r.is_quick || (r.current_stage || 0) === 0) {
       loadObjectOptions().then(function(names) {
         bindComboField(body, 'object_name', names);
       });
@@ -3142,45 +3178,75 @@ async function openFormingContractModal(id) {
     wireStageCollapseToggles(overlay);
     wireStageEditToggles(overlay, id);
 
-    const stageIndex = r.current_stage || 0;
-    const stage = STAGE_DEFS[stageIndex];
-    const canAdvance = hasRole(currentUser, stage.role);
-    const isLast = stageIndex === STAGE_DEFS.length - 1;
-    const actionsHtml = '<div class="cm-stage-actions">'
-      + '<button class="cm-btn-save" id="cm-stage-save">Сохранить</button>'
-      + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance"' + (canAdvance ? '' : ' disabled') + '>'
-      + (isLast ? 'Завершить оформление → Активные' : 'Подтвердить этап и перейти дальше') + '</button>'
-      + (canAdvance ? '' : '<span class="cm-role-hint">Подтверждает роль «' + esc(STAGE_ROLE_TITLES[stage.role]) + '»</span>')
-      + '</div>';
-    const currentContent = overlay.querySelector('[data-stage-content="' + stageIndex + '"]');
-    currentContent.insertAdjacentHTML('beforeend', actionsHtml);
+    if (r.is_quick) {
+      wireAutoSave(overlay, id, 'quick', 'cm-save-status-quick');
+      wireFieldMasks(overlay, 'quick');
 
-    wireAutoSave(overlay, id, stageIndex, 'cm-save-status-' + stageIndex);
-    wireFieldMasks(overlay, stageIndex);
+      overlay.querySelector('#cm-quick-save').addEventListener('click', async function(e) {
+        const btn = e.target;
+        btn.disabled = true;
+        try {
+          const formEl = overlay.querySelector('.cm-stage-form[data-stage="quick"]');
+          if (formEl && formEl.__cmFlush) await formEl.__cmFlush();
+          else await saveStage(id, 'quick', overlay);
+          cmToast('Сохранено');
+        } catch (err) {
+          cmToast('Не удалось сохранить');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      overlay.querySelector('#cm-quick-publish').addEventListener('click', async function(e) {
+        e.target.disabled = true;
+        try {
+          await publishQuickContract(id, overlay);
+          e.target.disabled = false;
+        } catch (err) {
+          cmToast('Не удалось опубликовать договор');
+          e.target.disabled = false;
+        }
+      });
+    } else {
+      const stageIndex = r.current_stage || 0;
+      const stage = STAGE_DEFS[stageIndex];
+      const canAdvance = hasRole(currentUser, stage.role);
+      const isLast = stageIndex === STAGE_DEFS.length - 1;
+      const actionsHtml = '<div class="cm-stage-actions">'
+        + '<button class="cm-btn-save" id="cm-stage-save">Сохранить</button>'
+        + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance"' + (canAdvance ? '' : ' disabled') + '>'
+        + (isLast ? 'Завершить оформление → Активные' : 'Подтвердить этап и перейти дальше') + '</button>'
+        + (canAdvance ? '' : '<span class="cm-role-hint">Подтверждает роль «' + esc(STAGE_ROLE_TITLES[stage.role]) + '»</span>')
+        + '</div>';
+      const currentContent = overlay.querySelector('[data-stage-content="' + stageIndex + '"]');
+      currentContent.insertAdjacentHTML('beforeend', actionsHtml);
 
-    overlay.querySelector('#cm-stage-save').addEventListener('click', async function(e) {
-      const btn = e.target;
-      btn.disabled = true;
-      try {
-        const formEl = overlay.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
-        if (formEl && formEl.__cmFlush) await formEl.__cmFlush();
-        else await saveStage(id, stageIndex, overlay);
-      } catch (err) {
-        cmToast('Не удалось сохранить');
-      } finally {
-        btn.disabled = false;
-      }
-    });
-    overlay.querySelector('#cm-stage-advance').addEventListener('click', async function(e) {
-      e.target.disabled = true;
-      try {
-        await advanceStage(id, overlay, currentUser);
-        e.target.disabled = false;
-      } catch (err) {
-        cmToast('Не удалось перейти на следующий этап');
-        e.target.disabled = false;
-      }
-    });
+      wireAutoSave(overlay, id, stageIndex, 'cm-save-status-' + stageIndex);
+      wireFieldMasks(overlay, stageIndex);
+
+      overlay.querySelector('#cm-stage-save').addEventListener('click', async function(e) {
+        const btn = e.target;
+        btn.disabled = true;
+        try {
+          const formEl = overlay.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+          if (formEl && formEl.__cmFlush) await formEl.__cmFlush();
+          else await saveStage(id, stageIndex, overlay);
+        } catch (err) {
+          cmToast('Не удалось сохранить');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      overlay.querySelector('#cm-stage-advance').addEventListener('click', async function(e) {
+        e.target.disabled = true;
+        try {
+          await advanceStage(id, overlay, currentUser);
+          e.target.disabled = false;
+        } catch (err) {
+          cmToast('Не удалось перейти на следующий этап');
+          e.target.disabled = false;
+        }
+      });
+    }
 
     initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state, 'forming_contracts', 'forming');
   } catch (e) {
@@ -3221,6 +3287,26 @@ function injectCreateContractButton() {
     }
   });
   parent.appendChild(btn);
+
+  const quickBtn = document.createElement('button');
+  quickBtn.id = 'cm-create-quick-btn';
+  quickBtn.textContent = '+ Срочный договор';
+  quickBtn.title = 'Экстренное оформление: все данные одной формой, без этапов';
+  quickBtn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid #ffd591;background:#fff7e6;color:#ad6800;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
+  quickBtn.addEventListener('click', async function() {
+    quickBtn.disabled = true;
+    try {
+      const res = await ctx.api.resource('forming_contracts').create({ values: { current_stage: 0, is_quick: true } });
+      const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
+      await logHistory('forming', rec.id, [{ action: 'create', text: 'Договор создан одной формой (срочно)' }]);
+      await openFormingContractModal(rec.id);
+    } catch (e) {
+      cmToast('Не удалось создать договор');
+    } finally {
+      quickBtn.disabled = false;
+    }
+  });
+  parent.appendChild(quickBtn);
 }
 injectCreateContractButton();
 

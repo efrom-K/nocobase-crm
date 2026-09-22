@@ -200,6 +200,8 @@ function injectStyle() {
     .msgr-info-tab { flex:1; text-align:center; padding:8px 6px; font-size:12.5px; font-weight:600; color:#9aa1ac; cursor:pointer; border-bottom:2px solid transparent; }
     .msgr-info-tab.active { color:#2f88ff; border-bottom-color:#2f88ff; }
     .msgr-info-body { flex:1; min-height:0; overflow-y:auto; padding:8px 10px 14px; }
+    .msgr-add-member-btn { display:block; width:100%; text-align:left; background:#eef5ff; color:#2f88ff; border:none; border-radius:9px; padding:9px 10px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:8px; }
+    .msgr-add-member-btn:hover { background:#e2edff; }
     .msgr-member-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; }
     .msgr-member-row:hover { background:#f2f5fa; }
     .msgr-member-meta { flex:1; min-width:0; }
@@ -808,6 +810,86 @@ function openNewChatModal(root) {
   });
 }
 
+function closeAddMemberModal() {
+  const mask = document.getElementById('msgr-addmember-mask');
+  const box = document.getElementById('msgr-addmember-box');
+  if (!mask) return;
+  mask.classList.remove('open'); box.classList.remove('open');
+  setTimeout(function () { if (mask.parentNode) mask.remove(); if (box.parentNode) box.remove(); }, 200);
+}
+
+function openAddMemberModal(convId) {
+  const conv = state.conversations.find(function (c) { return c.id === convId; });
+  if (!conv) return;
+  const memberIds = conv.members.map(function (m) { return m.user_id; });
+  const candidates = state.users.filter(function (u) { return memberIds.indexOf(u.id) === -1; });
+
+  const mask = document.createElement('div');
+  mask.className = 'msgr-modal-mask';
+  mask.id = 'msgr-addmember-mask';
+  const box = document.createElement('div');
+  box.className = 'msgr-modal-box';
+  box.id = 'msgr-addmember-box';
+
+  box.innerHTML =
+    '<div class="msgr-modal-head"><span>Добавить участника</span><span class="msgr-modal-close" id="msgr-addmember-x">&times;</span></div>' +
+    '<div class="msgr-modal-body">' +
+      (candidates.length ? candidates.map(function (u) {
+        return '<label class="msgr-user-row">' + avatarHtml(userLabel(u), u.id, 34) +
+          '<span>' + esc(userLabel(u)) + '</span>' +
+          '<input type="checkbox" data-uid="' + u.id + '"></label>';
+      }).join('') : '<div class="msgr-empty">Все сотрудники уже в этом чате</div>') +
+    '</div>' +
+    '<div class="msgr-modal-foot"><button id="msgr-addmember-confirm" disabled>Добавить</button></div>';
+
+  document.body.appendChild(mask);
+  document.body.appendChild(box);
+  setTimeout(function () { mask.classList.add('open'); box.classList.add('open'); }, 20);
+
+  mask.addEventListener('click', closeAddMemberModal);
+  box.querySelector('#msgr-addmember-x').addEventListener('click', closeAddMemberModal);
+
+  const confirmBtn = box.querySelector('#msgr-addmember-confirm');
+  const checkboxes = box.querySelectorAll('input[type=checkbox]');
+  checkboxes.forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      confirmBtn.disabled = Array.from(checkboxes).filter(function (c) { return c.checked; }).length === 0;
+    });
+  });
+
+  confirmBtn.addEventListener('click', async function () {
+    const checked = Array.from(checkboxes).filter(function (c) { return c.checked; }).map(function (c) { return Number(c.getAttribute('data-uid')); });
+    if (!checked.length) return;
+    confirmBtn.disabled = true;
+    try {
+      for (const uid of checked) {
+        await ctx.api.resource('chat_conversation_members').create({
+          values: { conversation_id: convId, user_id: uid, joined_at: new Date().toISOString() }
+        });
+      }
+      if (!conv.is_group) {
+        await ctx.api.resource('chat_conversations').update({ filterByTk: convId, values: { is_group: true } });
+      }
+      closeAddMemberModal();
+      await loadMyConversations();
+      renderConvList(root, currentSearchValue(root));
+      const win = document.getElementById('msgr-chat-window');
+      if (win) {
+        const updated = state.conversations.find(function (c) { return c.id === convId; });
+        if (updated) {
+          const titleEl = win.querySelector('.msgr-chat-title');
+          const subEl = win.querySelector('#msgr-chat-sub');
+          if (titleEl) titleEl.textContent = updated.title;
+          if (subEl) subEl.textContent = updated.is_group ? (updated.members.length + ' участников') : '';
+        }
+        renderInfoPanel(win, convId, 'members');
+      }
+    } catch (e) {
+      confirmBtn.disabled = false;
+    }
+  });
+}
+
 async function getOrCreateConversation(otherUserIds, groupName) {
   const meId = state.currentUser.id;
   const isGroup = otherUserIds.length > 1;
@@ -887,7 +969,8 @@ async function renderInfoPanel(win, convId, tab) {
     body.innerHTML = '<div class="msgr-empty">Загрузка…</div>';
     const memberIds = conv.members.map(function (m) { return m.user_id; });
     const presence = await loadPresenceMap(memberIds);
-    body.innerHTML = conv.members.map(function (m) {
+    body.innerHTML = '<button class="msgr-add-member-btn" id="msgr-add-member-btn">+ Добавить участника</button>' +
+      conv.members.map(function (m) {
       const iso = presence[m.user_id];
       const online = iso && (Date.now() - new Date(iso).getTime()) / 1000 < 40;
       const label = m.user_id === state.currentUser.id ? 'это вы' : presenceLabel(iso);
@@ -897,6 +980,10 @@ async function renderInfoPanel(win, convId, tab) {
         '<span class="' + (online ? 'online-text' : 'offline-text') + '">' + esc(label) + '</span></div></div>' +
       '</div>';
     }).join('');
+    body.querySelector('#msgr-add-member-btn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      openAddMemberModal(convId);
+    });
   } else {
     body.innerHTML =
       '<div class="msgr-media-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>' +

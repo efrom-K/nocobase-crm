@@ -1,8 +1,9 @@
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #f0f0f0;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;"><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
+ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #f0f0f0;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;"><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
 
 const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
+const DRAFTS_TAB = "cm-drafts-tab"; // не нативная NocoBase-таблица — личный список черновиков, рисуется contract-modals.js
 
 function paintActive(uid) {
   document.querySelectorAll('.registry-local-tab').forEach(function(t) {
@@ -20,11 +21,12 @@ function applyVisibility(uid) {
     const el = document.querySelector('[data-uid="' + t + '"]');
     const card = el ? el.closest('.ant-card') : null;
     if (card) {
-      card.style.display = (t === uid) ? '' : 'none';
+      card.style.display = (uid === DRAFTS_TAB) ? 'none' : ((t === uid) ? '' : 'none');
     } else {
       allFound = false;
     }
   });
+  if (window.__cmShowDraftsPanel) window.__cmShowDraftsPanel(uid === DRAFTS_TAB);
   return allFound;
 }
 

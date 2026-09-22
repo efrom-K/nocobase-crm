@@ -1036,7 +1036,7 @@ function linkifyText(v) {
 
 
 // ---------- история изменений ----------
-const HIST_TYPE_BY_COLL = { rental_contracts: 'active', forming_contracts: 'forming', completed_contracts: 'completed' };
+const HIST_TYPE_BY_COLL = { rental_contracts: 'active', forming_contracts: 'forming', completed_contracts: 'completed', draft_contracts: 'draft' };
 const HIST_SKIP = { current_stage: 1, id: 1 };
 function histPayload(res) {
   const p = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
@@ -2532,7 +2532,7 @@ function renderQuickFormingBody(r, currentUser) {
   return html;
 }
 
-function wireAutoSave(root, id, stageIndex, statusElId) {
+function wireAutoSave(root, id, stageIndex, statusElId, collectionName) {
   const formEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
   const statusEl = root.querySelector('#' + statusElId);
   if (!formEl || formEl.__cmFlush) return;
@@ -2542,7 +2542,7 @@ function wireAutoSave(root, id, stageIndex, statusElId) {
     const badNames = invalidFieldNames(formEl);
     badNames.forEach(function(n) { delete values[n]; });
     if (statusEl) statusEl.textContent = 'Сохранение…';
-    return updateWithHistory('forming_contracts', id, values).then(function() {
+    return updateWithHistory(collectionName || 'forming_contracts', id, values).then(function() {
       if (statusEl) {
         if (badNames.length) { statusEl.textContent = 'Не сохранено, исправьте: ' + badNames.map(fieldLabel).join(', '); return; }
         statusEl.textContent = 'Сохранено';
@@ -2885,9 +2885,9 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone) {
   });
 }
 
-async function saveStage(id, stageIndex, root) {
+async function saveStage(id, stageIndex, root, collectionName) {
   const values = collectStageValues(root, stageIndex);
-  await updateWithHistory('forming_contracts', id, values);
+  await updateWithHistory(collectionName || 'forming_contracts', id, values);
   return values;
 }
 
@@ -3117,6 +3117,420 @@ function onFormingModalEscape(e) {
   if (e.key === 'Escape') closeFormingModal();
 }
 
+// ---------- личные черновики (до публикации в «Формирующиеся» никто кроме автора их не видит) ----------
+
+async function purgeIfEmptyDraftRecord(id) {
+  try {
+    const res = await ctx.api.resource('draft_contracts').get({ filterByTk: id, appends: ['contract_files'] });
+    const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+    if (!r || !r.id) return;
+    const fieldsEmpty = STAGE_DEFS.every(function(s) {
+      return s.fields.every(function(f) {
+        const v = r[f.name];
+        return v === null || v === undefined || v === '';
+      });
+    });
+    if (!fieldsEmpty) return;
+    if ((r.contract_files || []).length) return;
+    // у черновика нет служебной записи «создан» (создаётся тихо, без лога) — любая история = реальная активность
+    const histRes = await ctx.api.resource('contract_history').list({ filter: { contract_type: 'draft', contract_ref_id: id }, pageSize: 1 });
+    const histCount = (histRes && histRes.data && histRes.data.meta && histRes.data.meta.count) || 0;
+    if (histCount > 0) return;
+    await purgeContractSideData('draft', id);
+    await ctx.api.resource('draft_contracts').destroy({ filterByTk: id });
+    if (window.refreshDraftsList) window.refreshDraftsList();
+  } catch (e) { /* best-effort: пустой черновик просто останется в базе, ничего не ломаем */ }
+}
+
+function closeDraftModal(immediate) {
+  const root = document.getElementById('draft-modal-root');
+  if (!root) return;
+  const flushes = [];
+  root.querySelectorAll('.cm-stage-form').forEach(function(f) { if (f.__cmFlush) flushes.push(f.__cmFlush()); });
+  document.removeEventListener('keydown', onDraftModalEscape);
+  const draftId = root.__cmContractId;
+  if (draftId) {
+    Promise.all(flushes).then(function() { return purgeIfEmptyDraftRecord(draftId); }).catch(function() {});
+  }
+  if (immediate) { root.remove(); return; }
+  root.classList.remove('cm-open');
+  setTimeout(function() { if (root && root.parentNode) root.remove(); }, 220);
+}
+function onDraftModalEscape(e) {
+  if (e.key === 'Escape') closeDraftModal();
+}
+
+// Автосохранение для НЕсуществующего пока черновика: копится в debounce как обычно, но первое
+// реальное (непустое) сохранение СОЗДАЁТ запись в draft_contracts, дальше модалка перерисовывается
+// полноценно (появляются доп.секции) и дальше работает как обычный wireAutoSave.
+function wireAutoSaveDraftLazy(root, stageOrQuick, statusElId, isQuick, currentUserId, onCreated) {
+  const formEl = root.querySelector('.cm-stage-form[data-stage="' + stageOrQuick + '"]');
+  const statusEl = root.querySelector('#' + statusElId);
+  if (!formEl || formEl.__cmFlush) return;
+  let timer = null;
+  let creating = false;
+  function doSave() {
+    if (creating) return Promise.resolve();
+    const values = collectStageValues(root, stageOrQuick);
+    const badNames = invalidFieldNames(formEl);
+    badNames.forEach(function(n) { delete values[n]; });
+    const hasAny = Object.keys(values).some(function(k) { return values[k] !== null && values[k] !== '' && values[k] !== false; });
+    if (!hasAny) { if (statusEl) statusEl.textContent = ''; return Promise.resolve(); }
+    creating = true;
+    if (statusEl) statusEl.textContent = 'Сохранение…';
+    return ctx.api.resource('draft_contracts').create({ values: Object.assign({}, values, { is_quick: !!isQuick, created_by_id: currentUserId }) })
+      .then(function(res) {
+        const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
+        if (statusEl) {
+          statusEl.textContent = 'Сохранено';
+          setTimeout(function() { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 1500);
+        }
+        return onCreated(rec.id);
+      })
+      .catch(function() {
+        creating = false;
+        if (statusEl) statusEl.textContent = 'Не удалось сохранить';
+      });
+  }
+  function scheduleSave() {
+    clearTimeout(timer);
+    timer = setTimeout(doSave, 700);
+  }
+  formEl.querySelectorAll('[data-field]').forEach(function(el) {
+    const evt = (el.type === 'checkbox') ? 'change' : 'input';
+    el.addEventListener(evt, scheduleSave);
+  });
+  formEl.__cmFlush = function() { clearTimeout(timer); return doSave(); };
+}
+
+async function advanceDraftStage(id, root) {
+  const res = await ctx.api.resource('draft_contracts').get({ filterByTk: id });
+  const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  const stageIndex = r.current_stage || 0;
+  const stage = STAGE_DEFS[stageIndex];
+  const currentFormEl = root.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+  const badAdv = currentFormEl ? validateForm(currentFormEl, true) : null;
+  if (badAdv) { cmToast(badAdv.msg); if (badAdv.el) badAdv.el.focus(); return; }
+  if (currentFormEl && currentFormEl.__cmFlush) await currentFormEl.__cmFlush();
+  else await saveStage(id, stageIndex, root, 'draft_contracts');
+
+  if (stageIndex === STAGE_DEFS.length - 1) {
+    await publishDraftContract(id, root);
+    return;
+  }
+  await ctx.api.resource('draft_contracts').update({ filterByTk: id, values: { current_stage: stageIndex + 1 } });
+  await logHistory('draft', id, [{ action: 'stage', text: 'Этап «' + stage.title + '» пройден, переход на этап «' + STAGE_DEFS[stageIndex + 1].title + '»' }]);
+  closeDraftModal(true);
+  await openDraftModal(id);
+}
+
+async function publishDraftContract(id, root) {
+  // только для «срочного» режима — обычный этапный вызывается уже после flush/валидации в advanceDraftStage
+  const formEl = root && root.querySelector('.cm-stage-form[data-stage="quick"]');
+  if (formEl) {
+    const bad = validateForm(formEl, false);
+    if (bad) { cmToast(bad.msg); if (bad.el) bad.el.focus(); return; }
+    if (formEl.__cmFlush) await formEl.__cmFlush();
+  }
+  if (!(await cmConfirm('Опубликовать черновик и перевести в «Формирующиеся»?'))) return;
+  const res = await ctx.api.resource('draft_contracts').get({ filterByTk: id, appends: ['contract_files'] });
+  const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  const contractNumber = f.contract_number || f.object_name || ('#' + id);
+  const payload = {
+    contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
+    object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    email: f.email, phone: f.phone, tenant_fio: f.tenant_fio, current_stage: 0,
+    avito_url: f.avito_url, cian_url: f.cian_url, other_url: f.other_url, purpose: f.purpose,
+    comment_stage0: f.comment_stage0, comment_stage2: f.comment_stage2, comment_stage4: f.comment_stage4,
+    end_date: f.end_date, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
+    deposit_amount: f.deposit_amount, deposit_invoiced: f.deposit_invoiced, deposit_paid: f.deposit_paid,
+    rent_amount: f.rent_amount, rent_invoiced: f.rent_invoiced, rent_paid: f.rent_paid,
+    utility_amount: f.utility_amount, utility_invoiced: f.utility_invoiced, utility_paid: f.utility_paid,
+    total_amount: f.total_amount, inn: f.inn, bank_account: f.bank_account, bik: f.bik,
+    bank_name: f.bank_name, corr_account: f.corr_account, signing_method: f.signing_method,
+    actual_start_date: f.actual_start_date, contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url,
+    notes: f.notes, is_quick: f.is_quick
+  };
+  const createRes = await ctx.api.resource('forming_contracts').create({ values: payload });
+  const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
+  const newId = newRec.id;
+
+  const fileIds = (f.contract_files || []).map(function(x) { return x.id; });
+  if (fileIds.length) {
+    await fetch('/api/forming_contracts/' + newId + '/contract_files:add', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(fileIds)
+    });
+  }
+  try {
+    await fetch('/api/contract_addendums:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'draft', contract_ref_id: id })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contract_type: 'forming', contract_ref_id: newId })
+    });
+  } catch (e) { /* best-effort */ }
+  try {
+    await fetch('/api/contract_contacts:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'draft', contract_ref_id: id })), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contract_type: 'forming', contract_ref_id: newId })
+    });
+  } catch (e) { /* best-effort */ }
+
+  await moveSide('contract_price_periods', 'draft', id, 'forming', newId);
+  await moveHistory('draft', id, 'forming', newId);
+  await logHistory('forming', newId, [{ action: 'status', text: 'Опубликовано из личного черновика' }]);
+
+  try {
+    await ctx.api.resource('draft_contracts').destroy({ filterByTk: id });
+  } catch (e) {
+    cmToast('Договор опубликован, но черновик не удалился — уберите вручную');
+  }
+  closeDraftModal(true);
+  cmToast('Готово: договор «' + contractNumber + '» опубликован в «Формирующиеся»');
+  if (window.refreshDraftsList) window.refreshDraftsList();
+  setTimeout(function() { location.reload(); }, 400);
+}
+
+async function openDraftModal(id, isQuickHint) {
+  const overlay = document.createElement('div');
+  overlay.id = 'draft-modal-root';
+  overlay.innerHTML = `
+    <div class="ant-modal-mask" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;"></div>
+    <div class="ant-modal-wrap" style="position:fixed;inset:0;z-index:1001;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;">
+      <div class="ant-modal" style="width:100%;max-width:min(1200px, 96vw);">
+        <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
+          <div class="cm-modal-toolbar">
+            <button id="cm-discard-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить черновик</button>
+            <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
+          </div>
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
+            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Черновик договора <span style="font-weight:400;font-size:12px;color:#999;">— виден только вам, пока не опубликован</span></div>
+          </div>
+          <div class="cm-body-flex" style="flex:1;min-height:0;">
+            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;flex:1;">Загрузка…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.__cmContractId = id || null;
+  overlay.querySelector('.ant-modal-mask').addEventListener('click', closeDraftModal);
+  overlay.querySelector('#cm-close-btn').addEventListener('click', closeDraftModal);
+  document.addEventListener('keydown', onDraftModalEscape);
+  setTimeout(function() { overlay.classList.add('cm-open'); }, 20);
+
+  const body = overlay.querySelector('#cm-body');
+  const currentUser = await getCurrentUser();
+
+  async function wireLoadedDraft(r, realId) {
+    overlay.__cmContractId = realId;
+    body.style.color = '';
+    body.innerHTML = r.is_quick ? renderQuickFormingBody(r, currentUser) : renderFormingBody(r, currentUser);
+    await wireAddendums(overlay, 'cm-forming', 'draft', realId, currentUser);
+    await wireContacts(overlay, 'cm-forming', 'draft', realId, canEditActiveBlocks(currentUser));
+    await wirePrices(overlay, 'cm-forming', 'draft', realId, canEditActiveBlocks(currentUser), r);
+    wireDerivedHints(overlay);
+    wireHistory(overlay, 'cm-forming', 'draft', realId);
+    if (r.is_quick || (r.current_stage || 0) === 0) {
+      loadObjectOptions().then(function(names) { bindComboField(body, 'object_name', names); });
+    }
+
+    async function refreshDraftFiles() {
+      const res2 = await ctx.api.resource('draft_contracts').get({ filterByTk: realId, appends: ['contract_files'] });
+      const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
+      const listEl = overlay.querySelector('#cm-forming-files-list');
+      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser);
+      bindFileOpenLinks(overlay);
+      bindFileDeleteLinks(overlay, realId, 'draft_contracts', refreshDraftFiles);
+    }
+    bindFileOpenLinks(overlay);
+    bindFileDeleteLinks(overlay, realId, 'draft_contracts', refreshDraftFiles);
+    bindFileUpload(overlay, realId, 'draft_contracts', { input: 'cm-forming-file-input', btn: 'cm-forming-upload-btn', status: 'cm-forming-upload-status' }, refreshDraftFiles);
+
+    wireStageCollapseToggles(overlay);
+    wireStageEditToggles(overlay, realId);
+
+    const discardBtn = overlay.querySelector('#cm-discard-btn');
+    discardBtn.style.display = '';
+    discardBtn.onclick = async function() {
+      const contractNumber = r.contract_number || r.object_name || ('#' + realId);
+      if (!(await cmConfirm('Удалить черновик «' + contractNumber + '» безвозвратно?'))) return;
+      discardBtn.disabled = true;
+      try {
+        await ctx.api.resource('draft_contracts').destroy({ filterByTk: realId });
+        await purgeContractSideData('draft', realId);
+        closeDraftModal(true);
+        cmToast('Черновик удалён');
+        if (window.refreshDraftsList) window.refreshDraftsList();
+      } catch (e) {
+        cmToast('Не удалось удалить черновик');
+        discardBtn.disabled = false;
+      }
+    };
+
+    if (r.is_quick) {
+      wireAutoSave(overlay, realId, 'quick', 'cm-save-status-quick', 'draft_contracts');
+      wireFieldMasks(overlay, 'quick');
+      const pubBtn = overlay.querySelector('#cm-quick-publish');
+      if (pubBtn) { pubBtn.textContent = 'Опубликовать → Формирующиеся'; pubBtn.disabled = false; }
+      const saveBtn = overlay.querySelector('#cm-quick-save');
+      if (saveBtn) saveBtn.addEventListener('click', async function(e) {
+        const btn = e.target; btn.disabled = true;
+        try {
+          const formEl = overlay.querySelector('.cm-stage-form[data-stage="quick"]');
+          if (formEl && formEl.__cmFlush) await formEl.__cmFlush();
+          cmToast('Сохранено');
+        } catch (err) { cmToast('Не удалось сохранить'); } finally { btn.disabled = false; }
+      });
+      if (pubBtn) pubBtn.addEventListener('click', async function(e) {
+        e.target.disabled = true;
+        try { await publishDraftContract(realId, overlay); }
+        catch (err) { cmToast('Не удалось опубликовать договор'); e.target.disabled = false; }
+      });
+    } else {
+      const stageIndex = r.current_stage || 0;
+      const isLast = stageIndex === STAGE_DEFS.length - 1;
+      const actionsHtml = '<div class="cm-stage-actions">'
+        + '<button class="cm-btn-save" id="cm-stage-save">Сохранить</button>'
+        + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance">'
+        + (isLast ? 'Опубликовать → Формирующиеся' : 'Подтвердить этап и перейти дальше') + '</button>'
+        + '</div>';
+      const currentContent = overlay.querySelector('[data-stage-content="' + stageIndex + '"]');
+      if (currentContent) currentContent.insertAdjacentHTML('beforeend', actionsHtml);
+
+      wireAutoSave(overlay, realId, stageIndex, 'cm-save-status-' + stageIndex, 'draft_contracts');
+      wireFieldMasks(overlay, stageIndex);
+
+      const saveBtn = overlay.querySelector('#cm-stage-save');
+      if (saveBtn) saveBtn.addEventListener('click', async function(e) {
+        const btn = e.target; btn.disabled = true;
+        try {
+          const formEl = overlay.querySelector('.cm-stage-form[data-stage="' + stageIndex + '"]');
+          if (formEl && formEl.__cmFlush) await formEl.__cmFlush();
+          else await saveStage(realId, stageIndex, overlay, 'draft_contracts');
+        } catch (err) { cmToast('Не удалось сохранить'); } finally { btn.disabled = false; }
+      });
+      const advBtn = overlay.querySelector('#cm-stage-advance');
+      if (advBtn) advBtn.addEventListener('click', async function(e) {
+        e.target.disabled = true;
+        try { await advanceDraftStage(realId, overlay); }
+        catch (err) { cmToast('Не удалось перейти дальше'); }
+        finally { if (document.getElementById('draft-modal-root')) e.target.disabled = false; }
+      });
+    }
+  }
+
+  try {
+    if (id) {
+      const res = await ctx.api.resource('draft_contracts').get({ filterByTk: id, appends: ['contract_files'] });
+      const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+      await wireLoadedDraft(r, id);
+    } else {
+      // ленивое создание: пока пользователь не заполнит хоть одно поле — записи в базе нет вовсе
+      const placeholder = { is_quick: !!isQuickHint, current_stage: 0 };
+      body.style.color = '';
+      body.innerHTML = placeholder.is_quick ? renderQuickFormingBody(placeholder, currentUser) : renderFormingBody(placeholder, currentUser);
+      wireDerivedHints(overlay);
+      const stageOrQuick = placeholder.is_quick ? 'quick' : 0;
+      wireFieldMasks(overlay, stageOrQuick);
+      if (placeholder.is_quick || (placeholder.current_stage || 0) === 0) {
+        loadObjectOptions().then(function(names) { bindComboField(body, 'object_name', names); });
+      }
+      const pubBtnId = placeholder.is_quick ? 'cm-quick-publish' : 'cm-stage-advance';
+      if (!placeholder.is_quick) {
+        const isLast = false;
+        const actionsHtml = '<div class="cm-stage-actions">'
+          + '<button class="cm-btn-save" id="cm-stage-save" disabled>Сохранить</button>'
+          + '<button class="cm-btn-advance" id="cm-stage-advance" disabled>Подтвердить этап и перейти дальше</button>'
+          + '</div>';
+        const currentContent = overlay.querySelector('[data-stage-content="0"]');
+        if (currentContent) currentContent.insertAdjacentHTML('beforeend', actionsHtml);
+      } else {
+        const pubBtn = overlay.querySelector('#cm-quick-publish');
+        const saveBtnQ = overlay.querySelector('#cm-quick-save');
+        if (pubBtn) { pubBtn.disabled = true; pubBtn.textContent = 'Опубликовать → Формирующиеся'; }
+        if (saveBtnQ) saveBtnQ.disabled = true;
+      }
+      const hintEl = document.createElement('div');
+      hintEl.style.cssText = 'font-size:12px;color:#999;margin-bottom:10px;';
+      hintEl.textContent = 'Черновик сохранится сам, как только вы заполните хоть одно поле.';
+      body.insertBefore(hintEl, body.firstChild);
+
+      wireAutoSaveDraftLazy(overlay, stageOrQuick, placeholder.is_quick ? 'cm-save-status-quick' : 'cm-save-status-0', placeholder.is_quick, currentUser.id, async function(realId) {
+        const res = await ctx.api.resource('draft_contracts').get({ filterByTk: realId, appends: ['contract_files'] });
+        const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+        await wireLoadedDraft(r, realId);
+        if (window.refreshDraftsList) window.refreshDraftsList();
+      });
+    }
+  } catch (e) {
+    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки черновика: ' + esc(e && e.message ? e.message : e) + '</span>';
+  }
+}
+window.openDraftModal = openDraftModal;
+
+// ---------- список личных черновиков (вкладка «Черновики», не нативная таблица NocoBase) ----------
+
+function ensureDraftsPanel() {
+  let panel = document.getElementById('cm-drafts-panel');
+  if (panel) return panel;
+  const anchor = document.querySelector('[data-uid="ipb7gfluldk"]');
+  const card = anchor ? anchor.closest('.ant-card') : null;
+  panel = document.createElement('div');
+  panel.id = 'cm-drafts-panel';
+  panel.style.display = 'none';
+  panel.innerHTML = '<div id="cm-drafts-list" style="padding:4px 0;color:#999;font-size:13px;">Загрузка…</div>';
+  if (card && card.parentNode) card.parentNode.insertBefore(panel, card.nextSibling);
+  else document.body.appendChild(panel);
+  return panel;
+}
+function draftCardHtml(d) {
+  const title = d.contract_number || d.object_name || d.tenant_name || ('Черновик #' + d.id);
+  const sub = [d.object_name, d.tenant_name].filter(Boolean).join(' · ') || 'Пока без данных';
+  return '<div class="cm-draft-card" data-draft-id="' + d.id + '" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid #f0f0f0;border-radius:8px;margin-bottom:8px;cursor:pointer;background:#fff;">'
+    + '<div><div style="font-weight:600;font-size:14px;">' + esc(title)
+    + (d.is_quick ? ' <span style="font-size:11px;color:#ad6800;background:#fff7e6;border:1px solid #ffd591;border-radius:4px;padding:1px 6px;margin-left:6px;">срочный</span>' : '')
+    + '</div><div style="font-size:12px;color:#999;margin-top:2px;">' + esc(sub) + '</div></div>'
+    + '<button class="cm-draft-discard" data-draft-discard="' + d.id + '" title="Удалить черновик" style="border:none;background:transparent;color:#bbb;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>'
+    + '</div>';
+}
+async function refreshDraftsList() {
+  const panel = ensureDraftsPanel();
+  const listEl = panel.querySelector('#cm-drafts-list');
+  try {
+    const currentUser = await getCurrentUser();
+    const res = await ctx.api.resource('draft_contracts').list({ filter: { created_by_id: currentUser.id }, sort: ['-id'], pageSize: 100 });
+    const items = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+    listEl.innerHTML = items.length ? items.map(draftCardHtml).join('')
+      : '<div style="color:#bbb;font-size:13px;">Черновиков нет — нажмите «+ Создать договор» или «+ Срочный договор»</div>';
+    listEl.querySelectorAll('.cm-draft-card').forEach(function(card) {
+      card.addEventListener('click', function(e) {
+        if (e.target.closest('[data-draft-discard]')) return;
+        openDraftModal(Number(card.getAttribute('data-draft-id')));
+      });
+    });
+    listEl.querySelectorAll('[data-draft-discard]').forEach(function(btn) {
+      btn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        const did = Number(btn.getAttribute('data-draft-discard'));
+        if (!(await cmConfirm('Удалить черновик безвозвратно?'))) return;
+        try {
+          await ctx.api.resource('draft_contracts').destroy({ filterByTk: did });
+          await purgeContractSideData('draft', did);
+          refreshDraftsList();
+        } catch (e2) { cmToast('Не удалось удалить'); }
+      });
+    });
+  } catch (e) {
+    listEl.innerHTML = '<span style="color:#c0392b;">Не удалось загрузить черновики</span>';
+  }
+}
+window.refreshDraftsList = refreshDraftsList;
+window.__cmShowDraftsPanel = function(show) {
+  const panel = ensureDraftsPanel();
+  panel.style.display = show ? '' : 'none';
+  if (show) refreshDraftsList();
+};
+
 async function openFormingContractModal(id) {
   const overlay = document.createElement('div');
   overlay.id = 'forming-modal-root';
@@ -3328,17 +3742,7 @@ function injectCreateContractButton() {
   btn.textContent = '+ Создать договор';
   btn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:none;background:#1677ff;color:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
   btn.addEventListener('click', async function() {
-    btn.disabled = true;
-    try {
-      const res = await ctx.api.resource('forming_contracts').create({ values: { current_stage: 0 } });
-      const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
-      await logHistory('forming', rec.id, [{ action: 'create', text: 'Договор создан (черновик)' }]);
-      await openFormingContractModal(rec.id);
-    } catch (e) {
-      cmToast('Не удалось создать договор');
-    } finally {
-      btn.disabled = false;
-    }
+    await openDraftModal(null, false);
   });
   parent.appendChild(btn);
 
@@ -3348,17 +3752,7 @@ function injectCreateContractButton() {
   quickBtn.title = 'Экстренное оформление: все данные одной формой, без этапов';
   quickBtn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid #ffd591;background:#fff7e6;color:#ad6800;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
   quickBtn.addEventListener('click', async function() {
-    quickBtn.disabled = true;
-    try {
-      const res = await ctx.api.resource('forming_contracts').create({ values: { current_stage: 0, is_quick: true } });
-      const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
-      await logHistory('forming', rec.id, [{ action: 'create', text: 'Договор создан одной формой (срочно)' }]);
-      await openFormingContractModal(rec.id);
-    } catch (e) {
-      cmToast('Не удалось создать договор');
-    } finally {
-      quickBtn.disabled = false;
-    }
+    await openDraftModal(null, true);
   });
   parent.appendChild(quickBtn);
 }

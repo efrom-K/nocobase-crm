@@ -352,6 +352,27 @@ async function createNotification(userId, contractId, title, text, source, chann
   } catch (e) { /* best-effort, notification failure must not block the main action */ }
 }
 
+// Открытие карточки договора = прочитано: гасим подсветку и соответствующие уведомления в колокольчике,
+// не дожидаясь, пока пользователь сам откроет и прочитает их там.
+async function markContractNotificationsRead(source, id) {
+  try {
+    const r = await fetch('/api/myInAppMessages:list?filter[status]=unread&pageSize=200', {
+      headers: { Authorization: 'Bearer ' + authToken() }
+    });
+    const j = await r.json();
+    const list = (j && j.data && j.data.messages) ? j.data.messages : [];
+    const re = new RegExp('[?&]open=' + source + ':' + id + '(?:&|$)');
+    const mine = list.filter(function(m) { return re.test((m.options && m.options.url) || ''); });
+    for (const m of mine) {
+      await fetch('/api/notificationInAppMessages:updateMyOwn?filterByTk=' + encodeURIComponent(m.id), {
+        method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'read' })
+      });
+    }
+    if (mine.length && window.__cmRefreshNotifRows) window.__cmRefreshNotifRows();
+  } catch (e) { /* best-effort: подсветка сама снимется, когда прочитают в колокольчике */ }
+}
+
 let __cmCurrentUser = null;
 async function getCurrentUser() {
   if (__cmCurrentUser) return __cmCurrentUser;
@@ -1850,6 +1871,7 @@ async function openCompletedContractModal(id) {
     </div>
   `;
   document.body.appendChild(overlay);
+  markContractNotificationsRead('completed', id);
   overlay.querySelector('.ant-modal-mask').addEventListener('click', closeContractModal);
   overlay.querySelector('#cm-close-btn').addEventListener('click', closeContractModal);
   document.addEventListener('keydown', onModalEscape);
@@ -1959,6 +1981,7 @@ async function openContractModal(id) {
     </div>
   `;
   document.body.appendChild(overlay);
+  markContractNotificationsRead('active', id);
   overlay.querySelector('.ant-modal-mask').addEventListener('click', closeContractModal);
   overlay.querySelector('#cm-close-btn').addEventListener('click', closeContractModal);
   document.addEventListener('keydown', onModalEscape);
@@ -2500,8 +2523,8 @@ function renderQuickFormingBody(r, currentUser) {
     return '<div class="cm-section"><div class="cm-section-title">' + esc(stage.title) + '</div>'
       + stage.fields.map(function(f) { return renderEditableField(f, r[f.name]); }).join('') + '</div>';
   }).join('') + '</div>';
-  html += '<div class="cm-save-status" id="cm-save-status-quick"></div>';
-  html += '<div class="cm-stage-actions">'
+  html += '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>';
+  html += '<div class="cm-stage-actions" style="margin-top:2px;padding-top:10px;border-top:1px solid #f0f0f0;">'
     + '<button class="cm-btn-save" id="cm-quick-save">Сохранить</button>'
     + '<button class="cm-btn-advance cm-btn-finalize" id="cm-quick-publish">Опубликовать → Активные</button>'
     + '</div>';
@@ -3052,14 +3075,43 @@ async function finalizeContract(id, members, contractNumber) {
 function closeFormingModal(immediate) {
   const root = document.getElementById('forming-modal-root');
   if (!root) return;
-  root.querySelectorAll('.cm-stage-form').forEach(function(f) { if (f.__cmFlush) f.__cmFlush(); });
+  const flushes = [];
+  root.querySelectorAll('.cm-stage-form').forEach(function(f) { if (f.__cmFlush) flushes.push(f.__cmFlush()); });
   document.removeEventListener('keydown', onFormingModalEscape);
+  const draftId = root.__cmContractId;
+  if (draftId) {
+    Promise.all(flushes).then(function() { return purgeIfEmptyDraft(draftId); }).catch(function() {});
+  }
   if (immediate) {
     root.remove();
     return;
   }
   root.classList.remove('cm-open');
   setTimeout(function() { if (root && root.parentNode) root.remove(); }, 220);
+}
+// Закрыли карточку без единого реального значения (не считая служебной записи о создании) — значит,
+// кнопку «Создать договор»/«Срочный договор» нажали случайно; чистим фантомный черновик, чтобы он
+// не оставался мусором в «Формирующихся».
+async function purgeIfEmptyDraft(id) {
+  try {
+    const res = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+    const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+    if (!r || !r.id) return;
+    const fieldsEmpty = STAGE_DEFS.every(function(s) {
+      return s.fields.every(function(f) {
+        const v = r[f.name];
+        return v === null || v === undefined || v === '';
+      });
+    });
+    if (!fieldsEmpty) return;
+    if ((r.contract_members || []).length) return;
+    if ((r.contract_files || []).length) return;
+    const histRes = await ctx.api.resource('contract_history').list({ filter: { contract_type: 'forming', contract_ref_id: id }, pageSize: 1 });
+    const histCount = (histRes && histRes.data && histRes.data.meta && histRes.data.meta.count) || 0;
+    if (histCount > 1) return;
+    await purgeContractSideData('forming', id);
+    await ctx.api.resource('forming_contracts').destroy({ filterByTk: id });
+  } catch (e) { /* best-effort: пустой черновик просто останется в базе, ничего не ломаем */ }
 }
 function onFormingModalEscape(e) {
   if (e.key === 'Escape') closeFormingModal();
@@ -3108,6 +3160,8 @@ async function openFormingContractModal(id) {
     </div>
   `;
   document.body.appendChild(overlay);
+  overlay.__cmContractId = id;
+  markContractNotificationsRead('forming', id);
   overlay.querySelector('.ant-modal-mask').addEventListener('click', closeFormingModal);
   overlay.querySelector('#cm-close-btn').addEventListener('click', closeFormingModal);
   document.addEventListener('keydown', onFormingModalEscape);

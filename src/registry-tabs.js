@@ -349,6 +349,24 @@ if (!document.getElementById('cm-notif-style')) {
   `;
   document.head.appendChild(nst);
 }
+// строки с непрочитанными уведомлениями поднимаются наверх таблицы по умолчанию — но не мешаем,
+// если пользователь сам явно отсортировал колонку (antd ставит aria-sort на th активного сортера)
+function hasActiveSort(uid) {
+  return !!document.querySelector('[data-uid="' + uid + '"] thead th[aria-sort="ascend"], [data-uid="' + uid + '"] thead th[aria-sort="descend"]');
+}
+function reorderNotifRows(uid) {
+  if (hasActiveSort(uid)) return;
+  const tbody = document.querySelector('[data-uid="' + uid + '"] .ant-table-tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr[data-row-key]'));
+  if (!rows.length) return;
+  const flagged = rows.filter(function(tr) { return tr.classList.contains('cm-notif-row'); });
+  if (!flagged.length) return;
+  const alreadyOnTop = rows.slice(0, flagged.length).every(function(tr, i) { return tr === flagged[i]; });
+  if (alreadyOnTop) return;
+  const rest = rows.filter(function(tr) { return !tr.classList.contains('cm-notif-row'); });
+  flagged.concat(rest).forEach(function(tr) { tbody.appendChild(tr); });
+}
 function paintNotifRows() {
   const map = window.__cmNotifRows || {};
   TABLES.forEach(function(uid) {
@@ -364,6 +382,7 @@ function paintNotifRows() {
         tr.removeAttribute('title');
       }
     });
+    reorderNotifRows(uid);
     const tab = document.querySelector('.registry-local-tab[data-table="' + uid + '"] .ant-tabs-tab-btn');
     if (tab) {
       let badge = tab.querySelector('.cm-tab-badge');
@@ -394,6 +413,7 @@ async function refreshNotifRows() {
   } catch (e) { /* остаёмся на прошлом состоянии */ }
   paintNotifRows();
 }
+window.__cmRefreshNotifRows = refreshNotifRows; // вызывается из карточки договора сразу после прочтения, чтобы не ждать интервал
 if (!window.__cmNotifTimers) {
   window.__cmNotifTimers = true;
   refreshNotifRows();

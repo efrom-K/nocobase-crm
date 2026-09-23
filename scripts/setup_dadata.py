@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Реквизиты арендатора из DaData (findById/party по ИНН).
+"""Реквизиты арендатора (юрлицо / ИП / физлицо) и подстановка из DaData (findById/party по ИНН).
 
 Создаёт поля kpp / ogrn / legal_address / director во всех коллекциях договоров и коллекцию app_settings
 (name → value) для настроек CRM. API-ключ DaData кладётся в app_settings отдельно (в репозиторий НЕ коммитится):
@@ -21,7 +21,9 @@ def call(path, body=None):
     except urllib.error.HTTPError as e:
         return {'error': e.code, 'body': e.read().decode()[:300]}
 
-FIELDS = [('kpp', 'КПП'), ('ogrn', 'ОГРН / ОГРНИП'), ('legal_address', 'Юридический адрес'), ('director', 'Руководитель')]
+FIELDS = [('kpp', 'КПП'), ('ogrn', 'ОГРН / ОГРНИП'), ('legal_address', 'Юридический адрес'), ('director', 'Руководитель'),
+          ('tenant_type', 'Тип арендатора'),              # Юрлицо / ИП / Физлицо — от него зависит набор реквизитов
+          ('passport', 'Паспорт: серия и номер'), ('passport_issued', 'Паспорт: кем и когда выдан')]
 for coll in ('draft_contracts', 'forming_contracts', 'rental_contracts', 'completed_contracts'):
     for name, title in FIELDS:
         r = call('collections/%s/fields:create' % coll, {'name': name, 'type': 'string', 'interface': 'input',

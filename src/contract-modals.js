@@ -1272,7 +1272,7 @@ function renderAllActiveReadonly(root, r) {
     const el = root.querySelector('[data-active-readonly="' + block.key + '"]');
     if (!el) return;
     el.innerHTML = block.readonlyRenderer ? block.readonlyRenderer(r)
-      : '<div class="cm-grid">' + block.fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
+      : '<div class="cm-grid">' + partyFields(block.fields, r).map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
   });
   paintInnStatus(root);
 }
@@ -1821,7 +1821,6 @@ function attachBikLookup(el) {
 // ---------- реквизиты арендатора по ИНН из DaData (findById/party) ----------
 // Ключ хранится в коллекции app_settings (name = dadata_token), не в коде: репозиторий публичный.
 const PARTY_STATUS = { LIQUIDATING: 'ликвидируется', LIQUIDATED: 'ликвидирована', BANKRUPT: 'банкротство', REORGANIZING: 'реорганизация' };
-const PARTY_FIELDS = ['tenant_name', 'kpp', 'ogrn', 'legal_address', 'director'];
 window.__cmPartyCache = window.__cmPartyCache || {};
 function dadataToken() {
   if (!window.__cmDadataToken) {
@@ -1852,13 +1851,11 @@ async function lookupParty(inn) {
     const liq = d.state && d.state.liquidation_date ? fromISODateDisplay(dateToIso(new Date(d.state.liquidation_date))) : '';
     const mgmt = d.management && d.management.name ? (d.management.post ? d.management.post.charAt(0) + d.management.post.slice(1).toLowerCase() + ' ' : '') + d.management.name : '';
     out = { found: true, name: sug.value, status: st, statusText: PARTY_STATUS[st] ? PARTY_STATUS[st] + (st === 'LIQUIDATED' && liq ? ' ' + liq : '') : '',
-      values: {
-        tenant_name: (d.name && d.name.short_with_opf) || sug.value || '',
-        kpp: d.kpp || '',
-        ogrn: d.ogrn || '',
-        legal_address: (d.address && (d.address.unrestricted_value || d.address.value)) || '',
-        director: d.type === 'INDIVIDUAL' ? '' : mgmt
-      } };
+      values: d.type === 'INDIVIDUAL'
+        ? { tenant_type: 'ИП', tenant_name: sug.value || '', ogrn: d.ogrn || '',
+            legal_address: (d.address && (d.address.unrestricted_value || d.address.value)) || '' }
+        : { tenant_type: 'Юрлицо', tenant_name: (d.name && d.name.short_with_opf) || sug.value || '', kpp: d.kpp || '', ogrn: d.ogrn || '',
+            legal_address: (d.address && (d.address.unrestricted_value || d.address.value)) || '', director: mgmt } };
   }
   window.__cmPartyCache[inn] = out;
   return out;
@@ -1874,46 +1871,79 @@ function attachInnLookup(el) {
   hint.className = 'cm-bik-hint';
   el.parentNode.appendChild(hint);
   let seq = 0;
+  function typeSel() { return scope.querySelector('[data-field="tenant_type"]'); }
+  function currentType() {
+    const t = typeSel();
+    if (t) return t.value;
+    const root = el.closest('#contract-modal-root');
+    return root && root.__cmActiveRec ? root.__cmActiveRec.tenant_type || '' : '';
+  }
+  // значения, которые пишем в договор: для каждого типа — только его реквизиты
+  async function saveOutside(extra) {
+    const root = el.closest('#contract-modal-root');
+    if (!Object.keys(extra).length || !root || !root.__cmActiveId || !root.__cmActiveRec) return;
+    const rec = root.__cmActiveRec;
+    Object.keys(extra).forEach(function(k) { if (rec[k] === extra[k]) delete extra[k]; });
+    if (!Object.keys(extra).length) return;
+    try { await updateWithHistory('rental_contracts', root.__cmActiveId, extra); Object.assign(rec, extra); renderAllActiveReadonly(root, rec); }
+    catch (err) { cmToast('Не удалось сохранить название арендатора'); }
+  }
+  async function applyValues(val) {
+    const extra = {};
+    Object.keys(val).forEach(function(n) {
+      if (val[n] === undefined || val[n] === null) return;
+      const f = scope.querySelector('[data-field="' + n + '"]');
+      if (f) { if (f.value !== val[n]) { f.value = val[n]; fireInput(f); if (f.tagName === 'SELECT') f.dispatchEvent(new Event('change', { bubbles: true })); } }
+      else if (val[n] !== '') extra[n] = val[n];
+    });
+    applyTenantTypeToForm(scope, val.tenant_type);
+    await saveOutside(extra);
+  }
+  function link(text, cls) { return ' <a href="#" class="' + cls + '" style="color:#1677ff;font-weight:600;text-decoration:none;">' + text + '</a>'; }
   async function run() {
     const my = ++seq;
     const v = String(el.value || '').replace(/\D/g, '');
     if (!/^(\d{10}|\d{12})$/.test(v) || !innValid(v)) { hint.innerHTML = ''; return; }
-    hint.style.color = '#8c8c8c'; hint.textContent = 'Ищу организацию по ИНН…';
+    if (currentType() === 'Физлицо' && v.length === 12) {
+      hint.style.color = '#8c8c8c'; hint.textContent = 'Частное лицо: реквизиты из реестров не подставляются — заполните паспорт и адрес регистрации';
+      return;
+    }
+    hint.style.color = '#8c8c8c'; hint.textContent = v.length === 10 ? 'Ищу организацию по ИНН…' : 'Ищу ИП по ИНН…';
     let p = null;
     try { p = await lookupParty(v); } catch (e) { p = null; }
     if (my !== seq) return;
     if (!p) { hint.style.color = '#8c8c8c'; hint.textContent = 'Сервис проверки ИНН сейчас недоступен — реквизиты введите вручную'; return; }
-    if (!p.found) { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким ИНН не найдена в ЕГРЮЛ/ЕГРИП'; return; }
+    if (!p.found) {
+      if (v.length === 12) {
+        // 12 цифр и нет в реестре ИП — это ИНН частного лица
+        hint.style.color = '#8c8c8c';
+        hint.innerHTML = 'ИНН физического лица: в реестре ИП не найден.' + (currentType() !== 'Физлицо' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
+        const a = hint.querySelector('.cm-party-person');
+        if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Физлицо' }); run(); });
+      } else { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким ИНН не найдена в ЕГРЮЛ'; }
+      return;
+    }
     const val = p.values;
-    const differs = PARTY_FIELDS.some(function(n) { const f = scope.querySelector('[data-field="' + n + '"]'); return val[n] && (!f || f.value !== val[n]); });
+    const differs = Object.keys(val).some(function(n) {
+      if (!val[n]) return false;
+      const f = scope.querySelector('[data-field="' + n + '"]');
+      if (f) return f.value !== val[n];
+      const root = el.closest('#contract-modal-root');
+      return !(root && root.__cmActiveRec && root.__cmActiveRec[n] === val[n]);
+    });
     hint.style.color = '#389e0d';
     hint.innerHTML = '✓ ' + escRaw(p.name) + partyStatusBadge(p)
-      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && 'ОГРН ' + val.ogrn, val.legal_address, val.director].filter(Boolean).join(' · ')) + '</div>'
-      + (differs ? '<a href="#" class="cm-party-apply" style="color:#1677ff;font-weight:600;text-decoration:none;">Подставить реквизиты</a>' : '');
+      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'ОГРНИП ' : 'ОГРН ') + val.ogrn, val.legal_address, val.director].filter(Boolean).join(' · ')) + '</div>'
+      + (differs ? link('Подставить реквизиты', 'cm-party-apply') : '');
     const a = hint.querySelector('.cm-party-apply');
     if (a) a.addEventListener('click', async function(e) {
       e.preventDefault();
-      const extra = {};
-      PARTY_FIELDS.forEach(function(n) {
-        if (!val[n]) return;
-        const f = scope.querySelector('[data-field="' + n + '"]');
-        if (f) { if (f.value !== val[n]) { f.value = val[n]; fireInput(f); } }
-        else extra[n] = val[n];
-      });
-      // в активном договоре «Арендатор» — в другом блоке: сохраняем его сразу
-      const root = el.closest('#contract-modal-root');
-      if (Object.keys(extra).length && root && root.__cmActiveId && root.__cmActiveRec) {
-        const rec = root.__cmActiveRec;
-        Object.keys(extra).forEach(function(k) { if (rec[k] === extra[k]) delete extra[k]; });
-        if (Object.keys(extra).length) {
-          try { await updateWithHistory('rental_contracts', root.__cmActiveId, extra); Object.assign(rec, extra); renderAllActiveReadonly(root, rec); }
-          catch (err) { cmToast('Не удалось сохранить название арендатора'); }
-        }
-      }
-      cmToast('Реквизиты подставлены из ЕГРЮЛ — проверьте и сохраните');
+      await applyValues(val);
+      cmToast('Реквизиты подставлены из ' + (val.tenant_type === 'ИП' ? 'ЕГРИП' : 'ЕГРЮЛ') + ' — проверьте и сохраните');
       run();
     });
   }
+  el.__cmInnRun = run;
   el.addEventListener('input', run);
   if (el.value) run();
 }
@@ -2309,6 +2339,60 @@ async function openContractModal(id) {
 }
 window.openContractModal = openContractModal;
 
+// ---------- тип арендатора: юрлицо / ИП / физлицо — от него зависит набор реквизитов ----------
+// ОГРН бывает только у юрлица; у ИП свой номер — ОГРНИП; у физлица ни того, ни другого, зато паспорт.
+const TENANT_TYPES = ['Юрлицо', 'ИП', 'Физлицо'];
+const TENANT_FIELD_RULES = {
+  kpp: { show: ['Юрлицо'] },
+  director: { show: ['Юрлицо'] },
+  ogrn: { show: ['Юрлицо', 'ИП'], label: { 'ИП': 'ОГРНИП' } },
+  legal_address: { label: { 'ИП': 'Адрес регистрации', 'Физлицо': 'Адрес регистрации' } },
+  passport: { show: ['Физлицо'] },
+  passport_issued: { show: ['Физлицо'] },
+  tenant_name: { label: { 'Юрлицо': 'Арендатор (наименование)', 'ИП': 'Арендатор (ИП, ФИО)', 'Физлицо': 'Арендатор (ФИО)' } }
+};
+// тип не выбран (старые договоры) — показываем реквизиты юрлица/ИП как раньше, паспорт прячем
+function tenantFieldVisible(name, type) {
+  const rule = TENANT_FIELD_RULES[name];
+  if (!rule || !rule.show) return true;
+  if (!type) return name !== 'passport' && name !== 'passport_issued';
+  return rule.show.indexOf(type) !== -1;
+}
+function tenantFieldLabel(f, type) {
+  const rule = TENANT_FIELD_RULES[f.name];
+  return (rule && rule.label && type && rule.label[type]) || f.label;
+}
+// поля блока для режима просмотра: без лишних для этого типа, с подписями под тип
+function partyFields(fields, r) {
+  const type = r && r.tenant_type;
+  return fields.filter(function(f) { return tenantFieldVisible(f.name, type); })
+    .map(function(f) { const l = tenantFieldLabel(f, type); return l === f.label ? f : Object.assign({}, f, { label: l }); });
+}
+// форма: прячем/подписываем строки по выбранному в ней типу (или по типу из договора, если выбора в форме нет)
+function applyTenantTypeToForm(scope, fallbackType) {
+  if (!scope) return;
+  const sel = scope.querySelector('[data-field="tenant_type"]');
+  const type = sel ? sel.value : (fallbackType || '');
+  Object.keys(TENANT_FIELD_RULES).forEach(function(name) {
+    const el = scope.querySelector('[data-field="' + name + '"]');
+    const rowEl = el && el.closest('.cm-field-row');
+    if (!rowEl) return;
+    rowEl.style.display = tenantFieldVisible(name, type) ? '' : 'none';
+    const lab = rowEl.querySelector('.cm-label');
+    if (lab) {
+      if (!lab.__cmBaseLabel) lab.__cmBaseLabel = lab.textContent;
+      lab.textContent = tenantFieldLabel({ name: name, label: lab.__cmBaseLabel }, type);
+    }
+  });
+}
+function wireTenantType(scope, fallbackType) {
+  if (!scope || scope.__cmTenantType) { applyTenantTypeToForm(scope, fallbackType); return; }
+  scope.__cmTenantType = true;
+  const sel = scope.querySelector('[data-field="tenant_type"]');
+  if (sel) sel.addEventListener('change', function() { applyTenantTypeToForm(scope); const inn = scope.querySelector('[data-field="inn"]'); if (inn && inn.__cmInnRun) inn.__cmInnRun(); });
+  applyTenantTypeToForm(scope, fallbackType);
+}
+
 const STAGE_DEFS = [
   { title: 'Заявка на аренду', role: 'rental_dept', fields: [
       { name: 'object_name', label: 'Объект', type: 'combo', listId: 'cm-object-datalist' },
@@ -2331,12 +2415,15 @@ const STAGE_DEFS = [
   { title: 'Подписание договора / Данные контрагента', role: 'accounting_dept', fields: [
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
       { name: 'end_date', label: 'Дата окончания Договора', type: 'date' },
+      { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
       { name: 'inn', label: 'ИНН', type: 'text' },
       { name: 'kpp', label: 'КПП', type: 'text' },
-      { name: 'ogrn', label: 'ОГРН / ОГРНИП', type: 'text' },
+      { name: 'ogrn', label: 'ОГРН', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text' },
       { name: 'director', label: 'Руководитель', type: 'text' },
+      { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
+      { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
       { name: 'tenant_fio', label: 'Контактное лицо', type: 'text' },
       { name: 'email', label: 'Эл. почта', type: 'email' },
       { name: 'phone', label: 'Телефон', type: 'tel' },
@@ -2488,6 +2575,7 @@ function wireFieldMasks(root, stageIndex) {
     el.addEventListener('input', function() { formatBikInput(el); });
     attachBikLookup(el);
   });
+  wireTenantType(formEl);
   formEl.querySelectorAll('[data-field="inn"]').forEach(attachInnLookup);
   wireFieldRules(formEl);
 }
@@ -2554,10 +2642,13 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС)', type: 'money' }
   ]},
   { key: 'counterparty', title: 'Блок Контрагента', fields: [
+      { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'inn', label: 'ИНН', type: 'text' },
       { name: 'kpp', label: 'КПП', type: 'text' },
-      { name: 'ogrn', label: 'ОГРН / ОГРНИП', type: 'text' },
+      { name: 'ogrn', label: 'ОГРН', type: 'text' },
       { name: 'director', label: 'Руководитель', type: 'text' },
+      { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
+      { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
       { name: 'phone', label: 'Телефон', type: 'tel' },
       { name: 'contact_person', label: 'Контактное лицо', type: 'text' },
       { name: 'email', label: 'Эл. почта', type: 'email' },
@@ -2581,7 +2672,7 @@ function canEditActiveBlocks(user) {
 function renderActiveBlockSection(block, r) {
   const readonlyHtml = block.readonlyRenderer
     ? block.readonlyRenderer(r)
-    : '<div class="cm-grid">' + block.fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
+    : '<div class="cm-grid">' + partyFields(block.fields, r).map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
   return '<div class="cm-section" data-active-block="' + block.key + '">'
     + '<div class="cm-section-title-row">'
     + '<div class="cm-section-title" style="margin-bottom:0;flex:1;">' + esc(block.title) + '</div>'
@@ -2615,6 +2706,7 @@ function wireGenericFieldMasks(formEl) {
     el.addEventListener('input', function() { formatBikInput(el); });
     attachBikLookup(el);
   });
+  wireTenantType(formEl);
   formEl.querySelectorAll('[data-field="inn"]').forEach(attachInnLookup);
   wireFieldRules(formEl);
 }
@@ -2694,7 +2786,7 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
         renderAllActiveReadonly(root, r);
         readonly.innerHTML = block.readonlyRenderer
           ? block.readonlyRenderer(r)
-          : '<div class="cm-grid">' + block.fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
+          : '<div class="cm-grid">' + partyFields(block.fields, r).map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
         form.style.display = 'none';
         readonly.style.display = '';
         if (toggleBtn) toggleBtn.style.display = '';
@@ -2737,7 +2829,7 @@ function renderFormingBody(r, currentUser) {
 
     html += '<div class="cm-stage-content" data-stage-content="' + i + '" style="display:' + (isDone ? 'none' : 'block') + ';">';
     if (isDone) {
-      html += '<div class="cm-grid" data-stage-readonly="' + i + '">' + stage.fields.map(function(f) {
+      html += '<div class="cm-grid" data-stage-readonly="' + i + '">' + partyFields(stage.fields, r).map(function(f) {
         return row(f.label, readonlyFieldValue(f, r));
       }).join('') + '</div>';
     }
@@ -2863,7 +2955,7 @@ function wireStageEditToggles(root, id) {
       const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
       const stage = STAGE_DEFS[Number(i)];
       const readonly = root.querySelector('[data-stage-readonly="' + i + '"]');
-      readonly.innerHTML = stage.fields.map(function(f) {
+      readonly.innerHTML = partyFields(stage.fields, r2).map(function(f) {
         return row(f.label, readonlyFieldValue(f, r2));
       }).join('');
       readonly.style.display = 'block';
@@ -3205,7 +3297,7 @@ async function completeContract(id, members, contractNumber) {
     rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
-    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director,
+    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
   const createRes = await ctx.api.resource('completed_contracts').create({ values: payload });
@@ -3273,7 +3365,7 @@ async function finalizeContract(id, members, contractNumber) {
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
-    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director,
+    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
   const createRes = await ctx.api.resource('rental_contracts').create({ values: payload });
@@ -3506,7 +3598,7 @@ async function publishDraftContract(id, root) {
     total_amount: f.total_amount, inn: f.inn, bank_account: f.bank_account, bik: f.bik,
     bank_name: f.bank_name, corr_account: f.corr_account, signing_method: f.signing_method,
     actual_start_date: f.actual_start_date, contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url,
-    notes: f.notes, is_quick: f.is_quick, kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director,
+    notes: f.notes, is_quick: f.is_quick, kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
   };
   const createRes = await ctx.api.resource('forming_contracts').create({ values: payload });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;

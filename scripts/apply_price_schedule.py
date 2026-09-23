@@ -7,8 +7,8 @@
 
 Правила (те же, что у кнопки в карточке):
   «за 1 кв.м.»  → ставка = цена в пересчёте на месяц, АП = ставка × площадь
-  «фикс. сумма» → АП = цена в пересчёте на месяц, ставка = АП / площадь (если площадь известна)
-Пересчёт в месяц: неделя ×52/12, день ×365/12, год ÷12. Период, действующий на дату, определяется по date_from ≤ дата ≤ date_to
+  «фикс. сумма» → АП = цена (ставку делением АП на площадь НЕ выводим — только точные числа)
+Цены «в неделю/день/год» (старые записи) не применяются: пересчёт в месяц дал бы приблизительное число. Период, действующий на дату, определяется по date_from ≤ дата ≤ date_to
 (если действуют несколько — берётся начавшийся позже). Уже применённый период (таблица contract_price_applied) повторно не применяется,
 поэтому ручные правки ставки между сменами периодов не затираются. Договоры с датой расторжения пропускаются.
 Изменения пишутся в историю договора (автор «Система»), сотрудникам договора и ролям rental_dept/legal_dept приходит сообщение в колокольчик.
@@ -20,7 +20,6 @@ DRY = '--dry-run' in sys.argv
 TODAY = date.fromisoformat(sys.argv[sys.argv.index('--date') + 1]) if '--date' in sys.argv else date.today()
 REGISTRY_PAGE = os.environ.get('NB_REGISTRY_PAGE', 'b5znz7yxpy3')
 ROLES = ('rental_dept', 'legal_dept')
-FACTOR = {'month': 1, 'week': 52 / 12, 'day': 365 / 12, 'year': 1 / 12}
 UNIT_TITLE = {'month': 'в месяц', 'week': 'в неделю', 'day': 'в день', 'year': 'в год'}
 PSQL_CMD = ['docker', 'exec', '-i', os.environ.get('NB_PG_CONTAINER', 'nocobase-postgres-1'), 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
@@ -101,15 +100,17 @@ for c in contracts:
     p = eff[-1]
     sig = '%s|%s|%s|%s' % (p['id'], p['amount'], p['basis'], p['unit'])
     if applied.get(c['id']) == sig: continue
-    monthly = float(p['amount']) * FACTOR.get(p['unit'] or 'month', 1)
+    if (p['unit'] or 'month') != 'month':
+        print('  договор #%s: период %s — %s задан не в месяц, пропущен (точно в месячную АП не пересчитать)' % (c['id'], p['date_from'], p['date_to']))
+        continue
+    monthly = float(p['amount'])
     area = area_now.get(c['id'], c['area_sqm']) or 0
     new = {}
     if p['basis'] == 'per_sqm':
-        new['rent_per_sqm'] = r2(monthly)
-        if area > 0: new['rent_amount'] = r2(new['rent_per_sqm'] * area)
+        new['rent_per_sqm'] = monthly
+        if area > 0: new['rent_amount'] = r2(monthly * area)
     else:
-        new['rent_amount'] = r2(monthly)
-        if area > 0: new['rent_per_sqm'] = r2(monthly / area)
+        new['rent_amount'] = monthly
     changed = {k: (c[k], v) for k, v in new.items() if c[k] is None or abs(c[k] - v) >= 0.005}
     label = '%s ₽ %s%s' % (fmt(float(p['amount'])), 'за 1 кв.м. ' if p['basis'] == 'per_sqm' else '', UNIT_TITLE.get(p['unit'] or 'month', ''))
     title = 'Договор ' + (c['contract_number'] or c['object_name'] or '#%s' % c['id'])

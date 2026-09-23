@@ -1224,8 +1224,7 @@ function derivedUpdates(oldRec, values) {
       const untouched = tgtOld === null || (expOld !== null && Math.abs(tgtOld - expOld) <= derivedTol(areaOld));
       if (untouched && (tgtOld === null || Math.abs(tgtOld - expNew) > 0.004)) upd[p.target] = expNew;
     }
-    const tgtNew = hasTarget ? numOf(values[p.target]) : tgtOld;
-    if (!hasPer && perNew === null && tgtNew > 0 && areaNew > 0 && (hasTarget || hasKey(values, 'area_sqm'))) upd[p.per] = round2(tgtNew / areaNew);
+    // ставку из «АП ÷ площадь» не выводим никогда: деление даёт приблизительное число, а в договоре должны быть только точные
   });
   return upd;
 }
@@ -1287,7 +1286,6 @@ async function moveSide(collection, fromType, fromId, toType, toId) {
 // ----- график цены -----
 const PRICE_BASIS = { fixed: 'Фиксированная сумма', per_sqm: 'За 1 кв.м.' };
 const PRICE_UNIT_TITLES = { month: 'в месяц', week: 'в неделю', day: 'в день', year: 'в год' };
-const PRICE_UNIT_FACTOR = { month: 1, week: 52 / 12, day: 365 / 12, year: 1 / 12 };   // пересчёт в «в месяц»
 function isoToDate(s) {
   const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
@@ -1319,13 +1317,15 @@ function periodCost(p, area) {
   if (!from || !to || !isFinite(amt)) return null;
   const mult = p.basis === 'per_sqm' ? area : 1;
   if (p.basis === 'per_sqm' && !(area > 0)) return null;
-  return round2(amt * mult * unitsInPeriod(from, to, p.unit || 'month'));
+  if ((p.unit || 'month') !== 'month') return null;
+  return round2(amt * mult * unitsInPeriod(from, to, 'month'));
 }
 function periodMonthly(p, area) {
   const amt = Number(p.amount);
   if (!isFinite(amt)) return null;
   if (p.basis === 'per_sqm' && !(area > 0)) return null;
-  return round2(amt * (p.basis === 'per_sqm' ? area : 1) * (PRICE_UNIT_FACTOR[p.unit || 'month'] || 1));
+  if ((p.unit || 'month') !== 'month') return null;
+  return round2(amt * (p.basis === 'per_sqm' ? area : 1));
 }
 function fmtDate(iso) { return fromISODateDisplay(iso); }
 function priceLabel(p) {
@@ -1336,7 +1336,7 @@ function renderPricesSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">График цены аренды</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;">+ Период</button></div>'
-    + '<div class="cm-price-hint">Цена может меняться со временем: задайте отдельную цену на каждый промежуток (месяц, неделя или любой срок). Цену можно указать фиксированной суммой или за 1 кв.м.</div>'
+    + '<div class="cm-price-hint">Цена может меняться со временем: задайте отдельную месячную цену на каждый промежуток (например, скидку на несколько месяцев). Цену можно указать фиксированной суммой в месяц или за 1 кв.м. в месяц.</div>'
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
@@ -1344,7 +1344,7 @@ function renderPricesSection(prefix) {
     + '<div><label>Действует с</label><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
     + '<div><label>Действует по</label><input type="date" class="cm-field-input" id="' + prefix + '-price-to"></div>'
     + '<div><label>Как задана цена</label><select class="cm-field-input" id="' + prefix + '-price-basis"><option value="per_sqm">За 1 кв.м.</option><option value="fixed">Фиксированная сумма</option></select></div>'
-    + '<div><label>За какой срок</label><select class="cm-field-input" id="' + prefix + '-price-unit"><option value="month">В месяц</option><option value="week">В неделю</option><option value="day">В день</option><option value="year">В год</option></select></div>'
+    + '<div><label>За какой срок</label><select class="cm-field-input" id="' + prefix + '-price-unit"><option value="month">В месяц</option></select></div>'
     + '<div><label>Цена, ₽</label><input type="text" class="cm-field-input" id="' + prefix + '-price-amount" inputmode="decimal" placeholder="0,00"></div>'
     + '<div><label>Примечание</label><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="например, скидка на ремонт"></div>'
     + '</div>'
@@ -1535,17 +1535,19 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     } catch (e) { cmToast('Не удалось записать сумму договора'); }
   });
   // Цена действующего сегодня периода становится ставкой и АП договора. Схема связей та же, что у ночного скрипта
-  // (scripts/apply_price_schedule.py): по «за 1 кв.м.» — ставка, АП = ставка × площадь; по фиксированной сумме — АП, ставка = АП / площадь.
+  // (scripts/apply_price_schedule.py): по «за 1 кв.м.» — ставка, АП = ставка × площадь; по фиксированной сумме — только АП (ставку делением не выводим).
+  // Цены «в неделю/день/год» (старые записи) не применяются: пересчёт в месяц дал бы приблизительное число.
   async function applyEffectivePrice(explicit) {
     if (!explicit && type !== 'active') return;
     const c = ctxInfo(), t = today();
     const covering = items.filter(function(x) { const pa = isoToDate(x.date_from), pb = isoToDate(x.date_to); return pa && pb && pa.getTime() <= t.getTime() && t.getTime() <= pb.getTime(); });
     const p = covering.length ? covering[covering.length - 1] : null;
     if (!p) { if (explicit) cmToast('На сегодня в графике нет цены'); return; }
-    const monthly = Number(p.amount) * (PRICE_UNIT_FACTOR[p.unit || 'month'] || 1);
+    if ((p.unit || 'month') !== 'month') { if (explicit) cmToast('Цена периода задана не в месяц — точно пересчитать её в месячную АП нельзя, пересоздайте период с ценой в месяц'); return; }
+    const monthly = Number(p.amount);
     const upd = {};
-    if (p.basis === 'per_sqm') { upd.rent_per_sqm = round2(monthly); if (c.area > 0) upd.rent_amount = round2(upd.rent_per_sqm * c.area); }
-    else { upd.rent_amount = round2(monthly); if (c.area > 0) upd.rent_per_sqm = round2(monthly / c.area); }
+    if (p.basis === 'per_sqm') { upd.rent_per_sqm = monthly; if (c.area > 0) upd.rent_amount = round2(monthly * c.area); }
+    else { upd.rent_amount = monthly; }
     const cur = { rent_per_sqm: numOf(recVal('rent_per_sqm')), rent_amount: numOf(recVal('rent_amount')) };
     Object.keys(upd).forEach(function(k) { if (cur[k] !== null && Math.abs(cur[k] - upd[k]) < 0.005) delete upd[k]; });
     if (!Object.keys(upd).length) { if (explicit) cmToast('Ставка уже соответствует графику'); return; }

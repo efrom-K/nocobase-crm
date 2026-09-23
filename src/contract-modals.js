@@ -3644,6 +3644,21 @@ async function advanceDraftStage(id, root) {
   await publishDraftContract(id, root, nextStage, stage.title);
 }
 
+// кнопка «Опубликовать → Формирующиеся» в срочном черновике (рядом с «→ Активные»)
+function ensureQuickFormingButton(root) {
+  const pub = root.querySelector('#cm-quick-publish');
+  if (!pub) return null;
+  let b = root.querySelector('#cm-quick-publish-forming');
+  if (!b) {
+    b = document.createElement('button');
+    b.id = 'cm-quick-publish-forming';
+    b.className = 'cm-btn-save';
+    b.textContent = 'Опубликовать → Формирующиеся';
+    b.title = 'Продолжить работу над договором вместе с коллегами';
+    pub.parentNode.insertBefore(b, pub);
+  }
+  return b;
+}
 // срочный договор заполняется целиком в черновике и публикуется сразу в «Активные», минуя «Формирующиеся»
 async function publishQuickDraftToActive(id, root) {
   const formEl = root && root.querySelector('.cm-stage-form[data-stage="quick"]');
@@ -3667,7 +3682,7 @@ async function publishDraftContract(id, root, nextStage, doneStageTitle) {
   }
   const confirmText = doneStageTitle
     ? 'Этап «' + doneStageTitle + '» подтверждён. Перевести договор в «Формирующиеся»? Он станет виден коллегам, оформление продолжится с этапа «' + STAGE_DEFS[nextStage || 0].title + '».'
-    : 'Опубликовать черновик и перевести в «Формирующиеся»?';
+    : 'Перевести договор в «Формирующиеся»? Он станет виден коллегам, работу над ним можно продолжить вместе.';
   if (!(await cmConfirm(confirmText))) return;
   const res = await ctx.api.resource('draft_contracts').get({ filterByTk: id, appends: ['contract_files'] });
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
@@ -3809,6 +3824,17 @@ async function openDraftModal(id, isQuickHint) {
       wireFieldMasks(overlay, 'quick');
       const pubBtn = overlay.querySelector('#cm-quick-publish');
       if (pubBtn) { pubBtn.textContent = 'Опубликовать → Активные'; pubBtn.disabled = false; }
+      // вариант: доработать с коллегами — в «Формирующиеся» той же единой формой
+      const pubFormBtn = ensureQuickFormingButton(overlay);
+      if (pubFormBtn) {
+        pubFormBtn.disabled = false;
+        pubFormBtn.addEventListener('click', async function(e) {
+          e.target.disabled = true;
+          try { await publishDraftContract(realId, overlay); }
+          catch (err) { cmToast('Не удалось опубликовать договор'); }
+          finally { if (document.getElementById('draft-modal-root')) e.target.disabled = false; }
+        });
+      }
       const saveBtn = overlay.querySelector('#cm-quick-save');
       if (saveBtn) saveBtn.addEventListener('click', async function(e) {
         const btn = e.target; btn.disabled = true;
@@ -3885,6 +3911,8 @@ async function openDraftModal(id, isQuickHint) {
         const pubBtn = overlay.querySelector('#cm-quick-publish');
         const saveBtnQ = overlay.querySelector('#cm-quick-save');
         if (pubBtn) { pubBtn.disabled = true; pubBtn.textContent = 'Опубликовать → Активные'; }
+        const pubFormBtnQ = ensureQuickFormingButton(overlay);
+        if (pubFormBtnQ) pubFormBtnQ.disabled = true;
         if (saveBtnQ) saveBtnQ.disabled = true;
       }
       const hintEl = document.createElement('div');

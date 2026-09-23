@@ -4,7 +4,7 @@
 Порог напоминания: за 90 / 60 / 30 / 14 / 7 дней и в день окончания (0); по истёкшим — один раз (-1).
 Каждый порог по конкретной дате окончания отправляется один раз (таблица contract_reminders_log);
 если дату окончания изменили — напоминания стартуют заново.
-Получатели: сотрудники договора + все с ролями rental_dept и legal_dept.
+Получатели: только прикреплённые к договору сотрудники (открепили — перестают получать); без сотрудников — никому.
 Договоры с заполненной датой расторжения пропускаются.
 
     expiry_reminders.py            # отправить
@@ -19,7 +19,6 @@ REGISTRY_PAGE = os.environ.get('NB_REGISTRY_PAGE', 'b5znz7yxpy3')   # uid стр
 DRY = '--dry-run' in sys.argv
 SEED = '--seed' in sys.argv
 THRESHOLDS = [0, 7, 14, 30, 60, 90]
-ROLES = ('rental_dept', 'legal_dept')
 PSQL = ['sudo', '-n', 'docker', 'exec', '-i', 'nocobase-postgres-1', 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
 def psql(sql):
@@ -47,7 +46,6 @@ sent = {(r['contract_id'], r['threshold'], r['end_date']) for r in jrows("select
 members = {}
 for r in jrows('select f_f6uc3x0qna1 as cid, f_z8ov78krtg5 as uid from "rentalContractsMembers"'):
     members.setdefault(r['cid'], set()).add(r['uid'])
-role_users = {r['uid'] for r in jrows('select "userId" as uid from "rolesUsers" where "roleName" in (%s)' % ','.join(q(x) for x in ROLES))}
 
 stmts = []; report = []
 for c in contracts:
@@ -69,7 +67,7 @@ for c in contracts:
     tail = ' · '.join(x for x in (c['object_name'], c['tenant_name']) if x)
     if tail: msg += ' · ' + tail
     title = 'Договор ' + (c['contract_number'] or c['object_name'] or '#%s' % c['id'])
-    rcpt = sorted(members.get(c['id'], set()) | role_users)
+    rcpt = sorted(members.get(c['id'], set()))          # только прикреплённые к договору сотрудники
     report.append((c['id'], th, days, len(rcpt), msg))
     stmts.append("insert into contract_reminders_log(contract_id,threshold,end_date) values(%s,%s,%s);" % (c['id'], th, q(c['end_date'])))
     if not SEED:

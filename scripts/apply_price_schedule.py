@@ -14,8 +14,8 @@
 Цены «в неделю/день/год» (старые записи) не применяются. Если периоды пересекаются — берётся начавшийся позже.
 Смена (начало периода, переход между периодами, возврат к основной цене после конца периода) применяется один раз:
 состояние запоминается в contract_price_applied, поэтому ручные правки между сменами не затираются.
-Договоры с датой расторжения пропускаются. Изменения пишутся в историю (автор «Система»), сотрудникам договора —
-сообщение в колокольчик. Если карточку уже пересчитали днём (она делает то же самое), значения совпадут — повторного уведомления не будет.
+Договоры с датой расторжения пропускаются. Изменения пишутся в историю (автор «Система»), прикреплённым к договору бухгалтерам
+(если их нет — всем прикреплённым) — сообщение в колокольчик. Если карточку уже пересчитали днём (она делает то же самое), значения совпадут — повторного уведомления не будет.
 """
 import json, os, subprocess, sys
 from datetime import date, timedelta
@@ -50,6 +50,11 @@ for p in jrows("select id, contract_ref_id, date_from::text, date_to::text, basi
 applied = {r['contract_id']: r['sig'] for r in jrows("select contract_id, sig from contract_price_applied")}
 members = {}
 for r in jrows('select f_f6uc3x0qna1 as cid, f_z8ov78krtg5 as uid from "rentalContractsMembers"'): members.setdefault(r['cid'], set()).add(r['uid'])
+accountants = {r['uid'] for r in jrows('select "userId" as uid from "rolesUsers" where "roleName" = \'accounting_dept\'')}
+def recipients(cid):
+    # цена — забота бухгалтерии: прикреплённые бухгалтеры; если их нет среди прикреплённых — все прикреплённые
+    ms = members.get(cid, set())
+    return (ms & accountants) or ms
 
 def label_of(p): return '%s ₽ %s%s' % (fmt(float(p['amount'])), 'за 1 кв.м. ' if p['basis'] == 'per_sqm' else '', UNIT_TITLE.get(p['unit'] or 'month', ''))
 def base_label(c):
@@ -75,7 +80,7 @@ def target(c, iso):
 def notify(stmts, c, text):
     title = 'Договор ' + (c['contract_number'] or c['object_name'] or '#%s' % c['id'])
     opts = json.dumps({'url': '/admin/%s?open=active:%s' % (REGISTRY_PAGE, c['id'])})
-    for uid in sorted(members.get(c['id'], set())):
+    for uid in sorted(recipients(c['id'])):
         stmts.append("insert into \"notificationInAppMessages\"(id,\"createdAt\",\"updatedAt\",\"userId\",\"channelName\",title,content,status,\"receiveTimestamp\",options) "
                      "values (gen_random_uuid(),now(),now(),%s,'status',%s,%s,'unread',(extract(epoch from now())*1000)::bigint,%s::json);" % (uid, q(title), q(text), q(opts)))
 def money_vals(v):

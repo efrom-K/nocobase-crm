@@ -716,6 +716,27 @@ async function loadAllUsers() {
   return Array.isArray(payload) ? payload : [];
 }
 
+// ---------- кому слать уведомление по договору ----------
+// Только прикреплённым к договору сотрудникам; для «ролевых» событий — только прикреплённым с нужной ролью
+// (цена → бухгалтерия, этап → роль следующего этапа). Если нужной роли среди прикреплённых нет — всем прикреплённым.
+let cmUserRolesPromise = null;
+function userRolesMap() {
+  if (!cmUserRolesPromise) {
+    cmUserRolesPromise = ctx.api.resource('users').list({ appends: ['roles'], pageSize: 500 }).then(function(res) {
+      const map = {};
+      (histPayload(res) || []).forEach(function(u) { map[u.id] = (u.roles || []).map(function(r) { return r.name; }); });
+      return map;
+    }).catch(function() { cmUserRolesPromise = null; return {}; });
+  }
+  return cmUserRolesPromise;
+}
+async function membersForRole(members, roleName) {
+  members = members || [];
+  const map = await userRolesMap();
+  const withRole = members.filter(function(m) { return (map[m.id] || []).indexOf(roleName) !== -1; });
+  return withRole.length ? withRole : members;
+}
+
 function closeAddPopover(root) {
   const pop = root.querySelector('#cm-add-popover');
   if (pop) pop.classList.remove('open');
@@ -1655,7 +1676,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       logHistory(type, id, [{ action: 'price', text: text }]);
       const me = await getCurrentUser();
       const title = 'Договор ' + (r.contract_number || r.object_name || ('#' + id));
-      (r.contract_members || []).forEach(function(m) {
+      (await membersForRole(r.contract_members || [], 'accounting_dept')).forEach(function(m) {
         if (me && m.id === me.id) return;
         createNotification(m.id, id, title, 'Цена аренды изменилась. ' + text, 'active', 'status');
       });
@@ -3333,7 +3354,8 @@ async function advanceStage(id, root, currentUser) {
 
   await ctx.api.resource('forming_contracts').update({ filterByTk: id, values: { current_stage: stageIndex + 1 } });
   await logHistory('forming', id, [{ action: 'stage', text: 'Этап «' + stage.title + '» подтверждён, переход на этап «' + STAGE_DEFS[stageIndex + 1].title + '»' }]);
-  members.forEach(function(m) {
+  // «твоя очередь»: прикреплённым с ролью, которая отвечает за следующий этап
+  (await membersForRole(members, STAGE_DEFS[stageIndex + 1].role)).forEach(function(m) {
     createNotification(m.id, id, 'Договор ' + contractNumber, 'Этап «' + stage.title + '» пройден, договор переходит на этап «' + STAGE_DEFS[stageIndex + 1].title + '»', 'forming', 'status');
   });
   closeFormingModal(true);

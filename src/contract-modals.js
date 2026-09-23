@@ -1613,309 +1613,6 @@ function areaPeriodLabel(a) {
   return fmtDate(a.date_from) + ' — ' + fmtDate(a.date_to);
 }
 
-function renderAreasSection(prefix) {
-  return '<div class="cm-section" id="' + prefix + '-areas-section">'
-    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Площади и ставки</div>'
-    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-areas-change-btn" style="display:none;">+ Изменение по доп. соглашению</button></div>'
-    + '<div class="cm-price-hint">Если по доп. соглашению площадь добавилась или уменьшилась, или поменялась ставка, — внесите это здесь. Старые площади могут остаться по старой ставке, новые — по новой. Площадь, АП и средняя ставка договора пересчитываются сами.</div>'
-    + '<div id="' + prefix + '-areas-summary" class="cm-price-summary" style="display:none;"></div>'
-    + '<div id="' + prefix + '-areas-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
-    + '<div id="' + prefix + '-areas-form-wrap"></div>'
-    + '</div>';
-}
-
-async function wireAreas(overlay, prefix, type, id, canEdit, r) {
-  const listEl = overlay.querySelector('#' + prefix + '-areas-list');
-  const sumEl = overlay.querySelector('#' + prefix + '-areas-summary');
-  const formWrap = overlay.querySelector('#' + prefix + '-areas-form-wrap');
-  const changeBtn = overlay.querySelector('#' + prefix + '-areas-change-btn');
-  if (!listEl) return;
-  const coll = type === 'completed' ? 'completed_contracts' : 'rental_contracts';
-  let lines = [], addendums = [];
-  const todayIso = function() { return dateToIso(new Date()); };
-
-  function addendumTitle(aid) {
-    if (!aid) return 'Исходный договор';
-    const a = addendums.find(function(x) { return String(x.id) === String(aid); });
-    return a ? (a.title || 'Доп. соглашение') : 'Доп. соглашение';
-  }
-  function render() {
-    const t = todayIso();
-    const tot = areaTotals(lines, t);
-    r.__areaRateCount = tot.rateCount;
-    if (!lines.length) {
-      sumEl.style.display = 'none';
-      listEl.innerHTML = '<div style="color:#bbb;font-size:12px;">'
-        + (numOf(r.area_sqm) > 0 ? 'Одна площадь по договору: ' + escRaw(formatNum(r.area_sqm)) + ' м²' + (numOf(r.rent_per_sqm) > 0 ? ' по ' + escRaw(formatNum(r.rent_per_sqm)) + ' ₽' : '') + '. Изменений по доп. соглашениям пока нет.'
-          : 'Площадь по договору не указана.') + '</div>';
-    } else {
-      sumEl.style.display = '';
-      sumEl.innerHTML = 'Сейчас: <b>' + escRaw(formatNum(tot.area)) + ' м²</b> · АП по площадям <b>' + escRaw(formatNum(tot.rent)) + ' ₽/мес</b>'
-        + (tot.avg !== null ? ' · ставка ' + (tot.rateCount > 1 ? 'средняя ' : '') + '<b>' + escRaw(formatNum(tot.avg)) + ' ₽/м²</b>' : '')
-        + (tot.rateCount > 1 ? '<span class="cm-areas-rates-badge">' + tot.rateCount + ' ставки</span>' : '');
-      const sorted = lines.slice().sort(function(a, b) {
-        const ca = a.date_to && a.date_to < t ? 1 : 0, cb = b.date_to && b.date_to < t ? 1 : 0;
-        if (ca !== cb) return ca - cb;
-        return String(a.date_from || '').localeCompare(String(b.date_from || '')) || (a.id - b.id);
-      });
-      listEl.innerHTML = '<table class="cm-areas-table"><thead><tr><th>Площадь</th><th>Ставка, ₽/м²</th><th>АП, ₽/мес</th><th>Действует</th><th>Основание</th>' + (canEdit ? '<th></th>' : '') + '</tr></thead><tbody>'
-        + sorted.map(function(a) {
-          const closed = a.date_to && a.date_to < t, future = a.date_from && a.date_from > t;
-          return '<tr class="' + (closed ? 'cm-area-closed' : future ? 'cm-area-future' : '') + '">'
-            + '<td>' + escRaw(formatNum(a.area_sqm)) + ' м²</td>'
-            + '<td>' + escRaw(formatNum(a.rent_per_sqm)) + '</td>'
-            + '<td>' + escRaw(formatNum(round2((Number(a.area_sqm) || 0) * (Number(a.rent_per_sqm) || 0)))) + '</td>'
-            + '<td>' + escRaw(areaPeriodLabel(a)) + (closed ? '<span class="cm-area-tag">закрыта</span>' : future ? '<span class="cm-area-tag">ещё не началась</span>' : '') + '</td>'
-            + '<td>' + escRaw(addendumTitle(a.addendum_id)) + (a.note ? '<div style="font-size:11.5px;color:#999;">' + escRaw(a.note) + '</div>' : '') + '</td>'
-            + (canEdit ? '<td style="white-space:nowrap;text-align:right;"><button class="cm-area-act" data-area-edit="' + a.id + '" title="Исправить строку (опечатка)">✎</button><button class="cm-area-act" data-area-del="' + a.id + '" title="Удалить строку (ошибочно внесена)">✕</button></td>' : '')
-            + '</tr>';
-        }).join('') + '</tbody></table>';
-      listEl.querySelectorAll('[data-area-edit]').forEach(function(b) {
-        b.addEventListener('click', function() { openEditLine(lines.find(function(x) { return String(x.id) === b.getAttribute('data-area-edit'); })); });
-      });
-      listEl.querySelectorAll('[data-area-del]').forEach(function(b) {
-        b.addEventListener('click', async function() {
-          const a = lines.find(function(x) { return String(x.id) === b.getAttribute('data-area-del'); });
-          if (!a || !(await cmConfirm('Удалить строку «' + areaLineLabel(a) + '» (' + areaPeriodLabel(a) + ')? Это для ошибочно внесённых строк — чтобы снять площадь по доп. соглашению, используйте «Изменение по доп. соглашению».'))) return;
-          try {
-            await ctx.api.resource('contract_areas').destroy({ filterByTk: a.id });
-            logHistory(type, id, [{ action: 'area', text: 'Удалена строка площади: ' + areaLineLabel(a) + ' (' + areaPeriodLabel(a) + ')' }]);
-            await refresh(); await applyTotals();
-          } catch (e) { cmToast('Не удалось удалить строку'); }
-        });
-      });
-    }
-    // «Аренда / 1 кв.м.» в блоке характеристик: при нескольких ставках — пометка «средняя», поля площади/ставки там только для чтения
-    paintRoomBlock(tot);
-  }
-  function paintRoomBlock(tot) {
-    if (type === 'active') renderAllActiveReadonly(overlay, r);
-    const form = overlay.querySelector('[data-active-form="room"]');
-    if (!form) return;
-    ['area_sqm', 'rent_per_sqm'].forEach(function(n) {
-      const el = form.querySelector('[data-field="' + n + '"]');
-      if (!el) return;
-      el.readOnly = !!lines.length;
-      el.style.background = lines.length ? '#f5f5f5' : '';
-      el.title = lines.length ? 'Считается из «Площади и ставки» — меняйте там' : '';
-    });
-  }
-  async function refresh() {
-    try { lines = await loadAreaLines(type, id); addendums = await loadAddendums(type, id); }
-    catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить площади</span>'; return; }
-    render();
-  }
-  // переносим итог «на сегодня» в сам договор (как делает ночной скрипт)
-  async function applyTotals() {
-    if (type !== 'active' || !lines.length) return;
-    const t = todayIso();
-    const tot = areaTotals(lines, t);
-    const upd = { area_sqm: tot.area };
-    let discount = false;
-    try {
-      const periods = await loadPricePeriods(type, id);
-      discount = periods.some(function(p) { return p.date_from && p.date_to && p.date_from <= t && t <= p.date_to; });
-    } catch (e) { /* без графика — считаем по площадям */ }
-    if (!discount) { upd.rent_amount = tot.rent; upd.rent_per_sqm = tot.avg; }
-    Object.keys(upd).forEach(function(k) { const cur = numOf(r[k]); if (cur !== null && upd[k] !== null && Math.abs(cur - upd[k]) < 0.005) delete upd[k]; });
-    if (!Object.keys(upd).length) { render(); return; }
-    try {
-      await updateWithHistory(coll, id, upd);
-      Object.assign(r, upd);
-      syncDerivedDom(upd);
-      render();
-      if (discount && hasKey(upd, 'area_sqm')) cmToast('Площадь обновлена. АП сейчас задаёт «График цены аренды» (действует период скидки)');
-    } catch (e) { cmToast('Не удалось обновить площадь и АП договора'); }
-  }
-
-  await refresh();
-  if (!canEdit || !changeBtn) return;
-  changeBtn.style.display = '';
-
-  function closeForm() { formWrap.innerHTML = ''; }
-  function moneyInput(cls, val, ph) {
-    return '<input type="text" inputmode="decimal" class="cm-field-input ' + cls + '" placeholder="' + ph + '" value="' + (val === null || val === undefined ? '' : escAttr(String(val).replace('.', ','))) + '">';
-  }
-
-  function openEditLine(a) {
-    if (!a) return;
-    formWrap.innerHTML = '<div class="cm-areas-form">'
-      + '<div style="font-weight:600;font-size:13px;margin-bottom:8px;">Исправить строку площади</div>'
-      + '<div class="cm-areas-row"><div><label>Площадь, м²</label>' + moneyInput('cm-ae-area', a.area_sqm, '0') + '</div>'
-      + '<div><label>Ставка, ₽/м² в мес</label>' + moneyInput('cm-ae-rate', a.rent_per_sqm, '0,00') + '</div>'
-      + '<div><label>С</label><input type="date" class="cm-field-input cm-ae-from" value="' + escAttr(a.date_from || '') + '"></div>'
-      + '<div><label>По</label><input type="date" class="cm-field-input cm-ae-to" value="' + escAttr(a.date_to || '') + '"></div></div>'
-      + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" id="cm-ae-save">Сохранить</button><button class="cm-btn-save" id="cm-ae-cancel">Отмена</button></div></div>';
-    formWrap.querySelector('#cm-ae-cancel').addEventListener('click', closeForm);
-    formWrap.querySelector('#cm-ae-save').addEventListener('click', async function() {
-      const area = numOf(formWrap.querySelector('.cm-ae-area').value), rate = numOf(formWrap.querySelector('.cm-ae-rate').value);
-      const from = formWrap.querySelector('.cm-ae-from').value || null, to = formWrap.querySelector('.cm-ae-to').value || null;
-      if (!(area > 0)) { cmToast('Площадь должна быть больше нуля'); return; }
-      if (rate === null || rate < 0) { cmToast('Укажите ставку'); return; }
-      if (from && to && to < from) { cmToast('Дата «по» раньше даты «с»'); return; }
-      const before = areaLineLabel(a) + ' (' + areaPeriodLabel(a) + ')';
-      const values = { area_sqm: area, rent_per_sqm: rate, date_from: from, date_to: to };
-      try {
-        await ctx.api.resource('contract_areas').update({ filterByTk: a.id, values: values });
-        logHistory(type, id, [{ action: 'area', text: 'Исправлена строка площади: ' + before + ' → ' + areaLineLabel(values) + ' (' + areaPeriodLabel(values) + ')' }]);
-        closeForm(); await refresh(); await applyTotals();
-      } catch (e) { cmToast('Не удалось сохранить строку'); }
-    });
-  }
-
-  function openChangeForm() {
-    const eff0 = todayIso();
-    const baseLines = lines.length ? null : (numOf(r.area_sqm) > 0 ? [{ id: 'base', area_sqm: numOf(r.area_sqm), rent_per_sqm: numOf(r.rent_per_sqm) || 0 }] : []);
-    const nextNo = addendums.length + 1;
-    formWrap.innerHTML = '<div class="cm-areas-form">'
-      + '<div class="cm-areas-head">'
-      + '<div><label>Доп. соглашение</label><select class="cm-field-input" id="cm-ac-add">'
-      + addendums.map(function(a) { return '<option value="' + a.id + '">' + esc(a.title || 'Доп. соглашение') + '</option>'; }).join('')
-      + '<option value="new" selected>+ Новое доп. соглашение…</option></select>'
-      + '<input type="text" class="cm-field-input" id="cm-ac-add-title" style="margin-top:6px;" value="Доп. соглашение №' + nextNo + '" placeholder="Название, например «Доп. соглашение №2»"></div>'
-      + '<div><label>Вступает в силу с</label><input type="date" class="cm-field-input" id="cm-ac-date" value="' + eff0 + '"></div>'
-      + '</div>'
-      + '<div style="font-size:12px;color:#8c8c8c;margin:4px 0 6px;">Действующие площади на эту дату — поменяйте площадь или ставку, или уберите строку:</div>'
-      + '<div id="cm-ac-current"></div>'
-      + '<div style="font-size:12px;color:#8c8c8c;margin:10px 0 6px;">Новые площади по этому соглашению:</div>'
-      + '<div id="cm-ac-new"></div>'
-      + '<button class="cm-stage-edit-toggle" id="cm-ac-add-new" type="button">+ Добавить площадь</button>'
-      + '<div id="cm-ac-preview" class="cm-price-summary" style="margin-top:10px;"></div>'
-      + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" id="cm-ac-save">Сохранить изменения</button><button class="cm-btn-save" id="cm-ac-cancel">Отмена</button>'
-      + '<span id="cm-ac-status" style="font-size:12px;color:#999;align-self:center;"></span></div></div>';
-    const q = function(s) { return formWrap.querySelector(s); };
-    const addSel = q('#cm-ac-add'), addTitle = q('#cm-ac-add-title'), dateEl = q('#cm-ac-date');
-    addSel.addEventListener('change', function() { addTitle.style.display = addSel.value === 'new' ? '' : 'none'; });
-
-    function currentOn(iso) { return baseLines || lines.filter(function(a) { return areaActiveOn(a, iso) && Number(a.area_sqm) > 0; }); }
-    function renderCurrent() {
-      const cur = currentOn(dateEl.value || eff0);
-      q('#cm-ac-current').innerHTML = cur.length ? cur.map(function(a) {
-        return '<div class="cm-areas-row" data-ac-line="' + a.id + '">'
-          + '<div>' + escRaw(areaLineLabel(a)) + (a.addendum_id !== undefined ? '<div style="font-size:11.5px;color:#999;">' + escRaw(addendumTitle(a.addendum_id)) + '</div>' : '<div style="font-size:11.5px;color:#999;">Исходный договор</div>') + '</div>'
-          + '<div><label>Площадь, м²</label>' + moneyInput('cm-ac-area', a.area_sqm, '0') + '</div>'
-          + '<div><label>Ставка, ₽/м²</label>' + moneyInput('cm-ac-rate', a.rent_per_sqm, '0,00') + '</div>'
-          + '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#595959;margin:14px 0 0;white-space:nowrap;"><input type="checkbox" class="cm-ac-remove"> убрать</label>'
-          + '</div>';
-      }).join('') : '<div style="color:#bbb;font-size:12px;">На эту дату действующих площадей нет</div>';
-      preview();
-    }
-    function addNewRow() {
-      const div = document.createElement('div');
-      div.className = 'cm-areas-row';
-      div.setAttribute('data-ac-new', '1');
-      div.innerHTML = '<div style="font-size:12px;color:#8c8c8c;">Новая площадь</div>'
-        + '<div><label>Площадь, м²</label>' + moneyInput('cm-ac-area', null, '0') + '</div>'
-        + '<div><label>Ставка, ₽/м²</label>' + moneyInput('cm-ac-rate', null, '0,00') + '</div>'
-        + '<button class="cm-area-act" type="button" title="Убрать" style="margin-top:14px;">✕</button>';
-      div.querySelector('button').addEventListener('click', function() { div.remove(); preview(); });
-      q('#cm-ac-new').appendChild(div);
-      div.querySelector('.cm-ac-area').focus();
-    }
-    // собираем план: какие строки закрыть, какие открыть
-    function plan() {
-      const eff = dateEl.value;
-      const cur = currentOn(eff || eff0);
-      const out = { close: [], open: [], text: [], errors: [] };
-      formWrap.querySelectorAll('[data-ac-line]').forEach(function(rowEl) {
-        const a = cur.find(function(x) { return String(x.id) === rowEl.getAttribute('data-ac-line'); });
-        if (!a) return;
-        const rm = rowEl.querySelector('.cm-ac-remove').checked;
-        const na = numOf(rowEl.querySelector('.cm-ac-area').value), nr = numOf(rowEl.querySelector('.cm-ac-rate').value);
-        if (rm) { out.close.push(a); out.text.push('снято ' + areaLineLabel(a)); return; }
-        if (!(na > 0)) { out.errors.push('Площадь должна быть больше нуля (или отметьте «убрать»)'); return; }
-        if (nr === null || nr < 0) { out.errors.push('Укажите ставку'); return; }
-        const sameA = Math.abs(na - Number(a.area_sqm)) < 0.005, sameR = Math.abs(nr - (Number(a.rent_per_sqm) || 0)) < 0.005;
-        if (sameA && sameR) return;
-        out.close.push(a);
-        out.open.push({ area_sqm: na, rent_per_sqm: nr });
-        const parts = [];
-        if (!sameA) parts.push('площадь ' + formatNum(a.area_sqm) + ' → ' + formatNum(na) + ' м²');
-        if (!sameR) parts.push('ставка ' + formatNum(a.rent_per_sqm) + ' → ' + formatNum(nr) + ' ₽');
-        out.text.push(formatNum(a.area_sqm) + ' м² по ' + formatNum(a.rent_per_sqm) + ' ₽: ' + parts.join(', '));
-      });
-      formWrap.querySelectorAll('[data-ac-new]').forEach(function(rowEl) {
-        const na = numOf(rowEl.querySelector('.cm-ac-area').value), nr = numOf(rowEl.querySelector('.cm-ac-rate').value);
-        if (na === null && nr === null) return;
-        if (!(na > 0)) { out.errors.push('У новой площади укажите кв.м.'); return; }
-        if (nr === null || nr < 0) { out.errors.push('У новой площади укажите ставку'); return; }
-        out.open.push({ area_sqm: na, rent_per_sqm: nr });
-        out.text.push('добавлено ' + formatNum(na) + ' м² по ' + formatNum(nr) + ' ₽');
-      });
-      if (!eff) out.errors.push('Укажите дату вступления в силу');
-      return out;
-    }
-    function preview() {
-      const p = plan();
-      const eff = dateEl.value || eff0;
-      const keep = currentOn(eff).filter(function(a) { return p.close.indexOf(a) === -1; });
-      const after = keep.concat(p.open);
-      let area = 0, rent = 0;
-      after.forEach(function(a) { area += Number(a.area_sqm) || 0; rent += (Number(a.area_sqm) || 0) * (Number(a.rent_per_sqm) || 0); });
-      q('#cm-ac-preview').innerHTML = (p.text.length ? 'Изменения: ' + escRaw(p.text.join('; ')) + '<br>' : 'Пока без изменений<br>')
-        + 'После ' + escRaw(fmtDate(eff)) + ': <b>' + escRaw(formatNum(round2(area))) + ' м²</b> · АП <b>' + escRaw(formatNum(round2(rent))) + ' ₽/мес</b>'
-        + (area > 0 ? ' · средняя ставка <b>' + escRaw(formatNum(round2(rent / area))) + ' ₽/м²</b>' : '');
-    }
-    formWrap.addEventListener('input', function(e) {
-      if (e.target.classList && (e.target.classList.contains('cm-ac-area') || e.target.classList.contains('cm-ac-rate'))) sanitizeInput(e.target, 'money');
-      preview();
-    });
-    formWrap.addEventListener('change', preview);
-    dateEl.addEventListener('change', renderCurrent);
-    q('#cm-ac-add-new').addEventListener('click', addNewRow);
-    q('#cm-ac-cancel').addEventListener('click', closeForm);
-    q('#cm-ac-save').addEventListener('click', async function() {
-      const p = plan();
-      if (p.errors.length) { cmToast(p.errors[0]); return; }
-      if (!p.close.length && !p.open.length) { cmToast('Нет изменений'); return; }
-      const eff = dateEl.value;
-      if (addSel.value === 'new' && !addTitle.value.trim()) { cmToast('Укажите название доп. соглашения'); return; }
-      const saveBtn = q('#cm-ac-save'), statusEl = q('#cm-ac-status');
-      saveBtn.disabled = true; statusEl.textContent = 'Сохранение…';
-      try {
-        const me = await getCurrentUser();
-        const summary = 'С ' + fmtDate(eff) + ': ' + p.text.join('; ');
-        let addId = addSel.value;
-        if (addId === 'new') {
-          const cr = await ctx.api.resource('contract_addendums').create({ values: { contract_type: type, contract_ref_id: id, title: addTitle.value.trim(), description: summary, author_id: me ? me.id : null, created_at: new Date().toISOString() } });
-          const rec = (cr && cr.data && cr.data.data) ? cr.data.data : (cr && cr.data) ? cr.data : cr;
-          addId = rec && rec.id;
-        }
-        // исходная площадь договора становится первой строкой при первом доп. соглашении
-        let closeList = p.close;
-        if (baseLines && baseLines.length) {
-          const bc = await ctx.api.resource('contract_areas').create({ values: { contract_type: type, contract_ref_id: id, area_sqm: baseLines[0].area_sqm, rent_per_sqm: baseLines[0].rent_per_sqm, date_from: null, date_to: null, addendum_id: null, author_id: me ? me.id : null } });
-          const brec = (bc && bc.data && bc.data.data) ? bc.data.data : (bc && bc.data) ? bc.data : bc;
-          closeList = p.close.map(function(a) { return a.id === 'base' ? Object.assign({}, a, { id: brec.id, date_from: null }) : a; });
-        }
-        const prevDay = dateToIso(addDays(isoToDate(eff), -1));
-        for (let i = 0; i < closeList.length; i++) {
-          const a = closeList[i];
-          // строка, начавшаяся в тот же день, просто уходит (её не существовало ни дня)
-          if (a.date_from && a.date_from >= eff) await ctx.api.resource('contract_areas').destroy({ filterByTk: a.id });
-          else await ctx.api.resource('contract_areas').update({ filterByTk: a.id, values: { date_to: prevDay } });
-        }
-        for (let i = 0; i < p.open.length; i++) {
-          await ctx.api.resource('contract_areas').create({ values: { contract_type: type, contract_ref_id: id, area_sqm: p.open[i].area_sqm, rent_per_sqm: p.open[i].rent_per_sqm, date_from: eff, date_to: null, addendum_id: addId ? Number(addId) : null, author_id: me ? me.id : null } });
-        }
-        await logHistory(type, id, [{ action: 'area', text: 'Площади по «' + (addSel.value === 'new' ? addTitle.value.trim() : addendumTitle(addId)) + '». ' + summary }]);
-        closeForm();
-        await refresh();
-        await applyTotals();
-        const addRefresh = overlay.querySelector('#' + prefix + '-addendums-list');
-        if (addRefresh) { addRefresh.innerHTML = renderAddendumsList(await loadAddendums(type, id)); wireAddendumFileOpen(overlay); }
-        cmToast(eff > todayIso() ? 'Сохранено. Площадь и АП договора поменяются сами ' + fmtDate(eff) : 'Сохранено: площадь и АП договора пересчитаны');
-      } catch (e) {
-        cmToast('Не удалось сохранить изменения площадей');
-        saveBtn.disabled = false; statusEl.textContent = '';
-      }
-    });
-    renderCurrent();
-    if (!currentOn(eff0).length) addNewRow();
-  }
-  changeBtn.addEventListener('click', function() { if (formWrap.innerHTML) closeForm(); else openChangeForm(); });
-}
-
 // ---------- статусы-светофоры (только активные договоры) ----------
 const STATUS_TONES = {
   green: { bg: '#f6ffed', border: '#b7eb8f', fg: '#389e0d' },
@@ -2272,21 +1969,19 @@ async function openCompletedContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
 
     let html = '<div class="cm-completed-banner">Договор в архиве · только просмотр</div>';
-    html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'room' ? renderAreasSection('cm-completed') : '') + (block.key === 'pay' ? renderPricesSection('cm-completed') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
+    html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'room' ? renderAddendumsSection('cm-completed') : '') + (block.key === 'pay' ? renderPricesSection('cm-completed') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
       + '<div id="cm-completed-files-list">' + renderFilesList(files, null) + '</div></div>'
-      + renderAddendumsSection('cm-completed')
       + renderHistorySection('cm-completed');
 
     body.style.color = '';
     body.innerHTML = html;
-    await wireAddendums(overlay, 'cm-completed', 'completed', id, currentUser);
+    await wireAddendums(overlay, 'cm-completed', 'completed', id, currentUser, { areas: true, canEdit: false, r: r });
     const addAddBtn = overlay.querySelector('#cm-completed-addendum-add-btn');
     if (addAddBtn) addAddBtn.style.display = 'none';
     await wireContacts(overlay, 'cm-completed', 'completed', id, false);
     await wirePrices(overlay, 'cm-completed', 'completed', id, false, r);
-    await wireAreas(overlay, 'cm-completed', 'completed', id, false, r);
     wireHistory(overlay, 'cm-completed', 'completed', id);
     bindFileOpenLinks(overlay);
 
@@ -2390,7 +2085,7 @@ async function openContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state);
 
     let html = '';
-    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'room' ? renderAreasSection('cm-active') : '') + (block.key === 'pay' ? renderPricesSection('cm-active') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-active') : ''); }).join('');
+    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'room' ? renderAddendumsSection('cm-active') : '') + (block.key === 'pay' ? renderPricesSection('cm-active') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-active') : ''); }).join('');
 
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-active-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
@@ -2398,15 +2093,13 @@ async function openContractModal(id) {
       + '<div class="cm-upload-row"><input type="file" id="cm-active-file-input" style="display:none;">'
       + '<button class="cm-upload-btn" id="cm-active-upload-btn">+ Прикрепить файл</button>'
       + '<span id="cm-active-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
-      + renderAddendumsSection('cm-active')
       + renderHistorySection('cm-active');
 
     body.style.color = '';
     body.innerHTML = html;
-    await wireAddendums(overlay, 'cm-active', 'active', id, currentUser);
+    await wireAddendums(overlay, 'cm-active', 'active', id, currentUser, { areas: true, canEdit: canEditActiveBlocks(currentUser), r: r });
     await wireContacts(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser));
     await wirePrices(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser), r);
-    await wireAreas(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser), r);
     wireDerivedHints(overlay);
     wireHistory(overlay, 'cm-active', 'active', id);
     wireActiveBlockEdits(overlay, id, r, currentUser);
@@ -3067,41 +2760,6 @@ async function uploadFileGetId(file) {
   return attId;
 }
 
-function renderAddendumsSection(prefix) {
-  return '<div class="cm-section" id="' + prefix + '-addendums-section" style="margin-bottom:0;">'
-    + '<div class="cm-section-title" style="display:flex;justify-content:space-between;align-items:center;">'
-    + '<span>Доп. соглашения</span>'
-    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-add-btn" style="font-size:12px;">+ Доп. соглашение</button></div>'
-    + '<div id="' + prefix + '-addendums-list" style="margin-top:6px;"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
-    + '<div id="' + prefix + '-addendum-form" style="display:none;margin-top:10px;padding:10px;border:1px solid #f0f0f0;border-radius:6px;background:#fafafa;">'
-    + '<input type="text" id="' + prefix + '-addendum-title" placeholder="Название (например, Доп. соглашение №1)" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;">'
-    + '<textarea id="' + prefix + '-addendum-desc" placeholder="Описание/условия" rows="2" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;resize:vertical;"></textarea>'
-    + '<div style="display:flex;align-items:center;gap:8px;">'
-    + '<input type="file" id="' + prefix + '-addendum-file" style="display:none;">'
-    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;">Выбрать файл</button>'
-    + '<span id="' + prefix + '-addendum-filename" style="font-size:12px;color:#999;">Файл не выбран</span>'
-    + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '<button id="' + prefix + '-addendum-save-btn" style="background:#1677ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Сохранить</button>'
-    + '<button id="' + prefix + '-addendum-cancel-btn" style="background:#f0f0f0;color:#333;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Отмена</button>'
-    + '<span id="' + prefix + '-addendum-status" style="font-size:12px;color:#999;align-self:center;"></span>'
-    + '</div></div></div>';
-}
-
-function renderAddendumsList(items) {
-  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет доп. соглашений</div>';
-  return items.map(function(a) {
-    const fileHtml = a.file
-      ? '<span class="cm-addendum-file" data-att-url="' + esc(a.file.url) + '" data-att-name="' + esc((a.file.title || 'file') + (a.file.extname || '')) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc((a.file.title || 'file') + (a.file.extname || '')) + '</span>'
-      : '';
-    return '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;">'
-      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Доп. соглашение') + '</div>'
-      + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
-      + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + (fileHtml ? ' · ' + fileHtml : '') + '</div>'
-      + '</div>';
-  }).join('');
-}
-
 function nbFmtDateTimeLocal(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -3134,70 +2792,500 @@ function wireAddendumFileOpen(root) {
   });
 }
 
-async function wireAddendums(overlay, prefix, contractType, contractId, currentUser) {
-  const listEl = overlay.querySelector('#' + prefix + '-addendums-list');
-  const addBtn = overlay.querySelector('#' + prefix + '-addendum-add-btn');
-  const formEl = overlay.querySelector('#' + prefix + '-addendum-form');
-  const titleInput = overlay.querySelector('#' + prefix + '-addendum-title');
-  const descInput = overlay.querySelector('#' + prefix + '-addendum-desc');
-  const fileInput = overlay.querySelector('#' + prefix + '-addendum-file');
-  const pickBtn = overlay.querySelector('#' + prefix + '-addendum-pick-btn');
-  const filenameSpan = overlay.querySelector('#' + prefix + '-addendum-filename');
-  const saveBtn = overlay.querySelector('#' + prefix + '-addendum-save-btn');
-  const cancelBtn = overlay.querySelector('#' + prefix + '-addendum-cancel-btn');
-  const statusSpan = overlay.querySelector('#' + prefix + '-addendum-status');
+// ---------- «Доп. соглашения»: один блок — список соглашений (скан, подпись, пометки) + площади и ставки ----------
+// Площади (contract_areas) есть только у активных/архивных договоров. Пометки к соглашению хранятся в contract_history
+// (action 'addendum_note', field 'addendum:<id>') — поэтому они же видны и в общей истории договора.
+if (!document.getElementById('cm-add-style')) {
+  const st = document.createElement('style');
+  st.id = 'cm-add-style';
+  st.textContent = `
+    .cm-add-card { border: 1px solid #f0f0f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+    .cm-add-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cm-add-card-title { font-weight: 600; font-size: 13.5px; }
+    .cm-add-pill { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 7px; line-height: 18px; border: 1px solid; }
+    .cm-add-pill.signed { color: #389e0d; background: #f6ffed; border-color: #b7eb8f; }
+    .cm-add-pill.unsigned { color: #d48806; background: #fffbe6; border-color: #ffe58f; }
+    .cm-add-pill.noscan { color: #cf1322; background: #fff2f0; border-color: #ffccc7; }
+    .cm-add-pill.clickable { cursor: pointer; }
+    .cm-add-eff { font-size: 12px; color: #8c8c8c; }
+    .cm-add-areas { font-size: 12.5px; color: #262626; background: #fafafa; border-radius: 4px; padding: 4px 8px; margin-top: 6px; }
+    .cm-add-desc { font-size: 12.5px; color: #595959; margin-top: 4px; white-space: pre-wrap; }
+    .cm-add-line { font-size: 12px; margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .cm-add-link { color: #1677ff; cursor: pointer; border: none; background: none; padding: 0; font-size: 12px; }
+    .cm-add-link:hover { text-decoration: underline; }
+    .cm-add-notes { margin-top: 6px; border-top: 1px dashed #f0f0f0; padding-top: 6px; }
+    .cm-add-note { font-size: 12.5px; color: #262626; padding: 2px 0; }
+    .cm-add-note-meta { font-size: 11px; color: #bfbfbf; margin-right: 4px; }
+    .cm-add-note-input { display: flex; gap: 6px; margin-top: 4px; }
+    .cm-add-note-input input { flex: 1; min-width: 0; }
+    .cm-add-meta { font-size: 11px; color: #bfbfbf; margin-top: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .cm-areas-box { margin-bottom: 10px; }
+  `;
+  document.head.appendChild(st);
+}
+
+function renderAddendumsSection(prefix) {
+  return '<div class="cm-section" id="' + prefix + '-addendums-section">'
+    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Доп. соглашения <span id="' + prefix + '-add-count" style="font-weight:400;color:#8c8c8c;font-size:12px;"></span></div>'
+    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-addendum-add-btn" style="display:none;">+ Доп. соглашение</button></div>'
+    + '<div class="cm-areas-box" id="' + prefix + '-areas-box" style="display:none;">'
+    + '<div id="' + prefix + '-areas-summary" class="cm-price-summary" style="margin-bottom:4px;"></div>'
+    + '<button class="cm-add-link" id="' + prefix + '-areas-toggle" style="display:none;"></button>'
+    + '<div id="' + prefix + '-areas-list" style="display:none;margin-top:6px;"></div></div>'
+    + '<div id="' + prefix + '-addendum-form-wrap"></div>'
+    + '<div id="' + prefix + '-addendums-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
+    + '</div>';
+}
+async function wireAddendums(overlay, prefix, contractType, contractId, currentUser, opts) {
+  opts = opts || {};
+  const withAreas = !!opts.areas;
+  const canEdit = opts.canEdit !== false;
+  const r = opts.r || {};
+  const type = contractType, id = contractId;
+  const q = function(s) { return overlay.querySelector('#' + prefix + s); };
+  const listEl = q('-addendums-list'), addBtn = q('-addendum-add-btn'), formWrap = q('-addendum-form-wrap');
   if (!listEl || !addBtn) return;
+  const coll = type === 'completed' ? 'completed_contracts' : 'rental_contracts';
+  const isAdmin = !!(currentUser && currentUser.__isAdmin);
+  const todayIso = function() { return dateToIso(new Date()); };
+  let items = [], lines = [], notes = {};
+  let areasOpen = false;
+
+  function addendumTitle(aid) {
+    if (!aid) return 'Исходный договор';
+    const a = items.find(function(x) { return String(x.id) === String(aid); });
+    return a ? (a.title || 'Доп. соглашение') : 'Доп. соглашение';
+  }
+
+  // ----- площади -----
+  function renderAreas() {
+    if (!withAreas) return;
+    const box = q('-areas-box'), sumEl = q('-areas-summary'), tgl = q('-areas-toggle'), tbl = q('-areas-list');
+    box.style.display = '';
+    const t = todayIso();
+    const tot = areaTotals(lines, t);
+    r.__areaRateCount = tot.rateCount;
+    if (!lines.length) {
+      sumEl.innerHTML = numOf(r.area_sqm) > 0
+        ? 'Площадь по договору: <b>' + escRaw(formatNum(r.area_sqm)) + ' м²</b>' + (numOf(r.rent_per_sqm) > 0 ? ' по <b>' + escRaw(formatNum(r.rent_per_sqm)) + ' ₽/м²</b>' : '') + ' — одна ставка, изменений площадей по доп. соглашениям не было'
+        : 'Площадь по договору не указана';
+      tgl.style.display = 'none'; tbl.style.display = 'none';
+    } else {
+      sumEl.innerHTML = 'Площади сейчас: <b>' + escRaw(formatNum(tot.area)) + ' м²</b> · АП <b>' + escRaw(formatNum(tot.rent)) + ' ₽/мес</b>'
+        + (tot.avg !== null ? ' · ставка ' + (tot.rateCount > 1 ? 'средняя ' : '') + '<b>' + escRaw(formatNum(tot.avg)) + ' ₽/м²</b>' : '')
+        + (tot.rateCount > 1 ? '<span class="cm-areas-rates-badge">' + tot.rateCount + ' ставки</span>' : '');
+      tgl.style.display = '';
+      tgl.textContent = areasOpen ? 'Скрыть строки площадей ▴' : 'Все строки площадей (' + lines.length + ') ▾';
+      tbl.style.display = areasOpen ? '' : 'none';
+      const sorted = lines.slice().sort(function(a, b) {
+        const ca = a.date_to && a.date_to < t ? 1 : 0, cb = b.date_to && b.date_to < t ? 1 : 0;
+        if (ca !== cb) return ca - cb;
+        return String(a.date_from || '').localeCompare(String(b.date_from || '')) || (a.id - b.id);
+      });
+      tbl.innerHTML = '<table class="cm-areas-table"><thead><tr><th>Площадь</th><th>Ставка, ₽/м²</th><th>АП, ₽/мес</th><th>Действует</th><th>Основание</th>' + (canEdit ? '<th></th>' : '') + '</tr></thead><tbody>'
+        + sorted.map(function(a) {
+          const closed = a.date_to && a.date_to < t, future = a.date_from && a.date_from > t;
+          return '<tr class="' + (closed ? 'cm-area-closed' : future ? 'cm-area-future' : '') + '">'
+            + '<td>' + escRaw(formatNum(a.area_sqm)) + ' м²</td><td>' + escRaw(formatNum(a.rent_per_sqm)) + '</td>'
+            + '<td>' + escRaw(formatNum(round2((Number(a.area_sqm) || 0) * (Number(a.rent_per_sqm) || 0)))) + '</td>'
+            + '<td>' + escRaw(areaPeriodLabel(a)) + (closed ? '<span class="cm-area-tag">закрыта</span>' : future ? '<span class="cm-area-tag">ещё не началась</span>' : '') + '</td>'
+            + '<td>' + escRaw(addendumTitle(a.addendum_id)) + '</td>'
+            + (canEdit ? '<td style="white-space:nowrap;text-align:right;"><button class="cm-area-act" data-area-edit="' + a.id + '" title="Исправить строку (опечатка)">✎</button><button class="cm-area-act" data-area-del="' + a.id + '" title="Удалить ошибочную строку">✕</button></td>' : '')
+            + '</tr>';
+        }).join('') + '</tbody></table>';
+      tbl.querySelectorAll('[data-area-edit]').forEach(function(b) {
+        b.addEventListener('click', function() { openEditLine(lines.find(function(x) { return String(x.id) === b.getAttribute('data-area-edit'); })); });
+      });
+      tbl.querySelectorAll('[data-area-del]').forEach(function(b) {
+        b.addEventListener('click', async function() {
+          const a = lines.find(function(x) { return String(x.id) === b.getAttribute('data-area-del'); });
+          if (!a || !(await cmConfirm('Удалить строку «' + areaLineLabel(a) + '» (' + areaPeriodLabel(a) + ')? Это для ошибочно внесённых строк — чтобы снять площадь по доп. соглашению, добавьте новое доп. соглашение.'))) return;
+          try {
+            await ctx.api.resource('contract_areas').destroy({ filterByTk: a.id });
+            logHistory(type, id, [{ action: 'area', text: 'Удалена строка площади: ' + areaLineLabel(a) + ' (' + areaPeriodLabel(a) + ')' }]);
+            await refresh(); await applyTotals();
+          } catch (e) { cmToast('Не удалось удалить строку'); }
+        });
+      });
+    }
+    if (type === 'active' || type === 'completed') renderAllActiveReadonly(overlay, r);
+    const roomForm = overlay.querySelector('[data-active-form="room"]');
+    if (roomForm) ['area_sqm', 'rent_per_sqm'].forEach(function(n) {
+      const el = roomForm.querySelector('[data-field="' + n + '"]');
+      if (!el) return;
+      el.readOnly = !!lines.length;
+      el.style.background = lines.length ? '#f5f5f5' : '';
+      el.title = lines.length ? 'Считается из площадей по доп. соглашениям (блок «Доп. соглашения»)' : '';
+    });
+  }
+  if (withAreas) q('-areas-toggle').addEventListener('click', function() { areasOpen = !areasOpen; renderAreas(); });
+
+  async function applyTotals() {
+    if (type !== 'active' || !lines.length) return;
+    const t = todayIso();
+    const tot = areaTotals(lines, t);
+    const upd = { area_sqm: tot.area };
+    let discount = false;
+    try {
+      const periods = await loadPricePeriods(type, id);
+      discount = periods.some(function(p) { return p.date_from && p.date_to && p.date_from <= t && t <= p.date_to; });
+    } catch (e) { /* без графика — считаем по площадям */ }
+    if (!discount) { upd.rent_amount = tot.rent; upd.rent_per_sqm = tot.avg; }
+    Object.keys(upd).forEach(function(k) { const cur = numOf(r[k]); if (cur !== null && upd[k] !== null && Math.abs(cur - upd[k]) < 0.005) delete upd[k]; });
+    if (!Object.keys(upd).length) { renderAreas(); return; }
+    try {
+      await updateWithHistory(coll, id, upd);
+      Object.assign(r, upd);
+      syncDerivedDom(upd);
+      renderAreas();
+      if (discount && hasKey(upd, 'area_sqm')) cmToast('Площадь обновлена. АП сейчас задаёт «График цены аренды» (действует период скидки)');
+    } catch (e) { cmToast('Не удалось обновить площадь и АП договора'); }
+  }
+
+  function moneyInput(cls, val, ph) {
+    return '<input type="text" inputmode="decimal" class="cm-field-input ' + cls + '" placeholder="' + ph + '" value="' + (val === null || val === undefined ? '' : escAttr(String(val).replace('.', ','))) + '">';
+  }
+  function closeForm() { formWrap.innerHTML = ''; }
+
+  function openEditLine(a) {
+    if (!a) return;
+    formWrap.innerHTML = '<div class="cm-areas-form">'
+      + '<div style="font-weight:600;font-size:13px;margin-bottom:8px;">Исправить строку площади</div>'
+      + '<div class="cm-areas-row"><div><label>Площадь, м²</label>' + moneyInput('cm-ae-area', a.area_sqm, '0') + '</div>'
+      + '<div><label>Ставка, ₽/м² в мес</label>' + moneyInput('cm-ae-rate', a.rent_per_sqm, '0,00') + '</div>'
+      + '<div><label>С</label><input type="date" class="cm-field-input cm-ae-from" value="' + escAttr(a.date_from || '') + '"></div>'
+      + '<div><label>По</label><input type="date" class="cm-field-input cm-ae-to" value="' + escAttr(a.date_to || '') + '"></div></div>'
+      + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-ae="save">Сохранить</button><button class="cm-btn-save" data-ae="cancel">Отмена</button></div></div>';
+    formWrap.querySelector('[data-ae="cancel"]').addEventListener('click', closeForm);
+    formWrap.querySelector('[data-ae="save"]').addEventListener('click', async function() {
+      const area = numOf(formWrap.querySelector('.cm-ae-area').value), rate = numOf(formWrap.querySelector('.cm-ae-rate').value);
+      const from = formWrap.querySelector('.cm-ae-from').value || null, to = formWrap.querySelector('.cm-ae-to').value || null;
+      if (!(area > 0)) { cmToast('Площадь должна быть больше нуля'); return; }
+      if (rate === null || rate < 0) { cmToast('Укажите ставку'); return; }
+      if (from && to && to < from) { cmToast('Дата «по» раньше даты «с»'); return; }
+      const before = areaLineLabel(a) + ' (' + areaPeriodLabel(a) + ')';
+      const values = { area_sqm: area, rent_per_sqm: rate, date_from: from, date_to: to };
+      try {
+        await ctx.api.resource('contract_areas').update({ filterByTk: a.id, values: values });
+        logHistory(type, id, [{ action: 'area', text: 'Исправлена строка площади: ' + before + ' → ' + areaLineLabel(values) + ' (' + areaPeriodLabel(values) + ')' }]);
+        closeForm(); await refresh(); await applyTotals();
+      } catch (e) { cmToast('Не удалось сохранить строку'); }
+    });
+  }
+
+  // ----- список соглашений -----
+  function cardHtml(a, idx) {
+    const scan = a.file
+      ? '<span class="cm-addendum-file" data-att-url="' + esc(a.file.url) + '" data-att-name="' + esc((a.file.title || 'file') + (a.file.extname || '')) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">📎 ' + esc((a.file.title || 'файл') + (a.file.extname || '')) + '</span>'
+        + (canEdit ? ' <button class="cm-add-link" data-add-scan="' + a.id + '">заменить</button>' : '')
+      : '<span class="cm-add-pill noscan">нет скана</span>' + (canEdit ? ' <button class="cm-add-link" data-add-scan="' + a.id + '">📎 Прикрепить скан</button>' : '');
+    const signed = '<span class="cm-add-pill ' + (a.signed ? 'signed' : 'unsigned') + (canEdit ? ' clickable' : '') + '" data-add-sign="' + a.id + '" title="' + (canEdit ? 'Нажмите, чтобы переключить' : '') + '">' + (a.signed ? '✓ Подписано' : 'Не подписано') + '</span>';
+    const ns = notes[a.id] || [];
+    const mine = function(n) { return currentUser && (isAdmin || n.author_id === currentUser.id); };
+    return '<div class="cm-add-card" data-add-card="' + a.id + '">'
+      + '<div class="cm-add-card-head"><span class="cm-add-card-title">' + esc(a.title || ('Доп. соглашение №' + (idx + 1))) + '</span>' + signed
+      + (a.effective_date ? '<span class="cm-add-eff">вступает в силу ' + esc(fmtDate(a.effective_date)) + '</span>' : '') + '</div>'
+      + (a.area_summary ? '<div class="cm-add-areas">Площади: ' + escRaw(a.area_summary) + '</div>' : '')
+      + (a.description ? '<div class="cm-add-desc">' + linkifyText(a.description) + '</div>' : '')
+      + '<div class="cm-add-line">' + scan + '</div>'
+      + '<div class="cm-add-notes">'
+      + ns.map(function(n) {
+        return '<div class="cm-add-note"><span class="cm-add-note-meta">' + esc(nbFmtDateTimeLocal(n.created_at)) + ' · ' + esc(n.author ? (n.author.nickname || n.author.username) : 'Система') + ':</span>' + escRaw(n.new_value || '')
+          + (canEdit && mine(n) ? ' <button class="cm-area-act" data-add-note-del="' + n.id + '" title="Удалить пометку">✕</button>' : '') + '</div>';
+      }).join('')
+      + (canEdit ? '<div class="cm-add-note-input"><input type="text" class="cm-field-input" data-add-note-input="' + a.id + '" placeholder="Пометка: например, «оригинал получен», «счёт на доплату выставлен»…"><button class="cm-btn-save" data-add-note-save="' + a.id + '">Добавить</button></div>' : '')
+      + '</div>'
+      + '<div class="cm-add-meta"><span>Добавлено ' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + '</span>'
+      + (canEdit ? '<span><button class="cm-area-act" data-add-edit="' + a.id + '" title="Изменить название, дату, условия">✎</button>'
+        + ((isAdmin || (currentUser && a.author_id === currentUser.id)) ? '<button class="cm-area-act" data-add-del="' + a.id + '" title="Удалить доп. соглашение">✕</button>' : '') + '</span>' : '')
+      + '</div></div>';
+  }
+  function renderList() {
+    const cnt = q('-add-count');
+    if (cnt) cnt.textContent = items.length ? '(' + items.length + ')' : '';
+    listEl.innerHTML = items.length ? items.slice().reverse().map(function(a) { return cardHtml(a, items.indexOf(a)); }).join('')
+      : '<div style="color:#bbb;font-size:12px;">Пока нет доп. соглашений</div>';
+    wireAddendumFileOpen(overlay);
+    listEl.querySelectorAll('[data-add-scan]').forEach(function(b) { b.addEventListener('click', function() { pickScan(b.getAttribute('data-add-scan')); }); });
+    if (canEdit) listEl.querySelectorAll('[data-add-sign]').forEach(function(b) { b.addEventListener('click', function() { toggleSigned(b.getAttribute('data-add-sign')); }); });
+    listEl.querySelectorAll('[data-add-note-save]').forEach(function(b) {
+      const aid = b.getAttribute('data-add-note-save');
+      const inp = listEl.querySelector('[data-add-note-input="' + aid + '"]');
+      b.addEventListener('click', function() { addNote(aid, inp); });
+      inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addNote(aid, inp); } });
+    });
+    listEl.querySelectorAll('[data-add-note-del]').forEach(function(b) {
+      b.addEventListener('click', async function() {
+        if (!(await cmConfirm('Удалить пометку?'))) return;
+        try { await ctx.api.resource('contract_history').destroy({ filterByTk: b.getAttribute('data-add-note-del') }); await refresh(); }
+        catch (e) { cmToast('Не удалось удалить пометку'); }
+      });
+    });
+    listEl.querySelectorAll('[data-add-edit]').forEach(function(b) { b.addEventListener('click', function() { openEditAddendum(items.find(function(x) { return String(x.id) === b.getAttribute('data-add-edit'); })); }); });
+    listEl.querySelectorAll('[data-add-del]').forEach(function(b) { b.addEventListener('click', function() { deleteAddendum(items.find(function(x) { return String(x.id) === b.getAttribute('data-add-del'); })); }); });
+  }
+  function findItem(aid) { return items.find(function(x) { return String(x.id) === String(aid); }); }
+  function pickScan(aid) {
+    const a = findItem(aid);
+    if (!a) return;
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.addEventListener('change', async function() {
+      const f = inp.files && inp.files[0];
+      if (!f) return;
+      cmToast('Загрузка скана…');
+      try {
+        const fileId = await uploadFileGetId(f);
+        await ctx.api.resource('contract_addendums').update({ filterByTk: a.id, values: { file_id: fileId } });
+        logHistory(type, id, [{ action: 'addendum', text: (a.file ? 'Заменён скан' : 'Прикреплён скан') + ' к «' + (a.title || 'Доп. соглашение') + '»: ' + f.name }]);
+        await refresh();
+        cmToast('Скан прикреплён');
+      } catch (e) { cmToast('Не удалось загрузить скан'); }
+    });
+    inp.click();
+  }
+  async function toggleSigned(aid) {
+    const a = findItem(aid);
+    if (!a) return;
+    try {
+      await ctx.api.resource('contract_addendums').update({ filterByTk: a.id, values: { signed: !a.signed } });
+      logHistory(type, id, [{ action: 'addendum', text: '«' + (a.title || 'Доп. соглашение') + '»: ' + (a.signed ? 'снята отметка «Подписано»' : 'отмечено «Подписано»') }]);
+      await refresh();
+    } catch (e) { cmToast('Не удалось изменить отметку'); }
+  }
+  async function addNote(aid, inp) {
+    const a = findItem(aid);
+    const txt = (inp.value || '').trim();
+    if (!a || !txt) return;
+    inp.disabled = true;
+    try {
+      await ctx.api.resource('contract_history').create({ values: {
+        contract_type: type, contract_ref_id: id, author_id: currentUser ? currentUser.id : null, action: 'addendum_note',
+        field: 'addendum:' + a.id, new_value: txt, text: 'Пометка к «' + (a.title || 'Доп. соглашение') + '»: ' + txt, created_at: new Date().toISOString()
+      } });
+      await refresh();
+    } catch (e) { cmToast('Не удалось сохранить пометку'); inp.disabled = false; }
+  }
+  async function deleteAddendum(a) {
+    if (!a) return;
+    if (lines.some(function(l) { return String(l.addendum_id) === String(a.id); })) {
+      cmToast('По этому соглашению внесены площади — сначала удалите или исправьте их строки («Все строки площадей»)');
+      return;
+    }
+    if (!(await cmConfirm('Удалить «' + (a.title || 'Доп. соглашение') + '» вместе со сканом и пометками?'))) return;
+    try {
+      await ctx.api.resource('contract_addendums').destroy({ filterByTk: a.id });
+      await fetch('/api/contract_history:destroy?filter=' + encodeURIComponent(JSON.stringify({ contract_type: type, contract_ref_id: id, action: 'addendum_note', field: 'addendum:' + a.id })), { method: 'POST', headers: { Authorization: 'Bearer ' + authToken() } });
+      logHistory(type, id, [{ action: 'addendum', text: 'Удалено доп. соглашение: ' + (a.title || '') }]);
+      await refresh();
+    } catch (e) { cmToast('Не удалось удалить'); }
+  }
+  function openEditAddendum(a) {
+    if (!a) return;
+    formWrap.innerHTML = '<div class="cm-areas-form">'
+      + '<div style="font-weight:600;font-size:13px;margin-bottom:8px;">Изменить доп. соглашение</div>'
+      + '<div class="cm-areas-head"><div><label>Название</label><input type="text" class="cm-field-input" data-ed="title" value="' + escAttr(a.title || '') + '"></div>'
+      + '<div><label>Вступает в силу с</label><input type="date" class="cm-field-input" data-ed="date" value="' + escAttr(a.effective_date || '') + '"></div></div>'
+      + '<label>Условия / описание</label><textarea class="cm-field-input" data-ed="desc" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;">' + escAttr(a.description || '') + '</textarea>'
+      + (a.area_summary ? '<div style="font-size:12px;color:#8c8c8c;margin-top:6px;">Изменения площадей здесь не меняются — исправляйте их строки в «Все строки площадей».</div>' : '')
+      + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-ed="save">Сохранить</button><button class="cm-btn-save" data-ed="cancel">Отмена</button></div></div>';
+    const g = function(k) { return formWrap.querySelector('[data-ed="' + k + '"]'); };
+    g('cancel').addEventListener('click', closeForm);
+    g('save').addEventListener('click', async function() {
+      const title = g('title').value.trim();
+      if (!title) { cmToast('Укажите название'); return; }
+      const values = { title: title, effective_date: g('date').value || null, description: g('desc').value.trim() };
+      try {
+        await ctx.api.resource('contract_addendums').update({ filterByTk: a.id, values: values });
+        logHistory(type, id, [{ action: 'addendum', text: 'Изменено доп. соглашение «' + title + '»' }]);
+        closeForm(); await refresh();
+      } catch (e) { cmToast('Не удалось сохранить'); }
+    });
+  }
+
+  // ----- новое соглашение (с изменением площадей или без) -----
+  function openCreateForm() {
+    const eff0 = todayIso();
+    const baseLines = !withAreas || lines.length ? null : (numOf(r.area_sqm) > 0 ? [{ id: 'base', area_sqm: numOf(r.area_sqm), rent_per_sqm: numOf(r.rent_per_sqm) || 0 }] : []);
+    formWrap.innerHTML = '<div class="cm-areas-form">'
+      + '<div style="font-weight:600;font-size:13px;margin-bottom:8px;">Новое доп. соглашение</div>'
+      + '<div class="cm-areas-head">'
+      + '<div><label>Название</label><input type="text" class="cm-field-input" data-nf="title" value="Доп. соглашение №' + (items.length + 1) + '"></div>'
+      + '<div><label>Вступает в силу с</label><input type="date" class="cm-field-input" data-nf="date" value="' + eff0 + '"></div></div>'
+      + '<label>Условия / описание</label><textarea class="cm-field-input" data-nf="desc" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;margin-bottom:8px;" placeholder="Что меняется по соглашению"></textarea>'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><button class="cm-upload-btn" data-nf="pick" type="button" style="font-size:12px;">📎 Скан соглашения</button>'
+      + '<span data-nf="fname" style="font-size:12px;color:#999;">не выбран — можно прикрепить позже</span>'
+      + '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#595959;margin:0 0 0 auto;"><input type="checkbox" data-nf="signed"> уже подписано</label></div>'
+      + (withAreas && canEdit ? '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#262626;margin:4px 0 8px;"><input type="checkbox" data-nf="areas"> Меняет площадь или ставку</label>'
+        + '<div data-nf="areas-box" style="display:none;">'
+        + '<div style="font-size:12px;color:#8c8c8c;margin:4px 0 6px;">Действующие площади на дату вступления в силу — поменяйте площадь или ставку, или уберите строку:</div>'
+        + '<div data-nf="current"></div>'
+        + '<div style="font-size:12px;color:#8c8c8c;margin:10px 0 6px;">Новые площади по этому соглашению:</div>'
+        + '<div data-nf="new"></div>'
+        + '<button class="cm-stage-edit-toggle" data-nf="add-new" type="button">+ Добавить площадь</button>'
+        + '<div data-nf="preview" class="cm-price-summary" style="margin-top:10px;"></div></div>' : '')
+      + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-nf="save">Сохранить</button><button class="cm-btn-save" data-nf="cancel">Отмена</button>'
+      + '<span data-nf="status" style="font-size:12px;color:#999;align-self:center;"></span></div></div>';
+    const g = function(k) { return formWrap.querySelector('[data-nf="' + k + '"]'); };
+    const dateEl = g('date');
+    let file = null;
+    g('pick').addEventListener('click', function() {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.addEventListener('change', function() { file = inp.files && inp.files[0] || null; g('fname').textContent = file ? file.name : 'не выбран — можно прикрепить позже'; });
+      inp.click();
+    });
+    g('cancel').addEventListener('click', closeForm);
+    const areasOn = function() { const c = g('areas'); return !!(c && c.checked); };
+
+    function currentOn(iso) { return baseLines || lines.filter(function(a) { return areaActiveOn(a, iso) && Number(a.area_sqm) > 0; }); }
+    function renderCurrent() {
+      if (!g('current')) return;
+      const cur = currentOn(dateEl.value || eff0);
+      g('current').innerHTML = cur.length ? cur.map(function(a) {
+        return '<div class="cm-areas-row" data-ac-line="' + a.id + '">'
+          + '<div>' + escRaw(areaLineLabel(a)) + '<div style="font-size:11.5px;color:#999;">' + escRaw(addendumTitle(a.addendum_id)) + '</div></div>'
+          + '<div><label>Площадь, м²</label>' + moneyInput('cm-ac-area', a.area_sqm, '0') + '</div>'
+          + '<div><label>Ставка, ₽/м²</label>' + moneyInput('cm-ac-rate', a.rent_per_sqm, '0,00') + '</div>'
+          + '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#595959;margin:14px 0 0;white-space:nowrap;"><input type="checkbox" class="cm-ac-remove"> убрать</label></div>';
+      }).join('') : '<div style="color:#bbb;font-size:12px;">На эту дату действующих площадей нет</div>';
+      preview();
+    }
+    function addNewRow() {
+      const div = document.createElement('div');
+      div.className = 'cm-areas-row';
+      div.setAttribute('data-ac-new', '1');
+      div.innerHTML = '<div style="font-size:12px;color:#8c8c8c;">Новая площадь</div>'
+        + '<div><label>Площадь, м²</label>' + moneyInput('cm-ac-area', null, '0') + '</div>'
+        + '<div><label>Ставка, ₽/м²</label>' + moneyInput('cm-ac-rate', null, '0,00') + '</div>'
+        + '<button class="cm-area-act" type="button" title="Убрать" style="margin-top:14px;">✕</button>';
+      div.querySelector('button').addEventListener('click', function() { div.remove(); preview(); });
+      g('new').appendChild(div);
+      div.querySelector('.cm-ac-area').focus();
+    }
+    function plan() {
+      const eff = dateEl.value;
+      const out = { close: [], open: [], text: [], errors: [] };
+      if (!eff) out.errors.push('Укажите дату вступления в силу');
+      if (!areasOn()) return out;
+      const cur = currentOn(eff || eff0);
+      formWrap.querySelectorAll('[data-ac-line]').forEach(function(rowEl) {
+        const a = cur.find(function(x) { return String(x.id) === rowEl.getAttribute('data-ac-line'); });
+        if (!a) return;
+        const na = numOf(rowEl.querySelector('.cm-ac-area').value), nr = numOf(rowEl.querySelector('.cm-ac-rate').value);
+        if (rowEl.querySelector('.cm-ac-remove').checked) { out.close.push(a); out.text.push('снято ' + areaLineLabel(a)); return; }
+        if (!(na > 0)) { out.errors.push('Площадь должна быть больше нуля (или отметьте «убрать»)'); return; }
+        if (nr === null || nr < 0) { out.errors.push('Укажите ставку'); return; }
+        const sameA = Math.abs(na - Number(a.area_sqm)) < 0.005, sameR = Math.abs(nr - (Number(a.rent_per_sqm) || 0)) < 0.005;
+        if (sameA && sameR) return;
+        out.close.push(a);
+        out.open.push({ area_sqm: na, rent_per_sqm: nr });
+        const parts = [];
+        if (!sameA) parts.push('площадь ' + formatNum(a.area_sqm) + ' → ' + formatNum(na) + ' м²');
+        if (!sameR) parts.push('ставка ' + formatNum(a.rent_per_sqm) + ' → ' + formatNum(nr) + ' ₽');
+        out.text.push(formatNum(a.area_sqm) + ' м² по ' + formatNum(a.rent_per_sqm) + ' ₽: ' + parts.join(', '));
+      });
+      formWrap.querySelectorAll('[data-ac-new]').forEach(function(rowEl) {
+        const na = numOf(rowEl.querySelector('.cm-ac-area').value), nr = numOf(rowEl.querySelector('.cm-ac-rate').value);
+        if (na === null && nr === null) return;
+        if (!(na > 0)) { out.errors.push('У новой площади укажите кв.м.'); return; }
+        if (nr === null || nr < 0) { out.errors.push('У новой площади укажите ставку'); return; }
+        out.open.push({ area_sqm: na, rent_per_sqm: nr });
+        out.text.push('добавлено ' + formatNum(na) + ' м² по ' + formatNum(nr) + ' ₽');
+      });
+      if (!out.close.length && !out.open.length) out.errors.push('Отмечено «Меняет площадь или ставку», но изменений нет');
+      return out;
+    }
+    function preview() {
+      if (!g('preview')) return;
+      const p = plan();
+      const eff = dateEl.value || eff0;
+      const after = currentOn(eff).filter(function(a) { return p.close.indexOf(a) === -1; }).concat(p.open);
+      let area = 0, rent = 0;
+      after.forEach(function(a) { area += Number(a.area_sqm) || 0; rent += (Number(a.area_sqm) || 0) * (Number(a.rent_per_sqm) || 0); });
+      g('preview').innerHTML = (p.text.length ? 'Изменения: ' + escRaw(p.text.join('; ')) + '<br>' : 'Пока без изменений<br>')
+        + 'С ' + escRaw(fmtDate(eff)) + ': <b>' + escRaw(formatNum(round2(area))) + ' м²</b> · АП <b>' + escRaw(formatNum(round2(rent))) + ' ₽/мес</b>'
+        + (area > 0 ? ' · средняя ставка <b>' + escRaw(formatNum(round2(rent / area))) + ' ₽/м²</b>' : '');
+    }
+    if (g('areas')) {
+      g('areas').addEventListener('change', function() {
+        g('areas-box').style.display = areasOn() ? '' : 'none';
+        if (areasOn()) { renderCurrent(); if (!currentOn(dateEl.value || eff0).length && !formWrap.querySelector('[data-ac-new]')) addNewRow(); }
+      });
+      g('add-new').addEventListener('click', addNewRow);
+      formWrap.addEventListener('input', function(e) {
+        if (e.target.classList && (e.target.classList.contains('cm-ac-area') || e.target.classList.contains('cm-ac-rate'))) sanitizeInput(e.target, 'money');
+        preview();
+      });
+      formWrap.addEventListener('change', preview);
+      dateEl.addEventListener('change', function() { if (areasOn()) renderCurrent(); });
+    }
+    g('save').addEventListener('click', async function() {
+      const title = g('title').value.trim();
+      if (!title) { cmToast('Укажите название'); return; }
+      const p = plan();
+      if (p.errors.length) { cmToast(p.errors[0]); return; }
+      const eff = dateEl.value;
+      const saveBtn = g('save'), statusEl = g('status');
+      saveBtn.disabled = true; statusEl.textContent = 'Сохранение…';
+      try {
+        let fileId = null;
+        if (file) { statusEl.textContent = 'Загрузка скана…'; fileId = await uploadFileGetId(file); }
+        const areaSummary = p.text.length ? p.text.join('; ') : null;
+        const cr = await ctx.api.resource('contract_addendums').create({ values: {
+          contract_type: type, contract_ref_id: id, title: title, description: g('desc').value.trim(), effective_date: eff,
+          signed: g('signed').checked, area_summary: areaSummary, file_id: fileId, author_id: currentUser ? currentUser.id : null, created_at: new Date().toISOString()
+        } });
+        const rec = (cr && cr.data && cr.data.data) ? cr.data.data : (cr && cr.data) ? cr.data : cr;
+        const addId = rec && rec.id ? Number(rec.id) : null;
+        if (p.close.length || p.open.length) {
+          const me = currentUser;
+          let closeList = p.close;
+          // исходная площадь договора становится первой строкой при первом соглашении с площадями
+          if (baseLines && baseLines.length) {
+            const bc = await ctx.api.resource('contract_areas').create({ values: { contract_type: type, contract_ref_id: id, area_sqm: baseLines[0].area_sqm, rent_per_sqm: baseLines[0].rent_per_sqm, date_from: null, date_to: null, addendum_id: null, author_id: me ? me.id : null } });
+            const brec = (bc && bc.data && bc.data.data) ? bc.data.data : (bc && bc.data) ? bc.data : bc;
+            closeList = p.close.map(function(a) { return a.id === 'base' ? Object.assign({}, a, { id: brec.id, date_from: null }) : a; });
+          }
+          const prevDay = dateToIso(addDays(isoToDate(eff), -1));
+          for (let i = 0; i < closeList.length; i++) {
+            const a = closeList[i];
+            // строка, начавшаяся в тот же день или позже, просто уходит — её не существовало ни дня
+            if (a.date_from && a.date_from >= eff) await ctx.api.resource('contract_areas').destroy({ filterByTk: a.id });
+            else await ctx.api.resource('contract_areas').update({ filterByTk: a.id, values: { date_to: prevDay } });
+          }
+          for (let i = 0; i < p.open.length; i++) {
+            await ctx.api.resource('contract_areas').create({ values: { contract_type: type, contract_ref_id: id, area_sqm: p.open[i].area_sqm, rent_per_sqm: p.open[i].rent_per_sqm, date_from: eff, date_to: null, addendum_id: addId, author_id: me ? me.id : null } });
+          }
+        }
+        await logHistory(type, id, [{ action: 'addendum', text: 'Добавлено доп. соглашение: ' + title + ' (с ' + fmtDate(eff) + ')' + (areaSummary ? '. Площади: ' + areaSummary : '') }]);
+        closeForm();
+        await refresh();
+        await applyTotals();
+        cmToast(areaSummary ? (eff > todayIso() ? 'Сохранено. Площадь и АП договора поменяются сами ' + fmtDate(eff) : 'Сохранено: площадь и АП договора пересчитаны') : 'Доп. соглашение добавлено');
+      } catch (e) {
+        cmToast('Не удалось сохранить доп. соглашение');
+        saveBtn.disabled = false; statusEl.textContent = '';
+      }
+    });
+  }
 
   async function refresh() {
-    const items = await loadAddendums(contractType, contractId);
-    listEl.innerHTML = renderAddendumsList(items);
-    wireAddendumFileOpen(overlay);
-  }
-  await refresh();
-
-  addBtn.addEventListener('click', function() {
-    formEl.style.display = formEl.style.display === 'none' ? 'block' : 'none';
-  });
-  cancelBtn.addEventListener('click', function() {
-    formEl.style.display = 'none';
-    titleInput.value = ''; descInput.value = ''; fileInput.value = '';
-    filenameSpan.textContent = 'Файл не выбран';
-  });
-  pickBtn.addEventListener('click', function() { fileInput.click(); });
-  fileInput.addEventListener('change', function() {
-    filenameSpan.textContent = fileInput.files[0] ? fileInput.files[0].name : 'Файл не выбран';
-  });
-  saveBtn.addEventListener('click', async function() {
-    const title = titleInput.value.trim();
-    if (!title) { cmToast('Укажите название'); return; }
-    saveBtn.disabled = true;
-    statusSpan.textContent = 'Сохранение…';
     try {
-      let fileId = null;
-      if (fileInput.files[0]) {
-        statusSpan.textContent = 'Загрузка файла…';
-        fileId = await uploadFileGetId(fileInput.files[0]);
-      }
-      await ctx.api.resource('contract_addendums').create({
-        values: {
-          contract_type: contractType, contract_ref_id: contractId,
-          title: title, description: descInput.value.trim(),
-          file_id: fileId, author_id: currentUser.id, created_at: new Date().toISOString()
-        }
-      });
-      logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено доп. соглашение: ' + title }]);
-      titleInput.value = ''; descInput.value = ''; fileInput.value = '';
-      filenameSpan.textContent = 'Файл не выбран';
-      formEl.style.display = 'none';
-      statusSpan.textContent = '';
-      await refresh();
-    } catch (e) {
-      cmToast('Не удалось сохранить доп. соглашение');
-      statusSpan.textContent = '';
-    } finally {
-      saveBtn.disabled = false;
-    }
-  });
+      items = await loadAddendums(type, id);
+      if (withAreas) lines = await loadAreaLines(type, id);
+      const nr = await ctx.api.resource('contract_history').list({ filter: { contract_type: type, contract_ref_id: id, action: 'addendum_note' }, appends: ['author'], sort: ['created_at', 'id'], pageSize: 500 });
+      notes = {};
+      (histPayload(nr) || []).forEach(function(n) { const m = String(n.field || '').match(/^addendum:(\d+)$/); if (m) (notes[m[1]] = notes[m[1]] || []).push(n); });
+    } catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить доп. соглашения</span>'; return; }
+    renderList();
+    renderAreas();
+  }
+
+  await refresh();
+  if (!canEdit) return;
+  addBtn.style.display = '';
+  addBtn.addEventListener('click', function() { if (formWrap.innerHTML) closeForm(); else openCreateForm(); });
 }
 
 async function uploadContractFile(file, contractId, collectionName) {

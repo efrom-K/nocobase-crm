@@ -352,13 +352,59 @@ if (!document.getElementById('cm-notif-style')) {
   `;
   document.head.appendChild(nst);
 }
-// строки с непрочитанными уведомлениями поднимаются наверх таблицы по умолчанию — но не мешаем,
-// если пользователь сам явно отсортировал колонку (antd ставит aria-sort на th активного сортера)
-function hasActiveSort(uid) {
-  return !!document.querySelector('[data-uid="' + uid + '"] thead th[aria-sort="ascend"], [data-uid="' + uid + '"] thead th[aria-sort="descend"]');
+// Договоры с непрочитанными уведомлениями всегда наверху — при любой сортировке, фильтре, поиске и странице.
+// Делается на уровне данных: ответ сервера на список договоров перехватывается, на первую страницу подставляются
+// эти договоры (отдельным запросом по id, в обход фильтров), а их дубли убираются со всех страниц.
+// Ниже — страховочная перестановка уже отрисованных строк (на случай, если таблица перерисовалась из кэша).
+const PIN_TABLE_BY_COLLECTION = { rental_contracts: 'ozazmpm4o4v', forming_contracts: 'formtbl000001', completed_contracts: 'ipb7gfluldk' };
+function pinnedIdsFor(uid) {
+  return Object.keys((window.__cmNotifRows || {})[uid] || {}).map(Number).filter(function(n) { return n > 0; }).sort(function(a, b) { return b - a; });
+}
+function installPinInterceptor() {
+  const api = window.__cmEngine && window.__cmEngine.context && window.__cmEngine.context.api;
+  if (!api || !api.axios) return false;
+  if (window.__cmPinInterceptor !== undefined && window.__cmPinApi === api) api.axios.interceptors.response.eject(window.__cmPinInterceptor);
+  window.__cmPinApi = api;
+  window.__cmPinSeen = window.__cmPinSeen || {};
+  window.__cmPinInterceptor = api.axios.interceptors.response.use(async function(resp) {
+    try {
+      const cfg = resp && resp.config;
+      if (!cfg || cfg.__cmPinned || String(cfg.method || '').toLowerCase() !== 'get') return resp;
+      const m = String(cfg.url || '').match(/^\/?(?:api\/)?(rental_contracts|forming_contracts|completed_contracts):list$/);
+      if (!m || !resp.data || !Array.isArray(resp.data.data)) return resp;
+      const uid = PIN_TABLE_BY_COLLECTION[m[1]];
+      const ids = pinnedIdsFor(uid);
+      window.__cmPinSeen[uid] = ids.join(',');
+      if (!ids.length) return resp;
+      const pinned = {};
+      ids.forEach(function(i) { pinned[i] = true; });
+      const rest = resp.data.data.filter(function(r) { return !pinned[r.id]; });
+      if (Number((cfg.params && cfg.params.page) || 1) !== 1) { resp.data.data = rest; return resp; }
+      const params = Object.assign({}, cfg.params || {}, { filter: { id: { $in: ids } }, page: 1, pageSize: ids.length, sort: ['-id'] });
+      const pr = await api.axios.request({ url: cfg.url, method: 'get', params: params, headers: cfg.headers, __cmPinned: true });
+      const top = (pr && pr.data && Array.isArray(pr.data.data)) ? pr.data.data : [];
+      resp.data.data = top.concat(rest);
+    } catch (e) { /* при любой ошибке — обычный ответ без закрепления */ }
+    return resp;
+  });
+  return true;
+}
+// набор закреплённых договоров поменялся (пришло новое уведомление / прочитали) — перезапросить таблицу
+function refreshPinnedTables() {
+  Object.keys(PIN_TABLE_BY_COLLECTION).forEach(function(coll) {
+    const uid = PIN_TABLE_BY_COLLECTION[coll];
+    const now = pinnedIdsFor(uid).join(',');
+    if (window.__cmPinSeen && (window.__cmPinSeen[uid] || '') !== now) {
+      window.__cmPinSeen[uid] = now;
+      const model = colTable(uid);
+      if (model && model.resource && model.resource.refresh) { try { model.resource.refresh(); } catch (e) { /* ignore */ } }
+    }
+  });
+}
+if (!installPinInterceptor()) {
+  const pinRetry = setInterval(function() { if (installPinInterceptor()) clearInterval(pinRetry); }, 500);
 }
 function reorderNotifRows(uid) {
-  if (hasActiveSort(uid)) return;
   const tbody = document.querySelector('[data-uid="' + uid + '"] .ant-table-tbody');
   if (!tbody) return;
   const rows = Array.from(tbody.querySelectorAll('tr[data-row-key]'));
@@ -413,6 +459,7 @@ async function refreshNotifRows() {
       map[uid][mm[2]] = (map[uid][mm[2]] || []).concat([(m.title ? m.title + ': ' : '') + (m.content || '')]);
     });
     window.__cmNotifRows = map;
+    refreshPinnedTables();
   } catch (e) { /* остаёмся на прошлом состоянии */ }
   paintNotifRows();
 }

@@ -3424,9 +3424,11 @@ async function completeContract(id, members, contractNumber) {
   setTimeout(function() { location.reload(); }, 400);
 }
 
-async function finalizeContract(id, members, contractNumber) {
-  if (!(await cmConfirm('Завершить оформление и перевести договор в «Активные»?'))) return;
-  const res = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+// перевод в «Активные»: из «Формирующихся» (последний этап / срочная форма) или прямо из срочного черновика
+async function finalizeContract(id, members, contractNumber, fromDraft) {
+  const srcColl = fromDraft ? 'draft_contracts' : 'forming_contracts', srcType = fromDraft ? 'draft' : 'forming';
+  if (!(await cmConfirm(fromDraft ? 'Опубликовать срочный договор сразу в «Активные»?' : 'Завершить оформление и перевести договор в «Активные»?'))) return;
+  const res = await ctx.api.resource(srcColl).get({ filterByTk: id, appends: fromDraft ? ['contract_files'] : ['contract_files', 'contract_members'] });
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
@@ -3451,45 +3453,47 @@ async function finalizeContract(id, members, contractNumber) {
       method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(fileIds)
     });
   }
-  const memberIds = (f.contract_members || []).map(function(x) { return x.id; });
+  // у черновика сотрудников нет — ответственным становится его автор (чтобы получал уведомления по договору)
+  const memberIds = fromDraft ? (f.created_by_id ? [f.created_by_id] : []) : (f.contract_members || []).map(function(x) { return x.id; });
   if (memberIds.length) {
     await fetch('/api/rental_contracts/' + newId + '/contract_members:add', {
       method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(memberIds)
     });
   }
   try {
-    await fetch('/api/contract_chat_messages:update?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: 'forming' })), {
+    await fetch('/api/contract_chat_messages:update?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: srcType })), {
       method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ owner_contract_id: newId, source: 'active' })
     });
   } catch (e) { /* best-effort */ }
 
   try {
-    await fetch('/api/contract_addendums:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'forming', contract_ref_id: id })), {
+    await fetch('/api/contract_addendums:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: srcType, contract_ref_id: id })), {
       method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ contract_type: 'active', contract_ref_id: newId })
     });
   } catch (e) { /* best-effort */ }
   try {
-    await fetch('/api/contract_contacts:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'forming', contract_ref_id: id })), {
+    await fetch('/api/contract_contacts:update?filter=' + encodeURIComponent(JSON.stringify({ contract_type: srcType, contract_ref_id: id })), {
       method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ contract_type: 'active', contract_ref_id: newId })
     });
   } catch (e) { /* best-effort */ }
 
-  await moveSide('contract_price_periods', 'forming', id, 'active', newId);
-  await moveHistory('forming', id, 'active', newId);
-  await logHistory('active', newId, [{ action: 'status', text: 'Оформление завершено, договор переведён в «Активные»' }]);
+  await moveSide('contract_price_periods', srcType, id, 'active', newId);
+  await moveHistory(srcType, id, 'active', newId);
+  await logHistory('active', newId, [{ action: 'status', text: fromDraft ? 'Срочный договор опубликован из черновика сразу в «Активные»' : 'Оформление завершено, договор переведён в «Активные»' }]);
   memberIds.forEach(function(uid) {
     createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор полностью оформлен и переведён в раздел «Активные»', 'active', 'status');
   });
 
   try {
-    await ctx.api.resource('forming_contracts').destroy({ filterByTk: id });
+    await ctx.api.resource(srcColl).destroy({ filterByTk: id });
   } catch (e) {
     cmToast('Договор перенесён, но черновик не удалился — уберите вручную');
   }
-  closeFormingModal();
+  if (fromDraft) { closeDraftModal(true); if (window.refreshDraftsList) window.refreshDraftsList(); }
+  else closeFormingModal();
   cmToast('Готово: договор переведён в «Активные»');
   setTimeout(function() { location.reload(); }, 400);
 }
@@ -3638,6 +3642,19 @@ async function advanceDraftStage(id, root) {
   // подтверждение этапа в черновике = публикация: договор уходит в «Формирующиеся» и продолжает со следующего этапа
   const nextStage = Math.min(stageIndex + 1, STAGE_DEFS.length - 1);
   await publishDraftContract(id, root, nextStage, stage.title);
+}
+
+// срочный договор заполняется целиком в черновике и публикуется сразу в «Активные», минуя «Формирующиеся»
+async function publishQuickDraftToActive(id, root) {
+  const formEl = root && root.querySelector('.cm-stage-form[data-stage="quick"]');
+  if (formEl) {
+    const bad = validateForm(formEl, false);
+    if (bad) { cmToast(bad.msg); if (bad.el) bad.el.focus(); return; }
+    if (formEl.__cmFlush) await formEl.__cmFlush();
+  }
+  const res = await ctx.api.resource('draft_contracts').get({ filterByTk: id });
+  const f = histPayload(res) || {};
+  await finalizeContract(id, [], f.contract_number || f.object_name || ('#' + id), true);
 }
 
 async function publishDraftContract(id, root, nextStage, doneStageTitle) {
@@ -3791,7 +3808,7 @@ async function openDraftModal(id, isQuickHint) {
       wireAutoSave(overlay, realId, 'quick', 'cm-save-status-quick', 'draft_contracts');
       wireFieldMasks(overlay, 'quick');
       const pubBtn = overlay.querySelector('#cm-quick-publish');
-      if (pubBtn) { pubBtn.textContent = 'Опубликовать → Формирующиеся'; pubBtn.disabled = false; }
+      if (pubBtn) { pubBtn.textContent = 'Опубликовать → Активные'; pubBtn.disabled = false; }
       const saveBtn = overlay.querySelector('#cm-quick-save');
       if (saveBtn) saveBtn.addEventListener('click', async function(e) {
         const btn = e.target; btn.disabled = true;
@@ -3803,7 +3820,7 @@ async function openDraftModal(id, isQuickHint) {
       });
       if (pubBtn) pubBtn.addEventListener('click', async function(e) {
         e.target.disabled = true;
-        try { await publishDraftContract(realId, overlay); }
+        try { await publishQuickDraftToActive(realId, overlay); }
         catch (err) { cmToast('Не удалось опубликовать договор'); e.target.disabled = false; }
       });
     } else {
@@ -3867,7 +3884,7 @@ async function openDraftModal(id, isQuickHint) {
       } else {
         const pubBtn = overlay.querySelector('#cm-quick-publish');
         const saveBtnQ = overlay.querySelector('#cm-quick-save');
-        if (pubBtn) { pubBtn.disabled = true; pubBtn.textContent = 'Опубликовать → Формирующиеся'; }
+        if (pubBtn) { pubBtn.disabled = true; pubBtn.textContent = 'Опубликовать → Активные'; }
         if (saveBtnQ) saveBtnQ.disabled = true;
       }
       const hintEl = document.createElement('div');

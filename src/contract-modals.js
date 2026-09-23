@@ -1560,7 +1560,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
 
 // ---------- площади и ставки (несколько площадей по разным ставкам, изменения через доп. соглашения) ----------
 // Строка contract_areas = «N кв.м. по ставке X ₽/кв.м. в месяц», действует date_from..date_to (пусто = с начала / бессрочно).
-// Площадь, АП и средняя ставка договора = сумма строк, действующих сегодня. Ночной apply_price_schedule.py делает то же
+// Площадь и АП договора = сумма строк, действующих сегодня (ставка — только если она одна). Ночной apply_price_schedule.py делает то же
 // для доп. соглашений, вступающих в силу позже. «График цены аренды» (скидки бухгалтерии) живёт отдельно и, пока его период
 // действует, АП и ставку определяет он — площади тогда меняют только «Площадь, кв.м.».
 if (!document.getElementById('cm-areas-style')) {
@@ -1598,7 +1598,29 @@ function areaTotals(lines, iso) {
     area += s; rent += s * p; rates[round2(p)] = true;
   });
   area = round2(area); rent = round2(rent);
-  return { lines: act, area: area, rent: rent, avg: area > 0 ? round2(rent / area) : null, rateCount: Object.keys(rates).length };
+  const rateList = Object.keys(rates).map(Number);
+  // средняя ставка не считается: одна ставка — пишем её в договор, несколько — поле ставки пустое, в интерфейсе «450 + 520»
+  return { lines: act, area: area, rent: rent, rate: rateList.length === 1 ? rateList[0] : null, rateCount: rateList.length };
+}
+// «450 + 520» — ставки действующих площадей по порядку, без повторов
+function areaRatesText(lines) {
+  const seen = {}, out = [];
+  lines.forEach(function(a) { const k = round2(Number(a.rent_per_sqm) || 0); if (!seen[k]) { seen[k] = true; out.push(formatNum(k)); } });
+  return out.join(' + ');
+}
+// расшифровка для всплывающей подсказки: «100 м² × 450 ₽ = 45 000 ₽ … Итого»
+function areaBreakdown(lines) {
+  let total = 0;
+  const rows = lines.map(function(a) {
+    const v = round2((Number(a.area_sqm) || 0) * (Number(a.rent_per_sqm) || 0));
+    total += v;
+    return formatNum(a.area_sqm) + ' м² × ' + formatNum(a.rent_per_sqm) + ' ₽ = ' + formatNum(v) + ' ₽';
+  });
+  if (lines.length > 1) rows.push('Итого: ' + formatNum(round2(total)) + ' ₽/мес');
+  return rows.join('\n');
+}
+function areaHoverHtml(text, tip) {
+  return '<span title="' + escAttr(tip) + '" style="border-bottom:1px dotted #8c8c8c;cursor:help;">' + text + '</span>';
 }
 async function loadAreaLines(type, id) {
   const res = await ctx.api.resource('contract_areas').list({ filter: { contract_type: type, contract_ref_id: id }, sort: ['id'], pageSize: 500 });
@@ -2191,7 +2213,12 @@ function readonlyFieldValue(f, r) {
   if (f.type === 'checkbox') return v ? 'Да' : 'Нет';
   if (f.name === 'end_date' && r.__kind === 'active') return esc(fromISODateDisplay(v)) + expiryBadge(v, r.termination_date);
   if (f.type === 'date') return esc(fromISODateDisplay(v));
-  if (f.name === 'rent_per_sqm' && r.__areaRateCount > 1) return money(v) + ' <span class="cm-areas-rates-badge">средняя, ' + r.__areaRateCount + ' ставки</span>';
+  if (f.name === 'rent_per_sqm' && r.__areaLines && r.__areaLines.length) return areaHoverHtml(escRaw(areaRatesText(r.__areaLines)) + ' ₽', areaBreakdown(r.__areaLines));
+  if (f.name === 'rent_amount' && r.__areaLines && r.__areaLines.length) {
+    const sum = round2(r.__areaLines.reduce(function(acc, a) { return acc + (Number(a.area_sqm) || 0) * (Number(a.rent_per_sqm) || 0); }, 0));
+    const disc = numOf(v) !== null && Math.abs(numOf(v) - sum) > 0.01;
+    return areaHoverHtml(money(v), areaBreakdown(r.__areaLines) + (disc ? '\nСейчас АП задаёт «График цены аренды» (период скидки)' : ''));
+  }
   if (f.type === 'money') return money(v);
   if (f.type === 'status') return statusPill(f.name, v);
   if (f.type === 'url') return linkHtml(v);
@@ -2864,16 +2891,16 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
     box.style.display = '';
     const t = todayIso();
     const tot = areaTotals(lines, t);
-    r.__areaRateCount = tot.rateCount;
+    r.__areaLines = tot.lines;
     if (!lines.length) {
       sumEl.innerHTML = numOf(r.area_sqm) > 0
         ? 'Площадь по договору: <b>' + escRaw(formatNum(r.area_sqm)) + ' м²</b>' + (numOf(r.rent_per_sqm) > 0 ? ' по <b>' + escRaw(formatNum(r.rent_per_sqm)) + ' ₽/м²</b>' : '') + ' — одна ставка, изменений площадей по доп. соглашениям не было'
         : 'Площадь по договору не указана';
       tgl.style.display = 'none'; tbl.style.display = 'none';
     } else {
-      sumEl.innerHTML = 'Площади сейчас: <b>' + escRaw(formatNum(tot.area)) + ' м²</b> · АП <b>' + escRaw(formatNum(tot.rent)) + ' ₽/мес</b>'
-        + (tot.avg !== null ? ' · ставка ' + (tot.rateCount > 1 ? 'средняя ' : '') + '<b>' + escRaw(formatNum(tot.avg)) + ' ₽/м²</b>' : '')
-        + (tot.rateCount > 1 ? '<span class="cm-areas-rates-badge">' + tot.rateCount + ' ставки</span>' : '');
+      sumEl.innerHTML = 'Площади сейчас: <b>' + escRaw(formatNum(tot.area)) + ' м²</b>'
+        + (tot.lines.length ? ' · ' + (tot.rateCount > 1 ? 'ставки' : 'ставка') + ' ' + areaHoverHtml('<b>' + escRaw(areaRatesText(tot.lines)) + ' ₽/м²</b>', areaBreakdown(tot.lines))
+          + ' · АП ' + areaHoverHtml('<b>' + escRaw(formatNum(tot.rent)) + ' ₽/мес</b>', areaBreakdown(tot.lines)) : '');
       tgl.style.display = '';
       tgl.textContent = areasOpen ? 'Скрыть строки площадей ▴' : 'Все строки площадей (' + lines.length + ') ▾';
       tbl.style.display = areasOpen ? '' : 'none';
@@ -2909,9 +2936,8 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
       });
     }
     if (type === 'active' || type === 'completed') renderAllActiveReadonly(overlay, r);
-    const roomForm = overlay.querySelector('[data-active-form="room"]');
-    if (roomForm) ['area_sqm', 'rent_per_sqm'].forEach(function(n) {
-      const el = roomForm.querySelector('[data-field="' + n + '"]');
+    ['area_sqm', 'rent_per_sqm', 'rent_amount'].forEach(function(n) {
+      const el = overlay.querySelector('[data-active-form] [data-field="' + n + '"]');
       if (!el) return;
       el.readOnly = !!lines.length;
       el.style.background = lines.length ? '#f5f5f5' : '';
@@ -2930,8 +2956,11 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
       const periods = await loadPricePeriods(type, id);
       discount = periods.some(function(p) { return p.date_from && p.date_to && p.date_from <= t && t <= p.date_to; });
     } catch (e) { /* без графика — считаем по площадям */ }
-    if (!discount) { upd.rent_amount = tot.rent; upd.rent_per_sqm = tot.avg; }
-    Object.keys(upd).forEach(function(k) { const cur = numOf(r[k]); if (cur !== null && upd[k] !== null && Math.abs(cur - upd[k]) < 0.005) delete upd[k]; });
+    if (!discount) { upd.rent_amount = tot.rent; upd.rent_per_sqm = tot.rate; }
+    Object.keys(upd).forEach(function(k) {
+      const cur = numOf(r[k]);
+      if ((cur === null && upd[k] === null) || (cur !== null && upd[k] !== null && Math.abs(cur - upd[k]) < 0.005)) delete upd[k];
+    });
     if (!Object.keys(upd).length) { renderAreas(); return; }
     try {
       await updateWithHistory(coll, id, upd);
@@ -3204,8 +3233,9 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
       let area = 0, rent = 0;
       after.forEach(function(a) { area += Number(a.area_sqm) || 0; rent += (Number(a.area_sqm) || 0) * (Number(a.rent_per_sqm) || 0); });
       g('preview').innerHTML = (p.text.length ? 'Изменения: ' + escRaw(p.text.join('; ')) + '<br>' : 'Пока без изменений<br>')
-        + 'С ' + escRaw(fmtDate(eff)) + ': <b>' + escRaw(formatNum(round2(area))) + ' м²</b> · АП <b>' + escRaw(formatNum(round2(rent))) + ' ₽/мес</b>'
-        + (area > 0 ? ' · средняя ставка <b>' + escRaw(formatNum(round2(rent / area))) + ' ₽/м²</b>' : '');
+        + 'С ' + escRaw(fmtDate(eff)) + ': <b>' + escRaw(formatNum(round2(area))) + ' м²</b>'
+        + (after.length ? ' · ставки <b>' + escRaw(areaRatesText(after)) + ' ₽/м²</b> · АП <b>' + escRaw(formatNum(round2(rent))) + ' ₽/мес</b>'
+          + '<div style="font-size:12px;color:#8c8c8c;white-space:pre-line;margin-top:2px;">' + escRaw(areaBreakdown(after)) + '</div>' : '');
     }
     if (g('areas')) {
       g('areas').addEventListener('change', function() {

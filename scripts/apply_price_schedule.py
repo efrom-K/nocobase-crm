@@ -39,7 +39,7 @@ def dmy(iso): y, m, d = iso.split('-'); return '%s.%s.%s' % (d, m, y)
 psql("create table if not exists contract_price_applied(contract_id bigint primary key, sig text not null, applied_at timestamptz default now())")
 psql("create table if not exists contract_area_applied(contract_id bigint primary key, sig text not null, applied_at timestamptz default now())")
 
-# ---- площади по доп. соглашениям (contract_areas): площадь, АП и средняя ставка = сумма строк, действующих на дату ----
+# ---- площади по доп. соглашениям (contract_areas): площадь и АП = сумма строк (ставка — только если она одна, иначе пусто), действующих на дату ----
 # Пока действует период «Графика цены аренды» (скидка), АП/ставку задаёт он — площади меняют только area_sqm.
 # sig = набор действующих строк + флаг скидки: пересчёт только когда он поменялся, ручные правки АП между сменами не затираются.
 T = TODAY.isoformat()
@@ -66,20 +66,22 @@ for cid in sorted(area_cids):
     new = {'area_sqm': area}
     if not disc:
         new['rent_amount'] = rent
-        new['rent_per_sqm'] = r2(rent / area) if area > 0 else None
+        rates = sorted({r2(r['rent_per_sqm'] or 0) for r in rows})
+        new['rent_per_sqm'] = rates[0] if len(rates) == 1 else None
     cur = {'area_sqm': c['c_area'], 'rent_per_sqm': c['c_rate'], 'rent_amount': c['c_rent']}
-    changed = {k: (cur[k], v) for k, v in new.items() if v is not None and (cur[k] is None or abs(cur[k] - v) >= 0.005)}
+    changed = {k: (cur[k], v) for k, v in new.items()
+               if (v is None and cur[k] is not None) or (v is not None and (cur[k] is None or abs(cur[k] - v) >= 0.005))}
     if not changed: continue
     area_report.append((cid, changed))
-    area_stmts.append("update rental_contracts set %s where id=%s;" % (', '.join('%s=%s' % (k, v[1]) for k, v in changed.items()), cid))
+    area_stmts.append("update rental_contracts set %s where id=%s;" % (', '.join('%s=%s' % (k, 'NULL' if v[1] is None else v[1]) for k, v in changed.items()), cid))
     for k, (old, nv) in changed.items():
         area_stmts.append("insert into contract_history(contract_type,contract_ref_id,author_id,action,field,old_value,new_value,created_at) values ('active',%s,NULL,'field',%s,%s,%s,now());"
-                          % (cid, q(k), q(num(old) if old is not None else ''), q(num(nv))))
+                          % (cid, q(k), q(num(old) if old is not None else ''), q(num(nv) if nv is not None else '')))
     text = 'Площади по доп. соглашениям на %s: %s м², АП %s ₽/мес (автоматически)' % (dmy(T), fmt(area), fmt(rent))
     area_stmts.append("insert into contract_history(contract_type,contract_ref_id,author_id,action,text,created_at) values ('active',%s,NULL,'area',%s,now());" % (cid, q(text)))
 print('%s (дата %s): договоров с изменением площадей — %d' % ('DRY-RUN' if DRY else 'ПЛОЩАДИ', T, len(area_report)))
 for cid, ch in area_report:
-    print('  договор #%s: %s' % (cid, ', '.join('%s %s → %s' % (k, num(v[0]) if v[0] is not None else '—', num(v[1])) for k, v in ch.items())))
+    print('  договор #%s: %s' % (cid, ', '.join('%s %s → %s' % (k, num(v[0]) if v[0] is not None else '—', num(v[1]) if v[1] is not None else '—') for k, v in ch.items())))
 if area_stmts and not DRY:
     psql('begin;\n' + '\n'.join(area_stmts) + '\ncommit;\n')
 contracts = jrows("select id, contract_number, object_name, tenant_name, area_sqm, rent_per_sqm, rent_amount from rental_contracts "

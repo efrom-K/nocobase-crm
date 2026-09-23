@@ -425,50 +425,80 @@ if (!window.__cmNotifTimers) {
   window.addEventListener('focus', refreshNotifRows);
 }
 
-// ---------- колонка «Аренда / 1 кв.м.»: при нескольких действующих ставках (площади по доп. соглашениям) в ячейке средняя — помечаем ----------
+// ---------- площади по доп. соглашениям в таблице: ставка «450 + 520 ₽» вместо одной, расшифровка расчёта при наведении на ставку и АП ----------
 window.__cmAreaRates = window.__cmAreaRates || {};
 const AREA_RATE_TABLE = "ozazmpm4o4v";
+if (!document.getElementById('cm-area-rates-style')) {
+  const ast = document.createElement('style');
+  ast.id = 'cm-area-rates-style';
+  ast.textContent = 'td[data-cm-rates] > :not(.cm-rates-mark) { display: none !important; }'
+    + ' .cm-rates-mark, td[data-cm-rent-tip] { cursor: help; } .cm-rates-mark { border-bottom: 1px dotted #8c8c8c; }';
+  document.head.appendChild(ast);
+}
+function areaFmt(n) { try { return Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); } catch (e) { return String(n); } }
 async function refreshAreaRates() {
   try {
     const d = new Date();
     const p = function(n) { return n < 10 ? '0' + n : '' + n; };
     const t = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-    const r = await fetch('/api/contract_areas:list?pageSize=5000&filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'active' })), { headers: colAuthHeaders() });
+    const r = await fetch('/api/contract_areas:list?pageSize=5000&sort=id&filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'active' })), { headers: colAuthHeaders() });
     const j = await r.json();
     const map = {};
     ((j && j.data) || []).forEach(function(a) {
       if (!(Number(a.area_sqm) > 0)) return;
       if (a.date_from && a.date_from > t) return;
       if (a.date_to && a.date_to < t) return;
-      const m = map[a.contract_ref_id] = map[a.contract_ref_id] || { rates: {}, lines: [] };
-      m.rates[Math.round((Number(a.rent_per_sqm) || 0) * 100) / 100] = true;
-      m.lines.push(a);
+      (map[a.contract_ref_id] = map[a.contract_ref_id] || []).push(a);
+    });
+    Object.keys(map).forEach(function(cid) {
+      const lines = map[cid], seen = {}, rates = [];
+      let total = 0;
+      const rows = lines.map(function(a) {
+        const rate = Math.round((Number(a.rent_per_sqm) || 0) * 100) / 100;
+        if (!seen[rate]) { seen[rate] = true; rates.push(areaFmt(rate)); }
+        const v = Math.round((Number(a.area_sqm) || 0) * rate * 100) / 100;
+        total += v;
+        return areaFmt(a.area_sqm) + ' м² × ' + areaFmt(rate) + ' ₽ = ' + areaFmt(v) + ' ₽';
+      });
+      if (lines.length > 1) rows.push('Итого: ' + areaFmt(Math.round(total * 100) / 100) + ' ₽/мес');
+      map[cid] = { ratesText: rates.join(' + ') + ' ₽', multi: rates.length > 1, tip: rows.join('\n') };
     });
     window.__cmAreaRates = map;
   } catch (e) { /* остаёмся на прошлом состоянии */ }
   paintAreaRates();
 }
-function paintAreaRates() {
-  const col = colModels(AREA_RATE_TABLE).find(function(c) { return colName(c) === 'rent_per_sqm'; });
-  if (!col) return;
+function areaColIndex(name) {
+  const col = colModels(AREA_RATE_TABLE).find(function(c) { return colName(c) === name; });
+  if (!col) return -1;
   const title = String(colTitleOf(col)).trim();
   const ths = Array.from(document.querySelectorAll('[data-uid="' + AREA_RATE_TABLE + '"] .ant-table-thead > tr > th'));
-  const idx = ths.findIndex(function(th) { return th.textContent.trim() === title; });
-  if (idx === -1) return;
-  const fmt = function(n) { try { return Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); } catch (e) { return String(n); } };
+  return ths.findIndex(function(th) { return th.textContent.trim() === title; });
+}
+function paintAreaRates() {
+  const rateIdx = areaColIndex('rent_per_sqm'), rentIdx = areaColIndex('rent_amount');
+  if (rateIdx === -1 && rentIdx === -1) return;
   document.querySelectorAll('[data-uid="' + AREA_RATE_TABLE + '"] .ant-table-tbody > tr[data-row-key]').forEach(function(tr) {
-    const td = tr.children[idx];
-    if (!td) return;
     const m = window.__cmAreaRates[tr.getAttribute('data-row-key')];
-    const n = m ? Object.keys(m.rates).length : 0;
-    let b = td.querySelector('.cm-rates-mark');
-    if (n > 1) {
-      if (!b) { b = document.createElement('span'); b.className = 'cm-rates-mark'; b.style.cssText = 'display:inline-block;font-size:11px;color:#ad6800;background:#fff7e6;border:1px solid #ffd591;border-radius:4px;padding:0 5px;margin-left:6px;line-height:16px;'; td.appendChild(b); }
-      const txt = n + ' ставки';
-      if (b.textContent !== txt) b.textContent = txt;
-      const tip = 'Средняя ставка. По площадям:\n' + m.lines.map(function(a) { return fmt(a.area_sqm) + ' м² по ' + fmt(a.rent_per_sqm) + ' ₽'; }).join('\n');
-      if (b.title !== tip) b.title = tip;
-    } else if (b) b.remove();
+    const rateTd = rateIdx === -1 ? null : tr.children[rateIdx];
+    if (rateTd) {
+      let b = rateTd.querySelector('.cm-rates-mark');
+      if (m && m.multi) {
+        if (!b) { b = document.createElement('span'); b.className = 'cm-rates-mark'; rateTd.appendChild(b); }
+        if (b.textContent !== m.ratesText) b.textContent = m.ratesText;
+        if (b.title !== m.tip) b.title = m.tip;
+        rateTd.setAttribute('data-cm-rates', '1');
+      } else {
+        if (b) b.remove();
+        rateTd.removeAttribute('data-cm-rates');
+        if (m && rateTd.title !== m.tip) rateTd.title = m.tip;
+        if (!m && rateTd.title) rateTd.removeAttribute('title');
+      }
+    }
+    const rentTd = rentIdx === -1 ? null : tr.children[rentIdx];
+    if (rentTd) {
+      if (m) { if (rentTd.title !== m.tip) rentTd.title = m.tip; rentTd.setAttribute('data-cm-rent-tip', '1'); }
+      else if (rentTd.hasAttribute('data-cm-rent-tip')) { rentTd.removeAttribute('title'); rentTd.removeAttribute('data-cm-rent-tip'); }
+    }
   });
 }
 if (!window.__cmAreaRateTimers) {

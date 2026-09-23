@@ -938,7 +938,7 @@ function validateValue(name, val, el) {
   return '';
 }
 
-const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон' };
+const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Эл. почта' };
 function fieldLabel(name) {
   let label = FIELD_LABEL_EXTRA[name] || name;
   const scan = function(defs) { (defs || []).forEach(function(d) { (d.fields || []).forEach(function(f) { if (f.name === name) label = f.label; }); }); };
@@ -2006,7 +2006,7 @@ async function purgeContractSideData(type, id) {
 
 function renderContactsSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-contacts-section">'
-    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные контакты</div>'
+    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Контактные данные</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-contact-add-btn" style="display:none;">+ Контакт</button></div>'
     + '<div id="' + prefix + '-contacts-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-contact-form" style="display:none;">'
@@ -2023,7 +2023,7 @@ function renderContactsSection(prefix) {
 }
 
 function renderContactsList(items, canEdit) {
-  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Дополнительных контактов нет' + (canEdit ? ' — добавьте кнопкой «+ Контакт»' : '') + '</div>';
+  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Контактов нет' + (canEdit ? ' — добавьте кнопкой «+ Контакт»' : '') + '</div>';
   return items.map(function(c) {
     const lines = (c.phone ? '<a href="tel:' + escAttr(String(c.phone).replace(/[^\d+]/g, '')) + '">' + esc(formatPhoneDisplay(c.phone)) + '</a>' : '')
       + (c.email ? '<a href="mailto:' + escAttr(c.email) + '">' + esc(c.email) + '</a>' : '');
@@ -2048,13 +2048,13 @@ async function loadContacts(contractType, contractId) {
 }
 const MAIN_CONTACT = 'Основной контакт';
 const CONTACT_COLL = { active: 'rental_contracts', forming: 'forming_contracts', draft: 'draft_contracts' };
-// телефон и контактное лицо больше не вводятся в форме договора — их берём из первого контакта,
-// чтобы колонки «Телефон» / «Ф.И.О. по Договору» в реестре и поиск по ним продолжали работать
+// контактные данные (ФИО, телефон, почта) вводятся только в блоке «Контактные данные» — первый контакт
+// дублируется в поля договора, чтобы колонки «Ф.И.О. по Договору» / «Телефон» / «Эл. почта» в реестре и поиск по ним работали
 async function syncMainContact(contractType, contractId, items) {
   const coll = CONTACT_COLL[contractType];
   if (!coll) return;
   const main = items[0] || {};
-  const values = { tenant_fio: main.name || null, phone: main.phone || null };
+  const values = { tenant_fio: main.name || null, phone: main.phone || null, email: main.email || null };
   if (contractType === 'active') values.contact_person = main.name || null;
   try {
     const cur = histPayload(await ctx.api.resource(coll).get({ filterByTk: contractId }));
@@ -2479,7 +2479,6 @@ const STAGE_DEFS = [
       { name: 'director', label: 'ФИО руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
-      { name: 'email', label: 'Эл. почта', type: 'email' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
@@ -2703,7 +2702,6 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'director', label: 'ФИО руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
-      { name: 'email', label: 'Эл. почта', type: 'email' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },

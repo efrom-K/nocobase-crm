@@ -3635,18 +3635,12 @@ async function advanceDraftStage(id, root) {
   if (badAdv) { cmToast(badAdv.msg); if (badAdv.el) badAdv.el.focus(); return; }
   if (currentFormEl && currentFormEl.__cmFlush) await currentFormEl.__cmFlush();
   else await saveStage(id, stageIndex, root, 'draft_contracts');
-
-  if (stageIndex === STAGE_DEFS.length - 1) {
-    await publishDraftContract(id, root);
-    return;
-  }
-  await ctx.api.resource('draft_contracts').update({ filterByTk: id, values: { current_stage: stageIndex + 1, last_activity_at: new Date().toISOString() } });
-  await logHistory('draft', id, [{ action: 'stage', text: 'Этап «' + stage.title + '» пройден, переход на этап «' + STAGE_DEFS[stageIndex + 1].title + '»' }]);
-  closeDraftModal(true);
-  await openDraftModal(id);
+  // подтверждение этапа в черновике = публикация: договор уходит в «Формирующиеся» и продолжает со следующего этапа
+  const nextStage = Math.min(stageIndex + 1, STAGE_DEFS.length - 1);
+  await publishDraftContract(id, root, nextStage, stage.title);
 }
 
-async function publishDraftContract(id, root) {
+async function publishDraftContract(id, root, nextStage, doneStageTitle) {
   // только для «срочного» режима — обычный этапный вызывается уже после flush/валидации в advanceDraftStage
   const formEl = root && root.querySelector('.cm-stage-form[data-stage="quick"]');
   if (formEl) {
@@ -3654,14 +3648,17 @@ async function publishDraftContract(id, root) {
     if (bad) { cmToast(bad.msg); if (bad.el) bad.el.focus(); return; }
     if (formEl.__cmFlush) await formEl.__cmFlush();
   }
-  if (!(await cmConfirm('Опубликовать черновик и перевести в «Формирующиеся»?'))) return;
+  const confirmText = doneStageTitle
+    ? 'Этап «' + doneStageTitle + '» подтверждён. Перевести договор в «Формирующиеся»? Он станет виден коллегам, оформление продолжится с этапа «' + STAGE_DEFS[nextStage || 0].title + '».'
+    : 'Опубликовать черновик и перевести в «Формирующиеся»?';
+  if (!(await cmConfirm(confirmText))) return;
   const res = await ctx.api.resource('draft_contracts').get({ filterByTk: id, appends: ['contract_files'] });
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const contractNumber = f.contract_number || f.object_name || ('#' + id);
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
     object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
-    email: f.email, phone: f.phone, tenant_fio: f.tenant_fio, current_stage: 0,
+    email: f.email, phone: f.phone, tenant_fio: f.tenant_fio, current_stage: nextStage || 0,
     avito_url: f.avito_url, cian_url: f.cian_url, other_url: f.other_url, purpose: f.purpose,
     comment_stage0: f.comment_stage0, comment_stage2: f.comment_stage2, comment_stage4: f.comment_stage4,
     end_date: f.end_date, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
@@ -3698,7 +3695,7 @@ async function publishDraftContract(id, root) {
 
   await moveSide('contract_price_periods', 'draft', id, 'forming', newId);
   await moveHistory('draft', id, 'forming', newId);
-  await logHistory('forming', newId, [{ action: 'status', text: 'Опубликовано из личного черновика' }]);
+  await logHistory('forming', newId, [{ action: 'status', text: 'Опубликовано из личного черновика' + (doneStageTitle ? ': этап «' + doneStageTitle + '» подтверждён, дальше — «' + STAGE_DEFS[nextStage].title + '»' : '') }]);
 
   try {
     await ctx.api.resource('draft_contracts').destroy({ filterByTk: id });
@@ -3815,7 +3812,7 @@ async function openDraftModal(id, isQuickHint) {
       const actionsHtml = '<div class="cm-stage-actions">'
         + '<button class="cm-btn-save" id="cm-stage-save">Сохранить</button>'
         + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance">'
-        + (isLast ? 'Опубликовать → Формирующиеся' : 'Подтвердить этап и перейти дальше') + '</button>'
+        + 'Подтвердить этап → в «Формирующиеся»' + '</button>'
         + '</div>';
       const currentContent = overlay.querySelector('[data-stage-content="' + stageIndex + '"]');
       if (currentContent) currentContent.insertAdjacentHTML('beforeend', actionsHtml);
@@ -3863,7 +3860,7 @@ async function openDraftModal(id, isQuickHint) {
         const isLast = false;
         const actionsHtml = '<div class="cm-stage-actions">'
           + '<button class="cm-btn-save" id="cm-stage-save" disabled>Сохранить</button>'
-          + '<button class="cm-btn-advance" id="cm-stage-advance" disabled>Подтвердить этап и перейти дальше</button>'
+          + '<button class="cm-btn-advance" id="cm-stage-advance" disabled>Подтвердить этап → в «Формирующиеся»</button>'
           + '</div>';
         const currentContent = overlay.querySelector('[data-stage-content="0"]');
         if (currentContent) currentContent.insertAdjacentHTML('beforeend', actionsHtml);

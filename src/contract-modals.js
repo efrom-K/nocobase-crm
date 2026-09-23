@@ -1871,6 +1871,20 @@ async function lookupParty(inn) {
   window.__cmPartyCache[inn] = out;
   return out;
 }
+// самозанятый ли (плательщик НПД) — открытый сервис ФНС; лимит у них ~2 запроса в минуту, поэтому кэш по ИНН
+window.__cmNpdCache = window.__cmNpdCache || {};
+async function lookupNpd(inn) {
+  if (inn in window.__cmNpdCache) return window.__cmNpdCache[inn];
+  try {
+    const r = await fetch('https://statusnpd.nalog.ru/api/v1/tracker/taxpayer_status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inn: inn, requestDate: todayIsoLocal() })
+    });
+    if (!r.ok) return null;               // 422/429 — лимит или сбой: не кэшируем, спросим позже
+    const j = await r.json();
+    window.__cmNpdCache[inn] = !!(j && j.status);
+    return window.__cmNpdCache[inn];
+  } catch (e) { return null; }
+}
 function partyStatusBadge(p) {
   return p && p.statusText ? '<span class="cm-sched-badge" style="color:#cf1322;background:#fff2f0;border-color:#ffccc7;">⚠ ' + escRaw(p.statusText) + '</span>' : '';
 }
@@ -1915,8 +1929,14 @@ function attachInnLookup(el) {
     const my = ++seq;
     const v = String(el.value || '').replace(/\D/g, '');
     if (!/^(\d{10}|\d{12})$/.test(v) || !innValid(v)) { hint.innerHTML = ''; return; }
+    async function npdLine() {
+      const npd = await lookupNpd(v);
+      if (my !== seq || npd === null) return;
+      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход (НПД)' : 'Не самозанятый (по данным ФНС)') + '</div>');
+    }
     if (currentType() === 'Физлицо' && v.length === 12) {
       hint.style.color = '#8c8c8c'; hint.textContent = 'Частное лицо: реквизиты из реестров не подставляются — заполните паспорт и адрес регистрации';
+      npdLine();
       return;
     }
     hint.style.color = '#8c8c8c'; hint.textContent = v.length === 10 ? 'Ищу организацию по ИНН…' : 'Ищу ИП по ИНН…';
@@ -1931,6 +1951,7 @@ function attachInnLookup(el) {
         hint.innerHTML = 'ИНН физического лица: в реестре ИП не найден.' + (currentType() !== 'Физлицо' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
         const a = hint.querySelector('.cm-party-person');
         if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Физлицо' }); run(); });
+        npdLine();
       } else { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким ИНН не найдена в ЕГРЮЛ'; }
       return;
     }

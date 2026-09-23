@@ -2865,6 +2865,15 @@ function renderAddendumsSection(prefix) {
     + '<div id="' + prefix + '-addendums-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '</div>';
 }
+// скрытый <input type=file> внутри документа: отсоединённый от страницы input в части браузеров не отдаёт выбранный файл
+function pickFileInput() {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+  return inp;
+}
+
 async function wireAddendums(overlay, prefix, contractType, contractId, currentUser, opts) {
   opts = opts || {};
   const withAreas = !!opts.areas;
@@ -3059,10 +3068,10 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   function pickScan(aid) {
     const a = findItem(aid);
     if (!a) return;
-    const inp = document.createElement('input');
-    inp.type = 'file';
+    const inp = pickFileInput();
     inp.addEventListener('change', async function() {
       const f = inp.files && inp.files[0];
+      inp.remove();
       if (!f) return;
       cmToast('Загрузка скана…');
       try {
@@ -3161,9 +3170,8 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
     const dateEl = g('date');
     let file = null;
     g('pick').addEventListener('click', function() {
-      const inp = document.createElement('input');
-      inp.type = 'file';
-      inp.addEventListener('change', function() { file = inp.files && inp.files[0] || null; g('fname').textContent = file ? file.name : 'не выбран — можно прикрепить позже'; });
+      const inp = pickFileInput();
+      inp.addEventListener('change', function() { file = inp.files && inp.files[0] || null; inp.remove(); g('fname').textContent = file ? file.name : 'не выбран — можно прикрепить позже'; });
       inp.click();
     });
     g('cancel').addEventListener('click', closeForm);

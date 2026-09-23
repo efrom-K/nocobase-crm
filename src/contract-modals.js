@@ -172,7 +172,6 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-members-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .cm-member-chip { display: inline-flex; align-items: center; gap: 6px; background: #f5f5f5; border-radius: 16px; padding: 4px 8px 4px 4px; font-size: 13px; color: #262626; }
     .cm-member-avatar { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .cm-member-author { font-size: 10.5px; font-weight: 600; color: #1677ff; background: #e6f4ff; border-radius: 8px; padding: 0 6px; line-height: 16px; }
     .cm-member-remove { border: none; background: transparent; cursor: pointer; color: #999; font-size: 12px; padding: 0 2px; line-height: 1; margin-left: 2px; }
     .cm-member-remove:hover { color: #c0392b; }
     .cm-members-empty { color: #b0b0b0; font-size: 13px; }
@@ -729,20 +728,15 @@ function renderMembers(root, contractId, members, allUsers, isAdmin, contractNum
   const addBtn = root.querySelector('#cm-members-add-btn');
   const popoverList = root.querySelector('#cm-add-popover-list');
 
-  const authorId = state && state.authorId ? Number(state.authorId) : null;
   if (!members.length) {
     listEl.innerHTML = '<div class="cm-members-empty">Ответственные сотрудники ещё не назначены</div>';
   } else {
-    // автор договора — первым, с пометкой «автор», убрать его из договора нельзя
-    const sorted = members.slice().sort(function(a, b) { return (b.id === authorId) - (a.id === authorId); });
-    listEl.innerHTML = sorted.map(function(u) {
+    listEl.innerHTML = members.map(function(u) {
       const name = u.nickname || u.username || ('#' + u.id);
-      const isAuthor = u.id === authorId;
-      return '<span class="cm-member-chip" data-user-id="' + u.id + '"' + (isAuthor ? ' title="Автор договора"' : '') + '>'
+      return '<span class="cm-member-chip" data-user-id="' + u.id + '">'
         + '<span class="cm-member-avatar" style="background:' + avatarColor(u.id) + '">' + esc(initials(name)) + '</span>'
         + esc(name)
-        + (isAuthor ? '<span class="cm-member-author">автор</span>' : '')
-        + (isAdmin && !isAuthor ? '<button class="cm-member-remove" data-remove-id="' + u.id + '" title="Убрать из договора">✕</button>' : '')
+        + (isAdmin ? '<button class="cm-member-remove" data-remove-id="' + u.id + '" title="Убрать из договора">✕</button>' : '')
         + '</span>';
     }).join('');
   }
@@ -2196,7 +2190,7 @@ async function openCompletedContractModal(id) {
     const members = r.contract_members || [];
     const isMember = !!(currentUser && members.some(function(m) { return m.id === currentUser.id; }));
     const contractNumber = r.contract_number || ('#' + id);
-    const state = { members: members, authorId: r.author_id || null };
+    const state = { members: members };
 
     if (currentUser && currentUser.__isAdmin) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
@@ -2308,7 +2302,7 @@ async function openContractModal(id) {
     const members = r.contract_members || [];
     const isMember = !!(currentUser && members.some(function(m) { return m.id === currentUser.id; }));
     const contractNumber = r.contract_number || ('#' + id);
-    const state = { members: members, authorId: r.author_id || null };
+    const state = { members: members };
 
     if (currentUser && currentUser.__isAdmin) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
@@ -3375,7 +3369,7 @@ async function completeContract(id, members, contractNumber) {
     utility_invoiced: f.utility_invoiced, utility_paid: f.utility_paid, total_amount_manual: f.total_amount_manual,
     inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
-    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes, author_id: f.author_id || null
+    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
   const createRes = await ctx.api.resource('completed_contracts').create({ values: payload });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
@@ -3447,8 +3441,7 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
-    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes,
-    author_id: (fromDraft ? f.created_by_id : f.author_id) || null
+    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
   const createRes = await ctx.api.resource('rental_contracts').create({ values: payload });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
@@ -3461,9 +3454,7 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
     });
   }
   // у черновика сотрудников нет — ответственным становится его автор (чтобы получал уведомления по договору)
-  const authorId = fromDraft ? f.created_by_id : f.author_id;
-  const memberIds = fromDraft ? [] : (f.contract_members || []).map(function(x) { return x.id; });
-  if (authorId && memberIds.indexOf(authorId) === -1) memberIds.push(authorId);
+  const memberIds = fromDraft ? (f.created_by_id ? [f.created_by_id] : []) : (f.contract_members || []).map(function(x) { return x.id; });
   if (memberIds.length) {
     await fetch('/api/rental_contracts/' + newId + '/contract_members:add', {
       method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(memberIds)
@@ -3694,7 +3685,7 @@ async function publishDraftContract(id, root, nextStage, doneStageTitle) {
     total_amount: f.total_amount, inn: f.inn, bank_account: f.bank_account, bik: f.bik,
     bank_name: f.bank_name, corr_account: f.corr_account, signing_method: f.signing_method,
     actual_start_date: f.actual_start_date, contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url,
-    notes: f.notes, is_quick: f.is_quick, author_id: f.created_by_id || null, kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
+    notes: f.notes, is_quick: f.is_quick, kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
   };
   const createRes = await ctx.api.resource('forming_contracts').create({ values: payload });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
@@ -3719,13 +3710,6 @@ async function publishDraftContract(id, root, nextStage, doneStageTitle) {
     });
   } catch (e) { /* best-effort */ }
 
-  if (f.created_by_id) {
-    try {
-      await fetch('/api/forming_contracts/' + newId + '/contract_members:add', {
-        method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify([f.created_by_id])
-      });
-    } catch (e) { /* best-effort */ }
-  }
   await moveSide('contract_price_periods', 'draft', id, 'forming', newId);
   await moveHistory('draft', id, 'forming', newId);
   await logHistory('forming', newId, [{ action: 'status', text: 'Опубликовано из личного черновика' + (doneStageTitle ? ': этап «' + doneStageTitle + '» подтверждён, дальше — «' + STAGE_DEFS[nextStage].title + '»' : '') }]);
@@ -4094,7 +4078,7 @@ async function openFormingContractModal(id) {
     const members = r.contract_members || [];
     const isMember = !!(currentUser && members.some(function(m) { return m.id === currentUser.id; }));
     const contractNumber = r.contract_number || r.object_name || ('#' + id);
-    const state = { members: members, authorId: r.author_id || null };
+    const state = { members: members };
 
     if (currentUser && currentUser.__isAdmin) {
       const delBtn = overlay.querySelector('#cm-delete-btn');

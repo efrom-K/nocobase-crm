@@ -2558,14 +2558,14 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'ogrn', label: 'ОГРН / ОГРНИП', type: 'text' },
       { name: 'director', label: 'Руководитель', type: 'text' },
-      { name: 'legal_address', label: 'Юридический адрес', type: 'text', full: true },
       { name: 'phone', label: 'Телефон', type: 'tel' },
       { name: 'contact_person', label: 'Контактное лицо', type: 'text' },
       { name: 'email', label: 'Эл. почта', type: 'email' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
-      { name: 'corr_account', label: 'Корр. счёт', type: 'text', mask: 'bankaccount' }
+      { name: 'corr_account', label: 'Корр. счёт', type: 'text', mask: 'bankaccount' },
+      { name: 'legal_address', label: 'Юридический адрес', type: 'text', full: true }
   ]},
   { key: 'notes', title: 'Примечания', fields: [
       { name: 'notes', label: 'Текст примечания', type: 'textarea', full: true }

@@ -2693,7 +2693,18 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'rent_paid', label: 'Первый счёт АП оплачен', type: 'checkbox' },
       { name: 'utility_invoiced', label: 'Первый счёт ЭС выставлен', type: 'checkbox' },
       { name: 'utility_paid', label: 'Первый счёт ЭС оплачен', type: 'checkbox' }
-  ]},
+  ], readonlyRenderer: function(r) {
+      // в просмотре шесть галочек сворачиваются в одну строку «Первые счета»
+      const flags = /_(invoiced|paid)$/;
+      const fields = partyFields(ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === 'pay'; }).fields, r).filter(function(f) { return !flags.test(f.name); });
+      const st = function(k, title) {
+        const paid = r[k + '_paid'], inv = r[k + '_invoiced'];
+        const t = paid ? ['✓ оплачен', STATUS_TONES.green] : inv ? ['выставлен, ждёт оплаты', STATUS_TONES.amber] : ['не выставлен', null];
+        return '<span class="cm-pill" style="margin-right:6px;' + (t[1] ? 'background:' + t[1].bg + ';border-color:' + t[1].border + ';color:' + t[1].fg + ';' : 'background:#fafafa;border-color:#e8e8e8;color:#8c8c8c;') + '">' + title + ': ' + t[0] + '</span>';
+      };
+      return '<div class="cm-grid">' + fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('')
+        + row('Первые счета', st('deposit', 'ОП') + st('rent', 'АП') + st('utility', 'ЭС'), true) + '</div>';
+  } },
   { key: 'counterparty', title: 'Блок Контрагента', fields: [
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'inn', label: 'ИНН', type: 'text' },

@@ -424,3 +424,57 @@ if (!window.__cmNotifTimers) {
   setInterval(paintNotifRows, 600);         // строки таблицы пересоздаются при сортировке и листании — перекрашиваем
   window.addEventListener('focus', refreshNotifRows);
 }
+
+// ---------- колонка «Аренда / 1 кв.м.»: при нескольких действующих ставках (площади по доп. соглашениям) в ячейке средняя — помечаем ----------
+window.__cmAreaRates = window.__cmAreaRates || {};
+const AREA_RATE_TABLE = "ozazmpm4o4v";
+async function refreshAreaRates() {
+  try {
+    const d = new Date();
+    const p = function(n) { return n < 10 ? '0' + n : '' + n; };
+    const t = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    const r = await fetch('/api/contract_areas:list?pageSize=5000&filter=' + encodeURIComponent(JSON.stringify({ contract_type: 'active' })), { headers: colAuthHeaders() });
+    const j = await r.json();
+    const map = {};
+    ((j && j.data) || []).forEach(function(a) {
+      if (!(Number(a.area_sqm) > 0)) return;
+      if (a.date_from && a.date_from > t) return;
+      if (a.date_to && a.date_to < t) return;
+      const m = map[a.contract_ref_id] = map[a.contract_ref_id] || { rates: {}, lines: [] };
+      m.rates[Math.round((Number(a.rent_per_sqm) || 0) * 100) / 100] = true;
+      m.lines.push(a);
+    });
+    window.__cmAreaRates = map;
+  } catch (e) { /* остаёмся на прошлом состоянии */ }
+  paintAreaRates();
+}
+function paintAreaRates() {
+  const col = colModels(AREA_RATE_TABLE).find(function(c) { return colName(c) === 'rent_per_sqm'; });
+  if (!col) return;
+  const title = String(colTitleOf(col)).trim();
+  const ths = Array.from(document.querySelectorAll('[data-uid="' + AREA_RATE_TABLE + '"] .ant-table-thead > tr > th'));
+  const idx = ths.findIndex(function(th) { return th.textContent.trim() === title; });
+  if (idx === -1) return;
+  const fmt = function(n) { try { return Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); } catch (e) { return String(n); } };
+  document.querySelectorAll('[data-uid="' + AREA_RATE_TABLE + '"] .ant-table-tbody > tr[data-row-key]').forEach(function(tr) {
+    const td = tr.children[idx];
+    if (!td) return;
+    const m = window.__cmAreaRates[tr.getAttribute('data-row-key')];
+    const n = m ? Object.keys(m.rates).length : 0;
+    let b = td.querySelector('.cm-rates-mark');
+    if (n > 1) {
+      if (!b) { b = document.createElement('span'); b.className = 'cm-rates-mark'; b.style.cssText = 'display:inline-block;font-size:11px;color:#ad6800;background:#fff7e6;border:1px solid #ffd591;border-radius:4px;padding:0 5px;margin-left:6px;line-height:16px;'; td.appendChild(b); }
+      const txt = n + ' ставки';
+      if (b.textContent !== txt) b.textContent = txt;
+      const tip = 'Средняя ставка. По площадям:\n' + m.lines.map(function(a) { return fmt(a.area_sqm) + ' м² по ' + fmt(a.rent_per_sqm) + ' ₽'; }).join('\n');
+      if (b.title !== tip) b.title = tip;
+    } else if (b) b.remove();
+  });
+}
+if (!window.__cmAreaRateTimers) {
+  window.__cmAreaRateTimers = true;
+  refreshAreaRates();
+  setInterval(refreshAreaRates, 60000);
+  setInterval(paintAreaRates, 700);
+  window.addEventListener('focus', refreshAreaRates);
+}

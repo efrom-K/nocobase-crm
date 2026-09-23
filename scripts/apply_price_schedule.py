@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Подстановка цены по графику: когда у активного договора начинается новый период цены, ставка и АП меняются сами.
+"""Подстановка цены по графику и площадей по доп. соглашениям: когда у активного договора начинается новый период цены, ставка и АП меняются сами.
 
   apply_price_schedule.py              # выполнить (cron раз в сутки, например 00:10)
   apply_price_schedule.py --dry-run    # только показать, что изменилось бы
@@ -37,6 +37,51 @@ def fmt(v): return ('{:,.2f}'.format(v).replace(',', ' ').replace('.', ',')).rst
 def dmy(iso): y, m, d = iso.split('-'); return '%s.%s.%s' % (d, m, y)
 
 psql("create table if not exists contract_price_applied(contract_id bigint primary key, sig text not null, applied_at timestamptz default now())")
+psql("create table if not exists contract_area_applied(contract_id bigint primary key, sig text not null, applied_at timestamptz default now())")
+
+# ---- площади по доп. соглашениям (contract_areas): площадь, АП и средняя ставка = сумма строк, действующих на дату ----
+# Пока действует период «Графика цены аренды» (скидка), АП/ставку задаёт он — площади меняют только area_sqm.
+# sig = набор действующих строк + флаг скидки: пересчёт только когда он поменялся, ручные правки АП между сменами не затираются.
+T = TODAY.isoformat()
+area_rows = jrows("select a.contract_ref_id as cid, a.id, a.area_sqm, a.rent_per_sqm, c.contract_number, c.object_name, c.area_sqm as c_area, c.rent_per_sqm as c_rate, c.rent_amount as c_rent "
+                  "from contract_areas a join rental_contracts c on c.id=a.contract_ref_id "
+                  "where a.contract_type='active' and c.termination_date is null and coalesce(a.area_sqm,0)>0 "
+                  "and (a.date_from is null or a.date_from<=%s) and (a.date_to is null or a.date_to>=%s) order by a.id" % (q(T), q(T)))
+area_cids = {r['cid'] for r in jrows("select distinct contract_ref_id as cid from contract_areas where contract_type='active'")}
+disc_cids = {r['cid'] for r in jrows("select distinct contract_ref_id as cid from contract_price_periods where contract_type='active' and date_from<=%s and date_to>=%s" % (q(T), q(T)))}
+area_applied = {r['contract_id']: r['sig'] for r in jrows("select contract_id, sig from contract_area_applied")}
+by_c = {}
+for r in area_rows: by_c.setdefault(r['cid'], []).append(r)
+area_stmts, area_report, area_now = [], [], {}
+for cid in sorted(area_cids):
+    rows = by_c.get(cid, [])
+    disc = cid in disc_cids
+    sig = ','.join('%s:%s:%s' % (r['id'], r['area_sqm'], r['rent_per_sqm']) for r in rows) + ('|disc' if disc else '')
+    area = r2(sum(r['area_sqm'] for r in rows)); rent = r2(sum(r['area_sqm'] * (r['rent_per_sqm'] or 0) for r in rows))
+    area_now[cid] = area
+    if area_applied.get(cid) == sig: continue
+    area_stmts.append("insert into contract_area_applied(contract_id, sig) values (%s, %s) on conflict (contract_id) do update set sig=excluded.sig, applied_at=now();" % (cid, q(sig)))
+    if not rows: continue
+    c = rows[0]
+    new = {'area_sqm': area}
+    if not disc:
+        new['rent_amount'] = rent
+        new['rent_per_sqm'] = r2(rent / area) if area > 0 else None
+    cur = {'area_sqm': c['c_area'], 'rent_per_sqm': c['c_rate'], 'rent_amount': c['c_rent']}
+    changed = {k: (cur[k], v) for k, v in new.items() if v is not None and (cur[k] is None or abs(cur[k] - v) >= 0.005)}
+    if not changed: continue
+    area_report.append((cid, changed))
+    area_stmts.append("update rental_contracts set %s where id=%s;" % (', '.join('%s=%s' % (k, v[1]) for k, v in changed.items()), cid))
+    for k, (old, nv) in changed.items():
+        area_stmts.append("insert into contract_history(contract_type,contract_ref_id,author_id,action,field,old_value,new_value,created_at) values ('active',%s,NULL,'field',%s,%s,%s,now());"
+                          % (cid, q(k), q(num(old) if old is not None else ''), q(num(nv))))
+    text = 'Площади по доп. соглашениям на %s: %s м², АП %s ₽/мес (автоматически)' % (dmy(T), fmt(area), fmt(rent))
+    area_stmts.append("insert into contract_history(contract_type,contract_ref_id,author_id,action,text,created_at) values ('active',%s,NULL,'area',%s,now());" % (cid, q(text)))
+print('%s (дата %s): договоров с изменением площадей — %d' % ('DRY-RUN' if DRY else 'ПЛОЩАДИ', T, len(area_report)))
+for cid, ch in area_report:
+    print('  договор #%s: %s' % (cid, ', '.join('%s %s → %s' % (k, num(v[0]) if v[0] is not None else '—', num(v[1])) for k, v in ch.items())))
+if area_stmts and not DRY:
+    psql('begin;\n' + '\n'.join(area_stmts) + '\ncommit;\n')
 contracts = jrows("select id, contract_number, object_name, tenant_name, area_sqm, rent_per_sqm, rent_amount from rental_contracts "
                   "where termination_date is null and id in (select contract_ref_id from contract_price_periods where contract_type='active')")
 periods = {}
@@ -55,7 +100,7 @@ for c in contracts:
     sig = '%s|%s|%s|%s' % (p['id'], p['amount'], p['basis'], p['unit'])
     if applied.get(c['id']) == sig: continue
     monthly = float(p['amount']) * FACTOR.get(p['unit'] or 'month', 1)
-    area = c['area_sqm'] or 0
+    area = area_now.get(c['id'], c['area_sqm']) or 0
     new = {}
     if p['basis'] == 'per_sqm':
         new['rent_per_sqm'] = r2(monthly)

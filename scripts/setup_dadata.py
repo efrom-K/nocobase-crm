@@ -21,7 +21,7 @@ def call(path, body=None):
     except urllib.error.HTTPError as e:
         return {'error': e.code, 'body': e.read().decode()[:300]}
 
-FIELDS = [('kpp', 'КПП'), ('ogrn', 'ОГРН / ОГРНИП'), ('legal_address', 'Юридический адрес'), ('director', 'Руководитель'),
+FIELDS = [('kpp', 'КПП'), ('ogrn', 'ОГРН / ОГРНИП'), ('legal_address', 'Юридический адрес'), ('director', 'Руководитель: ФИО'), ('director_post', 'Руководитель: должность'),
           ('tenant_type', 'Тип арендатора'),              # Юрлицо / ИП / Физлицо — от него зависит набор реквизитов
           ('passport', 'Паспорт: серия и номер'), ('passport_issued', 'Паспорт: кем и когда выдан')]
 for coll in ('draft_contracts', 'forming_contracts', 'rental_contracts', 'completed_contracts'):

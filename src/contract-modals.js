@@ -938,8 +938,9 @@ function validateValue(name, val, el) {
   return '';
 }
 
+const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон' };
 function fieldLabel(name) {
-  let label = name;
+  let label = FIELD_LABEL_EXTRA[name] || name;
   const scan = function(defs) { (defs || []).forEach(function(d) { (d.fields || []).forEach(function(f) { if (f.name === name) label = f.label; }); }); };
   try { scan(STAGE_DEFS); scan(ACTIVE_BLOCK_DEFS); } catch (e) { /* ignore */ }
   return label;
@@ -1860,13 +1861,14 @@ async function lookupParty(inn) {
     const d = sug.data || {};
     const st = (d.state && d.state.status) || '';
     const liq = d.state && d.state.liquidation_date ? fromISODateDisplay(dateToIso(new Date(d.state.liquidation_date))) : '';
-    const mgmt = d.management && d.management.name ? (d.management.post ? d.management.post.charAt(0) + d.management.post.slice(1).toLowerCase() + ' ' : '') + d.management.name : '';
+    const mgmtName = (d.management && d.management.name) || '';
+    const mgmtPost = d.management && d.management.post ? d.management.post.charAt(0) + d.management.post.slice(1).toLowerCase() : '';
     out = { found: true, name: sug.value, status: st, statusText: PARTY_STATUS[st] ? PARTY_STATUS[st] + (st === 'LIQUIDATED' && liq ? ' ' + liq : '') : '',
       values: d.type === 'INDIVIDUAL'
         ? { tenant_type: 'ИП', tenant_name: sug.value || '', ogrn: d.ogrn || '',
             legal_address: (d.address && (d.address.unrestricted_value || d.address.value)) || '' }
         : { tenant_type: 'Юрлицо', tenant_name: (d.name && d.name.short_with_opf) || sug.value || '', kpp: d.kpp || '', ogrn: d.ogrn || '',
-            legal_address: (d.address && (d.address.unrestricted_value || d.address.value)) || '', director: mgmt } };
+            legal_address: (d.address && (d.address.unrestricted_value || d.address.value)) || '', director_post: mgmtPost, director: mgmtName } };
   }
   window.__cmPartyCache[inn] = out;
   return out;
@@ -1965,7 +1967,7 @@ function attachInnLookup(el) {
     });
     hint.style.color = '#389e0d';
     hint.innerHTML = '✓ ' + escRaw(p.name) + partyStatusBadge(p)
-      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'ОГРНИП ' : 'ОГРН ') + val.ogrn, val.legal_address, val.director].filter(Boolean).join(' · ')) + '</div>'
+      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'ОГРНИП ' : 'ОГРН ') + val.ogrn, val.legal_address, [val.director_post, val.director].filter(Boolean).join(' ')].filter(Boolean).join(' · ')) + '</div>'
       + (differs ? link('Подставить реквизиты', 'cm-party-apply') : '');
     const a = hint.querySelector('.cm-party-apply');
     if (a) a.addEventListener('click', async function(e) {
@@ -2040,7 +2042,25 @@ async function loadContacts(contractType, contractId) {
     filter: { contract_type: contractType, contract_ref_id: contractId }, sort: ['id'], pageSize: 200
   });
   const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
-  return Array.isArray(payload) ? payload : [];
+  const list = Array.isArray(payload) ? payload : [];
+  // «Основной контакт» — первым
+  return list.filter(function(c) { return c.position === MAIN_CONTACT; }).concat(list.filter(function(c) { return c.position !== MAIN_CONTACT; }));
+}
+const MAIN_CONTACT = 'Основной контакт';
+const CONTACT_COLL = { active: 'rental_contracts', forming: 'forming_contracts', draft: 'draft_contracts' };
+// телефон и контактное лицо больше не вводятся в форме договора — их берём из первого контакта,
+// чтобы колонки «Телефон» / «Ф.И.О. по Договору» в реестре и поиск по ним продолжали работать
+async function syncMainContact(contractType, contractId, items) {
+  const coll = CONTACT_COLL[contractType];
+  if (!coll) return;
+  const main = items[0] || {};
+  const values = { tenant_fio: main.name || null, phone: main.phone || null };
+  if (contractType === 'active') values.contact_person = main.name || null;
+  try {
+    const cur = histPayload(await ctx.api.resource(coll).get({ filterByTk: contractId }));
+    Object.keys(values).forEach(function(k) { if ((cur && (cur[k] || null)) === values[k]) delete values[k]; });
+    if (Object.keys(values).length) await updateWithHistory(coll, contractId, values);
+  } catch (e) { /* best-effort */ }
 }
 
 async function wireContacts(overlay, prefix, contractType, contractId, canEdit) {
@@ -2058,9 +2078,10 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
   let items = [];
   let editId = null;
 
-  async function refresh() {
+  async function refresh(changed) {
     try { items = await loadContacts(contractType, contractId); }
     catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить контакты</span>'; return; }
+    if (changed) syncMainContact(contractType, contractId, items);
     listEl.innerHTML = renderContactsList(items, canEdit);
     if (!canEdit) return;
     listEl.querySelectorAll('[data-contact-edit]').forEach(function(a) {
@@ -2074,7 +2095,7 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
         const c = items.find(function(x) { return String(x.id) === a.getAttribute('data-contact-del'); });
         if (!c) return;
         if (!(await cmConfirm('Удалить контакт «' + (c.name || c.phone || c.email || 'без имени') + '»?'))) return;
-        try { await ctx.api.resource('contract_contacts').destroy({ filterByTk: c.id }); logHistory(contractType, contractId, [{ action: 'contact', text: 'Удалён контакт: ' + contactSummary(c) }]); await refresh(); }
+        try { await ctx.api.resource('contract_contacts').destroy({ filterByTk: c.id }); logHistory(contractType, contractId, [{ action: 'contact', text: 'Удалён контакт: ' + contactSummary(c) }]); await refresh(true); }
         catch (e) { cmToast('Не удалось удалить контакт'); }
       });
     });
@@ -2116,7 +2137,7 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
       else await ctx.api.resource('contract_contacts').create({ values: values });
       logHistory(contractType, contractId, [{ action: 'contact', text: (editId ? 'Изменён контакт: ' : 'Добавлен контакт: ') + contactSummary(values) }]);
       closeForm();
-      await refresh();
+      await refresh(true);
     } catch (e) {
       cmToast('Не удалось сохранить контакт');
       statusEl.textContent = '';
@@ -2377,6 +2398,7 @@ const TENANT_TYPES = ['Юрлицо', 'ИП', 'Физлицо'];
 const TENANT_FIELD_RULES = {
   kpp: { show: ['Юрлицо'] },
   director: { show: ['Юрлицо'] },
+  director_post: { show: ['Юрлицо'] },
   ogrn: { show: ['Юрлицо', 'ИП'], label: { 'ИП': 'ОГРНИП' } },
   legal_address: { label: { 'ИП': 'Адрес регистрации', 'Физлицо': 'Адрес регистрации' } },
   passport: { show: ['Физлицо'] },
@@ -2453,12 +2475,11 @@ const STAGE_DEFS = [
       { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'ogrn', label: 'ОГРН', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text' },
-      { name: 'director', label: 'Руководитель', type: 'text' },
+      { name: 'director_post', label: 'Должность руководителя', type: 'text' },
+      { name: 'director', label: 'ФИО руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
-      { name: 'tenant_fio', label: 'Контактное лицо', type: 'text' },
       { name: 'email', label: 'Эл. почта', type: 'email' },
-      { name: 'phone', label: 'Телефон', type: 'tel' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
@@ -2678,11 +2699,10 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'inn', label: 'ИНН', type: 'text' },
       { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'ogrn', label: 'ОГРН', type: 'text' },
-      { name: 'director', label: 'Руководитель', type: 'text' },
+      { name: 'director_post', label: 'Должность руководителя', type: 'text' },
+      { name: 'director', label: 'ФИО руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
-      { name: 'phone', label: 'Телефон', type: 'tel' },
-      { name: 'contact_person', label: 'Контактное лицо', type: 'text' },
       { name: 'email', label: 'Эл. почта', type: 'email' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
@@ -3329,7 +3349,7 @@ async function completeContract(id, members, contractNumber) {
     rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
-    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
+    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
   const createRes = await ctx.api.resource('completed_contracts').create({ values: payload });
@@ -3397,7 +3417,7 @@ async function finalizeContract(id, members, contractNumber) {
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
-    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
+    kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
   const createRes = await ctx.api.resource('rental_contracts').create({ values: payload });
@@ -3630,7 +3650,7 @@ async function publishDraftContract(id, root) {
     total_amount: f.total_amount, inn: f.inn, bank_account: f.bank_account, bik: f.bik,
     bank_name: f.bank_name, corr_account: f.corr_account, signing_method: f.signing_method,
     actual_start_date: f.actual_start_date, contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url,
-    notes: f.notes, is_quick: f.is_quick, kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
+    notes: f.notes, is_quick: f.is_quick, kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
   };
   const createRes = await ctx.api.resource('forming_contracts').create({ values: payload });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;

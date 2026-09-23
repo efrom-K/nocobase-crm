@@ -938,7 +938,7 @@ function validateValue(name, val, el) {
   return '';
 }
 
-const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Эл. почта' };
+const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Эл. почта', rent_per_sqm: 'Аренда за 1 кв.м. (текущая)', rent_amount: 'АП (текущая)' };
 function fieldLabel(name) {
   let label = FIELD_LABEL_EXTRA[name] || name;
   const scan = function(defs) { (defs || []).forEach(function(d) { (d.fields || []).forEach(function(f) { if (f.name === name) label = f.label; }); }); };
@@ -1057,7 +1057,7 @@ function linkifyText(v) {
 
 // ---------- история изменений ----------
 const HIST_TYPE_BY_COLL = { rental_contracts: 'active', forming_contracts: 'forming', completed_contracts: 'completed', draft_contracts: 'draft' };
-const HIST_SKIP = { current_stage: 1, id: 1, last_activity_at: 1, base_rent_per_sqm: 1, base_rent_amount: 1 };
+const HIST_SKIP = { current_stage: 1, id: 1, last_activity_at: 1, total_amount_manual: 1 };
 function histPayload(res) {
   const p = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   return p;
@@ -1300,9 +1300,33 @@ function wireDerivedHints(root) {
         refresh();
       });
     });
+    // ОП: подсказка «= 1 месяц АП»
+    const depEl = root.querySelector('[data-field="deposit_amount"]');
+    const rentMonth = valueOf('base_rent_amount') !== null ? valueOf('base_rent_amount') : valueOf('rent_amount');
+    if (depEl && depEl.parentNode) {
+      let h = depEl.parentNode.querySelector('.cm-derived-hint');
+      if (!h) { h = document.createElement('div'); h.className = 'cm-derived-hint'; depEl.parentNode.appendChild(h); }
+      if (rentMonth > 0 && numOf(depEl.value) !== rentMonth) {
+        h.innerHTML = '1 месяц АП = <a href="#">' + escRaw(formatNum(rentMonth)) + '</a> — подставить';
+        h.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); depEl.value = String(rentMonth).replace('.', ','); fireInput(depEl); refresh(); });
+      } else h.textContent = '';
+    }
+    // Сумма договора: подсказка «по расчёту за срок»
+    const totEl = root.querySelector('[data-field="total_amount"]');
+    if (totEl && totEl.parentNode && root.__cmTermTotal) {
+      let h = totEl.parentNode.querySelector('.cm-derived-hint');
+      if (!h) { h = document.createElement('div'); h.className = 'cm-derived-hint'; totEl.parentNode.appendChild(h); }
+      let tt = null;
+      try { tt = root.__cmTermTotal(); } catch (e) { tt = null; }
+      if (tt && !tt.error && numOf(totEl.value) !== tt.total) {
+        h.innerHTML = 'По расчёту за срок: <a href="#">' + escRaw(formatNum(tt.total)) + '</a> — подставить';
+        h.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); totEl.value = String(tt.total).replace('.', ','); fireInput(totEl); refresh(); });
+      } else h.textContent = (tt && tt.error) ? '' : '';
+    }
   }
   root.addEventListener('input', refresh);
   refresh();
+  root.__cmRefreshDerivedHints = refresh;
 }
 
 async function moveSide(collection, fromType, fromId, toType, toId) {
@@ -1392,7 +1416,7 @@ function renderPricesSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">График цены аренды</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;">+ Период</button></div>'
-    + '<div class="cm-price-hint">Цена может меняться со временем: на весь срок действует основная цена, а на отдельные даты можно задать другую (например, скидку на несколько месяцев). Цена в договоре переключается сама, сотрудникам договора приходит уведомление. Цена периода — фиксированная сумма в месяц или за 1 кв.м. в месяц.</div>'
+    + '<div class="cm-price-hint">Цена может меняться со временем: на весь срок действует основная цена (блок «Цена и платежи»), а на отдельные даты можно задать другую (например, скидку на несколько месяцев). Цена в договоре переключается сама, сотрудникам договора приходит уведомление. Цена периода — фиксированная сумма в месяц или за 1 кв.м. в месяц.</div>'
     + '<div id="' + prefix + '-price-base" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
@@ -1410,7 +1434,6 @@ function renderPricesSection(prefix) {
     + '<span id="' + prefix + '-price-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
     + '</div>'
     + '<div id="' + prefix + '-price-actions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">'
-    + '<button class="cm-btn-save" id="' + prefix + '-price-calc">Рассчитать «Сумму договора» за срок</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-price-today">Пересчитать цену на сегодня</button></div>'
     + '</div>';
 }
@@ -1483,58 +1506,15 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     summaryEl.innerHTML = lines.join('<br>');
     summaryEl.style.display = show && lines.length ? 'block' : 'none';
     actionsEl.style.display = canEdit && items.length ? 'flex' : 'none';
-    if (type === 'active' && r) {
-      r.__schedNow = nowP;
+    if ((type === 'active' || type === 'completed') && r) {
+      r.__schedNow = type === 'active' ? nowP : null;
+      const tt = termTotal();
+      r.__cmCalcTotal = tt.error ? null : tt.total;
       renderAllActiveReadonly(overlay, r);
-      ['rent_per_sqm', 'rent_amount'].forEach(function(n) {
-        const el = overlay.querySelector('[data-active-form] [data-field="' + n + '"]');
-        if (!el) return;
-        el.readOnly = !!nowP;
-        el.style.background = nowP ? '#f5f5f5' : '';
-        el.title = nowP ? 'Сейчас действует цена по графику — основную цену меняйте в «График цены аренды»' : '';
-      });
     }
   }
-  // основная цена (на весь срок) — только у активного договора
-  function renderBase() {
-    const el = q('-price-base');
-    if (!el || type !== 'active' || !r) return;
-    el.style.display = '';
-    el.innerHTML = '<div class="cm-price-base"><span>Основная цена на весь срок: <b>' + escRaw(basePriceLabel(r)) + '</b></span>'
-      + (canEdit ? '<button class="cm-stage-edit-toggle" data-base-edit>✎ Изменить</button>' : '') + '</div>'
-      + '<div class="cm-price-form" data-base-form style="display:none;"><div class="cm-price-form-grid">'
-      + '<div><label>Ставка за 1 кв.м. в месяц, ₽</label><input type="text" class="cm-field-input" data-base="per" inputmode="decimal" value="' + escAttr(r.base_rent_per_sqm === null || r.base_rent_per_sqm === undefined ? '' : String(r.base_rent_per_sqm).replace('.', ',')) + '"></div>'
-      + '<div><label>Арендная плата (АП) в месяц, ₽</label><input type="text" class="cm-field-input" data-base="amt" inputmode="decimal" value="' + escAttr(r.base_rent_amount === null || r.base_rent_amount === undefined ? '' : String(r.base_rent_amount).replace('.', ',')) + '"></div>'
-      + '</div><div class="cm-derived-hint" data-base-hint></div>'
-      + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-base-save>Сохранить</button><button class="cm-btn-save" data-base-cancel>Отмена</button></div></div>';
-    if (!canEdit) return;
-    const form = el.querySelector('[data-base-form]'), perEl = el.querySelector('[data-base="per"]'), amtEl = el.querySelector('[data-base="amt"]'), hint = el.querySelector('[data-base-hint]');
-    function refreshHint() {
-      const per = numOf(perEl.value), area = numOf(recVal('area_sqm'));
-      if (!(per > 0 && area > 0)) { hint.textContent = ''; return; }
-      const exp = round2(per * area);
-      if (numOf(amtEl.value) === exp) { hint.textContent = ''; return; }
-      hint.innerHTML = 'По ставке ' + escRaw(formatNum(per)) + ' × ' + escRaw(formatNum(area)) + ' м² = <a href="#">' + escRaw(formatNum(exp)) + '</a> — подставить';
-      hint.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); amtEl.value = String(exp).replace('.', ','); refreshHint(); });
-    }
-    [perEl, amtEl].forEach(function(x) { x.addEventListener('input', function() { sanitizeInput(x, 'money'); refreshHint(); }); });
-    el.querySelector('[data-base-edit]').addEventListener('click', function() { form.style.display = form.style.display === 'none' ? 'block' : 'none'; refreshHint(); });
-    el.querySelector('[data-base-cancel]').addEventListener('click', function() { renderBase(); });
-    el.querySelector('[data-base-save]').addEventListener('click', async function() {
-      const per = numOf(perEl.value), amt = numOf(amtEl.value);
-      if (per === null && amt === null) { cmToast('Укажите ставку или АП'); return; }
-      const before = basePriceLabel(r);
-      const values = { base_rent_per_sqm: per, base_rent_amount: amt };
-      try {
-        await ctx.api.resource('rental_contracts').update({ filterByTk: id, values: values });
-        Object.assign(r, values);
-        logHistory(type, id, [{ action: 'price', text: 'Основная цена изменена: ' + before + ' → ' + basePriceLabel(r) }]);
-        renderBase();
-        await applySchedule(false);
-        renderSummary();
-      } catch (e) { cmToast('Не удалось сохранить основную цену'); }
-    });
-  }
+  function renderBase() { /* основная цена теперь в блоке «Цена и платежи» */ }
+
   function renderList() {
     const c = ctxInfo();
     if (!items.length) { listEl.innerHTML = '<div style="color:#bbb;font-size:12px;">Периодов пока нет' + (canEdit ? ' — добавьте кнопкой «+ Период»' : '') + '</div>'; return; }
@@ -1565,6 +1545,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
           logHistory(type, id, [{ action: 'price', text: 'Удалён период цены ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + ': ' + priceLabel(p) }]);
           await refresh();
           await applySchedule(false);
+          await autoTotal();
         } catch (e) { cmToast('Не удалось удалить период'); }
       });
     });
@@ -1574,9 +1555,21 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить график цены</span>'; return; }
     renderList(); renderSummary();
   }
+  // «Сумма договора» считается сама (основная цена × срок + периоды графика), пока её не ввели вручную
+  async function autoTotal() {
+    if (type !== 'active' || !r || r.total_amount_manual) return;
+    const tt = termTotal();
+    if (tt.error) return;
+    const cur = numOf(r.total_amount);
+    if (cur !== null && Math.abs(cur - tt.total) < 0.005) return;
+    try { await updateWithHistory(coll, id, { total_amount: tt.total }, { schedule: true }); r.total_amount = tt.total; renderSummary(); }
+    catch (e) { /* пересчитается при следующем открытии */ }
+  }
+  overlay.__cmTermTotal = termTotal;
+  overlay.__cmAfterPriceChange = async function() { await applySchedule(false); await autoTotal(); renderSummary(); };
   renderBase();
   await refresh();
-  if (type === 'active') await applySchedule(false);   // карточку открыли в день смены периода раньше ночного скрипта
+  if (type === 'active') { await applySchedule(false); await autoTotal(); }   // карточку открыли в день смены периода раньше ночного скрипта
   // сумма/ставка/даты могут меняться в других блоках — пересчитываем итоги
   overlay.addEventListener('input', function(e) { if (items.length && !(e.target && e.target.closest && e.target.closest('[data-base-form]'))) { renderList(); renderSummary(); } });
   if (!canEdit || !addBtn) return;
@@ -1627,6 +1620,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       closeForm();
       await refresh();
       await applySchedule(false);
+      await autoTotal();
     } catch (e) { cmToast('Не удалось сохранить период'); statusEl.textContent = ''; }
     finally { saveBtn.disabled = false; }
   });
@@ -1639,14 +1633,6 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     if (type === 'active' && r) renderAllActiveReadonly(overlay, r);
     return all;
   }
-  q('-price-calc').addEventListener('click', async function() {
-    const tt = termTotal();
-    if (tt.error) { cmToast('Сумма за срок не считается: ' + tt.error); return; }
-    try {
-      await applyToContract({ total_amount: tt.total });
-      cmToast('Сумма договора: ' + formatNum(tt.total) + ' ₽');
-    } catch (e) { cmToast('Не удалось записать сумму договора'); }
-  });
   // Текущая цена договора = период графика на сегодня, иначе основная цена (та же логика, что у ночного scripts/apply_price_schedule.py).
   // При смене — запись в историю и уведомление сотрудникам договора (кроме того, кто сменил).
   async function applySchedule(explicit) {
@@ -2489,14 +2475,14 @@ const STAGE_DEFS = [
   { title: 'Оплата счетов', role: 'legal_dept', fields: [
       { name: 'total_amount', label: 'Сумма договора', type: 'money' },
       { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'text' },
-      { name: 'deposit_invoiced', label: 'Счёт ОП выставлен', type: 'checkbox' },
-      { name: 'deposit_paid', label: 'Счёт ОП оплачен', type: 'checkbox' },
+      { name: 'deposit_invoiced', label: 'Первый счёт ОП выставлен', type: 'checkbox' },
+      { name: 'deposit_paid', label: 'Первый счёт ОП оплачен', type: 'checkbox' },
       { name: 'rent_amount', label: 'Арендная плата (АП)', type: 'text' },
-      { name: 'rent_invoiced', label: 'Счёт АП выставлен', type: 'checkbox' },
-      { name: 'rent_paid', label: 'Счёт АП оплачен', type: 'checkbox' },
+      { name: 'rent_invoiced', label: 'Первый счёт АП выставлен', type: 'checkbox' },
+      { name: 'rent_paid', label: 'Первый счёт АП оплачен', type: 'checkbox' },
       { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС)', type: 'text' },
-      { name: 'utility_invoiced', label: 'Счёт ЭС выставлен', type: 'checkbox' },
-      { name: 'utility_paid', label: 'Счёт ЭС оплачен', type: 'checkbox' },
+      { name: 'utility_invoiced', label: 'Первый счёт ЭС выставлен', type: 'checkbox' },
+      { name: 'utility_paid', label: 'Первый счёт ЭС оплачен', type: 'checkbox' },
       { name: 'comment_stage4', label: 'Комментарий по счетам', type: 'textarea' }
   ]},
   { title: 'Финал (Акт и Скан)', role: 'legal_dept', fields: [
@@ -2519,8 +2505,16 @@ function readonlyFieldValue(f, r) {
   if (f.type === 'checkbox') return v ? 'Да' : 'Нет';
   if (f.name === 'end_date' && r.__kind === 'active') return esc(fromISODateDisplay(v)) + expiryBadge(v, r.termination_date);
   if (f.type === 'date') return esc(fromISODateDisplay(v));
-  if ((f.name === 'rent_amount' || f.name === 'rent_per_sqm') && r.__schedNow) {
-    return (v === null || v === undefined || v === '' ? '—' : money(v)) + '<span class="cm-sched-badge" title="Основная цена: ' + escAttr(basePriceLabel(r)) + '">по графику до ' + esc(fmtDate(r.__schedNow.date_to)) + '</span>';
+  if ((f.name === 'base_rent_amount' || f.name === 'base_rent_per_sqm') && r.__schedNow) {
+    const cur = f.name === 'base_rent_amount' ? r.rent_amount : r.rent_per_sqm;
+    return (v === null || v === undefined || v === '' ? '—' : money(v))
+      + '<span class="cm-sched-badge">сейчас по графику: ' + (cur === null || cur === undefined ? '—' : escRaw(formatNum(cur)) + ' ₽') + ' до ' + esc(fmtDate(r.__schedNow.date_to)) + '</span>';
+  }
+  if (f.name === 'total_amount' && r.__cmCalcTotal !== undefined && r.__cmCalcTotal !== null) {
+    const calc = r.__cmCalcTotal;
+    if (r.total_amount_manual && numOf(v) !== null && Math.abs(numOf(v) - calc) > 0.004)
+      return money(v) + '<span class="cm-sched-badge" title="Чтобы вернуть расчёт, очистите поле при редактировании">введена вручную · по расчёту ' + escRaw(formatNum(calc)) + ' ₽</span>';
+    return money(v) + '<span class="cm-sched-badge" style="color:#8c8c8c;background:#fafafa;border-color:#e8e8e8;" title="Основная цена × срок + периоды «Графика цены аренды»">рассчитана</span>';
   }
   if (f.name === 'inn' && v) return '<span data-inn-ro="' + escAttr(String(v).replace(/\D/g, '')) + '">' + esc(v) + '</span>';
   if (f.type === 'money') return money(v);
@@ -2683,15 +2677,22 @@ const ACTIVE_BLOCK_DEFS = [
   { key: 'room', title: 'Блок Характеристик помещения', fields: [
       { name: 'rooms_list', label: 'Список комнат', type: 'textarea', full: true },
       { name: 'room_ids', label: 'ID комнат', type: 'text' },
-      { name: 'area_sqm', label: 'Площадь, кв.м.', type: 'text' },
-      { name: 'rent_per_sqm', label: 'Аренда / 1 кв.м.', type: 'money' },
-      { name: 'utility_per_sqm', label: 'Э.С. / 1 кв.м.', type: 'money' }
+      { name: 'area_sqm', label: 'Площадь, кв.м.', type: 'text' }
   ]},
-  { key: 'pay', title: 'Блок Расчётов оплат', fields: [
-      { name: 'total_amount', label: 'Сумма договора', type: 'money' },
+  // основная цена (на весь срок) — base_*; текущая цена договора (rent_*) считается по «Графику цены аренды»
+  { key: 'pay', title: 'Цена и платежи', fields: [
+      { name: 'base_rent_per_sqm', label: 'Аренда за 1 кв.м. в месяц', type: 'money' },
+      { name: 'base_rent_amount', label: 'Арендная плата (АП) в месяц', type: 'money' },
+      { name: 'utility_per_sqm', label: 'Э.С. за 1 кв.м. в месяц', type: 'money' },
+      { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС) в месяц', type: 'money' },
       { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'money' },
-      { name: 'rent_amount', label: 'Арендная плата (АП)', type: 'money' },
-      { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС)', type: 'money' }
+      { name: 'total_amount', label: 'Сумма договора', type: 'money' },
+      { name: 'deposit_invoiced', label: 'Первый счёт ОП выставлен', type: 'checkbox' },
+      { name: 'deposit_paid', label: 'Первый счёт ОП оплачен', type: 'checkbox' },
+      { name: 'rent_invoiced', label: 'Первый счёт АП выставлен', type: 'checkbox' },
+      { name: 'rent_paid', label: 'Первый счёт АП оплачен', type: 'checkbox' },
+      { name: 'utility_invoiced', label: 'Первый счёт ЭС выставлен', type: 'checkbox' },
+      { name: 'utility_paid', label: 'Первый счёт ЭС оплачен', type: 'checkbox' }
   ]},
   { key: 'counterparty', title: 'Блок Контрагента', fields: [
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
@@ -2831,8 +2832,15 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       btn.disabled = true;
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
+        if (hasKey(values, 'total_amount')) {
+          // ввели свою сумму — дальше она не пересчитывается; очистили поле — снова считается сама
+          const nv = numOf(values.total_amount), ov = numOf(r.total_amount);
+          if (nv === null) values.total_amount_manual = false;
+          else if (ov === null || Math.abs(nv - ov) >= 0.005) values.total_amount_manual = true;
+        }
         const upResp = await updateWithHistory('rental_contracts', id, values);
         Object.assign(r, values, (upResp && upResp.__cmDerived) || {});
+        if (root.__cmAfterPriceChange) await root.__cmAfterPriceChange();
         renderAllActiveReadonly(root, r);
         readonly.innerHTML = block.readonlyRenderer
           ? block.readonlyRenderer(r)
@@ -3346,6 +3354,8 @@ async function completeContract(id, members, contractNumber) {
     rooms_list: f.rooms_list, room_ids: f.room_ids,
     rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
+    deposit_invoiced: f.deposit_invoiced, deposit_paid: f.deposit_paid, rent_invoiced: f.rent_invoiced, rent_paid: f.rent_paid,
+    utility_invoiced: f.utility_invoiced, utility_paid: f.utility_paid, total_amount_manual: f.total_amount_manual,
     inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
@@ -3413,6 +3423,8 @@ async function finalizeContract(id, members, contractNumber) {
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
     end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount,
+    deposit_invoiced: f.deposit_invoiced, deposit_paid: f.deposit_paid, rent_invoiced: f.rent_invoiced, rent_paid: f.rent_paid,
+    utility_invoiced: f.utility_invoiced, utility_paid: f.utility_paid, total_amount_manual: f.total_amount !== null && f.total_amount !== undefined,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,

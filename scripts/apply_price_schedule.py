@@ -66,10 +66,12 @@ def target(c, iso):
     if p:
         amt = float(p['amount'])
         new = ({'rent_per_sqm': amt, 'rent_amount': r2(amt * area)} if area > 0 else {'rent_per_sqm': amt}) if p['basis'] == 'per_sqm' else {'rent_amount': amt, 'rent_per_sqm': None}
-        return 'p:%s|%s|%s|%s' % (p['id'], p['amount'], p['basis'], area), new, 'Цена по графику: %s (период %s — %s)' % (label_of(p), dmy(p['date_from']), dmy(p['date_to']))
+        return ('p:%s|%s|%s|%s' % (p['id'], p['amount'], p['basis'], area), new, 'Цена по графику: %s (период %s — %s)' % (label_of(p), dmy(p['date_from']), dmy(p['date_to'])),
+                'по графику %s%s, период %s — %s' % (label_of(p), (' (АП %s ₽)' % fmt(new['rent_amount'])) if p['basis'] == 'per_sqm' and 'rent_amount' in new else '', dmy(p['date_from']), dmy(p['date_to'])))
     if c['base_rent_per_sqm'] is None and c['base_rent_amount'] is None: return None
     return ('base:%s|%s' % (c['base_rent_per_sqm'], c['base_rent_amount']), {'rent_per_sqm': c['base_rent_per_sqm'], 'rent_amount': c['base_rent_amount']},
-            'Период графика закончился — действует основная цена: %s' % base_label(c))
+            'Период графика закончился — действует основная цена: %s' % base_label(c),
+            'период графика закончится, вернётся основная цена: %s' % base_label(c))
 def notify(stmts, c, text):
     title = 'Договор ' + (c['contract_number'] or c['object_name'] or '#%s' % c['id'])
     opts = json.dumps({'url': '/admin/%s?open=active:%s' % (REGISTRY_PAGE, c['id'])})
@@ -97,7 +99,7 @@ if WARN:
                 key = (c['id'], d.isoformat(), cur[0])
                 if key not in warned:
                     when = 'завтра' if d == TODAY + timedelta(days=1) else ['в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу', 'в воскресенье'][d.weekday()]
-                    text = 'Скоро сменится цена: %s, %s, будет %s. %s' % (when, dmy(d.isoformat()), money_vals(cur[1]), cur[2])
+                    text = 'Скоро сменится цена: %s, %s — %s' % (when, dmy(d.isoformat()), cur[3])
                     report.append((c['id'], text, {}))
                     stmts.append("insert into contract_price_warned(contract_id, change_date, sig) values (%s, %s, %s) on conflict do nothing;" % (c['id'], q(d.isoformat()), q(cur[0])))
                     notify(stmts, c, text)
@@ -111,7 +113,7 @@ if WARN:
 for c in contracts:
     t = target(c, T)
     if not t: continue
-    sig, new, text = t
+    sig, new, text, _ = t
     if applied.get(c['id']) == sig: continue
     changed = {k: (c[k], v) for k, v in new.items()
                if (v is None and c[k] is not None) or (v is not None and (c[k] is None or abs(c[k] - v) >= 0.005))}

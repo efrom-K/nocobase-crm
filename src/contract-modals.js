@@ -1449,9 +1449,9 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       if (!pa || !pb || pb.getTime() < c.start.getTime() || pa.getTime() > c.end.getTime()) continue;
       const from = pa.getTime() < c.start.getTime() ? c.start : pa, to = pb.getTime() > c.end.getTime() ? c.end : pb;
       if (from.getTime() > cur.getTime()) { baseDays = true; if (base !== null) total += base * unitsInPeriod(cur, addDays(from, -1), 'month'); }
-      const v = periodCost(Object.assign({}, sorted[i], { date_from: dateToIso(from), date_to: dateToIso(to) }), c.area);
-      if (v === null) return { error: 'не хватает площади для периодов «за 1 кв.м.»' };
-      total += v;
+      // без промежуточных округлений — округляем один раз, в конце
+      if (sorted[i].basis === 'per_sqm' && !(c.area > 0)) return { error: 'не хватает площади для периодов «за 1 кв.м.»' };
+      total += Number(sorted[i].amount) * (sorted[i].basis === 'per_sqm' ? c.area : 1) * unitsInPeriod(from, to, 'month');
       if (addDays(to, 1).getTime() > cur.getTime()) cur = addDays(to, 1);
     }
     if (cur.getTime() <= c.end.getTime()) { baseDays = true; if (base !== null) total += base * unitsInPeriod(cur, c.end, 'month'); }

@@ -1760,8 +1760,19 @@ async function lookupBik(bik) {
   bikCache[bik] = rec;
   return rec;
 }
+// в песочнице NocoBase конструктора Event нет (new Event падает) — старый document.createEvent работает;
+// без события автосохранение этапа не видит программно подставленное значение
+function makeDomEvent(type) {
+  try { return new Event(type, { bubbles: true }); } catch (e) { /* песочница */ }
+  try { const ev = document.createEvent('Event'); ev.initEvent(type, true, true); return ev; } catch (e) { return null; }
+}
 function fireInput(el) {
-  try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ }
+  const ev = makeDomEvent('input');
+  if (ev) el.dispatchEvent(ev);
+}
+function fireChange(el) {
+  const ev = makeDomEvent('change');
+  if (ev) el.dispatchEvent(ev);
 }
 function attachBikLookup(el) {
   if (el.__cmBikLookup) return;
@@ -1893,7 +1904,7 @@ function attachInnLookup(el) {
     Object.keys(val).forEach(function(n) {
       if (val[n] === undefined || val[n] === null) return;
       const f = scope.querySelector('[data-field="' + n + '"]');
-      if (f) { if (f.value !== val[n]) { f.value = val[n]; fireInput(f); if (f.tagName === 'SELECT') f.dispatchEvent(new Event('change', { bubbles: true })); } }
+      if (f) { if (f.value !== val[n]) { f.value = val[n]; fireInput(f); if (f.tagName === 'SELECT') fireChange(f); } }
       else if (val[n] !== '') extra[n] = val[n];
     });
     applyTenantTypeToForm(scope, val.tenant_type);

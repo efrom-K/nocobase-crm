@@ -3460,6 +3460,7 @@ async function openDraftModal(id, isQuickHint) {
         const res = await ctx.api.resource('draft_contracts').get({ filterByTk: realId, appends: ['contract_files'] });
         const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
         await wireLoadedDraft(r, realId);
+        cmToast('Договор сохранён во вкладку «Черновики» — он виден только вам, пока не опубликуете');
         if (window.refreshDraftsList) window.refreshDraftsList();
       });
     }
@@ -3494,6 +3495,56 @@ function draftCardHtml(d) {
     + '<button class="cm-draft-discard" data-draft-discard="' + d.id + '" title="Удалить черновик" style="border:none;background:transparent;color:#bbb;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>'
     + '</div>';
 }
+// ---------- индикатор у вкладки «Черновики»: счётчик + пульсация, когда туда падает новый договор ----------
+
+if (!document.getElementById('cm-drafts-badge-style')) {
+  const st = document.createElement('style');
+  st.id = 'cm-drafts-badge-style';
+  st.textContent = '#cm-drafts-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 6px;margin-left:6px;border-radius:9px;background:#fa8c16;color:#fff;font-size:11px;font-weight:600;text-align:center;vertical-align:middle;}'
+    + '@keyframes cmDraftPulse{0%{box-shadow:0 0 0 0 rgba(250,140,22,0.7);transform:scale(1)}50%{transform:scale(1.25)}100%{box-shadow:0 0 0 10px rgba(250,140,22,0);transform:scale(1)}}'
+    + '#cm-drafts-badge.cm-pulse{animation:cmDraftPulse 0.9s ease-out 4;}';
+  document.head.appendChild(st);
+}
+function paintDraftsBadge() {
+  const btn = document.querySelector('.registry-local-tab[data-table="cm-drafts-tab"] .ant-tabs-tab-btn');
+  if (!btn) return false;
+  const n = window.__cmDraftsCount || 0;
+  let b = document.getElementById('cm-drafts-badge');
+  if (!n) { if (b) b.remove(); return true; }
+  if (!b || !btn.contains(b)) {
+    if (b) b.remove();
+    b = document.createElement('span');
+    b.id = 'cm-drafts-badge';
+    btn.appendChild(b);
+  }
+  if (b.textContent !== String(n)) b.textContent = String(n);
+  b.title = 'Черновиков: ' + n + ' (видны только вам)';
+  if (window.__cmDraftsPulse) {
+    window.__cmDraftsPulse = false;
+    b.classList.remove('cm-pulse');
+    void b.offsetWidth;
+    b.classList.add('cm-pulse');
+  }
+  return true;
+}
+function setDraftsCount(n) {
+  const prev = window.__cmDraftsCount;
+  window.__cmDraftsCount = n;
+  if (prev !== undefined && n > prev) window.__cmDraftsPulse = true;
+  paintDraftsBadge();
+}
+async function loadDraftsCount() {
+  try {
+    const currentUser = await getCurrentUser();
+    const res = await ctx.api.resource('draft_contracts').list({ filter: { created_by_id: currentUser.id }, fields: ['id'], pageSize: 1 });
+    const meta = res && res.data && res.data.meta;
+    if (meta && typeof meta.count === 'number') setDraftsCount(meta.count);
+  } catch (e) { /* индикатор не критичен */ }
+}
+loadDraftsCount();
+// вкладки рисует другой блок и может перерисовать их — держим бейдж на месте (только DOM, без запросов)
+if (!window.__cmDraftsBadgeInterval) window.__cmDraftsBadgeInterval = setInterval(paintDraftsBadge, 700);
+
 async function refreshDraftsList() {
   const panel = ensureDraftsPanel();
   const listEl = panel.querySelector('#cm-drafts-list');
@@ -3501,6 +3552,7 @@ async function refreshDraftsList() {
     const currentUser = await getCurrentUser();
     const res = await ctx.api.resource('draft_contracts').list({ filter: { created_by_id: currentUser.id }, sort: ['-id'], pageSize: 100 });
     const items = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+    setDraftsCount(items.length);
     listEl.innerHTML = items.length ? items.map(draftCardHtml).join('')
       : '<div style="color:#bbb;font-size:13px;">Черновиков нет — нажмите «+ Создать договор» или «+ Срочный договор»</div>';
     listEl.querySelectorAll('.cm-draft-card').forEach(function(card) {

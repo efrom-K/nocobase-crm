@@ -61,10 +61,22 @@ if (!document.getElementById('contract-modal-style')) {
   const style = document.createElement('style');
   style.id = 'contract-modal-style';
   style.textContent = `
-    .cm-section { margin-bottom: 18px; }
-    .cm-section-title { font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #1a1a1a; }
+    /* каждый блок карточки — отдельная «плашка» на сером фоне колонки данных */
+    .cm-data-col { background: #f5f7fa; }
+    .cm-section { margin-bottom: 14px !important; background: #fff; border: 1px solid #e8ebf0; border-radius: 10px; padding: 0 16px 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
+    .cm-section:last-child { margin-bottom: 0 !important; }
+    .cm-section-title { font-weight: 600; font-size: 14.5px; margin-bottom: 10px; color: #1a1a1a; }
+    .cm-section > .cm-section-title, .cm-section > .cm-section-title-row { margin: 0 -16px 12px !important; padding: 11px 16px; background: #fafbfc; border-bottom: 1px solid #eef0f3; border-radius: 10px 10px 0 0; min-height: 22px; }
+    .cm-section > .cm-section-title::before, .cm-section > .cm-section-title-row > .cm-section-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: #1677ff; border-radius: 2px; margin-right: 9px; vertical-align: -2px; }
+    .cm-stage-form > .cm-section { box-shadow: none; }
+    .cm-section > .cm-save-status:empty, .cm-stage-content > .cm-save-status:empty { min-height: 0; margin: 0; }
+    /* этапы оформления: у свёрнутых и будущих этапов — только шапка, без пустой полосы под ней */
+    .cm-section[data-stage-section] { padding-bottom: 0; }
+    .cm-section[data-stage-section] > .cm-section-title-row { margin-bottom: 0 !important; border-bottom: none; border-radius: 9px; }
+    .cm-section[data-stage-section] > .cm-stage-content { margin: 0 -16px; padding: 12px 16px 10px; border-top: 1px solid #eef0f3; }
+    .cm-section[data-stage-section] > .cm-stage-content:not(:has(> .cm-grid, > .cm-stage-form:not([style*="none"]))) { display: none !important; }
     .cm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 24px; }
-    .cm-row { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .cm-row { padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
     .cm-row.full { grid-column: 1 / -1; }
     .cm-label { color: #8c8c8c; font-size: 12px; margin-bottom: 2px; }
     .cm-value { color: #262626; font-size: 14px; }
@@ -1399,7 +1411,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const nowP = items.find(function(p) { const a = isoToDate(p.date_from), b = isoToDate(p.date_to); return a && b && a.getTime() <= t.getTime() && t.getTime() <= b.getTime(); });
     if (nowP) {
       const mo = periodMonthly(nowP, c.area);
-      lines.push('Сегодня действует: <b>' + escRaw(priceLabel(nowP)) + '</b>' + (mo !== null ? ' (≈ ' + escRaw(formatNum(mo)) + ' ₽ в месяц)' : ''));
+      lines.push('Сегодня действует: <b>' + escRaw(priceLabel(nowP)) + '</b>' + (mo !== null && nowP.basis === 'per_sqm' ? ' (' + escRaw(formatNum(mo)) + ' ₽ в месяц)' : ''));
     }
     if (c.start && c.end && c.end.getTime() >= c.start.getTime()) {
       const gaps = [];
@@ -1429,7 +1441,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       const now = a && b && a.getTime() <= t.getTime() && t.getTime() <= b.getTime();
       return '<div class="cm-price-row' + (now ? ' now' : '') + '"><div class="cm-price-main">'
         + '<div class="cm-price-dates">' + escRaw(fmtDate(p.date_from)) + ' — ' + escRaw(fmtDate(p.date_to)) + (now ? ' <span style="color:#389e0d;font-weight:400;font-size:12px;">· сейчас</span>' : '') + '</div>'
-        + '<div class="cm-price-line">' + escRaw(priceLabel(p)) + (mo !== null && (p.unit !== 'month' || p.basis === 'per_sqm') ? ' · ≈ ' + escRaw(formatNum(mo)) + ' ₽ в месяц' : '') + '</div>'
+        + '<div class="cm-price-line">' + escRaw(priceLabel(p)) + (mo !== null && p.basis === 'per_sqm' ? ' · ' + escRaw(formatNum(mo)) + ' ₽ в месяц' : '') + '</div>'
         + '<div class="cm-price-line">За период: <span class="cm-price-total">' + (cost !== null ? escRaw(formatNum(cost)) + ' ₽' : '— (укажите площадь)') + '</span>' + (p.note ? ' · ' + escRaw(p.note) : '') + '</div>'
         + '</div>'
         + (canEdit ? '<div class="cm-contact-actions"><a data-price-edit="' + p.id + '" title="Изменить">✎</a><a data-price-del="' + p.id + '" title="Удалить">✕</a></div>' : '')

@@ -1,3 +1,10 @@
+// плавающая кнопка «Открыть ИИ-чат» плагина AI не используется — прячем (выключать сам плагин нельзя: на нём держится клиент NocoBase)
+if (!document.getElementById('cm-hide-ai-chat')) {
+  const aiSt = document.createElement('style');
+  aiSt.id = 'cm-hide-ai-chat';
+  aiSt.textContent = '[role="button"][aria-label="Открыть ИИ-чат"], [role="button"][aria-label="Open AI chat"] { display: none !important; }';
+  document.head.appendChild(aiSt);
+}
 // колокольчик: без вкладок «Все / Непрочитанные / Прочитано», всегда фильтр «Непрочитанные»
 // (при этом фильтре штатный список сразу убирает сообщение после прочтения, без перезагрузки страницы)
 if (!document.getElementById('nb-bell-tabs-style')) {

@@ -2578,7 +2578,8 @@ function readonlyFieldValue(f, r) {
   // активный договор: в поле — цена, действующая сегодня; в приписке — следующая цена и с какого числа
   if ((f.name === 'base_rent_amount' || f.name === 'base_rent_per_sqm') && r.__kind === 'active') {
     const curName = f.name.replace('base_', '');
-    const cur = r[curName] !== undefined && r[curName] !== null ? r[curName] : v;
+    // во время периода — строго цена периода (у фиксированной суммы ставки за 1 квадратный метр нет)
+    const cur = r.__schedNow ? r[curName] : (r[curName] !== undefined && r[curName] !== null ? r[curName] : v);
     const ch = r.__schedNext;
     let badge = '';
     if (ch) {

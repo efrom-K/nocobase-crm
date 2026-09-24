@@ -1012,12 +1012,12 @@ function validateValue(name, val, el) {
     case 'decimal': case 'money':
       return /^\d{1,9}(,\d{1,2})?$/.test(val) ? '' : 'только цифры, дробная часть через запятую (не более 2 знаков)';
     case 'inn':
-      if (!/^(\d{10}|\d{12})$/.test(val)) return 'идентификационный номер налогоплательщика — это 10 или 12 цифр';
-      return innValid(val) ? '' : 'некорректный идентификационный номер налогоплательщика: не сходится контрольная сумма';
+      if (!/^(\d{10}|\d{12})$/.test(val)) return 'ИНН — это 10 или 12 цифр';
+      return innValid(val) ? '' : 'некорректный ИНН: не сходится контрольная сумма';
     case 'bik':
-      if (!/^\d{9}$/.test(val)) return 'банковский идентификационный код — ровно 9 цифр';
-      if (val.slice(0, 2) !== '04') return 'банковский идентификационный код российского банка начинается с 04';
-      if (el && el.__bikState === 'bad') return 'банковский идентификационный код не найден в справочнике Банка России';
+      if (!/^\d{9}$/.test(val)) return 'БИК — ровно 9 цифр';
+      if (val.slice(0, 2) !== '04') return 'БИК российского банка начинается с 04';
+      if (el && el.__bikState === 'bad') return 'БИК не найден в справочнике ЦБ';
       return '';
     case 'account': {
       if (!/^\d{20}$/.test(val)) return 'счёт — ровно 20 цифр';
@@ -1027,7 +1027,7 @@ function validateValue(name, val, el) {
       if (bik.length === 9 && bik.slice(0, 2) === '04') {
         const isCorr = name === 'corr_account';
         const prefix = isCorr ? ('0' + bik.slice(4, 6)) : bik.slice(6, 9);
-        if (!accountChecksumOk(prefix, val)) return 'счёт не соответствует указанному банковскому идентификационному коду: не сходится контрольный ключ';
+        if (!accountChecksumOk(prefix, val)) return 'счёт не соответствует указанному БИК: не сходится контрольный ключ';
       }
       return '';
     }
@@ -1985,16 +1985,16 @@ function attachBikLookup(el) {
     const my = ++seq;
     const v = el.value;
     if (!v) { el.__bikState = ''; setHint('#8c8c8c', ''); clearAuto(); paint(); return; }
-    if (v.length !== 9) { el.__bikState = 'partial'; setHint('#8c8c8c', 'Введите 9 цифр банковского идентификационного кода (ещё ' + (9 - v.length) + ')'); clearAuto(); paint(); return; }
-    if (v.slice(0, 2) !== '04') { el.__bikState = 'bad'; setHint('#cf1322', '✗ Некорректный банковский идентификационный код: у российских банков он начинается с 04'); clearAuto(); paint(); return; }
-    el.__bikState = 'pending'; setHint('#8c8c8c', 'Проверяю банковский идентификационный код…'); paint();
+    if (v.length !== 9) { el.__bikState = 'partial'; setHint('#8c8c8c', 'Введите 9 цифр БИК (ещё ' + (9 - v.length) + ')'); clearAuto(); paint(); return; }
+    if (v.slice(0, 2) !== '04') { el.__bikState = 'bad'; setHint('#cf1322', '✗ Некорректный БИК: у российских банков он начинается с 04'); clearAuto(); paint(); return; }
+    el.__bikState = 'pending'; setHint('#8c8c8c', 'Проверяю БИК…'); paint();
     let rec = null;
     try { rec = await lookupBik(v); }
-    catch (e) { if (my !== seq) return; el.__bikState = 'unknown'; setHint('#d48806', 'Справочник банков сейчас недоступен — данные банка введите вручную'); paint(); return; }
+    catch (e) { if (my !== seq) return; el.__bikState = 'unknown'; setHint('#d48806', 'Справочник БИК сейчас недоступен — данные банка введите вручную'); paint(); return; }
     if (my !== seq || el.value !== v) return;
-    if (!rec) { el.__bikState = 'bad'; clearAuto(); setHint('#cf1322', '✗ Банка с таким банковским идентификационным кодом нет в справочнике Банка России'); paint(); return; }
+    if (!rec) { el.__bikState = 'bad'; clearAuto(); setHint('#cf1322', '✗ Некорректный БИК — банка с таким БИК нет в справочнике ЦБ'); paint(); return; }
     el.__bikState = 'ok';
-    setHint('#389e0d', '✓ Код банка верный · ' + rec.bank_name + (rec.city ? ' · ' + rec.city : ''));
+    setHint('#389e0d', '✓ БИК корректен · ' + rec.bank_name + (rec.city ? ' · ' + rec.city : ''));
     const f = bankFields();
     auto = { bank: rec.bank_name || '', corr: rec.corr_account || '' };
     if (f.bn) { if (f.bn.value !== auto.bank) { f.bn.value = auto.bank; fireInput(f.bn); } lock(f.bn, !!auto.bank); }
@@ -2109,27 +2109,27 @@ function attachInnLookup(el) {
     async function npdLine() {
       const npd = await lookupNpd(v);
       if (my !== seq || npd === null) return;
-      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход' : 'Не самозанятый по данным налоговой службы') + '</div>');
+      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход' : 'Не самозанятый по данным ФНС') + '</div>');
     }
     if (currentType() === 'Физлицо' && v.length === 12) {
       hint.style.color = '#8c8c8c'; hint.textContent = 'Частное лицо: реквизиты из реестров не подставляются — заполните паспорт и адрес регистрации';
       npdLine();
       return;
     }
-    hint.style.color = '#8c8c8c'; hint.textContent = v.length === 10 ? 'Ищу организацию по номеру налогоплательщика…' : 'Ищу индивидуального предпринимателя по номеру налогоплательщика…';
+    hint.style.color = '#8c8c8c'; hint.textContent = v.length === 10 ? 'Ищу организацию по ИНН…' : 'Ищу индивидуального предпринимателя по ИНН…';
     let p = null;
     try { p = await lookupParty(v); } catch (e) { p = null; }
     if (my !== seq) return;
-    if (!p) { hint.style.color = '#8c8c8c'; hint.textContent = 'Сервис проверки номера налогоплательщика сейчас недоступен — реквизиты введите вручную'; return; }
+    if (!p) { hint.style.color = '#8c8c8c'; hint.textContent = 'Сервис проверки ИНН сейчас недоступен — реквизиты введите вручную'; return; }
     if (!p.found) {
       if (v.length === 12) {
         // 12 цифр и нет в реестре ИП — это ИНН частного лица
         hint.style.color = '#8c8c8c';
-        hint.innerHTML = 'Номер налогоплательщика физического лица: в реестре индивидуальных предпринимателей не найден.' + (currentType() !== 'Физлицо' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
+        hint.innerHTML = 'ИНН физического лица: в реестре индивидуальных предпринимателей не найден.' + (currentType() !== 'Физлицо' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
         const a = hint.querySelector('.cm-party-person');
         if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Физлицо' }); run(); });
         npdLine();
-      } else { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким номером налогоплательщика не найдена в Едином государственном реестре юридических лиц'; }
+      } else { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким ИНН не найдена в ЕГРЮЛ'; }
       return;
     }
     const val = p.values;
@@ -2142,13 +2142,13 @@ function attachInnLookup(el) {
     });
     hint.style.color = '#389e0d';
     hint.innerHTML = '✓ ' + escRaw(p.name) + partyStatusBadge(p)
-      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'код причины постановки на учёт ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'регистрационный номер индивидуального предпринимателя ' : 'регистрационный номер ') + val.ogrn, val.legal_address, [val.director_post, val.director].filter(Boolean).join(' ')].filter(Boolean).join(' · ')) + '</div>'
+      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'ОГРНИП ' : 'ОГРН ') + val.ogrn, val.legal_address, [val.director_post, val.director].filter(Boolean).join(' ')].filter(Boolean).join(' · ')) + '</div>'
       + (differs ? link('Подставить реквизиты', 'cm-party-apply') : '');
     const a = hint.querySelector('.cm-party-apply');
     if (a) a.addEventListener('click', async function(e) {
       e.preventDefault();
       await applyValues(val);
-      cmToast('Реквизиты подставлены из ' + (val.tenant_type === 'ИП' ? 'Единого государственного реестра индивидуальных предпринимателей' : 'Единого государственного реестра юридических лиц') + ' — проверьте и сохраните');
+      cmToast('Реквизиты подставлены из ' + (val.tenant_type === 'ИП' ? 'ЕГРИП' : 'ЕГРЮЛ') + ' — проверьте и сохраните');
       run();
     });
   }
@@ -2579,7 +2579,7 @@ const TENANT_FIELD_RULES = {
   kpp: { show: ['Юрлицо'] },
   director: { show: ['Юрлицо'] },
   director_post: { show: ['Юрлицо'] },
-  ogrn: { show: ['Юрлицо', 'ИП'], label: { 'ИП': 'Основной государственный регистрационный номер индивидуального предпринимателя' } },
+  ogrn: { show: ['Юрлицо', 'ИП'], label: { 'ИП': 'ОГРНИП' } },
   legal_address: { label: { 'ИП': 'Адрес регистрации', 'Физлицо': 'Адрес регистрации' } },
   passport: { show: ['Физлицо'] },
   passport_issued: { show: ['Физлицо'] },
@@ -2650,16 +2650,16 @@ const STAGE_DEFS = [
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
-      { name: 'inn', label: 'Идентификационный номер налогоплательщика', type: 'text' },
-      { name: 'kpp', label: 'Код причины постановки на учёт', type: 'text' },
+      { name: 'inn', label: 'ИНН', type: 'text' },
+      { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text' },
-      { name: 'ogrn', label: 'Основной государственный регистрационный номер', type: 'text' },
+      { name: 'ogrn', label: 'ОГРН', type: 'text' },
       { name: 'director_post', label: 'Должность руководителя', type: 'text' },
       { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
-      { name: 'bik', label: 'Банковский идентификационный код', type: 'text', mask: 'bik' },
+      { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
       { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' },
       { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
@@ -2892,16 +2892,16 @@ const ACTIVE_BLOCK_DEFS = [
   ]},
   { key: 'counterparty', title: 'Блок Контрагента', fields: [
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
-      { name: 'inn', label: 'Идентификационный номер налогоплательщика', type: 'text' },
-      { name: 'kpp', label: 'Код причины постановки на учёт', type: 'text' },
+      { name: 'inn', label: 'ИНН', type: 'text' },
+      { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text', full: true },
-      { name: 'ogrn', label: 'Основной государственный регистрационный номер', type: 'text' },
+      { name: 'ogrn', label: 'ОГРН', type: 'text' },
       { name: 'director_post', label: 'Должность руководителя', type: 'text' },
       { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
-      { name: 'bik', label: 'Банковский идентификационный код', type: 'text', mask: 'bik' },
+      { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
       { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' }
   ]},

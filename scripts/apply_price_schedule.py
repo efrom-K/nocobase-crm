@@ -4,6 +4,7 @@
   apply_price_schedule.py              # выполнить (cron раз в сутки, 00:10)
   apply_price_schedule.py --dry-run    # только показать, что изменилось бы
   apply_price_schedule.py --date 2026-05-01   # прогнать «как будто сегодня» эту дату (проверка перехода периодов)
+  apply_price_schedule.py --contract 123      # только один договор (проверка на тестовом договоре)
   apply_price_schedule.py --warn       # предупреждение «скоро сменится цена» (cron в будни 10:00): смены до следующего
                                        # рабочего дня включительно — в пятницу видно субботу, воскресенье и понедельник
 
@@ -25,6 +26,7 @@ from datetime import date, timedelta
 DRY = '--dry-run' in sys.argv
 WARN = '--warn' in sys.argv
 TODAY = date.fromisoformat(sys.argv[sys.argv.index('--date') + 1]) if '--date' in sys.argv else date.today()
+ONLY = int(sys.argv[sys.argv.index('--contract') + 1]) if '--contract' in sys.argv else None
 REGISTRY_PAGE = os.environ.get('NB_REGISTRY_PAGE', 'b5znz7yxpy3')
 PSQL_CMD = ['docker', 'exec', '-i', os.environ.get('NB_PG_CONTAINER', 'nocobase-postgres-1'), 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
@@ -35,7 +37,11 @@ def psql(sql):
     return r.stdout.decode()
 def q(v): return 'NULL' if v is None else "'" + str(v).replace("'", "''") + "'"
 def jrows(sql): return json.loads(psql("select coalesce(json_agg(t), '[]'::json) from (%s) t" % sql) or '[]')
-def r2(x): return round(x + 1e-9, 2)
+def r2(x): return round(x + 1e-9, 2)                                        # до копеек, половина — вверх (как round2 в карточке)
+def mul_money(rate, area):
+    # ставка × площадь точно, в целых единицах (обе до сотых): 1,005 × 1 = 1,01. Та же формула — mulMoney в contract-modals.js
+    a, b = round(float(rate) * 100), round(float(area) * 100)
+    return ((a * b + 50) // 100) / 100
 def num(v): return ('%.2f' % v).rstrip('0').rstrip('.')                     # 1200.0 → «1200», 1200.5 → «1200.5» (как в истории карточек)
 def fmt(v): return '{:,.2f}'.format(v).replace(',', ' ').replace('.', ',')   # всегда до сотых: 65,00
 def dmy(iso): y, m, d = iso.split('-'); return '%s.%s.%s' % (d, m, y)
@@ -46,6 +52,7 @@ contracts = jrows("select id, contract_number, object_name, area_sqm, rent_per_s
                   "utility_per_sqm, utility_amount, base_utility_per_sqm, base_utility_amount, deposit_amount, base_deposit_amount, total_amount from rental_contracts "
                   "where (termination_date is null or termination_date >= current_date) and (id in (select contract_ref_id from contract_price_periods where contract_type='active') "
                   "or id in (select contract_id from contract_price_applied))")
+if ONLY is not None: contracts = [c for c in contracts if c['id'] == ONLY]
 periods = {}
 for p in jrows("select id, contract_ref_id, date_from::text, date_to::text, basis, unit, amount, rent_on, utility_on, utility_basis, utility_value, deposit_on, deposit_value "
                 "from contract_price_periods where contract_type='active' order by date_from, id"):
@@ -94,7 +101,7 @@ def target(c, iso):
             v = float(value(p))
             if per_f and basis(p) == 'per_sqm':
                 new[per_f] = v
-                if area > 0: new[amt_f] = r2(v * area)
+                if area > 0: new[amt_f] = mul_money(v, area)
             else:
                 if per_f: new[per_f] = None
                 new[amt_f] = v

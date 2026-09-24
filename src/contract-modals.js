@@ -1364,7 +1364,14 @@ function numOf(v) {
   const n = Number(String(v).replace(/[\s ]/g, '').replace(',', '.'));
   return isFinite(n) ? n : null;
 }
-function round2(n) { return Math.round(n * 100) / 100; }
+// до копеек, половина копейки — вверх (как в scripts/apply_price_schedule.py: round(x + 1e-9, 2))
+function round2(n) { return Math.round((n + 1e-9) * 100) / 100; }
+// ставка × площадь — точно, в целых единицах (обе величины — до сотых), без погрешностей дробных чисел:
+// 1,005 × 1 = 1,01, а не 1,00. Та же формула — mul_money в scripts/apply_price_schedule.py
+function mulMoney(rate, area) {
+  const a = Math.round(Number(rate) * 100), b = Math.round(Number(area) * 100);
+  return Math.floor((a * b + 50) / 100) / 100;
+}
 const DERIVED_COLLECTIONS = { rental_contracts: true, forming_contracts: true };
 const DERIVED_SOURCES = ['area_sqm', 'rent_per_sqm', 'utility_per_sqm', 'rent_amount', 'utility_amount', 'base_rent_per_sqm', 'base_utility_per_sqm'];
 const DERIVED_PAIRS = [{ target: 'rent_amount', per: 'rent_per_sqm' }, { target: 'utility_amount', per: 'utility_per_sqm' }, { target: 'base_rent_amount', per: 'base_rent_per_sqm' }, { target: 'base_utility_amount', per: 'base_utility_per_sqm' }];
@@ -1383,8 +1390,8 @@ function derivedUpdates(oldRec, values) {
     const tgtOld = numOf(oldRec[p.target]);
     const hasTarget = hasKey(values, p.target), hasPer = hasKey(values, p.per);
     if (!hasTarget && areaNew > 0 && perNew > 0) {
-      const expNew = round2(perNew * areaNew);
-      const expOld = (areaOld > 0 && perOld > 0) ? round2(perOld * areaOld) : null;
+      const expNew = mulMoney(perNew, areaNew);
+      const expOld = (areaOld > 0 && perOld > 0) ? mulMoney(perOld, areaOld) : null;
       const untouched = tgtOld === null || (expOld !== null && Math.abs(tgtOld - expOld) <= derivedTol(areaOld));
       if (untouched && (tgtOld === null || Math.abs(tgtOld - expNew) > 0.004)) upd[p.target] = expNew;
     }
@@ -1436,7 +1443,7 @@ function wireDerivedHints(root) {
       if (!h) { h = document.createElement('div'); h.className = 'cm-derived-hint'; el.parentNode.appendChild(h); }
       const area = valueOf('area_sqm'), per = valueOf(p.per);
       if (!(area > 0 && per > 0)) { h.textContent = ''; return; }
-      const exp = round2(per * area), cur = numOf(el.value);
+      const exp = mulMoney(per, area), cur = numOf(el.value);
       if (cur !== null && Math.abs(cur - exp) <= derivedTol(area)) { h.textContent = ''; return; }
       h.innerHTML = 'По ставке ' + escRaw(formatNum(per)) + ' × площадь ' + escRaw(formatNum(area)) + ' = <a href="#" class="cm-derived-apply">' + escRaw(formatNum(exp)) + '</a> — подставить';
       h.querySelector('a').addEventListener('click', function(e) {
@@ -1523,15 +1530,19 @@ function periodFor(periods, iso, comp) {
   cov.sort(function(a, b) { return String(a.date_from).localeCompare(String(b.date_from)) || (a.id - b.id); });
   return cov.length ? cov[cov.length - 1] : null;
 }
+// что поставить в поля цены comp (период p или основное значение). Ключа нет — поле не трогать:
+// не задано основное значение; ставка за метр без площади — сумму посчитать нельзя. Так же — target() в apply_price_schedule.py
 function compValues(comp, p, rec) {
   const out = {};
   if (!p) {
-    if (comp.perField) out[comp.perField] = numOf(rec[comp.basePer]);
-    out[comp.amtField] = numOf(rec[comp.baseAmt]);
+    const per = comp.basePer ? numOf(rec[comp.basePer]) : null, amt = numOf(rec[comp.baseAmt]);
+    if (per === null && amt === null) return out;
+    if (comp.perField) out[comp.perField] = per;
+    out[comp.amtField] = amt;
     return out;
   }
   const v = Number(comp.value(p)), area = numOf(rec.area_sqm);
-  if (comp.perField && comp.basis(p) === 'per_sqm') { out[comp.perField] = v; out[comp.amtField] = area > 0 ? round2(v * area) : null; }
+  if (comp.perField && comp.basis(p) === 'per_sqm') { out[comp.perField] = v; if (area > 0) out[comp.amtField] = mulMoney(v, area); }
   else { if (comp.perField) out[comp.perField] = null; out[comp.amtField] = v; }   // ставку делением суммы на площадь не выводим — только точные числа
   return out;
 }
@@ -1558,7 +1569,8 @@ function baseLabel(comp, rec) {
 function nextFieldChange(periods, rec, iso, field) {
   const comp = COMPONENT_BY_FIELD[field];
   if (!comp) return null;
-  const cur = scheduleTarget(periods, rec, iso).values[field];
+  const curT = scheduleTarget(periods, rec, iso).values;
+  const cur = hasKey(curT, field) ? curT[field] : numOf(rec[field]);
   const dates = [];
   (periods || []).forEach(function(p) {
     if (!comp.on(p)) return;
@@ -1568,7 +1580,7 @@ function nextFieldChange(periods, rec, iso, field) {
   dates.sort();
   for (let k = 0; k < dates.length; k++) {
     const t = scheduleTarget(periods, rec, dates[k]);
-    const v = t.values[field];
+    const v = hasKey(t.values, field) ? t.values[field] : cur;
     const same = (v === null && (cur === null || cur === undefined)) || (v !== null && cur !== null && cur !== undefined && Math.abs(v - cur) < 0.005);
     if (!same) return { date: dates[k], value: v, period: t.active[comp.key] };
   }
@@ -1670,7 +1682,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       const a = isoToDate(p.date_from), b = isoToDate(p.date_to);
       const now = a && b && a.getTime() <= t.getTime() && t.getTime() <= b.getTime();
       const lines = PRICE_COMPONENTS.filter(function(c) { return c.on(p); }).map(function(c) {
-        const mo = c.perField && c.basis(p) === 'per_sqm' && a0 > 0 ? round2(Number(c.value(p)) * a0) : null;
+        const mo = c.perField && c.basis(p) === 'per_sqm' && a0 > 0 ? mulMoney(c.value(p), a0) : null;
         return '<div class="cm-price-line">' + escRaw(c.title) + ': ' + escRaw(compLabel(c, p)) + (mo !== null ? ' · <span class="cm-price-total">' + escRaw(formatNum(mo)) + ' ₽ в месяц</span>' : '') + '</div>';
       }).join('');
       return '<div class="cm-price-row' + (now ? ' now' : '') + '"><div class="cm-price-main">'
@@ -1719,7 +1731,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const perSqm = c.perField && basis && basis.value === 'per_sqm';
     const lab = compEl(c.key, 'label');
     if (lab) lab.textContent = perSqm ? 'Новая ставка за 1 квадратный метр, ₽' : (c.perField ? 'Новая сумма в месяц, ₽' : 'Новая сумма, ₽');
-    out.textContent = perSqm && v > 0 && a0 > 0 ? 'Итого в месяц: ' + formatNum(round2(v * a0)) + ' ₽ (площадь ' + formatNum(a0) + ' квадратных метров)' : '';
+    out.textContent = perSqm && v > 0 && a0 > 0 ? 'Итого в месяц: ' + formatNum(mulMoney(v, a0)) + ' ₽ (площадь ' + formatNum(a0) + ' квадратных метров)' : '';
   }
   function setComp(c, on) {
     compEl(c.key, 'on').checked = on;
@@ -1809,10 +1821,9 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     PRICE_COMPONENTS.forEach(function(c) {
       let touched = false;
       [c.perField, c.amtField].forEach(function(k) {
-        if (!k) return;
+        if (!k || !hasKey(tgt.values, k)) return;   // ключа нет — поле не трогаем
         const nv = tgt.values[k], cv = numOf(r[k]);
         if (nv === null && cv === null) return;
-        if (nv === null && !tgt.active[c.key] && numOf(r[c.baseAmt]) === null && (!c.basePer || numOf(r[c.basePer]) === null)) return;   // основное значение не задано — не стираем
         if (nv !== null && cv !== null && Math.abs(nv - cv) < 0.005) return;
         upd[k] = nv; touched = true;
       });

@@ -25,3 +25,5 @@ jobs:
           # необязательно: регулярное выражение с приватными для вас словами (названия объектов, имена, домен) —
           # хранится в Settings → Secrets → Actions, в публичный репозиторий не попадает
           CI_DENYLIST_REGEX: ${{ secrets.CI_DENYLIST_REGEX }}
+      - name: Price logic tests (card JS vs nightly Python vs expected values)
+        run: python3 tests/price_logic_test.py

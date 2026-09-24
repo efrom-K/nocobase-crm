@@ -1,5 +1,5 @@
 
-ctx.render(`<input id="global-search-input" type="text" placeholder="Поиск по номеру, ФИО, объекту, email..." class="ant-input" style="width:100%;padding:6px 12px;border:1px solid #d9d9d9;border-radius:6px;" />`);
+ctx.render(`<input id="global-search-input" type="text" placeholder="Поиск по номеру договора, фамилии, объекту, электронной почте…" class="ant-input" style="width:100%;padding:6px 12px;border:1px solid #d9d9d9;border-radius:6px;" />`);
 if (ctx.element && ctx.element.addEventListener) {
   let timeout;
   const FIELDS = ['contract_number','object_name','tenant_name','email','phone','tenant_fio'];

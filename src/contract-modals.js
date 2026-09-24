@@ -1012,12 +1012,12 @@ function validateValue(name, val, el) {
     case 'decimal': case 'money':
       return /^\d{1,9}(,\d{1,2})?$/.test(val) ? '' : 'только цифры, дробная часть через запятую (не более 2 знаков)';
     case 'inn':
-      if (!/^(\d{10}|\d{12})$/.test(val)) return 'ИНН — это 10 или 12 цифр';
-      return innValid(val) ? '' : 'некорректный ИНН (не сходится контрольная сумма)';
+      if (!/^(\d{10}|\d{12})$/.test(val)) return 'идентификационный номер налогоплательщика — это 10 или 12 цифр';
+      return innValid(val) ? '' : 'некорректный идентификационный номер налогоплательщика: не сходится контрольная сумма';
     case 'bik':
-      if (!/^\d{9}$/.test(val)) return 'БИК — ровно 9 цифр';
-      if (val.slice(0, 2) !== '04') return 'БИК российского банка начинается с 04';
-      if (el && el.__bikState === 'bad') return 'БИК не найден в справочнике ЦБ';
+      if (!/^\d{9}$/.test(val)) return 'банковский идентификационный код — ровно 9 цифр';
+      if (val.slice(0, 2) !== '04') return 'банковский идентификационный код российского банка начинается с 04';
+      if (el && el.__bikState === 'bad') return 'банковский идентификационный код не найден в справочнике Банка России';
       return '';
     case 'account': {
       if (!/^\d{20}$/.test(val)) return 'счёт — ровно 20 цифр';
@@ -1027,7 +1027,7 @@ function validateValue(name, val, el) {
       if (bik.length === 9 && bik.slice(0, 2) === '04') {
         const isCorr = name === 'corr_account';
         const prefix = isCorr ? ('0' + bik.slice(4, 6)) : bik.slice(6, 9);
-        if (!accountChecksumOk(prefix, val)) return 'счёт не соответствует указанному БИК (не сходится контрольный ключ)';
+        if (!accountChecksumOk(prefix, val)) return 'счёт не соответствует указанному банковскому идентификационному коду: не сходится контрольный ключ';
       }
       return '';
     }
@@ -1317,6 +1317,7 @@ function renderHistorySection(prefix) {
 }
 function histShort(v, field) {
   if (field && STATUS_OPTIONS[field]) { const o = STATUS_OPTIONS[field].find(function(x) { return x.value === String(v); }); if (o) return o.label; }
+  if (field && VALUE_LABELS[field] && VALUE_LABELS[field][String(v)]) return VALUE_LABELS[field][String(v)];
   const s = /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? fromISODateDisplay(v) : String(v);
   return s.length > 140 ? s.slice(0, 140) + '…' : s;
 }
@@ -1984,16 +1985,16 @@ function attachBikLookup(el) {
     const my = ++seq;
     const v = el.value;
     if (!v) { el.__bikState = ''; setHint('#8c8c8c', ''); clearAuto(); paint(); return; }
-    if (v.length !== 9) { el.__bikState = 'partial'; setHint('#8c8c8c', 'Введите 9 цифр БИК (ещё ' + (9 - v.length) + ')'); clearAuto(); paint(); return; }
-    if (v.slice(0, 2) !== '04') { el.__bikState = 'bad'; setHint('#cf1322', '✗ Некорректный БИК: у российских банков он начинается с 04'); clearAuto(); paint(); return; }
-    el.__bikState = 'pending'; setHint('#8c8c8c', 'Проверяю БИК…'); paint();
+    if (v.length !== 9) { el.__bikState = 'partial'; setHint('#8c8c8c', 'Введите 9 цифр банковского идентификационного кода (ещё ' + (9 - v.length) + ')'); clearAuto(); paint(); return; }
+    if (v.slice(0, 2) !== '04') { el.__bikState = 'bad'; setHint('#cf1322', '✗ Некорректный банковский идентификационный код: у российских банков он начинается с 04'); clearAuto(); paint(); return; }
+    el.__bikState = 'pending'; setHint('#8c8c8c', 'Проверяю банковский идентификационный код…'); paint();
     let rec = null;
     try { rec = await lookupBik(v); }
-    catch (e) { if (my !== seq) return; el.__bikState = 'unknown'; setHint('#d48806', 'Справочник БИК сейчас недоступен — данные банка введите вручную'); paint(); return; }
+    catch (e) { if (my !== seq) return; el.__bikState = 'unknown'; setHint('#d48806', 'Справочник банков сейчас недоступен — данные банка введите вручную'); paint(); return; }
     if (my !== seq || el.value !== v) return;
-    if (!rec) { el.__bikState = 'bad'; clearAuto(); setHint('#cf1322', '✗ Некорректный БИК — банка с таким БИК нет в справочнике ЦБ'); paint(); return; }
+    if (!rec) { el.__bikState = 'bad'; clearAuto(); setHint('#cf1322', '✗ Банка с таким банковским идентификационным кодом нет в справочнике Банка России'); paint(); return; }
     el.__bikState = 'ok';
-    setHint('#389e0d', '✓ БИК корректен · ' + rec.bank_name + (rec.city ? ' · ' + rec.city : ''));
+    setHint('#389e0d', '✓ Код банка верный · ' + rec.bank_name + (rec.city ? ' · ' + rec.city : ''));
     const f = bankFields();
     auto = { bank: rec.bank_name || '', corr: rec.corr_account || '' };
     if (f.bn) { if (f.bn.value !== auto.bank) { f.bn.value = auto.bank; fireInput(f.bn); } lock(f.bn, !!auto.bank); }
@@ -2108,27 +2109,27 @@ function attachInnLookup(el) {
     async function npdLine() {
       const npd = await lookupNpd(v);
       if (my !== seq || npd === null) return;
-      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход (НПД)' : 'Не самозанятый (по данным ФНС)') + '</div>');
+      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход' : 'Не самозанятый по данным налоговой службы') + '</div>');
     }
     if (currentType() === 'Физлицо' && v.length === 12) {
       hint.style.color = '#8c8c8c'; hint.textContent = 'Частное лицо: реквизиты из реестров не подставляются — заполните паспорт и адрес регистрации';
       npdLine();
       return;
     }
-    hint.style.color = '#8c8c8c'; hint.textContent = v.length === 10 ? 'Ищу организацию по ИНН…' : 'Ищу ИП по ИНН…';
+    hint.style.color = '#8c8c8c'; hint.textContent = v.length === 10 ? 'Ищу организацию по номеру налогоплательщика…' : 'Ищу индивидуального предпринимателя по номеру налогоплательщика…';
     let p = null;
     try { p = await lookupParty(v); } catch (e) { p = null; }
     if (my !== seq) return;
-    if (!p) { hint.style.color = '#8c8c8c'; hint.textContent = 'Сервис проверки ИНН сейчас недоступен — реквизиты введите вручную'; return; }
+    if (!p) { hint.style.color = '#8c8c8c'; hint.textContent = 'Сервис проверки номера налогоплательщика сейчас недоступен — реквизиты введите вручную'; return; }
     if (!p.found) {
       if (v.length === 12) {
         // 12 цифр и нет в реестре ИП — это ИНН частного лица
         hint.style.color = '#8c8c8c';
-        hint.innerHTML = 'ИНН физического лица: в реестре ИП не найден.' + (currentType() !== 'Физлицо' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
+        hint.innerHTML = 'Номер налогоплательщика физического лица: в реестре индивидуальных предпринимателей не найден.' + (currentType() !== 'Физлицо' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
         const a = hint.querySelector('.cm-party-person');
         if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Физлицо' }); run(); });
         npdLine();
-      } else { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким ИНН не найдена в ЕГРЮЛ'; }
+      } else { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким номером налогоплательщика не найдена в Едином государственном реестре юридических лиц'; }
       return;
     }
     const val = p.values;
@@ -2141,13 +2142,13 @@ function attachInnLookup(el) {
     });
     hint.style.color = '#389e0d';
     hint.innerHTML = '✓ ' + escRaw(p.name) + partyStatusBadge(p)
-      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'ОГРНИП ' : 'ОГРН ') + val.ogrn, val.legal_address, [val.director_post, val.director].filter(Boolean).join(' ')].filter(Boolean).join(' · ')) + '</div>'
+      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'код причины постановки на учёт ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'регистрационный номер индивидуального предпринимателя ' : 'регистрационный номер ') + val.ogrn, val.legal_address, [val.director_post, val.director].filter(Boolean).join(' ')].filter(Boolean).join(' · ')) + '</div>'
       + (differs ? link('Подставить реквизиты', 'cm-party-apply') : '');
     const a = hint.querySelector('.cm-party-apply');
     if (a) a.addEventListener('click', async function(e) {
       e.preventDefault();
       await applyValues(val);
-      cmToast('Реквизиты подставлены из ' + (val.tenant_type === 'ИП' ? 'ЕГРИП' : 'ЕГРЮЛ') + ' — проверьте и сохраните');
+      cmToast('Реквизиты подставлены из ' + (val.tenant_type === 'ИП' ? 'Единого государственного реестра индивидуальных предпринимателей' : 'Единого государственного реестра юридических лиц') + ' — проверьте и сохраните');
       run();
     });
   }
@@ -2185,7 +2186,7 @@ function renderContactsSection(prefix) {
     + '<div id="' + prefix + '-contacts-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-contact-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
-    + '<div class="cm-field-row"><div class="cm-label">ФИО</div><input type="text" class="cm-field-input" id="' + prefix + '-contact-name"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Фамилия, имя, отчество</div><input type="text" class="cm-field-input" id="' + prefix + '-contact-name"></div>'
     + '<div class="cm-field-row"><div class="cm-label">Должность или комментарий</div><input type="text" class="cm-field-input" id="' + prefix + '-contact-position"></div>'
     + '<div class="cm-field-row"><div class="cm-label">Телефон</div><input type="tel" class="cm-field-input" id="' + prefix + '-contact-phone" placeholder="+7 (___) ___-__-__"></div>'
     + '<div class="cm-field-row"><div class="cm-label">Электронная почта</div><input type="email" class="cm-field-input" id="' + prefix + '-contact-email" placeholder="name@example.com"></div>'
@@ -2301,7 +2302,7 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
       name: normalizeValue('tenant_fio', nameEl.value), position: posEl.value.trim(),
       phone: normalizeValue('phone', phoneEl.value), email: normalizeValue('email', emailEl.value)
     };
-    if (!values.name && !values.phone && !values.email) { cmToast('Заполните хотя бы ФИО, телефон или почту'); return; }
+    if (!values.name && !values.phone && !values.email) { cmToast('Заполните хотя бы фамилию, телефон или почту'); return; }
     const cErr = validateValue('tenant_fio', values.name, null) || validateValue('phone', values.phone, null) || validateValue('email', values.email, null);
     if (cErr) { cmToast(cErr); return; }
     saveBtn.disabled = true;
@@ -2380,7 +2381,7 @@ async function openCompletedContractModal(id) {
     const contractNumber = r.contract_number || ('#' + id);
     const state = { members: members };
 
-    if (currentUser && currentUser.__isAdmin) {
+    if (canCloseContract(currentUser)) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
       delBtn.style.display = '';
       delBtn.addEventListener('click', async function() {
@@ -2492,7 +2493,7 @@ async function openContractModal(id) {
     const contractNumber = r.contract_number || ('#' + id);
     const state = { members: members };
 
-    if (currentUser && currentUser.__isAdmin) {
+    if (canCloseContract(currentUser)) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
       delBtn.style.display = '';
       delBtn.addEventListener('click', async function() {
@@ -2568,16 +2569,21 @@ window.openContractModal = openContractModal;
 
 // ---------- тип арендатора: юрлицо / ИП / физлицо — от него зависит набор реквизитов ----------
 // ОГРН бывает только у юрлица; у ИП свой номер — ОГРНИП; у физлица ни того, ни другого, зато паспорт.
-const TENANT_TYPES = ['Юрлицо', 'ИП', 'Физлицо'];
+const TENANT_TYPES = ['Юрлицо', 'ИП', 'Физлицо'];   // значения в базе; показываем полными словами (VALUE_LABELS)
+const VALUE_LABELS = {
+  tenant_type: { 'Юрлицо': 'Юридическое лицо', 'ИП': 'Индивидуальный предприниматель', 'Физлицо': 'Физическое лицо' },
+  signing_method: { 'ЭДО': 'Электронный документооборот', 'Лично': 'Лично' }
+};
+function valueLabel(field, v) { const m = VALUE_LABELS[field]; return m && m[v] ? m[v] : v; }
 const TENANT_FIELD_RULES = {
   kpp: { show: ['Юрлицо'] },
   director: { show: ['Юрлицо'] },
   director_post: { show: ['Юрлицо'] },
-  ogrn: { show: ['Юрлицо', 'ИП'], label: { 'ИП': 'ОГРНИП' } },
+  ogrn: { show: ['Юрлицо', 'ИП'], label: { 'ИП': 'Основной государственный регистрационный номер индивидуального предпринимателя' } },
   legal_address: { label: { 'ИП': 'Адрес регистрации', 'Физлицо': 'Адрес регистрации' } },
   passport: { show: ['Физлицо'] },
   passport_issued: { show: ['Физлицо'] },
-  tenant_name: { label: { 'Юрлицо': 'Наименование арендатора', 'ИП': 'Индивидуальный предприниматель, ФИО', 'Физлицо': 'Арендатор, ФИО' } }
+  tenant_name: { label: { 'Юрлицо': 'Наименование арендатора', 'ИП': 'Фамилия, имя, отчество индивидуального предпринимателя', 'Физлицо': 'Фамилия, имя, отчество арендатора' } }
 };
 // тип не выбран (старые договоры) — показываем реквизиты юрлица/ИП как раньше, паспорт прячем
 function tenantFieldVisible(name, type) {
@@ -2644,16 +2650,16 @@ const STAGE_DEFS = [
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
-      { name: 'inn', label: 'ИНН', type: 'text' },
-      { name: 'kpp', label: 'КПП', type: 'text' },
-      { name: 'ogrn', label: 'ОГРН', type: 'text' },
+      { name: 'inn', label: 'Идентификационный номер налогоплательщика', type: 'text' },
+      { name: 'kpp', label: 'Код причины постановки на учёт', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text' },
+      { name: 'ogrn', label: 'Основной государственный регистрационный номер', type: 'text' },
       { name: 'director_post', label: 'Должность руководителя', type: 'text' },
-      { name: 'director', label: 'ФИО руководителя', type: 'text' },
+      { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
-      { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
+      { name: 'bik', label: 'Банковский идентификационный код', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
       { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' },
       { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
@@ -2705,6 +2711,7 @@ function readonlyFieldValue(f, r) {
     const t = calcTotal(r.rent_amount, r.utility_amount);
     return money(t === null ? v : t);
   }
+  if (VALUE_LABELS[f.name] && v) return esc(valueLabel(f.name, v));
   if (f.name === 'inn' && v) return '<span data-inn-ro="' + escAttr(String(v).replace(/\D/g, '')) + '">' + esc(v) + '</span>';
   if (f.type === 'money') return money(v);
   if (f.type === 'status') return statusPill(f.name, v);
@@ -2741,7 +2748,7 @@ function renderEditableField(f, value, rec) {
   }
   if (f.type === 'select') {
     const opts = (f.options || []).map(function(o) {
-      return '<option value="' + escAttr(o) + '"' + (value === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+      return '<option value="' + escAttr(o) + '"' + (value === o ? ' selected' : '') + '>' + esc(valueLabel(f.name, o)) + '</option>';
     }).join('');
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><select class="cm-field-input" data-field="' + f.name + '"><option value=""' + (!value ? ' selected' : '') + '>Не выбрано</option>' + opts + '</select></div>';
   }
@@ -2885,18 +2892,18 @@ const ACTIVE_BLOCK_DEFS = [
   ]},
   { key: 'counterparty', title: 'Блок Контрагента', fields: [
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
-      { name: 'inn', label: 'ИНН', type: 'text' },
-      { name: 'kpp', label: 'КПП', type: 'text' },
-      { name: 'ogrn', label: 'ОГРН', type: 'text' },
+      { name: 'inn', label: 'Идентификационный номер налогоплательщика', type: 'text' },
+      { name: 'kpp', label: 'Код причины постановки на учёт', type: 'text' },
+      { name: 'legal_address', label: 'Юридический адрес', type: 'text', full: true },
+      { name: 'ogrn', label: 'Основной государственный регистрационный номер', type: 'text' },
       { name: 'director_post', label: 'Должность руководителя', type: 'text' },
-      { name: 'director', label: 'ФИО руководителя', type: 'text' },
+      { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
-      { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
+      { name: 'bik', label: 'Банковский идентификационный код', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
-      { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' },
-      { name: 'legal_address', label: 'Юридический адрес', type: 'text', full: true }
+      { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' }
   ]},
   { key: 'notes', title: 'Примечания', fields: [
       { name: 'notes', label: 'Текст примечания', type: 'textarea', full: true }
@@ -2905,6 +2912,8 @@ const ACTIVE_BLOCK_DEFS = [
   } }
 ];
 
+// завершить и удалить договор — только «Юр. отдел - Договоры» и администраторы
+function canCloseContract(user) { return !!(user && (user.__isAdmin || hasRole(user, 'legal_dept'))); }
 function canEditActiveBlocks(user) {
   return !!(user && (user.__isAdmin || hasRole(user, 'rental_dept') || hasRole(user, 'legal_dept') || hasRole(user, 'accounting_dept')));
 }
@@ -3329,16 +3338,17 @@ function renderAddendumsSection(prefix) {
     + '</div></div></div>';
 }
 
-function renderAddendumsList(items) {
+function renderAddendumsList(items, canEdit) {
   if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет дополнительных соглашений</div>';
   return items.map(function(a) {
     const fileHtml = a.file
       ? '<span class="cm-addendum-file" data-att-url="' + esc(a.file.url) + '" data-att-name="' + esc((a.file.title || 'file') + (a.file.extname || '')) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc((a.file.title || 'file') + (a.file.extname || '')) + '</span>'
       : '';
-    return '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;">'
+    return '<div class="cm-contact-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
       + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + '</div>'
       + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
       + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + (fileHtml ? ' · ' + fileHtml : '') + '</div>'
+      + '</div>' + (canEdit ? '<div class="cm-contact-actions"><a data-addendum-edit="' + a.id + '" title="Изменить">✎</a><a data-addendum-del="' + a.id + '" title="Удалить">✕</a></div>' : '')
       + '</div>';
   }).join('');
 }
@@ -3389,20 +3399,57 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   const statusSpan = overlay.querySelector('#' + prefix + '-addendum-status');
   if (!listEl || !addBtn) return;
 
+  // изменять и удалять — те же, кто работает с карточкой (в архиве — только просмотр)
+  const canEdit = contractType !== 'completed' && (contractType === 'draft' || canEditActiveBlocks(currentUser));
+  let items = [], editId = null;
+  function resetForm() {
+    editId = null;
+    titleInput.value = ''; descInput.value = ''; fileInput.value = '';
+    filenameSpan.textContent = 'Файл не выбран';
+    saveBtn.textContent = 'Сохранить';
+  }
   async function refresh() {
-    const items = await loadAddendums(contractType, contractId);
-    listEl.innerHTML = renderAddendumsList(items);
+    items = await loadAddendums(contractType, contractId);
+    listEl.innerHTML = renderAddendumsList(items, canEdit);
     wireAddendumFileOpen(overlay);
+    if (!canEdit) return;
+    listEl.querySelectorAll('[data-addendum-edit]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        const a = items.find(function(x) { return String(x.id) === el.getAttribute('data-addendum-edit'); });
+        if (!a) return;
+        editId = a.id;
+        titleInput.value = a.title || ''; descInput.value = a.description || ''; fileInput.value = '';
+        filenameSpan.textContent = a.file ? 'Сейчас: ' + (a.file.title || 'файл') + (a.file.extname || '') + ' — можно выбрать другой' : 'Файл не выбран';
+        saveBtn.textContent = 'Сохранить изменения';
+        formEl.style.display = 'block';
+        titleInput.focus();
+      });
+    });
+    listEl.querySelectorAll('[data-addendum-del]').forEach(function(el) {
+      el.addEventListener('click', async function() {
+        const a = items.find(function(x) { return String(x.id) === el.getAttribute('data-addendum-del'); });
+        if (!a || !(await cmConfirm('Удалить дополнительное соглашение «' + (a.title || 'без названия') + '»?' + (a.file ? ' Прикреплённый файл тоже будет удалён.' : '')))) return;
+        try {
+          await ctx.api.resource('contract_addendums').destroy({ filterByTk: a.id });
+          if (a.file && a.file.id) { try { await ctx.api.resource('attachments').destroy({ filterByTk: a.file.id }); } catch (e) { /* файл мог быть удалён раньше */ } }
+          logHistory(contractType, contractId, [{ action: 'addendum', text: 'Удалено дополнительное соглашение: ' + (a.title || 'без названия') }]);
+          if (editId === a.id) { resetForm(); formEl.style.display = 'none'; }
+          await refresh();
+          cmToast('Дополнительное соглашение удалено');
+        } catch (e) { cmToast('Не удалось удалить дополнительное соглашение'); }
+      });
+    });
   }
   await refresh();
 
   addBtn.addEventListener('click', function() {
-    formEl.style.display = formEl.style.display === 'none' ? 'block' : 'none';
+    if (formEl.style.display !== 'none' && !editId) { formEl.style.display = 'none'; return; }
+    resetForm();
+    formEl.style.display = 'block';
   });
   cancelBtn.addEventListener('click', function() {
     formEl.style.display = 'none';
-    titleInput.value = ''; descInput.value = ''; fileInput.value = '';
-    filenameSpan.textContent = 'Файл не выбран';
+    resetForm();
   });
   pickBtn.addEventListener('click', function() { fileInput.click(); });
   fileInput.addEventListener('change', function() {
@@ -3419,16 +3466,29 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
         statusSpan.textContent = 'Загрузка файла…';
         fileId = await uploadFileGetId(fileInput.files[0]);
       }
-      await ctx.api.resource('contract_addendums').create({
-        values: {
-          contract_type: contractType, contract_ref_id: contractId,
-          title: title, description: descInput.value.trim(),
-          file_id: fileId, author_id: currentUser.id, created_at: new Date().toISOString()
-        }
-      });
-      logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено дополнительное соглашение: ' + title }]);
-      titleInput.value = ''; descInput.value = ''; fileInput.value = '';
-      filenameSpan.textContent = 'Файл не выбран';
+      if (editId) {
+        const old = items.find(function(x) { return x.id === editId; }) || {};
+        const upd = { title: title, description: descInput.value.trim() };
+        if (fileId) upd.file_id = fileId;
+        await ctx.api.resource('contract_addendums').update({ filterByTk: editId, values: upd });
+        // новый файл заменил старый — старый удаляем
+        if (fileId && old.file && old.file.id) { try { await ctx.api.resource('attachments').destroy({ filterByTk: old.file.id }); } catch (e) { /* ignore */ } }
+        const what = [];
+        if ((old.title || '') !== title) what.push('название «' + (old.title || '') + '» → «' + title + '»');
+        if ((old.description || '') !== upd.description) what.push('описание');
+        if (fileId) what.push('файл');
+        logHistory(contractType, contractId, [{ action: 'addendum', text: 'Изменено дополнительное соглашение «' + title + '»' + (what.length ? ': ' + what.join(', ') : '') }]);
+      } else {
+        await ctx.api.resource('contract_addendums').create({
+          values: {
+            contract_type: contractType, contract_ref_id: contractId,
+            title: title, description: descInput.value.trim(),
+            file_id: fileId, author_id: currentUser.id, created_at: new Date().toISOString()
+          }
+        });
+        logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено дополнительное соглашение: ' + title }]);
+      }
+      resetForm();
       formEl.style.display = 'none';
       statusSpan.textContent = '';
       await refresh();
@@ -4297,11 +4357,11 @@ async function openFormingContractModal(id) {
     const contractNumber = r.contract_number || r.object_name || ('#' + id);
     const state = { members: members };
 
-    if (currentUser && currentUser.__isAdmin) {
+    if (canCloseContract(currentUser)) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
       delBtn.style.display = '';
       delBtn.addEventListener('click', async function() {
-        if (!(await cmConfirm('Удалить черновик договора «' + contractNumber + '» безвозвратно? Это действие нельзя отменить.'))) return;
+        if (!(await cmConfirm('Удалить договор «' + contractNumber + '» безвозвратно? Это действие нельзя отменить.'))) return;
         delBtn.disabled = true;
         try {
           await ctx.api.resource('forming_contracts').destroy({ filterByTk: id });

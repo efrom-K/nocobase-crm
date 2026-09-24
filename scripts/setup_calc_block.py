@@ -19,7 +19,7 @@ def call(path, body=None):
         return {'error': e.code, 'body': e.read().decode()[:300]}
 
 for coll in ('rental_contracts', 'completed_contracts'):
-    r = call('collections/%s/fields:create' % coll, {'name': 'calc_comment', 'type': 'text', 'interface': 'textarea',
+    r = {} if '--titles-only' in sys.argv else call('collections/%s/fields:create' % coll, {'name': 'calc_comment', 'type': 'text', 'interface': 'textarea',
              'uiSchema': {'type': 'string', 'title': 'Комментарий к расчётам', 'x-component': 'Input.TextArea'}})
     print(coll, 'calc_comment', 'ok' if 'data' in r else r.get('body', r))
 
@@ -38,7 +38,15 @@ TITLES = {
     'date_act': 'Дата подписания акта приёма-передачи',
     'end_date': 'Дата окончания договора',
     'termination_date': 'Дата расторжения договора',
-    'tenant_fio': 'ФИО по договору',
+    'tenant_fio': 'Фамилия, имя, отчество по договору',
+    'inn': 'Идентификационный номер налогоплательщика',
+    'kpp': 'Код причины постановки на учёт',
+    'ogrn': 'Основной государственный регистрационный номер',
+    'bik': 'Банковский идентификационный код',
+    'director': 'Фамилия, имя, отчество руководителя',
+    'director_post': 'Должность руководителя',
+    'tenant_type': 'Тип арендатора',
+    'legal_address': 'Юридический адрес',
     'purpose': 'Назначение по договору',
     'contract_scan_url': 'Скан подписанного договора',
     'act_scan_url': 'Скан подписанного акта',

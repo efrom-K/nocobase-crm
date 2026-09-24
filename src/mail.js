@@ -73,7 +73,7 @@ async function api(path, opts) {
     .ml-search input:focus { background: #fff; border-color: var(--ml-blue); }
     .ml-search > svg { position: absolute; left: 10px; top: 10px; color: var(--ml-gray); }
     .ml-search b { position: absolute; right: 10px; top: 8px; cursor: pointer; color: var(--ml-gray); font-weight: 400; }
-    .ml-check { width: 18px; height: 18px; border: 1.5px solid #b9bcc3; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #fff; box-sizing: border-box; }
+    .ml-check { width: 20px; height: 20px; border: 1.5px solid #b9bcc3; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #fff; box-sizing: border-box; }
     .ml-check.on { background: var(--ml-blue); border-color: var(--ml-blue); }
     .ml-check.on::after { content: ''; width: 9px; height: 5px; border: 2px solid #fff; border-top: none; border-right: none; transform: rotate(-45deg) translate(1px, -1px); }
     .ml-list { flex: 1; overflow-y: auto; }
@@ -81,14 +81,18 @@ async function api(path, opts) {
     .ml-row:hover { background: #f5f7fa; }
     .ml-row.sel { background: #eaf1ff; }
     .ml-row.dragging { opacity: .5; }
-    .ml-row .ml-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex: 0 0 8px; cursor: pointer; }
-    .ml-row:hover .ml-unread-dot { box-shadow: inset 0 0 0 1.5px #b9bcc3; }
-    .ml-row.unread .ml-unread-dot { background: var(--ml-blue); box-shadow: none; }
+    /* точка — только признак «не прочитано», без действия по клику */
+    .ml-row .ml-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex: 0 0 8px; pointer-events: none; }
+    .ml-row.unread .ml-unread-dot { background: var(--ml-blue); }
+    /* поле выбора письма: вся левая часть строки на полную высоту; галочка видна при наведении, а когда что-то выбрано — у всех строк */
+    .ml-sel-cell { flex: 0 0 44px; align-self: stretch; margin: 0 -8px 0 -16px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 0; }
+    .ml-sel-cell:hover .ml-check { border-color: var(--ml-blue); }
+    .ml-sel-cell .ml-check { opacity: 0; transition: opacity .1s; }
+    .ml-row:hover .ml-sel-cell .ml-check, .ml-row.sel .ml-sel-cell .ml-check, .ml-list.selecting .ml-sel-cell .ml-check { opacity: 1; }
     .ml-avatar-wrap { position: relative; width: 32px; height: 32px; flex: 0 0 32px; }
     .ml-avatar { width: 32px; height: 32px; border-radius: 50%; color: #fff; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
-    .ml-avatar-wrap .ml-check { position: absolute; left: 7px; top: 7px; display: none; }
-    .ml-row:hover .ml-avatar, .ml-row.sel .ml-avatar { display: none; }
-    .ml-row:hover .ml-avatar-wrap .ml-check, .ml-row.sel .ml-avatar-wrap .ml-check { display: inline-flex; }
+
+
     .ml-from { width: 200px; flex: 0 0 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
     .ml-row.unread .ml-from, .ml-row.unread .ml-subj { font-weight: 700; }
     .ml-line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
@@ -595,8 +599,9 @@ function rowHtml(m) {
   const peer = sent ? (m.to && m.to[0]) : (m.from && m.from[0]);
   const peerName = sent ? (m.draft ? 'Черновик' : 'Кому: ') + (m.to || []).map(who).join(', ') : (m.participants && m.participants.length > 1 ? m.participants.join(', ') : who(peer));
   return '<div class="ml-row' + (m.seen ? '' : ' unread') + (S.sel.has(m.uid) ? ' sel' : '') + '" data-uid="' + m.uid + '" draggable="true">'
-    + '<span class="ml-unread-dot" data-toggle-seen="' + m.uid + '" title="' + (m.seen ? 'Отметить непрочитанным' : 'Отметить прочитанным') + '"></span>'
-    + '<div class="ml-avatar-wrap">' + avatar(peer) + '<span class="ml-check' + (S.sel.has(m.uid) ? ' on' : '') + '" data-check="' + m.uid + '"></span></div>'
+    + '<div class="ml-sel-cell" data-check="' + m.uid + '" title="Выбрать письмо"><span class="ml-check' + (S.sel.has(m.uid) ? ' on' : '') + '"></span></div>'
+    + '<span class="ml-unread-dot"' + (m.seen ? '' : ' title="Не прочитано"') + '></span>'
+    + '<div class="ml-avatar-wrap">' + avatar(peer) + '</div>'
     + '<div class="ml-from" title="' + esc(peer ? peer.address : '') + '">' + esc(peerName || '(без отправителя)') + (m.count > 1 ? '<span class="ml-count" title="Писем в цепочке">' + m.count + '</span>' : '') + '</div>'
     + '<div class="ml-line">' + (m.important ? '<span class="ml-imp" title="Важное">!</span>' : '') + '<span class="ml-subj">' + esc(m.subject || '(без темы)') + '</span><span class="ml-snip">' + esc(m.snippet || '') + '</span></div>'
     + '<div class="ml-icons">' + (m.answered ? '<span title="Вы ответили на это письмо" style="display:inline-flex;">' + IC.answered + '</span>' : '') + (m.attachments ? IC.clip : '')
@@ -611,7 +616,7 @@ function renderList() {
   else if (!S.items.length) body = '<div class="ml-empty"><b>' + (S.q ? 'Ничего не нашлось' : S.filter ? 'Таких писем нет' : 'Писем нет') + '</b>' + (S.q ? 'Попробуйте другой запрос' : S.filter ? 'Попробуйте показать все письма' : 'В этой папке пока пусто') + '</div>';
   else body = S.items.map(rowHtml).join('') + (S.items.length < S.total ? '<button class="ml-btn ml-more" id="ml-more">Показать ещё</button>' : '');
   const scroll = main.querySelector('#ml-list') ? main.querySelector('#ml-list').scrollTop : 0;
-  main.innerHTML = listToolbar() + '<div class="ml-list" id="ml-list">' + body + '</div>';
+  main.innerHTML = listToolbar() + '<div class="ml-list' + (S.sel.size ? ' selecting' : '') + '" id="ml-list">' + body + '</div>';
   main.querySelector('#ml-list').scrollTop = scroll;
   wireList();
 }
@@ -653,7 +658,6 @@ function wireList() {
       const t = e.target;
       if (t.closest('[data-check]') || e.shiftKey || e.ctrlKey || e.metaKey) { if (S.sel.has(uid)) S.sel.delete(uid); else S.sel.add(uid); renderList(); return; }
       if (t.closest('[data-flag]')) { const m = itemOf(uid); setFlag(uidsOf([uid]), !m.flagged); return; }
-      if (t.closest('[data-toggle-seen]')) { const m = itemOf(uid); setSeen(uidsOf([uid]), !m.seen); return; }
       const m = S.items.find(function(x) { return x.uid === uid; });
       if (m && m.draft && currentFolder().special === '\\Drafts') { openDraft(uid); return; }
       openItem(m);

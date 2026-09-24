@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Цена договора по времени: основная цена на весь срок + периоды «Графика цены аренды» на отдельные даты.
+"""Цена договора по времени: основная цена на весь срок + периоды «Дополнительных расчётов аренды» на отдельные даты.
 
   apply_price_schedule.py              # выполнить (cron раз в сутки, 00:10)
   apply_price_schedule.py --dry-run    # только показать, что изменилось бы
@@ -36,12 +36,12 @@ def q(v): return 'NULL' if v is None else "'" + str(v).replace("'", "''") + "'"
 def jrows(sql): return json.loads(psql("select coalesce(json_agg(t), '[]'::json) from (%s) t" % sql) or '[]')
 def r2(x): return round(x + 1e-9, 2)
 def num(v): return ('%.2f' % v).rstrip('0').rstrip('.')                     # 1200.0 → «1200», 1200.5 → «1200.5» (как в истории карточек)
-def fmt(v): return ('{:,.2f}'.format(v).replace(',', ' ').replace('.', ',')).rstrip('0').rstrip(',')
+def fmt(v): return '{:,.2f}'.format(v).replace(',', ' ').replace('.', ',')   # всегда до сотых: 65,00
 def dmy(iso): y, m, d = iso.split('-'); return '%s.%s.%s' % (d, m, y)
 
 psql("create table if not exists contract_price_applied(contract_id bigint primary key, sig text not null, applied_at timestamptz default now())")
 T = TODAY.isoformat()
-contracts = jrows("select id, contract_number, object_name, area_sqm, rent_per_sqm, rent_amount, base_rent_per_sqm, base_rent_amount from rental_contracts "
+contracts = jrows("select id, contract_number, object_name, area_sqm, rent_per_sqm, rent_amount, base_rent_per_sqm, base_rent_amount, utility_amount, total_amount from rental_contracts "
                   "where termination_date is null and (id in (select contract_ref_id from contract_price_periods where contract_type='active') "
                   "or id in (select contract_id from contract_price_applied))")
 periods = {}
@@ -56,11 +56,14 @@ def recipients(cid):
     ms = members.get(cid, set())
     return (ms & accountants) or ms
 
-def label_of(p): return '%s ₽ %s%s' % (fmt(float(p['amount'])), 'за 1 кв.м. ' if p['basis'] == 'per_sqm' else '', UNIT_TITLE.get(p['unit'] or 'month', ''))
+def prange(p):
+    # период без даты окончания хранится с date_to = 2099-12-31
+    return 'с %s' % dmy(p['date_from']) + (', без даты окончания' if p['date_to'] >= '2099-12-31' else ' по %s' % dmy(p['date_to']))
+def label_of(p): return '%s ₽ %s%s' % (fmt(float(p['amount'])), 'за 1 квадратный метр ' if p['basis'] == 'per_sqm' else '', UNIT_TITLE.get(p['unit'] or 'month', ''))
 def base_label(c):
     parts = []
-    if c['base_rent_per_sqm'] is not None: parts.append('%s ₽ за 1 кв.м.' % fmt(c['base_rent_per_sqm']))
-    if c['base_rent_amount'] is not None: parts.append('АП %s ₽ в месяц' % fmt(c['base_rent_amount']))
+    if c['base_rent_per_sqm'] is not None: parts.append('%s ₽ за 1 квадратный метр' % fmt(c['base_rent_per_sqm']))
+    if c['base_rent_amount'] is not None: parts.append('арендная плата %s ₽ в месяц' % fmt(c['base_rent_amount']))
     return ' · '.join(parts) or 'не задана'
 
 def target(c, iso):
@@ -71,12 +74,12 @@ def target(c, iso):
     if p:
         amt = float(p['amount'])
         new = ({'rent_per_sqm': amt, 'rent_amount': r2(amt * area)} if area > 0 else {'rent_per_sqm': amt}) if p['basis'] == 'per_sqm' else {'rent_amount': amt, 'rent_per_sqm': None}
-        return ('p:%s|%s|%s|%s' % (p['id'], p['amount'], p['basis'], area), new, 'Цена по графику: %s (период %s — %s)' % (label_of(p), dmy(p['date_from']), dmy(p['date_to'])),
-                'по графику %s%s, период %s — %s' % (label_of(p), (' (АП %s ₽)' % fmt(new['rent_amount'])) if p['basis'] == 'per_sqm' and 'rent_amount' in new else '', dmy(p['date_from']), dmy(p['date_to'])))
+        return ('p:%s|%s|%s|%s' % (p['id'], p['amount'], p['basis'], area), new, 'Цена периода %s: %s' % (prange(p), label_of(p)),
+                'цена периода %s: %s%s' % (prange(p), label_of(p), (', арендная плата %s ₽ в месяц' % fmt(new['rent_amount'])) if p['basis'] == 'per_sqm' and 'rent_amount' in new else ''))
     if c['base_rent_per_sqm'] is None and c['base_rent_amount'] is None: return None
     return ('base:%s|%s' % (c['base_rent_per_sqm'], c['base_rent_amount']), {'rent_per_sqm': c['base_rent_per_sqm'], 'rent_amount': c['base_rent_amount']},
-            'Период графика закончился — действует основная цена: %s' % base_label(c),
-            'период графика закончится, вернётся основная цена: %s' % base_label(c))
+            'Период дополнительных расчётов закончился — действует основная цена: %s' % base_label(c),
+            'вернётся основная цена: %s' % base_label(c))
 def notify(stmts, c, text):
     title = 'Договор ' + (c['contract_number'] or c['object_name'] or '#%s' % c['id'])
     opts = json.dumps({'url': '/admin/%s?open=active:%s' % (REGISTRY_PAGE, c['id'])})
@@ -85,8 +88,8 @@ def notify(stmts, c, text):
                      "values (gen_random_uuid(),now(),now(),%s,'status',%s,%s,'unread',(extract(epoch from now())*1000)::bigint,%s::json);" % (uid, q(title), q(text), q(opts)))
 def money_vals(v):
     parts = []
-    if v.get('rent_amount') is not None: parts.append('АП %s ₽ в месяц' % fmt(v['rent_amount']))
-    if v.get('rent_per_sqm') is not None: parts.append('%s ₽ за 1 кв.м.' % fmt(v['rent_per_sqm']))
+    if v.get('rent_amount') is not None: parts.append('арендная плата %s ₽ в месяц' % fmt(v['rent_amount']))
+    if v.get('rent_per_sqm') is not None: parts.append('%s ₽ за 1 квадратный метр' % fmt(v['rent_per_sqm']))
     return ', '.join(parts) or 'цена не задана'
 
 stmts, report = [], []
@@ -122,6 +125,10 @@ for c in contracts:
     if applied.get(c['id']) == sig: continue
     changed = {k: (c[k], v) for k, v in new.items()
                if (v is None and c[k] is not None) or (v is not None and (c[k] is None or abs(c[k] - v) >= 0.005))}
+    if 'rent_amount' in changed:
+        ra, ua = changed['rent_amount'][1], c['utility_amount']
+        tot = None if ra is None and ua is None else r2((ra or 0) + (ua or 0))
+        if tot != c['total_amount']: changed['total_amount'] = (c['total_amount'], tot)
     report.append((c['id'], text, changed))
     stmts.append("insert into contract_price_applied(contract_id, sig) values (%s, %s) on conflict (contract_id) do update set sig=excluded.sig, applied_at=now();" % (c['id'], q(sig)))
     if not changed: continue

@@ -1330,7 +1330,7 @@ function derivedUpdates(oldRec, values) {
   });
   return upd;
 }
-function totalRentKey(collection) { return collection === 'rental_contracts' ? 'base_rent_amount' : 'rent_amount'; }
+function totalRentKey(collection) { return 'rent_amount'; }   // у активного — текущая цена (с учётом дополнительных расчётов)
 function calcTotal(rent, utility) {
   const a = numOf(rent), b = numOf(utility);
   return a === null && b === null ? null : round2((a || 0) + (b || 0));
@@ -1399,7 +1399,9 @@ function wireDerivedHints(root) {
     root.querySelectorAll('[data-calc-total]').forEach(function(totEl) {
       const form = totEl.closest('.cm-stage-form') || root;
       const pick = function(n) { const el = form.querySelector('[data-field="' + n + '"]') || root.querySelector('[data-field="' + n + '"]'); return el ? el.value : (totEl.__cmRec ? totEl.__cmRec[n] : null); };
-      const rent = form.querySelector('[data-field="base_rent_amount"]') ? pick('base_rent_amount') : pick('rent_amount');
+      // у активного договора во время периода дополнительных расчётов сумма считается от текущей цены периода
+      const rec = root.__cmActiveRec;
+      const rent = form.querySelector('[data-field="base_rent_amount"]') ? (rec && rec.__schedNow ? rec.rent_amount : pick('base_rent_amount')) : pick('rent_amount');
       const t = calcTotal(rent, pick('utility_amount'));
       totEl.value = t === null ? '' : formatNum(t) + ' ₽';
     });
@@ -1464,6 +1466,10 @@ function periodMonthly(p, area) {
   return round2(amt * (p.basis === 'per_sqm' ? area : 1));
 }
 function fmtDate(iso) { return fromISODateDisplay(iso); }
+// период без даты окончания хранится с date_to = OPEN_END (ночной скрипт и проверки работают как с обычной датой)
+const OPEN_END = '2099-12-31';
+function isOpenEnd(iso) { return !iso || String(iso).slice(0, 10) >= OPEN_END; }
+function periodRange(p) { return 'с ' + fmtDate(p.date_from) + (isOpenEnd(p.date_to) ? ', без даты окончания' : ' по ' + fmtDate(p.date_to)); }
 function todayIsoLocal() { return dateToIso(new Date()); }
 // период графика, действующий в дату iso (если пересекаются — начавшийся позже); цены не «в месяц» не применяются
 function schedulePeriodOn(periods, iso) {
@@ -1490,32 +1496,51 @@ function basePriceLabel(rec) {
   return parts.length ? parts.join(' · ') : 'не задана';
 }
 function priceLabel(p) {
-  return formatNum(p.amount) + ' ₽ ' + (p.basis === 'per_sqm' ? 'за 1 квадратный метр ' : '') + (PRICE_UNIT_TITLES[p.unit || 'month'] || '');
+  return formatNum(p.amount) + ' ₽ ' + (p.basis === 'per_sqm' ? 'за 1 квадратный метр ' : '') + 'в месяц';
+}
+// ближайшая смена цены после iso: { date, period } (period = null — вернётся основная цена) или null
+function nextPriceChange(periods, iso) {
+  const cur = schedulePeriodOn(periods, iso);
+  const dates = [];
+  (periods || []).forEach(function(p) {
+    if (p.date_from && p.date_from > iso) dates.push(String(p.date_from).slice(0, 10));
+    if (p.date_to && !isOpenEnd(p.date_to)) { const d = addDays(isoToDate(p.date_to), 1); if (d) { const di = dateToIso(d); if (di > iso) dates.push(di); } }
+  });
+  dates.sort();
+  for (let k = 0; k < dates.length; k++) {
+    const p = schedulePeriodOn(periods, dates[k]);
+    if ((p ? p.id : null) !== (cur ? cur.id : null)) return { date: dates[k], period: p };
+  }
+  return null;
+}
+// значение поля цены (arendная плата в месяц / за 1 квадратный метр) при смене цены
+function priceAtChange(ch, fieldName, rec) {
+  const area = numOf(rec.area_sqm);
+  if (!ch.period) return numOf(rec[fieldName === 'rent_amount' ? 'base_rent_amount' : 'base_rent_per_sqm']);
+  const amt = Number(ch.period.amount);
+  if (ch.period.basis === 'per_sqm') return fieldName === 'rent_per_sqm' ? amt : (area > 0 ? round2(amt * area) : null);
+  return fieldName === 'rent_amount' ? amt : null;
 }
 
 function renderPricesSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
-    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">График цены аренды</div>'
+    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные расчёты аренды</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;">+ Период</button></div>'
-    + '<div class="cm-price-hint">Цена может меняться со временем: на весь срок действует основная цена (блок «Характеристики и расчёты»), а на отдельные даты можно задать другую (например, скидку на несколько месяцев). Цена в договоре переключается сама, сотрудникам договора приходит уведомление. Цена периода — фиксированная сумма в месяц или за 1 квадратный метр в месяц.</div>'
     + '<div id="' + prefix + '-price-base" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
     + '<div class="cm-price-form-grid">'
     + '<div class=\"cm-field-row\"><div class=\"cm-label\">Действует с</div><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
-    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Действует по</div><input type="date" class="cm-field-input" id="' + prefix + '-price-to"></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Действует по, можно не указывать</div><input type="date" class="cm-field-input" id="' + prefix + '-price-to"></div>'
     + '<div class=\"cm-field-row\"><div class=\"cm-label\">Как задана цена</div><select class="cm-field-input" id="' + prefix + '-price-basis"><option value="per_sqm">За 1 квадратный метр</option><option value="fixed">Фиксированная сумма</option></select></div>'
-    + '<div class=\"cm-field-row\"><div class=\"cm-label\">За какой срок</div><select class="cm-field-input" id="' + prefix + '-price-unit"><option value="month">В месяц</option></select></div>'
-    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Цена, ₽</div><input type="text" class="cm-field-input" id="' + prefix + '-price-amount" inputmode="decimal" placeholder="0,00"></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Цена в месяц, ₽</div><input type="text" class="cm-field-input" id="' + prefix + '-price-amount" inputmode="decimal" placeholder="0,00"></div>'
     + '<div class=\"cm-field-row\"><div class=\"cm-label\">Примечание</div><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="например, скидка на ремонт"></div>'
     + '</div>'
     + '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" id="' + prefix + '-price-save">Сохранить</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-price-cancel">Отмена</button>'
     + '<span id="' + prefix + '-price-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
     + '</div>'
-    + '<div id="' + prefix + '-price-actions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">'
-    + '<button class="cm-btn-save" id="' + prefix + '-price-today">Пересчитать цену на сегодня</button></div>'
     + '</div>';
 }
 
@@ -1531,8 +1556,8 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   const q = function(s) { return overlay.querySelector('#' + prefix + s); };
   const listEl = q('-price-list');
   if (!listEl) return;
-  const summaryEl = q('-price-summary'), addBtn = q('-price-add-btn'), formEl = q('-price-form'), actionsEl = q('-price-actions');
-  const fromEl = q('-price-from'), toEl = q('-price-to'), basisEl = q('-price-basis'), unitEl = q('-price-unit'), amountEl = q('-price-amount'), noteEl = q('-price-note');
+  const summaryEl = q('-price-summary'), addBtn = q('-price-add-btn'), formEl = q('-price-form');
+  const fromEl = q('-price-from'), toEl = q('-price-to'), basisEl = q('-price-basis'), amountEl = q('-price-amount'), noteEl = q('-price-note');
   const saveBtn = q('-price-save'), cancelBtn = q('-price-cancel'), statusEl = q('-price-status');
   const coll = type === 'forming' ? 'forming_contracts' : (type === 'completed' ? 'completed_contracts' : 'rental_contracts');
   let items = [];
@@ -1553,15 +1578,16 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const lines = [];
     const nowP = schedulePeriodOn(items, todayIsoLocal());
     if (type === 'active') {
-      lines.push(nowP ? 'Сейчас действует цена по графику: <b>' + escRaw(priceLabel(nowP)) + '</b> до ' + escRaw(fmtDate(nowP.date_to)) + ', затем — основная цена'
-        : 'Сейчас действует <b>основная цена</b>');
-    } else if (nowP) lines.push('Сегодня по графику: <b>' + escRaw(priceLabel(nowP)) + '</b>');
+      const ch = r ? nextPriceChange(items, todayIsoLocal()) : null;
+      lines.push((nowP ? 'Сейчас действует цена периода: <b>' + escRaw(priceLabel(nowP)) + '</b>' : 'Сейчас действует <b>основная цена</b>')
+        + (ch ? ', с ' + escRaw(fmtDate(ch.date)) + ' — ' + (ch.period ? '<b>' + escRaw(priceLabel(ch.period)) + '</b>' : 'основная цена') : ''));
+    } else if (nowP) lines.push('Сегодня действует цена периода: <b>' + escRaw(priceLabel(nowP)) + '</b>');
     const show = type === 'active' || items.length;
     summaryEl.innerHTML = lines.join('<br>');
     summaryEl.style.display = show && lines.length ? 'block' : 'none';
-    actionsEl.style.display = canEdit && items.length ? 'flex' : 'none';
     if ((type === 'active' || type === 'completed') && r) {
       r.__schedNow = type === 'active' ? nowP : null;
+      r.__schedNext = type === 'active' ? nextPriceChange(items, todayIsoLocal()) : null;
       renderAllActiveReadonly(overlay, r);
     }
   }
@@ -1572,13 +1598,12 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     if (!items.length) { listEl.innerHTML = '<div style="color:#bbb;font-size:12px;">Периодов пока нет' + (canEdit ? ' — добавьте кнопкой «+ Период»' : '') + '</div>'; return; }
     const t = today();
     listEl.innerHTML = items.map(function(p) {
-      const cost = periodCost(p, c.area), mo = periodMonthly(p, c.area);
+      const mo = periodMonthly(p, c.area);
       const a = isoToDate(p.date_from), b = isoToDate(p.date_to);
       const now = a && b && a.getTime() <= t.getTime() && t.getTime() <= b.getTime();
       return '<div class="cm-price-row' + (now ? ' now' : '') + '"><div class="cm-price-main">'
-        + '<div class="cm-price-dates">' + escRaw(fmtDate(p.date_from)) + ' — ' + escRaw(fmtDate(p.date_to)) + (now ? ' <span style="color:#389e0d;font-weight:400;font-size:12px;">· сейчас</span>' : '') + '</div>'
-        + '<div class="cm-price-line">' + escRaw(priceLabel(p)) + (mo !== null && p.basis === 'per_sqm' ? ' · ' + escRaw(formatNum(mo)) + ' ₽ в месяц' : '') + '</div>'
-        + '<div class="cm-price-line">За период: <span class="cm-price-total">' + (cost !== null ? escRaw(formatNum(cost)) + ' ₽' : '— (укажите площадь)') + '</span>' + (p.note ? ' · ' + escRaw(p.note) : '') + '</div>'
+        + '<div class="cm-price-dates">' + escRaw(periodRange(p)) + (now ? ' <span style="color:#389e0d;font-weight:400;font-size:12px;">· сейчас</span>' : '') + '</div>'
+        + '<div class="cm-price-line">' + escRaw(priceLabel(p)) + (mo !== null && p.basis === 'per_sqm' ? ' · <span class="cm-price-total">' + escRaw(formatNum(mo)) + ' ₽ в месяц</span>' : '') + (p.note ? ' · ' + escRaw(p.note) : '') + '</div>'
         + '</div>'
         + (canEdit ? '<div class="cm-contact-actions"><a data-price-edit="' + p.id + '" title="Изменить">✎</a><a data-price-del="' + p.id + '" title="Удалить">✕</a></div>' : '')
         + '</div>';
@@ -1591,10 +1616,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       a.addEventListener('click', async function() {
         const p = items.find(function(x) { return String(x.id) === a.getAttribute('data-price-del'); });
         if (!p) return;
-        if (!(await cmConfirm('Удалить период ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + '?'))) return;
+        if (!(await cmConfirm('Удалить период ' + periodRange(p) + '?'))) return;
         try {
           await ctx.api.resource('contract_price_periods').destroy({ filterByTk: p.id });
-          logHistory(type, id, [{ action: 'price', text: 'Удалён период цены ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + ': ' + priceLabel(p) }]);
+          logHistory(type, id, [{ action: 'price', text: 'Удалён период цены ' + periodRange(p) + ': ' + priceLabel(p) }]);
           await refresh();
           await applySchedule(false);
         } catch (e) { cmToast('Не удалось удалить период'); }
@@ -1621,14 +1646,13 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const c = ctxInfo();
     const last = items.length ? items[items.length - 1] : null;
     if (p) {
-      fromEl.value = p.date_from || ''; toEl.value = p.date_to || ''; basisEl.value = p.basis || 'per_sqm'; unitEl.value = p.unit || 'month';
+      fromEl.value = p.date_from || ''; toEl.value = isOpenEnd(p.date_to) ? '' : p.date_to; basisEl.value = p.basis || 'per_sqm';
       amountEl.value = p.amount === null || p.amount === undefined ? '' : fixed2Input(p.amount); noteEl.value = p.note || '';
     } else {
-      const start = last ? addDays(isoToDate(last.date_to) || new Date(), 1) : c.start;
+      const start = last && !isOpenEnd(last.date_to) ? addDays(isoToDate(last.date_to), 1) : today();
       fromEl.value = start ? dateToIso(start) : '';
-      toEl.value = (c.end && start && c.end.getTime() >= start.getTime()) ? dateToIso(c.end) : '';
+      toEl.value = '';
       basisEl.value = last ? (last.basis || 'per_sqm') : (c.per > 0 ? 'per_sqm' : 'fixed');
-      unitEl.value = last ? (last.unit || 'month') : 'month';
       const suggested = last ? last.amount : (basisEl.value === 'per_sqm' ? c.per : c.amt);
       amountEl.value = suggested > 0 ? fixed2Input(suggested) : '';
       noteEl.value = '';
@@ -1641,22 +1665,37 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   cancelBtn.addEventListener('click', closeForm);
   saveBtn.addEventListener('click', async function() {
     const amount = numOf(amountEl.value);
-    const a = isoToDate(fromEl.value), b = isoToDate(toEl.value);
-    if (!a || !b) { cmToast('Укажите даты «с» и «по»'); return; }
-    if (b.getTime() < a.getTime()) { cmToast('Дата «по» раньше даты «с»'); return; }
-    if (!(amount > 0)) { cmToast('Укажите цену больше нуля'); return; }
-    const clash = items.find(function(p) {
-      if (editId && String(p.id) === String(editId)) return false;
-      const pa = isoToDate(p.date_from), pb = isoToDate(p.date_to);
-      return pa && pb && a.getTime() <= pb.getTime() && b.getTime() >= pa.getTime();
+    if (!fromEl.value) { cmToast('Укажите, с какой даты действует цена'); fromEl.focus(); return; }
+    if (!(amount > 0)) { cmToast('Укажите цену больше нуля'); amountEl.focus(); return; }
+    // «по» не указана или раньше «с» — период без даты окончания
+    let toIso = toEl.value && toEl.value >= fromEl.value ? toEl.value : OPEN_END;
+    // новый период «перекрывает» старые: те, что начались раньше, заканчиваются накануне, а те, что внутри, — удаляются
+    const others = items.filter(function(p) { return !(editId && String(p.id) === String(editId)); });
+    const trims = [], drops = [];
+    others.forEach(function(p) {
+      if (!(p.date_from <= toIso && fromEl.value <= p.date_to)) return;
+      if (p.date_from < fromEl.value) trims.push(p);
+      else if (p.date_to <= toIso) drops.push(p);
+      else if (toIso === OPEN_END) drops.push(p);
+      else toIso = dateToIso(addDays(isoToDate(p.date_from), -1));
     });
-    if (clash) { cmToast('Пересекается с периодом ' + fmtDate(clash.date_from) + ' — ' + fmtDate(clash.date_to)); return; }
-    const values = { contract_type: type, contract_ref_id: id, date_from: fromEl.value, date_to: toEl.value, basis: basisEl.value, unit: unitEl.value, amount: amount, note: noteEl.value.trim() };
+    const values = { contract_type: type, contract_ref_id: id, date_from: fromEl.value, date_to: toIso, basis: basisEl.value, unit: 'month', amount: amount, note: noteEl.value.trim() };
     saveBtn.disabled = true; statusEl.textContent = 'Сохранение…';
     try {
+      const hist = [];
+      for (const p of trims) {
+        const nt = dateToIso(addDays(isoToDate(fromEl.value), -1));
+        await ctx.api.resource('contract_price_periods').update({ filterByTk: p.id, values: { date_to: nt } });
+        hist.push({ action: 'price', text: 'Период цены ' + periodRange(p) + ' теперь заканчивается ' + fmtDate(nt) });
+      }
+      for (const p of drops) {
+        await ctx.api.resource('contract_price_periods').destroy({ filterByTk: p.id });
+        hist.push({ action: 'price', text: 'Удалён период цены ' + periodRange(p) + ': его заменил новый' });
+      }
       if (editId) await ctx.api.resource('contract_price_periods').update({ filterByTk: editId, values: values });
       else await ctx.api.resource('contract_price_periods').create({ values: values });
-      logHistory(type, id, [{ action: 'price', text: (editId ? 'Изменён период цены ' : 'Добавлен период цены ') + fmtDate(values.date_from) + ' — ' + fmtDate(values.date_to) + ': ' + priceLabel(values) }]);
+      hist.push({ action: 'price', text: (editId ? 'Изменён период цены ' : 'Добавлен период цены ') + periodRange(values) + ': ' + priceLabel(values) });
+      logHistory(type, id, hist);
       closeForm();
       await refresh();
       await applySchedule(false);
@@ -1687,7 +1726,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     });
     if (!Object.keys(upd).length) { if (explicit) cmToast('Цена на сегодня уже верная'); return; }
     const text = tgt.period
-      ? 'Цена по графику: ' + priceLabel(tgt.period) + ' (период ' + fmtDate(tgt.period.date_from) + ' — ' + fmtDate(tgt.period.date_to) + ')'
+      ? 'Цена периода ' + periodRange(tgt.period) + ': ' + priceLabel(tgt.period)
       : 'Действует основная цена: ' + basePriceLabel(r);
     try {
       await applyToContract(upd, { schedule: true });
@@ -1702,7 +1741,6 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       renderSummary();
     } catch (e) { cmToast('Не удалось обновить цену договора'); }
   }
-  q('-price-today').addEventListener('click', function() { applySchedule(true); });
 }
 
 // ---------- статусы-светофоры (только активные договоры) ----------
@@ -2537,13 +2575,21 @@ function readonlyFieldValue(f, r) {
   if (f.type === 'checkbox') return v ? 'Да' : 'Нет';
   if (f.name === 'termination_date' && r.__kind === 'active') return esc(fromISODateDisplay(v)) + expiryBadge(v);
   if (f.type === 'date') return esc(fromISODateDisplay(v));
-  if ((f.name === 'base_rent_amount' || f.name === 'base_rent_per_sqm') && r.__schedNow) {
-    const cur = f.name === 'base_rent_amount' ? r.rent_amount : r.rent_per_sqm;
-    return (v === null || v === undefined || v === '' ? '—' : money(v))
-      + '<span class="cm-sched-badge">сейчас по графику: ' + (cur === null || cur === undefined ? '—' : escRaw(formatNum(cur)) + ' ₽') + ' до ' + esc(fmtDate(r.__schedNow.date_to)) + '</span>';
+  // активный договор: в поле — цена, действующая сегодня; в приписке — следующая цена и с какого числа
+  if ((f.name === 'base_rent_amount' || f.name === 'base_rent_per_sqm') && r.__kind === 'active') {
+    const curName = f.name.replace('base_', '');
+    const cur = r[curName] !== undefined && r[curName] !== null ? r[curName] : v;
+    const ch = r.__schedNext;
+    let badge = '';
+    if (ch) {
+      const nv = priceAtChange(ch, curName, r);
+      if (nv !== null && !(numOf(cur) !== null && Math.abs(nv - numOf(cur)) < 0.005))
+        badge = '<span class="cm-sched-badge" title="' + escAttr(ch.period ? 'Цена периода ' + periodRange(ch.period) : 'Основная цена договора') + '">с ' + esc(fmtDate(ch.date)) + ': ' + escRaw(formatNum(nv)) + ' ₽</span>';
+    }
+    return money(cur) + badge;
   }
   if (f.name === 'total_amount') {
-    const t = calcTotal(r.base_rent_amount !== undefined && r.base_rent_amount !== null ? r.base_rent_amount : r.rent_amount, r.utility_amount);
+    const t = calcTotal(r.rent_amount, r.utility_amount);
     return money(t === null ? v : t);
   }
   if (f.name === 'inn' && v) return '<span data-inn-ro="' + escAttr(String(v).replace(/\D/g, '')) + '">' + esc(v) + '</span>';
@@ -2601,7 +2647,7 @@ function renderEditableField(f, value, rec) {
 }
 
 function readonlyTotalText(r) {
-  const t = calcTotal(r.base_rent_amount !== undefined && r.base_rent_amount !== null ? r.base_rent_amount : r.rent_amount, r.utility_amount);
+  const t = calcTotal(r.rent_amount, r.utility_amount);
   return t === null ? '' : formatNum(t) + ' ₽';
 }
 

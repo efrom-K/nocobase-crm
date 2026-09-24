@@ -1579,8 +1579,10 @@ function renderPricesSection(prefix) {
   const comp = function(c) {
     return '<div class="cm-price-comp" data-comp="' + c.key + '"><label class="cm-price-check"><input type="checkbox" data-comp-on="' + c.key + '"> ' + esc(c.title) + '</label>'
       + '<div class="cm-price-comp-fields" style="display:none;">'
-      + (c.perField ? '<select class="cm-field-input" data-comp-basis="' + c.key + '"><option value="per_sqm">за 1 квадратный метр в месяц</option><option value="fixed">сумма в месяц</option></select>' : '<span class="cm-price-comp-hint">сумма</span>')
-      + '<input type="text" class="cm-field-input" data-comp-value="' + c.key + '" inputmode="decimal" placeholder="0,00"><span class="cm-price-comp-hint" data-comp-calc="' + c.key + '"></span></div></div>';
+      + (c.perField ? '<div class="cm-price-comp-field"><div class="cm-label">Способ расчёта</div><select class="cm-field-input" data-comp-basis="' + c.key + '"><option value="per_sqm">За 1 квадратный метр в месяц</option><option value="fixed">Фиксированная сумма в месяц</option></select></div>' : '')
+      + '<div class="cm-price-comp-field"><div class="cm-label" data-comp-label="' + c.key + '">' + (c.perField ? 'Новая ставка, ₽' : 'Новая сумма, ₽') + '</div>'
+      + '<input type="text" class="cm-field-input" data-comp-value="' + c.key + '" inputmode="decimal" placeholder="0,00"></div>'
+      + '<div class="cm-price-comp-calc" data-comp-calc="' + c.key + '"></div></div></div>';
   };
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные расчёты аренды</div>'
@@ -1589,10 +1591,10 @@ function renderPricesSection(prefix) {
     + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
     + '<div class="cm-price-form-grid">'
-    + '<div class="cm-field-row"><div class="cm-label">Действует с</div><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
-    + '<div class="cm-field-row"><div class="cm-label">Действует по, можно не указывать</div><input type="date" class="cm-field-input" id="' + prefix + '-price-to"></div>'
-    + '<div class="cm-field-row full"><div class="cm-label">Что меняется в этот период</div><div class="cm-price-comps">' + PRICE_COMPONENTS.map(comp).join('') + '</div></div>'
-    + '<div class="cm-field-row full"><div class="cm-label">Примечание</div><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="например, скидка на ремонт"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Начало периода</div><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Окончание периода</div><input type="date" class="cm-field-input" id="' + prefix + '-price-to"><div class="cm-derived-hint">Если не указать, изменение действует бессрочно</div></div>'
+    + '<div class="cm-field-row full"><div class="cm-label">Какие цены меняются в этом периоде</div><div class="cm-price-comps">' + PRICE_COMPONENTS.map(comp).join('') + '</div></div>'
+    + '<div class="cm-field-row full"><div class="cm-label">Комментарий</div><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="Например: скидка на время ремонта"></div>'
     + '</div>'
     + '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" id="' + prefix + '-price-save">Сохранить</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-price-cancel">Отмена</button>'
@@ -1714,7 +1716,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const out = compEl(c.key, 'calc');
     if (!out) return;
     const basis = compEl(c.key, 'basis'), v = numOf(compEl(c.key, 'value').value), a0 = area();
-    out.textContent = c.perField && basis && basis.value === 'per_sqm' && v > 0 && a0 > 0 ? '= ' + formatNum(round2(v * a0)) + ' ₽ в месяц' : '';
+    const perSqm = c.perField && basis && basis.value === 'per_sqm';
+    const lab = compEl(c.key, 'label');
+    if (lab) lab.textContent = perSqm ? 'Новая ставка за 1 квадратный метр, ₽' : (c.perField ? 'Новая сумма в месяц, ₽' : 'Новая сумма, ₽');
+    out.textContent = perSqm && v > 0 && a0 > 0 ? 'Итого в месяц: ' + formatNum(round2(v * a0)) + ' ₽ (площадь ' + formatNum(a0) + ' квадратных метров)' : '';
   }
   function setComp(c, on) {
     compEl(c.key, 'on').checked = on;
@@ -1763,10 +1768,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   addBtn.addEventListener('click', function() { if (formEl.style.display === 'none') openForm(null); else closeForm(); });
   cancelBtn.addEventListener('click', closeForm);
   saveBtn.addEventListener('click', async function() {
-    if (!fromEl.value) { cmToast('Укажите, с какой даты действует период'); fromEl.focus(); return; }
+    if (!fromEl.value) { cmToast('Укажите дату начала периода'); fromEl.focus(); return; }
     const chosen = PRICE_COMPONENTS.filter(function(c) { return compEl(c.key, 'on').checked; });
-    if (!chosen.length) { cmToast('Отметьте, что меняется: арендная плата, эксплуатационный сбор или обеспечительный платёж'); return; }
-    for (const c of chosen) { if (!(numOf(compEl(c.key, 'value').value) > 0)) { cmToast(c.title + ': укажите сумму больше нуля'); compEl(c.key, 'value').focus(); return; } }
+    if (!chosen.length) { cmToast('Отметьте хотя бы одну цену, которая меняется в этом периоде'); return; }
+    for (const c of chosen) { if (!(numOf(compEl(c.key, 'value').value) > 0)) { cmToast(c.title + ': укажите новое значение больше нуля'); compEl(c.key, 'value').focus(); return; } }
     const on = function(key) { return chosen.some(function(c) { return c.key === key; }); };
     const val = function(key) { return on(key) ? numOf(compEl(key, 'value').value) : null; };
     const bas = function(key) { const b = compEl(key, 'basis'); return on(key) && b ? b.value : null; };
@@ -1885,10 +1890,11 @@ if (!document.getElementById('cm-extra-style')) {
     .cm-price-comp.on { border-color: #91caff; background: #f5f9ff; }
     .cm-price-check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; user-select: none; font-weight: 500; }
     .cm-price-check input { width: 16px; height: 16px; cursor: pointer; }
-    .cm-price-comp-fields { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
-    .cm-price-comp-fields select.cm-field-input { width: 260px; }
-    .cm-price-comp-fields input.cm-field-input { width: 160px; }
-    .cm-price-comp-hint { font-size: 12.5px; color: #8c8c8c; }
+    .cm-price-comp-fields { display: flex; align-items: flex-end; gap: 12px; margin: 10px 0 2px 24px; flex-wrap: wrap; }
+    .cm-price-comp-field .cm-label { margin-bottom: 4px; }
+    .cm-price-comp-fields select.cm-field-input { width: 280px; }
+    .cm-price-comp-fields input.cm-field-input { width: 200px; }
+    .cm-price-comp-calc { font-size: 12.5px; color: #595959; padding-bottom: 9px; }
     .cm-price-form-grid, .cm-contact-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
     .cm-hist-row { padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
     .cm-hist-meta { color: #8c8c8c; font-size: 11.5px; margin-bottom: 1px; }

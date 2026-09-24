@@ -1392,7 +1392,11 @@ function rcptField(el, initial, st) {
 // ---------- ссылка из уведомления: ?open=<папка>:<uid> ----------
 async function openFromUrl() {
   const mm = location.search.match(/[?&]open=([^&]+)/);
-  if (!mm || !S.me || !S.me.configured || !root.querySelector('.ml-app')) return false;
+  if (!mm) { window.__mlOpenedKey = null; return false; }
+  if (!S.me || !S.me.configured || !root.querySelector('.ml-app')) return false;
+  // одна и та же ссылка открывается один раз (адрес страницы роутер NocoBase может не дать переписать)
+  if (window.__mlOpenedKey === mm[1]) return false;
+  window.__mlOpenedKey = mm[1];
   try { history.replaceState(history.state, '', location.pathname); } catch (e) { /* ignore */ }
   let v = mm[1];
   try { v = decodeURIComponent(v); } catch (e) { /* ignore */ }
@@ -1407,7 +1411,7 @@ async function openFromUrl() {
   return true;
 }
 if (window.__mlOpenTimer) clearInterval(window.__mlOpenTimer);
-window.__mlOpenTimer = setInterval(function() { if (!root.isConnected) { clearInterval(window.__mlOpenTimer); return; } if (nbSessionAlive() && /[?&]open=/.test(location.search)) openFromUrl(); }, 700);
+window.__mlOpenTimer = setInterval(function() { if (!root.isConnected) { clearInterval(window.__mlOpenTimer); return; } if (nbSessionAlive()) openFromUrl(); }, 700);
 
 // ---------- запуск ----------
 async function start() {

@@ -3018,9 +3018,20 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       const values = collectFormValues(form, fieldTypes);
       const badField = validateForm(form, false);
       if (badField) { cmToast(badField.msg); if (badField.el) badField.el.focus(); return; }
+      // отправляем только изменённые поля: иначе неизменённая сумма выглядит как «введена вручную»
+      // и мешает мягкому пересчёту «ставка × площадь» (например, при смене площади)
+      const isEmpty = function(x) { return x === null || x === undefined || x === ''; };
+      Object.keys(values).forEach(function(k) {
+        const nv = values[k], ov = r[k];
+        if (isEmpty(nv) && isEmpty(ov)) delete values[k];
+        else if (typeof nv === 'number' && numOf(ov) !== null && Math.abs(nv - numOf(ov)) < 0.005) delete values[k];
+        else if (fieldTypes[k] === 'date' && !isEmpty(nv) && toISODate(ov) === nv) delete values[k];
+        else if (!isEmpty(nv) && !isEmpty(ov) && String(nv) === String(ov)) delete values[k];
+      });
       btn.disabled = true;
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
+        if (!Object.keys(values).length) { form.style.display = 'none'; readonly.style.display = ''; if (toggleBtn) toggleBtn.style.display = ''; if (statusEl) statusEl.textContent = ''; btn.disabled = false; return; }
         // заполнили дату расторжения — договор «Требует внимания» (статус «Проблема» не понижаем)
         if (values.termination_date && values.termination_date !== toISODate(r.termination_date) && r.contract_status !== '1_problem')
           values.contract_status = '2_attention';

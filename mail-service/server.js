@@ -11,6 +11,9 @@ const nodemailer = require('nodemailer');
 const MailComposer = require('nodemailer/lib/mail-composer');
 const { simpleParser } = require('mailparser');
 const iconv = require('iconv-lite');
+const libqp = require('libqp');
+const { convert: htmlToText } = require('html-to-text');
+const archiver = require('archiver');
 
 const env = process.env;
 const PORT = Number(env.PORT) || 8096;
@@ -48,6 +51,20 @@ function decrypt(o) {
 }
 function getPassword(email) { const o = loadCreds()[email]; if (!o) return null; try { return decrypt(o); } catch (e) { return null; } }
 function setPassword(email, pass) { const all = loadCreds(); all[email] = encrypt(pass); saveCreds(all); }
+
+// ---------- настройки ящика: имя отправителя и подпись ----------
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+function loadSettings() { try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { return {}; } }
+function settingsOf(email) { return loadSettings()[email] || {}; }
+function saveSettings(email, v) {
+  const all = loadSettings();
+  all[email] = { name: String(v.name || '').slice(0, 120), signature: String(v.signature || '').slice(0, 20000), sigOnReply: v.sigOnReply !== false };
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = SETTINGS_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(all, null, 1), { mode: 0o600 });
+  fs.renameSync(tmp, SETTINGS_FILE);
+  return all[email];
+}
 
 // ---------- кто пришёл: проверка сессии NocoBase ----------
 const tokenCache = new Map();
@@ -168,47 +185,54 @@ function hasAttachments(node) {
   if (!node.childNodes && d !== 'inline' && !String(node.type || '').startsWith('text/') && !String(node.type || '').startsWith('multipart/') && node.type !== 'message/delivery-status') return !!(node.dispositionParameters && node.dispositionParameters.filename) || !!(node.parameters && node.parameters.name);
   return (node.childNodes || []).some(hasAttachments);
 }
-function decodePart(buf, part) {
+const ZW = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u206A-\u206F\u3164\uFEFF\uFFA0\uFFFD]/g;
+function decodePart(buf, part, complete) {
   let b = buf;
   const enc = String(part.encoding || '').toLowerCase();
-  if (enc === 'base64') { const s = b.toString('ascii').replace(/[^A-Za-z0-9+/]/g, ''); b = Buffer.from(s.slice(0, s.length - (s.length % 4)), 'base64'); }
-  else if (enc === 'quoted-printable') {
-    const s = b.toString('binary').replace(/=\r?\n/g, '');
-    const bytes = []; for (let i = 0; i < s.length; i++) {
-      if (s[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(s.substr(i + 1, 2))) { bytes.push(parseInt(s.substr(i + 1, 2), 16)); i += 2; }
-      else bytes.push(s.charCodeAt(i) & 0xff);
-    }
-    b = Buffer.from(bytes);
-  }
+  if (enc === 'base64') { const t = b.toString('ascii').replace(/[^A-Za-z0-9+/]/g, ''); b = Buffer.from(t.slice(0, t.length - (t.length % 4)), 'base64'); }
+  else if (enc === 'quoted-printable') b = libqp.decode(b.toString('ascii').replace(/=[0-9A-Fa-f]?$/, ''));
   const cs = (part.parameters && part.parameters.charset) || 'utf-8';
   let text;
   try { text = iconv.encodingExists(cs) ? iconv.decode(b, cs) : b.toString('utf8'); } catch (e) { text = b.toString('utf8'); }
-  if (String(part.type).toLowerCase() === 'text/html') text = text.replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#\d+;/g, ' ');
-  return text.replace(/�/g, '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  if (String(part.type).toLowerCase() === 'text/html') {
+    if (!complete) text = text.replace(/<[^>]*$/, '');   // оборванный на границе среза тег
+    try {
+      text = htmlToText(text, { wordwrap: false, selectors: [
+        { selector: 'img', format: 'skip' }, { selector: 'a', options: { ignoreHref: true } },
+        { selector: 'h1', options: { uppercase: false } }, { selector: 'h2', options: { uppercase: false } }, { selector: 'h3', options: { uppercase: false } },
+        { selector: 'table', format: 'block' }, { selector: 'tr', format: 'block' }, { selector: 'td', format: 'inline' }, { selector: 'th', format: 'inline' }
+      ] });
+    } catch (e) { text = text.replace(/<[^>]*>/g, ' '); }
+  }
+  return text.replace(ZW, '').replace(/\s+/g, ' ').trim().slice(0, 200);
 }
 const snippetCache = new Map();
-async function listMessages(client, folder, page, q) {
+const SNIPPET_BYTES = 65536;   // обычно текстовая часть целиком — без обрывков тегов и кодировки на границе среза
+const FILTERS = { unread: { seen: false }, flagged: { flagged: true }, attachments: { header: { 'content-type': 'multipart/mixed' } } };
+async function listMessages(client, folder, page, q, filter) {
   const lock = await client.getMailboxLock(folder, { readOnly: true });
   try {
     const mb = client.mailbox;
     let uids;
-    if (q) {
-      const s = String(q).slice(0, 100);
-      uids = await client.search({ or: [{ subject: s }, { from: s }, { to: s }, { body: s }] }, { uid: true });
-    } else uids = mb.exists ? await client.search({ all: true }, { uid: true }) : [];
+    const crit = Object.assign({}, FILTERS[filter] || {});
+    if (q) { const s = String(q).slice(0, 100); crit.or = [{ subject: s }, { from: s }, { to: s }, { body: s }]; }
+    if (!mb.exists) uids = [];
+    else uids = await client.search(Object.keys(crit).length ? crit : { all: true }, { uid: true });
     uids = (uids || []).sort((a, b) => b - a);
     const total = uids.length;
     const pageUids = uids.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
     const items = [];
     if (pageUids.length) {
-      for await (const m of client.fetch(pageUids.join(','), { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true, size: true }, { uid: true })) {
+      for await (const m of client.fetch(pageUids.join(','), { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true, size: true, headers: ['x-priority', 'importance', 'priority'] }, { uid: true })) {
         const env = m.envelope || {};
+        const hdr = m.headers ? m.headers.toString() : '';
         const part = findTextPart(m.bodyStructure, 'text/plain') || findTextPart(m.bodyStructure, 'text/html');
         items.push({
           uid: m.uid, subject: env.subject || '', from: addrList(env.from), to: addrList(env.to),
           date: (env.date || m.internalDate || new Date()).toISOString(),
           seen: m.flags.has('\\Seen'), flagged: m.flags.has('\\Flagged'), answered: m.flags.has('\\Answered'), draft: m.flags.has('\\Draft'),
-          attachments: hasAttachments(m.bodyStructure), size: m.size, __part: part
+          attachments: hasAttachments(m.bodyStructure), size: m.size, __part: part,
+          important: /x-priority:\s*[12]\b|importance:\s*high|priority:\s*urgent/i.test(hdr)
         });
       }
       // превью текста: начало текстовой части, одним запросом на группу писем с одинаковым номером части
@@ -225,11 +249,11 @@ async function listMessages(client, folder, page, q) {
       for (const [k, list] of groups) {
         const byUid = new Map(list.map(it => [it.uid, it]));
         try {
-          for await (const m of client.fetch(list.map(it => it.uid).join(','), { uid: true, bodyParts: [{ key: k, start: 0, maxLength: 1500 }] }, { uid: true })) {
+          for await (const m of client.fetch(list.map(it => it.uid).join(','), { uid: true, bodyParts: [{ key: k, start: 0, maxLength: SNIPPET_BYTES }] }, { uid: true })) {
             const it = byUid.get(m.uid);
             if (!it || !m.bodyParts) continue;
             const buf = m.bodyParts.values().next().value;
-            it.snippet = buf ? decodePart(buf, it.__part) : '';
+            it.snippet = buf ? decodePart(buf, it.__part, buf.length < SNIPPET_BYTES) : '';
             snippetCache.set(key(it.uid), it.snippet);
           }
         } catch (e) { /* без превью */ }
@@ -262,7 +286,7 @@ async function readMessage(client, folder, uid) {
       const cid = a.contentId.replace(/^<|>$/g, '');
       if (html.includes('cid:' + cid)) {
         html = html.split('cid:' + cid).join('data:' + (a.contentType || 'application/octet-stream') + ';base64,' + a.content.toString('base64'));
-        if (a.contentDisposition === 'inline') return;
+        return;   // картинка показана в тексте письма — отдельным вложением её не выводим
       }
     }
     atts.push({ idx: i, filename: a.filename || ('вложение-' + (i + 1)), contentType: a.contentType, size: a.size || (a.content ? a.content.length : 0) });
@@ -272,7 +296,7 @@ async function readMessage(client, folder, uid) {
   try { await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true }); } catch (e) { /* ignore */ } finally { lock.release(); }
   return {
     uid, subject: p.subject || '', from: parsedAddr(p.from), to: parsedAddr(p.to), cc: parsedAddr(p.cc), replyTo: parsedAddr(p.replyTo),
-    date: (p.date || new Date()).toISOString(), html, text: p.text || '', attachments: atts,
+    date: (p.date || new Date()).toISOString(), html, text: p.text || '', attachments: atts, important: p.priority === 'high',
     messageId: p.messageId || '', references: [].concat(p.references || [])
   };
 }
@@ -302,11 +326,22 @@ async function composeMail(user, body, client) {
       attachments.push({ filename: a.filename || ('вложение-' + (i + 1)), contentType: a.contentType, content: a.content });
     });
   }
+  // картинки, вставленные в текст письма (data:), уходят вложениями с cid — так их видят все почтовые программы
+  let html = String(body.html || '');
+  let n = 0;
+  html = html.replace(/(<img[^>]+src=["'])data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)(["'])/gi, function(m, pre, type, data, post) {
+    const cid = 'img' + (++n) + '.' + crypto.randomBytes(6).toString('hex') + '@mail';
+    attachments.push({ filename: 'image' + n + '.' + (type.split('/')[1] || 'png').replace('jpeg', 'jpg'), contentType: type, content: Buffer.from(data.replace(/\s/g, ''), 'base64'), cid: cid, contentDisposition: 'inline' });
+    return pre + 'cid:' + cid + post;
+  });
+  const st = settingsOf(user.email);
   const opts = {
-    from: { name: user.name || '', address: user.email }, to, cc, bcc,
-    subject: String(body.subject || ''), html: String(body.html || ''), text: body.text ? String(body.text) : undefined,
-    attachments, date: new Date()
+    from: { name: st.name || user.name || '', address: user.email }, to, cc, bcc,
+    subject: String(body.subject || ''), html: html, text: body.text ? String(body.text) : undefined,
+    attachments, date: new Date(), headers: {}
   };
+  if (body.important) Object.assign(opts.headers, { 'X-Priority': '1 (Highest)', 'X-MSMail-Priority': 'High', 'Importance': 'High' });
+  if (body.readReceipt) opts.headers['Disposition-Notification-To'] = user.email;
   if (body.inReplyTo) { opts.inReplyTo = body.inReplyTo; opts.references = [].concat(body.references || [], body.inReplyTo).filter(Boolean).join(' '); }
   const raw = await new MailComposer(opts).compile().build();
   return { raw, rcpt: [...to, ...cc, ...bcc], opts };
@@ -369,7 +404,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/messages') {
       const folder = url.searchParams.get('folder') || 'INBOX';
       const page = Math.max(0, Number(url.searchParams.get('page')) || 0);
-      const data = await withImap(email, c => listMessages(c, folder, page, url.searchParams.get('q') || ''));
+      const data = await withImap(email, c => listMessages(c, folder, page, url.searchParams.get('q') || '', url.searchParams.get('filter') || ''));
       return send(res, 200, data, origin);
     }
     if (p === '/api/message') {
@@ -385,6 +420,86 @@ const server = http.createServer(async (req, res) => {
         'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent(a.filename || 'file'), 'Cache-Control': 'no-store' }, corsHeaders(origin));
       res.writeHead(200, headers);
       return res.end(a.content);
+    }
+    if (p === '/api/settings') {
+      if (req.method === 'POST') { const b = await readJson(req); return send(res, 200, { settings: saveSettings(email, b) }, origin); }
+      const stt = settingsOf(email);
+      return send(res, 200, { settings: { name: stt.name || user.name || '', signature: stt.signature || '', sigOnReply: stt.sigOnReply !== false } }, origin);
+    }
+    if (p === '/api/source') {
+      const raw = await withImap(email, async c => {
+        const lock = await c.getMailboxLock(url.searchParams.get('folder') || 'INBOX', { readOnly: true });
+        try {
+          const dl = await c.download(String(Number(url.searchParams.get('uid'))), undefined, { uid: true, maxBytes: 3 * 1024 * 1024 });
+          if (!dl || !dl.content) throw new ApiError(404, 'NOT_FOUND', 'Письмо не найдено');
+          const chunks = []; for await (const ch of dl.content) chunks.push(ch);
+          return Buffer.concat(chunks);
+        } finally { lock.release(); }
+      });
+      res.writeHead(200, Object.assign({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }, corsHeaders(origin)));
+      return res.end(raw);
+    }
+    if (p === '/api/attachments.zip') {
+      const parsed = await withImap(email, c => fetchParsed(c, url.searchParams.get('folder') || 'INBOX', Number(url.searchParams.get('uid'))));
+      const atts = (parsed.attachments || []).filter(a => !(a.contentDisposition === 'inline' && a.contentId));
+      if (!atts.length) throw new ApiError(404, 'NOT_FOUND', 'В письме нет вложений');
+      res.writeHead(200, Object.assign({ 'Content-Type': 'application/zip', 'Cache-Control': 'no-store',
+        'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent('Вложения.zip') }, corsHeaders(origin)));
+      const zip = archiver('zip', { zlib: { level: 6 } });
+      zip.pipe(res);
+      const used = new Set();
+      atts.forEach((a, i) => {
+        let name = (a.filename || ('вложение-' + (i + 1))).replace(/[\\/]/g, '_');
+        while (used.has(name)) name = name.replace(/(\.[^.]*)?$/, ' (' + (i + 1) + ')$1');
+        used.add(name);
+        zip.append(a.content, { name: name });
+      });
+      await zip.finalize();
+      return;
+    }
+    if (p === '/api/markall' && req.method === 'POST') {
+      const b = await readJson(req);
+      await withImap(email, async c => {
+        const lock = await c.getMailboxLock(b.folder || 'INBOX');
+        try { if (c.mailbox.exists) await c.messageFlagsAdd('1:*', ['\\Seen']); } finally { lock.release(); }
+      });
+      return send(res, 200, { ok: true }, origin);
+    }
+    if (p === '/api/empty' && req.method === 'POST') {
+      // «Очистить» — только для корзины и спама, как в веб-почте
+      const b = await readJson(req);
+      await withImap(email, async c => {
+        const f = (await foldersOf(c, email, true)).find(x => x.path === b.folder);
+        if (!f || (f.special !== '\\Trash' && f.special !== '\\Junk')) throw new ApiError(400, 'NOT_ALLOWED', 'Очистить можно только корзину и спам');
+        const lock = await c.getMailboxLock(f.path);
+        try { if (c.mailbox.exists) await c.messageDelete('1:*'); } finally { lock.release(); }
+      });
+      return send(res, 200, { ok: true }, origin);
+    }
+    if (p.startsWith('/api/folder/') && req.method === 'POST') {
+      const b = await readJson(req);
+      await withImap(email, async c => {
+        const folders = await foldersOf(c, email, true);
+        const name = String(b.name || '').trim().replace(/[\/\\*%]/g, ' ').slice(0, 80);
+        if (p === '/api/folder/create') {
+          if (!name) throw new ApiError(400, 'EMPTY', 'Введите название папки');
+          if (folders.some(f => f.name.toLowerCase() === name.toLowerCase())) throw new ApiError(400, 'EXISTS', 'Такая папка уже есть');
+          await c.mailboxCreate(name);
+        } else {
+          const f = folders.find(x => x.path === b.path);
+          if (!f) throw new ApiError(404, 'NOT_FOUND', 'Папка не найдена');
+          if (f.special) throw new ApiError(400, 'SYSTEM', 'Системную папку нельзя ' + (p === '/api/folder/rename' ? 'переименовать' : 'удалить'));
+          if (p === '/api/folder/rename') { if (!name) throw new ApiError(400, 'EMPTY', 'Введите название папки'); await c.mailboxRename(f.path, name); }
+          else if (p === '/api/folder/delete') {
+            // письма из удаляемой папки — в корзину, чтобы ничего не пропало
+            const trash = await specialPath(c, email, '\\Trash');
+            if (trash && f.total) { const lock = await c.getMailboxLock(f.path); try { await c.messageMove('1:*', trash); } finally { lock.release(); } }
+            await c.mailboxDelete(f.path);
+          } else throw new ApiError(404, 'NOT_FOUND', 'Нет такого адреса');
+        }
+        folderCache.delete(email);
+      });
+      return send(res, 200, { ok: true }, origin);
     }
     if (p === '/api/flags' && req.method === 'POST') {
       const b = await readJson(req);

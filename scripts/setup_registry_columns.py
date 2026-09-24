@@ -18,12 +18,12 @@ def psql(sql, tuples=True):
 def uid():
     return ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(11))
 TABLES = [('ozazmpm4o4v','rental_contracts'),('formtbl000001','forming_contracts'),('ipb7gfluldk','completed_contracts')]
-ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','end_date','rent_amount','deposit_amount','inn']
-NEW = ['contract_status','payment_status','total_amount','end_date','rent_amount','deposit_amount','inn']
+ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','termination_date','rent_amount','deposit_amount','inn']
+NEW = ['contract_status','payment_status','total_amount','termination_date','rent_amount','deposit_amount','inn']
 ACTIVE_ONLY = {'contract_status', 'payment_status'}     # статусы-светофоры есть только у активных договоров (rental_contracts)
 STATUS_FIELDS = ACTIVE_ONLY
-HIDDEN_DEFAULT = {'end_date','rent_amount','deposit_amount','inn'}
-DATES = {'date_signed','date_act','end_date'}
+HIDDEN_DEFAULT = {'termination_date','rent_amount','deposit_amount','inn'}
+DATES = {'date_signed','date_act','termination_date'}
 NUMS = {'area_sqm','total_amount','rent_amount','deposit_amount'}
 def model_for(f): return 'DisplayEnumFieldModel' if f in STATUS_FIELDS else ('DisplayDateTimeFieldModel' if f in DATES else ('DisplayNumberFieldModel' if f in NUMS else 'DisplayTextFieldModel'))
 def q(s): return "'" + str(s).replace("'", "''") + "'"
@@ -39,6 +39,8 @@ for table_uid, coll in TABLES:
             # тип отображения у существующих столбцов
             stmts.append("update \"flowModels\" set options = jsonb_set(options::jsonb, '{use}', %s::jsonb)::json where options::json->>'parentId'=%s and options::json->>'subKey'='field';" % (q(json.dumps(model_for(fp))), q(cu)))
         elif fp in ACTIVE_ONLY and coll != 'rental_contracts':
+            continue
+        elif fp == 'termination_date' and coll == 'forming_contracts':   # у формирующихся даты расторжения нет
             continue
         else:
             cu, fu = uid(), uid()
@@ -70,7 +72,7 @@ def psql(sql, tuples=True):
     return r.stdout.decode()
 def q(s): return "'" + str(s).replace("'", "''") + "'"
 TABLES = ['ozazmpm4o4v','formtbl000001','ipb7gfluldk']
-ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','end_date','rent_amount','deposit_amount','inn']
+ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','termination_date','rent_amount','deposit_amount','inn']
 MONEY = {'total_amount','rent_amount','deposit_amount'}
 AREA = {'area_sqm'}
 stmts = ['begin;']
@@ -79,6 +81,7 @@ for t in TABLES:
     for r in rows:
         fp, cu = r['fp'], r['uid']
         # порядок на сервере: sort в замыкании = позиция
+        if fp not in ORDER: continue
         stmts.append("update \"flowModelTreePath\" set sort=%d where ancestor=%s and descendant=%s and depth=1;" % (ORDER.index(fp)+1, q(t), q(cu)))
         if fp in MONEY or fp in AREA:
             fmt = {'formatStyle':'normal','separator':'0.0,00','numberStep':'0.01'}

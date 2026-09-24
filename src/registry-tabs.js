@@ -63,7 +63,7 @@ if (!window.__registryVisibilityRetry) {
 
 // ---------- личная настройка столбцов таблиц ----------
 // У каждого пользователя свой набор и порядок столбцов; хранится в user_table_settings (и дублируется в localStorage).
-const COL_DEFAULT_HIDDEN = ['end_date', 'rent_amount', 'deposit_amount', 'inn'];
+const COL_DEFAULT_HIDDEN = ['termination_date', 'rent_amount', 'deposit_amount', 'inn'];
 const colDefaults = {};   // uid -> { order: [...], hidden: [...] } (как настроено администратором)
 const colCfg = {};        // uid -> текущая конфигурация пользователя { order, hidden }
 const colRowIds = {};     // uid -> id строки в user_table_settings

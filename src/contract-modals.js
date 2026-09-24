@@ -33,7 +33,14 @@ function formatNum(v) {
   if (v === null || v === undefined || v === '') return '—';
   const n = Number(v);
   if (!isFinite(n)) return esc(v);
-  try { return n.toLocaleString('ru-RU', { maximumFractionDigits: 2 }); } catch (e) { return String(n).replace('.', ','); }
+  // деньги и площади — всегда ровно до сотых (65,00), даже целые
+  try { return n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } catch (e) { return n.toFixed(2).replace('.', ','); }
+}
+// значение числового поля для ввода: «65,00» (без пробелов-разделителей тысяч, чтобы проходило проверку формата)
+function fixed2Input(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const n = Number(String(v).replace(/[\s\u00a0]/g, '').replace(',', '.'));
+  return isFinite(n) ? n.toFixed(2).replace('.', ',') : String(v);
 }
 function money(v) {
   if (v === null || v === undefined || v === '') return '—';
@@ -205,15 +212,30 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-stage-pill.done { background: #e6f7e6; color: #389e0d; }
     .cm-stage-pill.active { background: #1677ff; color: #fff; font-weight: 600; }
     .cm-stage-done-badge { font-size: 11px; font-weight: 400; color: #389e0d; background: #e6f7e6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
-    .cm-field-row { margin-bottom: 12px; }
-    .cm-field-row .cm-label { margin-bottom: 4px; }
-    .cm-field-input { width: 100%; border: 1px solid #d9d9d9; border-radius: 6px; padding: 6px 8px; font-size: 13.5px; font-family: inherit; box-sizing: border-box; }
+    /* формы редактирования: везде одна сетка в две равные колонки, поля одной высоты и ширины, строки выровнены по полю ввода */
+    .cm-stage-form:not([style*="none"]) { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: stretch; }
+    .cm-stage-form > :not(.cm-field-row), .cm-stage-form > .cm-field-row:has(textarea), .cm-field-row.full { grid-column: 1 / -1; }
+    .cm-stage-form > .cm-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+    .cm-stage-form > .cm-section > :not(.cm-field-row), .cm-stage-form > .cm-section > .cm-field-row:has(textarea) { grid-column: 1 / -1; }
+    .cm-field-row { margin-bottom: 12px; display: flex; flex-direction: column; min-width: 0; }
+    .cm-field-row .cm-label { margin-bottom: 4px; flex: 1 0 auto; display: flex; align-items: flex-end; line-height: 1.35; }
+    .cm-field-input { width: 100%; height: 34px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; font-size: 13.5px; line-height: 32px; font-family: inherit; box-sizing: border-box; background: #fff; color: #262626; margin: 0; }
+    select.cm-field-input { padding-right: 6px; }
+    textarea.cm-field-input { height: auto; min-height: 60px; line-height: 1.45; padding: 6px 10px; resize: vertical; }
+    .cm-field-input.cm-field-calc { background: #f5f7fa; color: #262626; font-weight: 600; cursor: default; }
     .cm-field-input:focus { outline: none; border-color: #4096ff; }
+    .cm-field-input.cm-field-calc:focus { border-color: #d9d9d9; }
+    @media (max-width: 700px) { .cm-stage-form:not([style*="none"]), .cm-stage-form > .cm-section, .cm-price-form-grid, .cm-contact-form-grid { grid-template-columns: minmax(0, 1fr) !important; } }
     .cm-field-checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 10px; cursor: pointer; }
     .cm-stage-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
-    .cm-btn-save { border: 1px solid #d9d9d9; background: #fff; color: #262626; border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; }
+    .cm-btn-save { border: 1px solid #d9d9d9; background: #fff; color: #262626; border-radius: 6px; padding: 0 16px; height: 34px; font-size: 13px; line-height: 32px; cursor: pointer; font-family: inherit; }
+    .cm-btn-save:hover:not(:disabled) { border-color: #4096ff; color: #1677ff; }
     .cm-btn-save:disabled { color: #ccc; cursor: default; }
-    .cm-btn-advance { border: none; background: #52c41a; color: #fff; border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
+    /* все кнопки «Сохранить» — одинаковые синие */
+    .cm-btn-save.cm-btn-primary { background: #1677ff; border-color: #1677ff; color: #fff; font-weight: 600; }
+    .cm-btn-save.cm-btn-primary:hover:not(:disabled) { background: #4096ff; border-color: #4096ff; color: #fff; }
+    .cm-btn-save.cm-btn-primary:disabled { background: #d9d9d9; border-color: #d9d9d9; color: #fff; }
+    .cm-btn-advance { border: none; background: #52c41a; color: #fff; border-radius: 6px; padding: 0 16px; height: 34px; font-size: 13px; cursor: pointer; font-weight: 600; font-family: inherit; }
     .cm-btn-advance:disabled { background: #d9d9d9; cursor: not-allowed; }
     .cm-btn-finalize { background: #1677ff; }
     .cm-role-hint { font-size: 12px; color: #999; }
@@ -229,7 +251,7 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-stage-edit-toggle { border: 1px solid #d9d9d9; background: #fff; color: #595959; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
     .cm-stage-edit-toggle:hover { border-color: #1677ff; color: #1677ff; }
     .cm-save-status { font-size: 11.5px; color: #b0b0b0; margin-top: 6px; min-height: 15px; }
-    .cm-stage-edit-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .cm-stage-edit-actions { display: flex; gap: 8px; margin-top: 4px; align-items: center; flex-wrap: wrap; }
     .cm-file-delete { color: #999; text-decoration: none; margin-left: 4px; }
     .cm-file-delete:hover { color: #c0392b; }
   `;
@@ -857,6 +879,7 @@ async function initMembers(contractId, root, initialMembers, isAdmin, contractNu
 const FIELD_RULES = {
   area_sqm: { kind: 'decimal' },
   rent_per_sqm: { kind: 'money' }, utility_per_sqm: { kind: 'money' },
+  base_rent_per_sqm: { kind: 'money' }, base_rent_amount: { kind: 'money' },
   deposit_amount: { kind: 'money' }, rent_amount: { kind: 'money' }, utility_amount: { kind: 'money' }, total_amount: { kind: 'money' },
   inn: { kind: 'inn' }, bank_account: { kind: 'account' }, corr_account: { kind: 'account' }, bik: { kind: 'bik' },
   phone: { kind: 'phone' }, email: { kind: 'email' },
@@ -959,7 +982,7 @@ function validateValue(name, val, el) {
   return '';
 }
 
-const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Эл. почта', rent_per_sqm: 'Аренда за 1 кв.м. (текущая)', rent_amount: 'АП (текущая)' };
+const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Электронная почта', rent_per_sqm: 'Текущая арендная плата за 1 квадратный метр', rent_amount: 'Текущая арендная плата' };
 function fieldLabel(name) {
   let label = FIELD_LABEL_EXTRA[name] || name;
   const scan = function(defs) { (defs || []).forEach(function(d) { (d.fields || []).forEach(function(f) { if (f.name === name) label = f.label; }); }); };
@@ -1026,7 +1049,7 @@ function wireFieldRules(formEl) {
     const rule = FIELD_RULES[name];
     if (!rule || el.__cmRules) return;
     el.__cmRules = true;
-    if ((rule.kind === 'decimal' || rule.kind === 'money') && el.value.indexOf('.') >= 0) el.value = el.value.replace('.', ',');
+    if ((rule.kind === 'decimal' || rule.kind === 'money') && el.value.trim()) el.value = fixed2Input(el.value);
     el.__origNorm = normalizeValue(name, el.value);
     const kind = rule.kind;
     el.setAttribute('autocomplete', 'off');
@@ -1043,6 +1066,7 @@ function wireFieldRules(formEl) {
     el.addEventListener('input', function() { sanitizeInput(el, kind); showFieldState(el); });
     el.addEventListener('blur', function() {
       if (kind === 'url' && el.value.trim()) el.value = normalizeValue(name, el.value);
+      if ((kind === 'decimal' || kind === 'money') && /^\d+(,\d{0,2})?$/.test(el.value.trim())) el.value = fixed2Input(el.value);
       showFieldState(el);
     });
   });
@@ -1157,6 +1181,11 @@ async function updateWithHistory(collection, id, values, opts) {
       if (hasKey(values, 'rent_amount')) values.base_rent_amount = values.rent_amount;
     }
   }
+  // «Сумма договора» = арендная плата + эксплуатационный сбор (в месяц), всегда считается сама
+  if (old) {
+    const tot = totalUpdate(collection, old, values);
+    if (tot) { values = Object.assign({}, values, tot); derived = Object.assign({}, derived, tot); }
+  }
   const res = await ctx.api.resource(collection).update({ filterByTk: id, values: values });
   if (old) await logFieldChanges(HIST_TYPE_BY_COLL[collection] || 'active', id, old, values);
   if (Object.keys(derived).length) syncDerivedDom(derived);
@@ -1181,18 +1210,17 @@ function parseAnyDate(v) {
   if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
   return null;
 }
-function expiryBadge(endVal, terminationVal) {
-  if (terminationVal) return '';
-  const d = parseAnyDate(endVal);
+// бейдж рядом с датой расторжения: сколько дней осталось
+function expiryBadge(terminationVal) {
+  const d = parseAnyDate(terminationVal);
   if (!d) return '';
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const days = Math.round((d.getTime() - today.getTime()) / 86400000);
   let text, bg, fg;
-  if (days < 0) { text = 'срок истёк ' + (-days) + ' дн. назад'; bg = '#fff1f0'; fg = '#cf1322'; }
-  else if (days === 0) { text = 'истекает сегодня'; bg = '#fff1f0'; fg = '#cf1322'; }
-  else if (days <= 30) { text = 'осталось ' + days + ' дн.'; bg = '#fff1f0'; fg = '#cf1322'; }
-  else if (days <= 90) { text = 'осталось ' + days + ' дн.'; bg = '#fffbe6'; fg = '#d48806'; }
-  else return '';
+  if (days < 0) { text = 'расторгнут ' + (-days) + ' дней назад'; bg = '#f5f5f5'; fg = '#8c8c8c'; }
+  else if (days === 0) { text = 'расторжение сегодня'; bg = '#fff1f0'; fg = '#cf1322'; }
+  else if (days <= 30) { text = 'до расторжения ' + days + ' дней'; bg = '#fff1f0'; fg = '#cf1322'; }
+  else { text = 'до расторжения ' + days + ' дней'; bg = '#fffbe6'; fg = '#d48806'; }
   return ' <span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;font-size:12px;background:' + bg + ';color:' + fg + ';">' + text + '</span>';
 }
 
@@ -1279,11 +1307,23 @@ function derivedUpdates(oldRec, values) {
   });
   return upd;
 }
+function totalRentKey(collection) { return collection === 'rental_contracts' ? 'base_rent_amount' : 'rent_amount'; }
+function calcTotal(rent, utility) {
+  const a = numOf(rent), b = numOf(utility);
+  return a === null && b === null ? null : round2((a || 0) + (b || 0));
+}
+function totalUpdate(collection, oldRec, values) {
+  const rk = totalRentKey(collection);
+  const nr = Object.assign({}, oldRec, values);
+  const t = calcTotal(nr[rk], nr.utility_amount), cur = numOf(oldRec.total_amount);
+  if (t === cur || (t !== null && cur !== null && Math.abs(t - cur) < 0.005)) return null;
+  return { total_amount: t };
+}
 function syncDerivedDom(derived) {
   Object.keys(derived || {}).forEach(function(name) {
     document.querySelectorAll('#contract-modal-root [data-field="' + name + '"], #forming-modal-root [data-field="' + name + '"]').forEach(function(el) {
       if (document.activeElement === el) return;
-      const txt = String(derived[name]).replace('.', ',');
+      const txt = fixed2Input(derived[name]);
       el.value = txt;
       if (FIELD_RULES[name]) { el.__origNorm = normalizeValue(name, txt); showFieldState(el); }
     });
@@ -1313,10 +1353,10 @@ function wireDerivedHints(root) {
       if (!(area > 0 && per > 0)) { h.textContent = ''; return; }
       const exp = round2(per * area), cur = numOf(el.value);
       if (cur !== null && Math.abs(cur - exp) <= derivedTol(area)) { h.textContent = ''; return; }
-      h.innerHTML = 'По ставке ' + escRaw(formatNum(per)) + ' × ' + escRaw(formatNum(area)) + ' м² = <a href="#" class="cm-derived-apply">' + escRaw(formatNum(exp)) + '</a> — подставить';
+      h.innerHTML = 'По ставке ' + escRaw(formatNum(per)) + ' × площадь ' + escRaw(formatNum(area)) + ' = <a href="#" class="cm-derived-apply">' + escRaw(formatNum(exp)) + '</a> — подставить';
       h.querySelector('a').addEventListener('click', function(e) {
         e.preventDefault();
-        el.value = String(exp).replace('.', ',');
+        el.value = fixed2Input(exp);
         fireInput(el);
         refresh();
       });
@@ -1328,22 +1368,18 @@ function wireDerivedHints(root) {
       let h = depEl.parentNode.querySelector('.cm-derived-hint');
       if (!h) { h = document.createElement('div'); h.className = 'cm-derived-hint'; depEl.parentNode.appendChild(h); }
       if (rentMonth > 0 && numOf(depEl.value) !== rentMonth) {
-        h.innerHTML = '1 месяц АП = <a href="#">' + escRaw(formatNum(rentMonth)) + '</a> — подставить';
-        h.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); depEl.value = String(rentMonth).replace('.', ','); fireInput(depEl); refresh(); });
+        h.innerHTML = 'Арендная плата за 1 месяц = <a href="#">' + escRaw(formatNum(rentMonth)) + '</a> — подставить';
+        h.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); depEl.value = fixed2Input(rentMonth); fireInput(depEl); refresh(); });
       } else h.textContent = '';
     }
-    // Сумма договора: подсказка «по расчёту за срок»
-    const totEl = root.querySelector('[data-field="total_amount"]');
-    if (totEl && totEl.parentNode && root.__cmTermTotal) {
-      let h = totEl.parentNode.querySelector('.cm-derived-hint');
-      if (!h) { h = document.createElement('div'); h.className = 'cm-derived-hint'; totEl.parentNode.appendChild(h); }
-      let tt = null;
-      try { tt = root.__cmTermTotal(); } catch (e) { tt = null; }
-      if (tt && !tt.error && numOf(totEl.value) !== tt.total) {
-        h.innerHTML = 'По расчёту за срок: <a href="#">' + escRaw(formatNum(tt.total)) + '</a> — подставить';
-        h.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); totEl.value = String(tt.total).replace('.', ','); fireInput(totEl); refresh(); });
-      } else h.textContent = (tt && tt.error) ? '' : '';
-    }
+    // Сумма договора (только чтение): арендная плата + эксплуатационный сбор прямо по мере ввода
+    root.querySelectorAll('[data-calc-total]').forEach(function(totEl) {
+      const form = totEl.closest('.cm-stage-form') || root;
+      const pick = function(n) { const el = form.querySelector('[data-field="' + n + '"]') || root.querySelector('[data-field="' + n + '"]'); return el ? el.value : (totEl.__cmRec ? totEl.__cmRec[n] : null); };
+      const rent = form.querySelector('[data-field="base_rent_amount"]') ? pick('base_rent_amount') : pick('rent_amount');
+      const t = calcTotal(rent, pick('utility_amount'));
+      totEl.value = t === null ? '' : formatNum(t) + ' ₽';
+    });
   }
   root.addEventListener('input', refresh);
   refresh();
@@ -1360,7 +1396,7 @@ async function moveSide(collection, fromType, fromId, toType, toId) {
 }
 
 // ----- график цены -----
-const PRICE_BASIS = { fixed: 'Фиксированная сумма', per_sqm: 'За 1 кв.м.' };
+const PRICE_BASIS = { fixed: 'Фиксированная сумма', per_sqm: 'За 1 квадратный метр' };
 const PRICE_UNIT_TITLES = { month: 'в месяц', week: 'в неделю', day: 'в день', year: 'в год' };
 function isoToDate(s) {
   const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -1425,32 +1461,32 @@ function scheduleTarget(periods, rec, iso) {
 function basePriceLabel(rec) {
   const per = numOf(rec.base_rent_per_sqm), amt = numOf(rec.base_rent_amount);
   const parts = [];
-  if (per !== null) parts.push(formatNum(per) + ' ₽ за 1 кв.м.');
-  if (amt !== null) parts.push('АП ' + formatNum(amt) + ' ₽ в месяц');
+  if (per !== null) parts.push(formatNum(per) + ' ₽ за 1 квадратный метр');
+  if (amt !== null) parts.push('арендная плата ' + formatNum(amt) + ' ₽ в месяц');
   return parts.length ? parts.join(' · ') : 'не задана';
 }
 function priceLabel(p) {
-  return formatNum(p.amount) + ' ₽ ' + (p.basis === 'per_sqm' ? 'за 1 кв.м. ' : '') + (PRICE_UNIT_TITLES[p.unit || 'month'] || '');
+  return formatNum(p.amount) + ' ₽ ' + (p.basis === 'per_sqm' ? 'за 1 квадратный метр ' : '') + (PRICE_UNIT_TITLES[p.unit || 'month'] || '');
 }
 
 function renderPricesSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">График цены аренды</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;">+ Период</button></div>'
-    + '<div class="cm-price-hint">Цена может меняться со временем: на весь срок действует основная цена (блок «Цена и платежи»), а на отдельные даты можно задать другую (например, скидку на несколько месяцев). Цена в договоре переключается сама, сотрудникам договора приходит уведомление. Цена периода — фиксированная сумма в месяц или за 1 кв.м. в месяц.</div>'
+    + '<div class="cm-price-hint">Цена может меняться со временем: на весь срок действует основная цена (блок «Характеристики и расчёты»), а на отдельные даты можно задать другую (например, скидку на несколько месяцев). Цена в договоре переключается сама, сотрудникам договора приходит уведомление. Цена периода — фиксированная сумма в месяц или за 1 квадратный метр в месяц.</div>'
     + '<div id="' + prefix + '-price-base" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
     + '<div class="cm-price-form-grid">'
-    + '<div><label>Действует с</label><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
-    + '<div><label>Действует по</label><input type="date" class="cm-field-input" id="' + prefix + '-price-to"></div>'
-    + '<div><label>Как задана цена</label><select class="cm-field-input" id="' + prefix + '-price-basis"><option value="per_sqm">За 1 кв.м.</option><option value="fixed">Фиксированная сумма</option></select></div>'
-    + '<div><label>За какой срок</label><select class="cm-field-input" id="' + prefix + '-price-unit"><option value="month">В месяц</option></select></div>'
-    + '<div><label>Цена, ₽</label><input type="text" class="cm-field-input" id="' + prefix + '-price-amount" inputmode="decimal" placeholder="0,00"></div>'
-    + '<div><label>Примечание</label><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="например, скидка на ремонт"></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Действует с</div><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Действует по</div><input type="date" class="cm-field-input" id="' + prefix + '-price-to"></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Как задана цена</div><select class="cm-field-input" id="' + prefix + '-price-basis"><option value="per_sqm">За 1 квадратный метр</option><option value="fixed">Фиксированная сумма</option></select></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">За какой срок</div><select class="cm-field-input" id="' + prefix + '-price-unit"><option value="month">В месяц</option></select></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Цена, ₽</div><input type="text" class="cm-field-input" id="' + prefix + '-price-amount" inputmode="decimal" placeholder="0,00"></div>'
+    + '<div class=\"cm-field-row\"><div class=\"cm-label\">Примечание</div><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="например, скидка на ремонт"></div>'
     + '</div>'
-    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" id="' + prefix + '-price-save">Сохранить</button>'
+    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" id="' + prefix + '-price-save">Сохранить</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-price-cancel">Отмена</button>'
     + '<span id="' + prefix + '-price-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
     + '</div>'
@@ -1489,28 +1525,6 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   }
   function today() { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
 
-  function baseMonthly() { return type === 'active' ? numOf(r && r.base_rent_amount) : ctxInfo().amt; }
-  // сумма за срок договора: периоды графика + основная цена в остальные даты (неполный месяц — пропорционально дням)
-  function termTotal() {
-    const c = ctxInfo();
-    if (!(c.start && c.end && c.end.getTime() >= c.start.getTime())) return { error: 'укажите даты начала и окончания договора' };
-    const base = baseMonthly();
-    const sorted = items.slice().sort(function(x, y) { return String(x.date_from).localeCompare(String(y.date_from)); });
-    let total = 0, cur = c.start, baseDays = false;
-    for (let i = 0; i < sorted.length; i++) {
-      const pa = isoToDate(sorted[i].date_from), pb = isoToDate(sorted[i].date_to);
-      if (!pa || !pb || pb.getTime() < c.start.getTime() || pa.getTime() > c.end.getTime()) continue;
-      const from = pa.getTime() < c.start.getTime() ? c.start : pa, to = pb.getTime() > c.end.getTime() ? c.end : pb;
-      if (from.getTime() > cur.getTime()) { baseDays = true; if (base !== null) total += base * unitsInPeriod(cur, addDays(from, -1), 'month'); }
-      // без промежуточных округлений — округляем один раз, в конце
-      if (sorted[i].basis === 'per_sqm' && !(c.area > 0)) return { error: 'не хватает площади для периодов «за 1 кв.м.»' };
-      total += Number(sorted[i].amount) * (sorted[i].basis === 'per_sqm' ? c.area : 1) * unitsInPeriod(from, to, 'month');
-      if (addDays(to, 1).getTime() > cur.getTime()) cur = addDays(to, 1);
-    }
-    if (cur.getTime() <= c.end.getTime()) { baseDays = true; if (base !== null) total += base * unitsInPeriod(cur, c.end, 'month'); }
-    if (baseDays && base === null) return { error: 'не задана основная цена (АП)' };
-    return { total: round2(total), from: c.start, to: c.end };
-  }
   function renderSummary() {
     const lines = [];
     const nowP = schedulePeriodOn(items, todayIsoLocal());
@@ -1518,23 +1532,16 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       lines.push(nowP ? 'Сейчас действует цена по графику: <b>' + escRaw(priceLabel(nowP)) + '</b> до ' + escRaw(fmtDate(nowP.date_to)) + ', затем — основная цена'
         : 'Сейчас действует <b>основная цена</b>');
     } else if (nowP) lines.push('Сегодня по графику: <b>' + escRaw(priceLabel(nowP)) + '</b>');
-    if (items.length) {
-      const tt = termTotal();
-      lines.push(tt.error ? '<span class="warn">Сумма за срок не считается: ' + escRaw(tt.error) + '</span>'
-        : 'Итого за срок договора (' + escRaw(fmtDate(dateToIso(tt.from))) + ' — ' + escRaw(fmtDate(dateToIso(tt.to))) + '): <b>' + escRaw(formatNum(tt.total)) + ' ₽</b> — периоды графика + основная цена в остальные даты');
-    }
     const show = type === 'active' || items.length;
     summaryEl.innerHTML = lines.join('<br>');
     summaryEl.style.display = show && lines.length ? 'block' : 'none';
     actionsEl.style.display = canEdit && items.length ? 'flex' : 'none';
     if ((type === 'active' || type === 'completed') && r) {
       r.__schedNow = type === 'active' ? nowP : null;
-      const tt = termTotal();
-      r.__cmCalcTotal = tt.error ? null : tt.total;
       renderAllActiveReadonly(overlay, r);
     }
   }
-  function renderBase() { /* основная цена теперь в блоке «Цена и платежи» */ }
+  function renderBase() { /* основная цена теперь в блоке «Характеристики и расчёты» */ }
 
   function renderList() {
     const c = ctxInfo();
@@ -1566,7 +1573,6 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
           logHistory(type, id, [{ action: 'price', text: 'Удалён период цены ' + fmtDate(p.date_from) + ' — ' + fmtDate(p.date_to) + ': ' + priceLabel(p) }]);
           await refresh();
           await applySchedule(false);
-          await autoTotal();
         } catch (e) { cmToast('Не удалось удалить период'); }
       });
     });
@@ -1576,21 +1582,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить график цены</span>'; return; }
     renderList(); renderSummary();
   }
-  // «Сумма договора» считается сама (основная цена × срок + периоды графика), пока её не ввели вручную
-  async function autoTotal() {
-    if (type !== 'active' || !r || r.total_amount_manual) return;
-    const tt = termTotal();
-    if (tt.error) return;
-    const cur = numOf(r.total_amount);
-    if (cur !== null && Math.abs(cur - tt.total) < 0.005) return;
-    try { await updateWithHistory(coll, id, { total_amount: tt.total }, { schedule: true }); r.total_amount = tt.total; renderSummary(); }
-    catch (e) { /* пересчитается при следующем открытии */ }
-  }
-  overlay.__cmTermTotal = termTotal;
-  overlay.__cmAfterPriceChange = async function() { await applySchedule(false); await autoTotal(); renderSummary(); };
+  overlay.__cmAfterPriceChange = async function() { await applySchedule(false); renderSummary(); };
   renderBase();
   await refresh();
-  if (type === 'active') { await applySchedule(false); await autoTotal(); }   // карточку открыли в день смены периода раньше ночного скрипта
+  if (type === 'active') await applySchedule(false);   // карточку открыли в день смены периода раньше ночного скрипта
   // сумма/ставка/даты могут меняться в других блоках — пересчитываем итоги
   overlay.addEventListener('input', function(e) { if (items.length && !(e.target && e.target.closest && e.target.closest('[data-base-form]'))) { renderList(); renderSummary(); } });
   if (!canEdit || !addBtn) return;
@@ -1603,7 +1598,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const last = items.length ? items[items.length - 1] : null;
     if (p) {
       fromEl.value = p.date_from || ''; toEl.value = p.date_to || ''; basisEl.value = p.basis || 'per_sqm'; unitEl.value = p.unit || 'month';
-      amountEl.value = p.amount === null || p.amount === undefined ? '' : String(p.amount).replace('.', ','); noteEl.value = p.note || '';
+      amountEl.value = p.amount === null || p.amount === undefined ? '' : fixed2Input(p.amount); noteEl.value = p.note || '';
     } else {
       const start = last ? addDays(isoToDate(last.date_to) || new Date(), 1) : c.start;
       fromEl.value = start ? dateToIso(start) : '';
@@ -1611,7 +1606,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       basisEl.value = last ? (last.basis || 'per_sqm') : (c.per > 0 ? 'per_sqm' : 'fixed');
       unitEl.value = last ? (last.unit || 'month') : 'month';
       const suggested = last ? last.amount : (basisEl.value === 'per_sqm' ? c.per : c.amt);
-      amountEl.value = suggested > 0 ? String(suggested).replace('.', ',') : '';
+      amountEl.value = suggested > 0 ? fixed2Input(suggested) : '';
       noteEl.value = '';
     }
     formEl.style.display = 'block';
@@ -1641,7 +1636,6 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       closeForm();
       await refresh();
       await applySchedule(false);
-      await autoTotal();
     } catch (e) { cmToast('Не удалось сохранить период'); statusEl.textContent = ''; }
     finally { saveBtn.disabled = false; }
   });
@@ -1736,9 +1730,8 @@ if (!document.getElementById('cm-extra-style')) {
     .cm-price-dates { font-weight: 600; font-size: 13.5px; color: #262626; }
     .cm-price-line { font-size: 13px; color: #595959; margin-top: 2px; }
     .cm-price-total { color: #262626; font-weight: 600; }
-    .cm-price-form { margin-top: 10px; padding: 10px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
-    .cm-price-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
-    .cm-price-form-grid label { font-size: 12px; color: #8c8c8c; display: block; margin-bottom: 2px; }
+    .cm-price-form { margin-top: 10px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
+    .cm-price-form-grid, .cm-contact-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
     .cm-hist-row { padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
     .cm-hist-meta { color: #8c8c8c; font-size: 11.5px; margin-bottom: 1px; }
     .cm-hist-body { color: #262626; word-break: break-word; }
@@ -1753,8 +1746,7 @@ if (!document.getElementById('cm-extra-style')) {
     .cm-contact-actions { display: flex; gap: 10px; flex-shrink: 0; }
     .cm-contact-actions a { color: #8c8c8c; text-decoration: none; cursor: pointer; }
     .cm-contact-actions a:hover { color: #1677ff; }
-    .cm-contact-form { margin-top: 10px; padding: 10px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
-    .cm-contact-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+    .cm-contact-form { margin-top: 10px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
   `;
   document.head.appendChild(st);
 }
@@ -2018,12 +2010,12 @@ function renderContactsSection(prefix) {
     + '<div id="' + prefix + '-contacts-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-contact-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
-    + '<input type="text" class="cm-field-input" id="' + prefix + '-contact-name" placeholder="ФИО">'
-    + '<input type="text" class="cm-field-input" id="' + prefix + '-contact-position" placeholder="Должность / комментарий">'
-    + '<input type="tel" class="cm-field-input" id="' + prefix + '-contact-phone" placeholder="+7 (___) ___-__-__">'
-    + '<input type="email" class="cm-field-input" id="' + prefix + '-contact-email" placeholder="name@example.com">'
+    + '<div class="cm-field-row"><div class="cm-label">ФИО</div><input type="text" class="cm-field-input" id="' + prefix + '-contact-name"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Должность или комментарий</div><input type="text" class="cm-field-input" id="' + prefix + '-contact-position"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Телефон</div><input type="tel" class="cm-field-input" id="' + prefix + '-contact-phone" placeholder="+7 (___) ___-__-__"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Электронная почта</div><input type="email" class="cm-field-input" id="' + prefix + '-contact-email" placeholder="name@example.com"></div>'
     + '</div>'
-    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" id="' + prefix + '-contact-save">Сохранить</button>'
+    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" id="' + prefix + '-contact-save">Сохранить</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-contact-cancel">Отмена</button>'
     + '<span id="' + prefix + '-contact-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
     + '</div></div>';
@@ -2457,9 +2449,9 @@ function wireTenantType(scope, fallbackType) {
 const STAGE_DEFS = [
   { title: 'Заявка на аренду', role: 'rental_dept', fields: [
       { name: 'object_name', label: 'Объект', type: 'combo', listId: 'cm-object-datalist' },
-      { name: 'area_sqm', label: 'Площадь, кв.м.', type: 'text' },
-      { name: 'rent_per_sqm', label: 'Аренда / 1 кв.м.', type: 'text' },
-      { name: 'utility_per_sqm', label: 'Э.С. / 1 кв.м.', type: 'text' },
+      { name: 'area_sqm', label: 'Площадь, квадратных метров', type: 'decimal' },
+      { name: 'rent_per_sqm', label: 'Арендная плата за 1 квадратный метр в месяц', type: 'money' },
+      { name: 'utility_per_sqm', label: 'Эксплуатационный сбор за 1 квадратный метр в месяц', type: 'money' },
       { name: 'comment_stage0', label: 'Комментарий по заявке', type: 'textarea' }
   ]},
   { title: 'Размещение объявления', role: 'rental_dept', fields: [
@@ -2475,7 +2467,6 @@ const STAGE_DEFS = [
   ]},
   { title: 'Подписание договора / Данные контрагента', role: 'accounting_dept', fields: [
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
-      { name: 'end_date', label: 'Дата окончания Договора', type: 'date' },
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
       { name: 'inn', label: 'ИНН', type: 'text' },
@@ -2489,22 +2480,16 @@ const STAGE_DEFS = [
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
-      { name: 'corr_account', label: 'Корр. счёт', type: 'text', mask: 'bankaccount' },
+      { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' },
       { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
       { name: 'notes', label: 'Примечания', type: 'textarea' }
   ]},
   { title: 'Оплата счетов', role: 'legal_dept', fields: [
-      { name: 'total_amount', label: 'Сумма договора', type: 'money' },
-      { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'text' },
-      { name: 'deposit_invoiced', label: 'Первый счёт ОП выставлен', type: 'checkbox' },
-      { name: 'deposit_paid', label: 'Первый счёт ОП оплачен', type: 'checkbox' },
-      { name: 'rent_amount', label: 'Арендная плата (АП)', type: 'text' },
-      { name: 'rent_invoiced', label: 'Первый счёт АП выставлен', type: 'checkbox' },
-      { name: 'rent_paid', label: 'Первый счёт АП оплачен', type: 'checkbox' },
-      { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС)', type: 'text' },
-      { name: 'utility_invoiced', label: 'Первый счёт ЭС выставлен', type: 'checkbox' },
-      { name: 'utility_paid', label: 'Первый счёт ЭС оплачен', type: 'checkbox' },
-      { name: 'comment_stage4', label: 'Комментарий по счетам', type: 'textarea' }
+      { name: 'rent_amount', label: 'Арендная плата в месяц', type: 'money' },
+      { name: 'utility_amount', label: 'Эксплуатационный сбор в месяц', type: 'money' },
+      { name: 'total_amount', label: 'Сумма договора', type: 'calc', hint: 'Арендная плата + эксплуатационный сбор, считается сама' },
+      { name: 'deposit_amount', label: 'Обеспечительный платёж', type: 'money' },
+      { name: 'comment_stage4', label: 'Комментарий', type: 'textarea' }
   ]},
   { title: 'Финал (Акт и Скан)', role: 'legal_dept', fields: [
       { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
@@ -2512,7 +2497,7 @@ const STAGE_DEFS = [
       { name: 'act_scan_url', label: 'Скан подписанного Акта (имя файла)', type: 'text' }
   ]}
 ];
-const STAGE_ROLE_TITLES = { rental_dept: 'Отдел Аренды', legal_dept: 'Юр. отдел - Договоры', accounting_dept: 'Бухгалтерия' };
+const STAGE_ROLE_TITLES = { rental_dept: 'Отдел Аренды', legal_dept: 'Юридический отдел — Договоры', accounting_dept: 'Бухгалтерия' };
 
 function hasRole(user, roleName) {
   if (!user) return false;
@@ -2522,31 +2507,35 @@ function hasRole(user, roleName) {
 }
 
 function readonlyFieldValue(f, r) {
-  const v = r[f.name];
+  let v = r[f.name];
+  // в архиве нет отдельной «основной» цены — показываем цену договора
+  if (v === undefined && (f.name === 'base_rent_amount' || f.name === 'base_rent_per_sqm')) v = r[f.name.replace('base_', '')];
   if (f.type === 'checkbox') return v ? 'Да' : 'Нет';
-  if (f.name === 'end_date' && r.__kind === 'active') return esc(fromISODateDisplay(v)) + expiryBadge(v, r.termination_date);
+  if (f.name === 'termination_date' && r.__kind === 'active') return esc(fromISODateDisplay(v)) + expiryBadge(v);
   if (f.type === 'date') return esc(fromISODateDisplay(v));
   if ((f.name === 'base_rent_amount' || f.name === 'base_rent_per_sqm') && r.__schedNow) {
     const cur = f.name === 'base_rent_amount' ? r.rent_amount : r.rent_per_sqm;
     return (v === null || v === undefined || v === '' ? '—' : money(v))
       + '<span class="cm-sched-badge">сейчас по графику: ' + (cur === null || cur === undefined ? '—' : escRaw(formatNum(cur)) + ' ₽') + ' до ' + esc(fmtDate(r.__schedNow.date_to)) + '</span>';
   }
-  if (f.name === 'total_amount' && r.__cmCalcTotal !== undefined && r.__cmCalcTotal !== null) {
-    const calc = r.__cmCalcTotal;
-    if (r.total_amount_manual && numOf(v) !== null && Math.abs(numOf(v) - calc) > 0.004)
-      return money(v) + '<span class="cm-sched-badge" title="Чтобы вернуть расчёт, очистите поле при редактировании">введена вручную · по расчёту ' + escRaw(formatNum(calc)) + ' ₽</span>';
-    return money(v) + '<span class="cm-sched-badge" style="color:#8c8c8c;background:#fafafa;border-color:#e8e8e8;" title="Основная цена × срок + периоды «Графика цены аренды»">рассчитана</span>';
+  if (f.name === 'total_amount') {
+    const t = calcTotal(r.base_rent_amount !== undefined && r.base_rent_amount !== null ? r.base_rent_amount : r.rent_amount, r.utility_amount);
+    return money(t === null ? v : t);
   }
   if (f.name === 'inn' && v) return '<span data-inn-ro="' + escAttr(String(v).replace(/\D/g, '')) + '">' + esc(v) + '</span>';
   if (f.type === 'money') return money(v);
   if (f.type === 'status') return statusPill(f.name, v);
   if (f.type === 'url') return linkHtml(v);
   if (f.type === 'textarea') return linkifyText(v);
-  if (f.name === 'area_sqm') return formatNum(v);
+  if (f.name === 'area_sqm' || f.type === 'decimal') return formatNum(v);
   return esc(v);
 }
 
-function renderEditableField(f, value) {
+function renderEditableField(f, value, rec) {
+  if (f.type === 'calc') {
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input cm-field-calc" data-calc-total="1" readonly tabindex="-1" value="' + escAttr(f.name === 'total_amount' && rec ? readonlyTotalText(rec) : '') + '">'
+      + (f.hint ? '<div class="cm-derived-hint">' + esc(f.hint) + '</div>' : '') + '</div>';
+  }
   if (f.type === 'checkbox') {
     return '<label class="cm-field-checkbox"><input type="checkbox" data-field="' + f.name + '" ' + (value ? 'checked' : '') + '> ' + esc(f.label) + '</label>';
   }
@@ -2585,6 +2574,11 @@ function renderEditableField(f, value) {
   const maskAttr = f.mask ? ' data-mask="' + f.mask + '"' : '';
   const maskPlaceholder = f.mask === 'bankaccount' ? ' placeholder="0000 0000 0000 0000 0000"' : (f.mask === 'bik' ? ' placeholder="000000000"' : '');
   return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '"></div>';
+}
+
+function readonlyTotalText(r) {
+  const t = calcTotal(r.base_rent_amount !== undefined && r.base_rent_amount !== null ? r.base_rent_amount : r.rent_amount, r.utility_amount);
+  return t === null ? '' : formatNum(t) + ' ₽';
 }
 
 function toISODate(v) {
@@ -2687,45 +2681,25 @@ const ACTIVE_BLOCK_DEFS = [
   ]},
   { key: 'data', title: 'Блок Данных по договору', fields: [
       { name: 'object_name', label: 'Объект', type: 'text' },
-      { name: 'contract_number', label: 'Номер Договора', type: 'text' },
+      { name: 'contract_number', label: 'Номер договора', type: 'text' },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
-      { name: 'purpose', label: 'Назначение по Договору', type: 'text' },
-      { name: 'date_signed', label: 'Заключение (дата)', type: 'date' },
-      { name: 'date_act', label: 'Акт ПП (дата)', type: 'date' },
-      { name: 'end_date', label: 'Окончание (дата)', type: 'date' },
-      { name: 'termination_date', label: 'Расторжение (дата)', type: 'date' }
-  ]},
-  { key: 'room', title: 'Блок Характеристик помещения', fields: [
-      { name: 'rooms_list', label: 'Список комнат', type: 'textarea', full: true },
-      { name: 'room_ids', label: 'ID комнат', type: 'text' },
-      { name: 'area_sqm', label: 'Площадь, кв.м.', type: 'text' }
+      { name: 'purpose', label: 'Назначение по договору', type: 'text' },
+      { name: 'date_signed', label: 'Дата заключения договора', type: 'date' },
+      { name: 'date_act', label: 'Дата подписания акта приёма-передачи', type: 'date' },
+      // необязательное: заполняют уже у действующего договора; заполнили — статус «Требует внимания», за 90/60/30 дней уведомления
+      { name: 'termination_date', label: 'Дата расторжения договора', type: 'date' }
   ]},
   // основная цена (на весь срок) — base_*; текущая цена договора (rent_*) считается по «Графику цены аренды»
-  { key: 'pay', title: 'Цена и платежи', fields: [
-      { name: 'base_rent_per_sqm', label: 'Аренда за 1 кв.м. в месяц', type: 'money' },
-      { name: 'base_rent_amount', label: 'Арендная плата (АП) в месяц', type: 'money' },
-      { name: 'utility_per_sqm', label: 'Э.С. за 1 кв.м. в месяц', type: 'money' },
-      { name: 'utility_amount', label: 'Эксплуатационный сбор (ЭС) в месяц', type: 'money' },
-      { name: 'deposit_amount', label: 'Обеспечительный платёж (ОП)', type: 'money' },
-      { name: 'total_amount', label: 'Сумма договора', type: 'money' },
-      { name: 'deposit_invoiced', label: 'Первый счёт ОП выставлен', type: 'checkbox' },
-      { name: 'deposit_paid', label: 'Первый счёт ОП оплачен', type: 'checkbox' },
-      { name: 'rent_invoiced', label: 'Первый счёт АП выставлен', type: 'checkbox' },
-      { name: 'rent_paid', label: 'Первый счёт АП оплачен', type: 'checkbox' },
-      { name: 'utility_invoiced', label: 'Первый счёт ЭС выставлен', type: 'checkbox' },
-      { name: 'utility_paid', label: 'Первый счёт ЭС оплачен', type: 'checkbox' }
-  ], readonlyRenderer: function(r) {
-      // в просмотре шесть галочек сворачиваются в одну строку «Первые счета»
-      const flags = /_(invoiced|paid)$/;
-      const fields = partyFields(ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === 'pay'; }).fields, r).filter(function(f) { return !flags.test(f.name); });
-      const st = function(k, title) {
-        const paid = r[k + '_paid'], inv = r[k + '_invoiced'];
-        const t = paid ? ['✓ оплачен', STATUS_TONES.green] : inv ? ['выставлен, ждёт оплаты', STATUS_TONES.amber] : ['не выставлен', null];
-        return '<span class="cm-pill" style="margin-right:6px;' + (t[1] ? 'background:' + t[1].bg + ';border-color:' + t[1].border + ';color:' + t[1].fg + ';' : 'background:#fafafa;border-color:#e8e8e8;color:#8c8c8c;') + '">' + title + ': ' + t[0] + '</span>';
-      };
-      return '<div class="cm-grid">' + fields.map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('')
-        + row('Первые счета', st('deposit', 'ОП') + st('rent', 'АП') + st('utility', 'ЭС'), true) + '</div>';
-  } },
+  { key: 'pay', title: 'Характеристики и расчёты', fields: [
+      { name: 'area_sqm', label: 'Площадь, квадратных метров', type: 'decimal' },
+      { name: 'base_rent_per_sqm', label: 'Арендная плата за 1 квадратный метр в месяц', type: 'money' },
+      { name: 'base_rent_amount', label: 'Арендная плата в месяц', type: 'money' },
+      { name: 'utility_per_sqm', label: 'Эксплуатационный сбор за 1 квадратный метр в месяц', type: 'money' },
+      { name: 'utility_amount', label: 'Эксплуатационный сбор в месяц', type: 'money' },
+      { name: 'total_amount', label: 'Сумма договора', type: 'calc', hint: 'Арендная плата + эксплуатационный сбор, считается сама' },
+      { name: 'deposit_amount', label: 'Обеспечительный платёж', type: 'money' },
+      { name: 'calc_comment', label: 'Комментарий', type: 'textarea', full: true }
+  ]},
   { key: 'counterparty', title: 'Блок Контрагента', fields: [
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'inn', label: 'ИНН', type: 'text' },
@@ -2738,7 +2712,7 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
-      { name: 'corr_account', label: 'Корр. счёт', type: 'text', mask: 'bankaccount' },
+      { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text', full: true }
   ]},
   { key: 'notes', title: 'Примечания', fields: [
@@ -2763,8 +2737,8 @@ function renderActiveBlockSection(block, r) {
     + '</div>'
     + '<div data-active-readonly="' + block.key + '">' + readonlyHtml + '</div>'
     + '<div class="cm-stage-form" data-active-form="' + block.key + '" style="display:none;">'
-    + block.fields.map(function(f) { return renderEditableField(f, r[f.name]); }).join('')
-    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-active-save="' + block.key + '">Сохранить</button>'
+    + block.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('')
+    + '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" data-active-save="' + block.key + '">Сохранить</button>'
     + '<button class="cm-btn-save" data-active-cancel="' + block.key + '">Отмена</button></div>'
     + '</div>'
     + '<div class="cm-save-status" id="cm-active-save-status-' + block.key + '"></div>'
@@ -2864,12 +2838,9 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       btn.disabled = true;
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
-        if (hasKey(values, 'total_amount')) {
-          // ввели свою сумму — дальше она не пересчитывается; очистили поле — снова считается сама
-          const nv = numOf(values.total_amount), ov = numOf(r.total_amount);
-          if (nv === null) values.total_amount_manual = false;
-          else if (ov === null || Math.abs(nv - ov) >= 0.005) values.total_amount_manual = true;
-        }
+        // заполнили дату расторжения — договор «Требует внимания» (статус «Проблема» не понижаем)
+        if (values.termination_date && values.termination_date !== toISODate(r.termination_date) && r.contract_status !== '1_problem')
+          values.contract_status = '2_attention';
         const upResp = await updateWithHistory('rental_contracts', id, values);
         Object.assign(r, values, (upResp && upResp.__cmDerived) || {});
         if (root.__cmAfterPriceChange) await root.__cmAfterPriceChange();
@@ -2924,9 +2895,9 @@ function renderFormingBody(r, currentUser) {
       }).join('') + '</div>';
     }
     html += '<div class="cm-stage-form" data-stage="' + i + '" style="display:' + (isCurrent ? 'block' : 'none') + ';">'
-      + stage.fields.map(function(f) { return renderEditableField(f, r[f.name]); }).join('');
+      + stage.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('');
     if (isDone) {
-      html += '<div class="cm-stage-edit-actions"><button class="cm-btn-save" data-edit-save="' + i + '">Сохранить</button>'
+      html += '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" data-edit-save="' + i + '">Сохранить</button>'
         + '<button class="cm-btn-save" data-edit-cancel="' + i + '">Готово</button></div>';
     }
     html += '</div>';
@@ -2957,11 +2928,11 @@ function renderQuickFormingBody(r, currentUser) {
     + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — все поля в одной форме, без этапов оформления</div>';
   html += '<div class="cm-stage-form" data-stage="quick">' + STAGE_DEFS.map(function(stage) {
     return '<div class="cm-section"><div class="cm-section-title">' + esc(stage.title) + '</div>'
-      + stage.fields.map(function(f) { return renderEditableField(f, r[f.name]); }).join('') + '</div>';
+      + stage.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>';
   }).join('') + '</div>';
   html += '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>';
   html += '<div class="cm-stage-actions" style="margin-top:2px;padding-top:10px;border-top:1px solid #f0f0f0;">'
-    + '<button class="cm-btn-save" id="cm-quick-save">Сохранить</button>'
+    + '<button class="cm-btn-save cm-btn-primary" id="cm-quick-save">Сохранить</button>'
     + '<button class="cm-btn-advance cm-btn-finalize" id="cm-quick-publish">Опубликовать → Активные</button>'
     + '</div>';
   html += renderFormingSideSections(r, currentUser);
@@ -3144,32 +3115,34 @@ async function uploadFileGetId(file) {
 
 function renderAddendumsSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-addendums-section" style="margin-bottom:0;">'
-    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Доп. соглашения</div>'
-    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-addendum-add-btn">+ Доп. соглашение</button></div>'
+    + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные соглашения</div>'
+    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-addendum-add-btn">+ Дополнительное соглашение</button></div>'
     + '<div id="' + prefix + '-addendums-list" style="margin-top:6px;"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
-    + '<div id="' + prefix + '-addendum-form" style="display:none;margin-top:10px;padding:10px;border:1px solid #f0f0f0;border-radius:6px;background:#fafafa;">'
-    + '<input type="text" id="' + prefix + '-addendum-title" placeholder="Название (например, Доп. соглашение №1)" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;">'
-    + '<textarea id="' + prefix + '-addendum-desc" placeholder="Описание/условия" rows="2" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;resize:vertical;"></textarea>'
+    + '<div class="cm-contact-form" id="' + prefix + '-addendum-form" style="display:none;">'
+    + '<div class="cm-contact-form-grid">'
+    + '<div class="cm-field-row full"><div class="cm-label">Название</div><input type="text" class="cm-field-input" id="' + prefix + '-addendum-title" placeholder="например, Дополнительное соглашение №1"></div>'
+    + '<div class="cm-field-row full"><div class="cm-label">Описание и условия</div><textarea class="cm-field-input" id="' + prefix + '-addendum-desc" rows="2"></textarea></div>'
+    + '</div>'
     + '<div style="display:flex;align-items:center;gap:8px;">'
     + '<input type="file" id="' + prefix + '-addendum-file" style="display:none;">'
     + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;">Выбрать файл</button>'
     + '<span id="' + prefix + '-addendum-filename" style="font-size:12px;color:#999;">Файл не выбран</span>'
     + '</div>'
-    + '<div style="margin-top:8px;display:flex;gap:8px;">'
-    + '<button id="' + prefix + '-addendum-save-btn" style="background:#1677ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Сохранить</button>'
-    + '<button id="' + prefix + '-addendum-cancel-btn" style="background:#f0f0f0;color:#333;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Отмена</button>'
+    + '<div class="cm-stage-edit-actions">'
+    + '<button class="cm-btn-save cm-btn-primary" id="' + prefix + '-addendum-save-btn">Сохранить</button>'
+    + '<button class="cm-btn-save" id="' + prefix + '-addendum-cancel-btn">Отмена</button>'
     + '<span id="' + prefix + '-addendum-status" style="font-size:12px;color:#999;align-self:center;"></span>'
     + '</div></div></div>';
 }
 
 function renderAddendumsList(items) {
-  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет доп. соглашений</div>';
+  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет дополнительных соглашений</div>';
   return items.map(function(a) {
     const fileHtml = a.file
       ? '<span class="cm-addendum-file" data-att-url="' + esc(a.file.url) + '" data-att-name="' + esc((a.file.title || 'file') + (a.file.extname || '')) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc((a.file.title || 'file') + (a.file.extname || '')) + '</span>'
       : '';
     return '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;">'
-      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Доп. соглашение') + '</div>'
+      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + '</div>'
       + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
       + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + (fileHtml ? ' · ' + fileHtml : '') + '</div>'
       + '</div>';
@@ -3259,14 +3232,14 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
           file_id: fileId, author_id: currentUser.id, created_at: new Date().toISOString()
         }
       });
-      logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено доп. соглашение: ' + title }]);
+      logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено дополнительное соглашение: ' + title }]);
       titleInput.value = ''; descInput.value = ''; fileInput.value = '';
       filenameSpan.textContent = 'Файл не выбран';
       formEl.style.display = 'none';
       statusSpan.textContent = '';
       await refresh();
     } catch (e) {
-      cmToast('Не удалось сохранить доп. соглашение');
+      cmToast('Не удалось сохранить дополнительное соглашение');
       statusSpan.textContent = '';
     } finally {
       saveBtn.disabled = false;
@@ -3388,7 +3361,7 @@ async function completeContract(id, members, contractNumber) {
     rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     deposit_invoiced: f.deposit_invoiced, deposit_paid: f.deposit_paid, rent_invoiced: f.rent_invoiced, rent_paid: f.rent_paid,
-    utility_invoiced: f.utility_invoiced, utility_paid: f.utility_paid, total_amount_manual: f.total_amount_manual,
+    calc_comment: f.calc_comment,
     inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
@@ -3458,9 +3431,8 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
     end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount,
-    deposit_invoiced: f.deposit_invoiced, deposit_paid: f.deposit_paid, rent_invoiced: f.rent_invoiced, rent_paid: f.rent_paid,
-    utility_invoiced: f.utility_invoiced, utility_paid: f.utility_paid, total_amount_manual: f.total_amount !== null && f.total_amount !== undefined,
-    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
+    calc_comment: f.comment_stage4,
+    deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: calcTotal(f.rent_amount, f.utility_amount),
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
@@ -3875,7 +3847,7 @@ async function openDraftModal(id, isQuickHint) {
       const stageIndex = r.current_stage || 0;
       const isLast = stageIndex === STAGE_DEFS.length - 1;
       const actionsHtml = '<div class="cm-stage-actions">'
-        + '<button class="cm-btn-save" id="cm-stage-save">Сохранить</button>'
+        + '<button class="cm-btn-save cm-btn-primary" id="cm-stage-save">Сохранить</button>'
         + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance">'
         + 'Подтвердить этап → в «Формирующиеся»' + '</button>'
         + '</div>';
@@ -3924,7 +3896,7 @@ async function openDraftModal(id, isQuickHint) {
       if (!placeholder.is_quick) {
         const isLast = false;
         const actionsHtml = '<div class="cm-stage-actions">'
-          + '<button class="cm-btn-save" id="cm-stage-save" disabled>Сохранить</button>'
+          + '<button class="cm-btn-save cm-btn-primary" id="cm-stage-save" disabled>Сохранить</button>'
           + '<button class="cm-btn-advance" id="cm-stage-advance" disabled>Подтвердить этап → в «Формирующиеся»</button>'
           + '</div>';
         const currentContent = overlay.querySelector('[data-stage-content="0"]');
@@ -4220,7 +4192,7 @@ async function openFormingContractModal(id) {
       const canAdvance = hasRole(currentUser, stage.role);
       const isLast = stageIndex === STAGE_DEFS.length - 1;
       const actionsHtml = '<div class="cm-stage-actions">'
-        + '<button class="cm-btn-save" id="cm-stage-save">Сохранить</button>'
+        + '<button class="cm-btn-save cm-btn-primary" id="cm-stage-save">Сохранить</button>'
         + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance"' + (canAdvance ? '' : ' disabled') + '>'
         + (isLast ? 'Завершить оформление → Активные' : 'Подтвердить этап и перейти дальше') + '</button>'
         + (canAdvance ? '' : '<span class="cm-role-hint">Подтверждает роль «' + esc(STAGE_ROLE_TITLES[stage.role]) + '»</span>')

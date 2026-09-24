@@ -1,0 +1,10 @@
+# Почтовый сервис вкладки «Почта». Настройки — в .env рядом (в git не попадает), образец — .env.example
+services:
+  mail:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./data:/data

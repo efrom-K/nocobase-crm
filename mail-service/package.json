@@ -1,0 +1,12 @@
+{
+  "name": "nocobase-mail-service",
+  "private": true,
+  "description": "Почтовый сервис для вкладки «Почта» в NocoBase: IMAP/SMTP, вход по сессии NocoBase",
+  "main": "server.js",
+  "license": "MIT",
+  "dependencies": {
+    "imapflow": "^1.0.0",
+    "mailparser": "^3.7.0",
+    "nodemailer": "^6.9.0"
+  }
+}

@@ -29,7 +29,8 @@ if (!document.getElementById('ml-style')) {
   const st = document.createElement('style');
   st.id = 'ml-style';
   st.textContent = `
-    #ml-root { --ml-blue: #005ff9; --ml-blue-h: #0050d4; --ml-bg: #f4f5f7; --ml-line: #eceef2; --ml-text: #2c2d2e; --ml-gray: #87898f; font-family: inherit; }
+    /* окно письма, меню и подсказки живут в body — переменные нужны и им */
+    #ml-root, .ml-compose, .ml-menu, .ml-toast { --ml-blue: #005ff9; --ml-blue-h: #0050d4; --ml-bg: #f4f5f7; --ml-line: #eceef2; --ml-text: #2c2d2e; --ml-gray: #87898f; font-family: inherit; }
     .ml-app { display: flex; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--ml-line); min-height: 520px; color: var(--ml-text); }
     .ml-side { width: 232px; flex: 0 0 232px; background: var(--ml-bg); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
     .ml-compose-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 44px; margin: 0 2px 12px; border: none; border-radius: 12px; background: var(--ml-blue); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: 0 2px 6px rgba(0, 95, 249, .25); }
@@ -148,6 +149,13 @@ if (!document.getElementById('ml-style')) {
     @media (max-width: 900px) { .ml-side { width: 64px; flex-basis: 64px; } .ml-folder-name, .ml-folder-count, .ml-compose-btn span, .ml-side-foot { display: none; } .ml-from { width: 120px; flex-basis: 120px; } .ml-snip { display: none; } }
   `;
   document.head.appendChild(st);
+}
+// плавающая кнопка ИИ-чата NocoBase не используется (как и на других страницах) — прячем, чтобы не закрывала окно письма
+if (!document.getElementById('cm-hide-ai-chat')) {
+  const aiSt = document.createElement('style');
+  aiSt.id = 'cm-hide-ai-chat';
+  aiSt.textContent = '[role="button"][aria-label="Открыть ИИ-чат"], [role="button"][aria-label="Open AI chat"] { display: none !important; }';
+  document.head.appendChild(aiSt);
 }
 
 // ---------- иконки ----------

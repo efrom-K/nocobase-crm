@@ -1266,6 +1266,11 @@ async function updateWithHistory(collection, id, values, opts) {
       });
     }
   }
+  // «Сумма договора» = арендная плата + эксплуатационный сбор (в месяц), всегда считается сама
+  if (old) {
+    const tot = totalUpdate(collection, old, values);
+    if (tot) { values = Object.assign({}, values, tot); derived = Object.assign({}, derived, tot); }
+  }
   const res = await ctx.api.resource(collection).update({ filterByTk: id, values: values });
   if (old) await logFieldChanges(HIST_TYPE_BY_COLL[collection] || 'active', id, old, values);
   if (Object.keys(derived).length) syncDerivedDom(derived);

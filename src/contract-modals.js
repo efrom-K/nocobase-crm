@@ -1652,6 +1652,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     summaryEl.style.display = (type === 'active' || items.length) && lines.length ? 'block' : 'none';
     if ((type === 'active' || type === 'completed') && r) {
       r.__schedActive = type === 'active' ? tgt.active : null;
+      if (type === 'active') { overlay.__cmActiveRec = r; if (overlay.__cmRefreshDerivedHints) overlay.__cmRefreshDerivedHints(); }   // сумма в форме «Характеристик» — от текущих цен периода
       r.__schedNow = type === 'active' ? (act.length ? tgt.active[act[0].key] : null) : null;
       const next = {};
       if (type === 'active') PRICE_COMPONENTS.forEach(function(c) { [c.perField, c.amtField].forEach(function(f) { if (f) next[f] = nextFieldChange(items, baseRec(), iso, f); }); });

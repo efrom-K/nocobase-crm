@@ -210,6 +210,27 @@ async function api(path, opts) {
     .ml-viewer iframe { width: 100%; height: 100%; border: none; background: #fff; }
     .ml-source { white-space: pre-wrap; word-break: break-all; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; margin: 0; }
     .ml-loading { padding: 40px; text-align: center; color: var(--ml-gray); }
+    .ml-count { display: inline-block; margin-left: 6px; padding: 0 6px; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; background: #eceef2; color: #5b5e64; font-size: 11.5px; font-weight: 600; text-align: center; box-sizing: border-box; }
+    .ml-thread-count { font-size: 14px; font-weight: 400; color: var(--ml-gray); margin-left: 6px; }
+    .ml-member { border: 1px solid var(--ml-line); border-radius: 12px; margin-bottom: 10px; background: #fff; }
+    .ml-member.open { padding: 14px 16px; }
+    .ml-member-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; font-size: 14px; }
+    .ml-member-head:hover { background: #f7f8fa; border-radius: 12px; }
+    .ml-member-head .ml-avatar { width: 28px; height: 28px; font-size: 11px; flex: 0 0 28px; }
+    .ml-member-head b { font-weight: 600; white-space: nowrap; }
+    .ml-member-snip { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ml-gray); }
+    .ml-member-tag { font-size: 11.5px; color: #389e0d; background: #f0fae8; border-radius: 6px; padding: 1px 6px; }
+    .ml-member .ml-read-head { margin-bottom: 12px; }
+    .ml-member-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .ml-sched-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+    .ml-sched-when { width: 190px; flex-shrink: 0; color: var(--ml-blue); font-weight: 600; }
+    .ml-sched-main { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ml-sched-main span { color: var(--ml-gray); }
+    .ml-sched-err { color: #e0342c; font-size: 12.5px; }
+    .ml-send-group { display: inline-flex; }
+    .ml-send-group .ml-btn-primary:first-child { border-radius: 10px 0 0 10px; }
+    .ml-send-group .ml-btn-primary + .ml-btn-primary { border-radius: 0 10px 10px 0; border-left: 1px solid rgba(255,255,255,.35); padding: 0 10px; }
+    .ml-when input { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 12px; font-size: 14px; font-family: inherit; }
     @media (max-width: 900px) { .ml-side { width: 64px; flex-basis: 64px; } .ml-folder-name, .ml-folder-count, .ml-compose-btn span, .ml-side-foot span, .ml-folder-add span { display: none; } .ml-from { width: 120px; flex-basis: 120px; } .ml-snip { display: none; } }
   `;
   document.head.appendChild(st);
@@ -220,6 +241,55 @@ if (!document.getElementById('cm-hide-ai-chat')) {
   aiSt.id = 'cm-hide-ai-chat';
   aiSt.textContent = '[role="button"][aria-label="Открыть ИИ-чат"], [role="button"][aria-label="Open AI chat"] { display: none !important; }';
   document.head.appendChild(aiSt);
+}
+
+// счётчик непрочитанных писем на пункте «Почта» верхнего меню (видно с любой страницы, где есть наши блоки)
+if (!window.__mlBadgeTimer) {
+  window.__mlBadgeTimer = true;
+  (function() {
+    const MAIL_API = location.protocol + '//' + location.hostname + ':8096/api';
+    let off = false;
+    function menuItem() {
+      const els = document.querySelectorAll('.ant-menu-item, .ant-menu-submenu-title');
+      for (let i = 0; i < els.length; i++) { const t = (els[i].innerText || '').replace(/\d+\s*$/, '').trim(); if (t === 'Почта') return els[i]; }
+      return null;
+    }
+    function paint(n) {
+      window.__mlUnread = n;
+      const it = menuItem();
+      if (!it) return;
+      let b = it.querySelector('.ml-menu-badge');
+      if (!n) { if (b) b.remove(); return; }
+      if (!b) {
+        b = document.createElement('span');
+        b.className = 'ml-menu-badge';
+        b.style.cssText = 'display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:#ff4d4f;color:#fff;font-size:11px;font-weight:600;text-align:center;box-sizing:border-box;vertical-align:1px;';
+        const title = it.querySelector('.ant-menu-title-content') || it;
+        title.appendChild(b);
+      }
+      const txt = n > 99 ? '99+' : String(n);
+      if (b.textContent !== txt) b.textContent = txt;
+    }
+    async function poll() {
+      if (off || /\/signin|\/signup/.test(location.pathname)) return;
+      let token = null;
+      try { token = localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { token = null; }
+      if (!token) return;
+      try {
+        const r = await fetch(MAIL_API + '/unread', { headers: { Authorization: 'Bearer ' + token } });
+        if (r.status === 403) { off = true; return; }   // почта для этой учётной записи не подключена
+        if (!r.ok) return;
+        const j = await r.json();
+        paint(j.unseen || 0);
+      } catch (e) { /* сервис недоступен — попробуем позже */ }
+    }
+    window.__mlBadgePoll = poll;
+    window.__mlBadgePaint = paint;
+    poll();
+    setInterval(poll, 60000);
+    // меню перерисовывается при переходах — возвращаем значок на место без запросов
+    setInterval(function() { if (window.__mlUnread) paint(window.__mlUnread); }, 1500);
+  })();
 }
 
 // ---------- иконки ----------
@@ -284,6 +354,7 @@ Object.assign(IC, {
   dl: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>',
   plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   answered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>',
+  clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
   expand: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>'
 });
 const FILTER_TITLES = { '': 'Все письма', unread: 'Непрочитанные', flagged: 'С флажком', attachments: 'С вложениями' };
@@ -346,7 +417,8 @@ function closeMenus() { const m = document.getElementById('ml-menu'); if (m) m.r
 
 // ---------- состояние ----------
 const root = document.getElementById('ml-root');
-const S = { me: null, settings: { name: '', signature: '', sigOnReply: true }, folders: [], folder: 'INBOX', filter: '', items: [], total: 0, page: 0, q: '', sel: new Set(), open: null, loading: false, contacts: null };
+const SCHED = '__scheduled__';   // псевдопапка «Запланированные» (отложенные письма хранит почтовый сервис)
+const S = { me: null, settings: { name: '', signature: '', sigOnReply: true, threads: true }, sched: [], folders: [], folder: 'INBOX', filter: '', items: [], total: 0, page: 0, q: '', sel: new Set(), open: null, loading: false, contacts: null };
 
 function fitHeight() {
   const app = root.querySelector('.ml-app');
@@ -395,7 +467,20 @@ function renderShell() {
   fitHeight();
   setTimeout(fitHeight, 300);
 }
-function currentFolder() { return S.folders.find(function(f) { return f.path === S.folder; }) || { path: S.folder, name: S.folder, special: null, unseen: 0, total: 0 }; }
+function currentFolder() {
+  if (S.folder === SCHED) return { path: SCHED, name: 'Запланированные', special: 'scheduled', unseen: 0, total: S.sched.length };
+  return S.folders.find(function(f) { return f.path === S.folder; }) || { path: S.folder, name: S.folder, special: null, unseen: 0, total: 0 };
+}
+// строка списка может быть цепочкой: её письма в текущей папке — uids
+function itemOf(uid) { return S.items.find(function(x) { return x.uid === uid; }); }
+function uidsOf(list) {
+  const out = [];
+  list.forEach(function(u) { const it = itemOf(u); (it && it.uids ? it.uids : [u]).forEach(function(x) { if (out.indexOf(x) === -1) out.push(x); }); });
+  return out;
+}
+function rowsWith(uids) { return S.items.filter(function(it) { return (it.uids || [it.uid]).some(function(u) { return uids.indexOf(u) !== -1; }); }); }
+function useThreads() { const sp = currentFolder().special; return S.settings.threads !== false && sp !== '\\Drafts' && sp !== 'scheduled'; }
+async function loadScheduled() { try { S.sched = (await api('/scheduled')).items || []; } catch (e) { /* ignore */ } }
 function folderBySpecial(sp) { return S.folders.find(function(f) { return f.special === sp; }); }
 function openFolder(path) { S.folder = path; S.q = ''; S.filter = ''; S.open = null; renderFolders(); loadList(true); }
 function renderFolders() {
@@ -408,8 +493,12 @@ function renderFolders() {
     const showCnt = cnt && f.special !== '\\Sent' && f.special !== '\\Trash' && f.special !== '\\Archive';
     html += '<div class="ml-folder' + (f.path === S.folder ? ' active' : '') + '" data-folder="' + esc(f.path) + '">' + (FOLDER_ICON[f.special] || IC.folder)
       + '<span class="ml-folder-name">' + esc(f.name) + '</span>' + (showCnt ? '<span class="ml-folder-count">' + cnt + '</span>' : '') + '</div>';
+    if (f.special === '\\Drafts' && (S.sched.length || S.folder === SCHED))
+      html += '<div class="ml-folder' + (S.folder === SCHED ? ' active' : '') + '" data-sched="1">' + IC.clock + '<span class="ml-folder-name">Запланированные</span>' + (S.sched.length ? '<span class="ml-folder-count">' + S.sched.length + '</span>' : '') + '</div>';
   });
   el.innerHTML = html;
+  const sd = el.querySelector('[data-sched]');
+  if (sd) sd.addEventListener('click', function() { S.folder = SCHED; S.q = ''; S.filter = ''; S.open = null; renderFolders(); loadList(true); });
   el.querySelectorAll('[data-folder]').forEach(function(d) {
     const path = d.getAttribute('data-folder');
     d.addEventListener('click', function() { openFolder(path); });
@@ -428,6 +517,7 @@ function renderFolders() {
     });
   });
   const inbox = folderBySpecial('\\Inbox');
+  if (inbox && window.__mlBadgePaint) window.__mlBadgePaint(inbox.unseen);
   try { document.title = (inbox && inbox.unseen ? '(' + inbox.unseen + ') ' : '') + 'Почта'; } catch (e) { /* ignore */ }
 }
 function folderMenu(path, x, y) {
@@ -502,11 +592,11 @@ function rowHtml(m) {
   const sp = currentFolder().special;
   const sent = sp === '\\Sent' || sp === '\\Drafts';
   const peer = sent ? (m.to && m.to[0]) : (m.from && m.from[0]);
-  const peerName = sent ? (m.draft ? 'Черновик' : 'Кому: ') + (m.to || []).map(who).join(', ') : who(peer);
+  const peerName = sent ? (m.draft ? 'Черновик' : 'Кому: ') + (m.to || []).map(who).join(', ') : (m.participants && m.participants.length > 1 ? m.participants.join(', ') : who(peer));
   return '<div class="ml-row' + (m.seen ? '' : ' unread') + (S.sel.has(m.uid) ? ' sel' : '') + '" data-uid="' + m.uid + '" draggable="true">'
     + '<span class="ml-unread-dot" data-toggle-seen="' + m.uid + '" title="' + (m.seen ? 'Отметить непрочитанным' : 'Отметить прочитанным') + '"></span>'
     + '<div class="ml-avatar-wrap">' + avatar(peer) + '<span class="ml-check' + (S.sel.has(m.uid) ? ' on' : '') + '" data-check="' + m.uid + '"></span></div>'
-    + '<div class="ml-from" title="' + esc(peer ? peer.address : '') + '">' + esc(peerName || '(без отправителя)') + '</div>'
+    + '<div class="ml-from" title="' + esc(peer ? peer.address : '') + '">' + esc(peerName || '(без отправителя)') + (m.count > 1 ? '<span class="ml-count" title="Писем в цепочке">' + m.count + '</span>' : '') + '</div>'
     + '<div class="ml-line">' + (m.important ? '<span class="ml-imp" title="Важное">!</span>' : '') + '<span class="ml-subj">' + esc(m.subject || '(без темы)') + '</span><span class="ml-snip">' + esc(m.snippet || '') + '</span></div>'
     + '<div class="ml-icons">' + (m.answered ? '<span title="Вы ответили на это письмо" style="display:inline-flex;">' + IC.answered + '</span>' : '') + (m.attachments ? IC.clip : '')
     + '<span class="ml-flag' + (m.flagged ? ' on' : '') + '" data-flag="' + m.uid + '" title="Отметить флажком">' + IC.flag + '</span></div>'
@@ -527,10 +617,10 @@ function renderList() {
 function rowMenu(uid, x, y) {
   const m = S.items.find(function(z) { return z.uid === uid; });
   if (!m) return;
-  const uids = S.sel.has(uid) ? Array.from(S.sel) : [uid];
+  const uids = uidsOf(S.sel.has(uid) ? Array.from(S.sel) : [uid]);
   const sp = currentFolder().special;
   popupMenu(x, y, [
-    { text: 'Открыть', run: function() { openMessage(uid); } },
+    { text: 'Открыть', run: function() { openItem(m); } },
     { text: 'Ответить', icon: IC.reply, run: async function() { const full = await fetchMessage(uid); if (full) openCompose(replyDraft(full, 'reply')); } },
     { text: 'Переслать', icon: IC.fwd, run: async function() { const full = await fetchMessage(uid); if (full) openCompose(replyDraft(full, 'forward')); } },
     '-',
@@ -561,15 +651,15 @@ function wireList() {
     row.addEventListener('click', function(e) {
       const t = e.target;
       if (t.closest('[data-check]') || e.shiftKey || e.ctrlKey || e.metaKey) { if (S.sel.has(uid)) S.sel.delete(uid); else S.sel.add(uid); renderList(); return; }
-      if (t.closest('[data-flag]')) { const m = S.items.find(function(x) { return x.uid === uid; }); setFlag([uid], !m.flagged); return; }
-      if (t.closest('[data-toggle-seen]')) { const m = S.items.find(function(x) { return x.uid === uid; }); setSeen([uid], !m.seen); return; }
+      if (t.closest('[data-flag]')) { const m = itemOf(uid); setFlag(uidsOf([uid]), !m.flagged); return; }
+      if (t.closest('[data-toggle-seen]')) { const m = itemOf(uid); setSeen(uidsOf([uid]), !m.seen); return; }
       const m = S.items.find(function(x) { return x.uid === uid; });
       if (m && m.draft && currentFolder().special === '\\Drafts') { openDraft(uid); return; }
-      openMessage(uid);
+      openItem(m);
     });
     row.addEventListener('contextmenu', function(e) { e.preventDefault(); rowMenu(uid, e.clientX, e.clientY); });
     row.addEventListener('dragstart', function(e) {
-      const uids = S.sel.has(uid) ? Array.from(S.sel) : [uid];
+      const uids = uidsOf(S.sel.has(uid) ? Array.from(S.sel) : [uid]);
       window.__mlDragUids = uids;
       try { e.dataTransfer.setData('text/plain', uids.length + ' писем'); e.dataTransfer.effectAllowed = 'move'; } catch (err) { /* ignore */ }
       row.classList.add('dragging');
@@ -578,10 +668,11 @@ function wireList() {
   });
 }
 async function loadList(reset) {
+  if (S.folder === SCHED) { S.open = null; S.sel.clear(); await loadScheduled(); renderFolders(); renderScheduled(); return; }
   if (reset) { S.page = 0; S.items = []; S.sel.clear(); S.loading = true; S.open = null; renderList(); }
   const folder = S.folder, q = S.q, page = S.page, filter = S.filter;
   try {
-    const d = await api('/messages?' + qs({ folder: folder, page: page, q: q, filter: filter }));
+    const d = await api((useThreads() ? '/threads?' : '/messages?') + qs({ folder: folder, page: page, q: q, filter: filter }));
     if (folder !== S.folder || q !== S.q || filter !== S.filter) return;
     S.total = d.total;
     S.items = page === 0 ? d.items : S.items.concat(d.items.filter(function(m) { return !S.items.some(function(x) { return x.uid === m.uid; }); }));
@@ -590,28 +681,29 @@ async function loadList(reset) {
   if (!S.open) renderList();
 }
 async function setSeen(uids, seen) {
-  S.items.forEach(function(m) { if (uids.indexOf(m.uid) !== -1) m.seen = seen; });
+  rowsWith(uids).forEach(function(m) { m.seen = seen; });
   if (!S.open) renderList();
   try { await api('/flags', { json: { folder: S.folder, uids: uids, add: seen ? ['\\Seen'] : [], remove: seen ? [] : ['\\Seen'] } }); refreshCounts(); }
   catch (e) { toast(e.message); }
 }
 async function setFlag(uids, on) {
-  S.items.forEach(function(m) { if (uids.indexOf(m.uid) !== -1) m.flagged = on; });
+  rowsWith(uids).forEach(function(m) { m.flagged = on; });
   if (!S.open) renderList();
   try { await api('/flags', { json: { folder: S.folder, uids: uids, add: on ? ['\\Flagged'] : [], remove: on ? [] : ['\\Flagged'] } }); }
   catch (e) { toast(e.message); }
 }
 async function removeUids(uids, action, to) {
   const path = action === 'delete' ? '/delete' : (action === 'spam' ? '/spam' : '/move');
-  const keep = S.items;
-  S.items = S.items.filter(function(m) { return uids.indexOf(m.uid) === -1; });
-  S.total -= uids.length; S.sel.clear(); S.open = null; renderList();
+  const keep = S.items, keepTotal = S.total;
+  const gone = rowsWith(uids);
+  S.items = S.items.filter(function(m) { return gone.indexOf(m) === -1; });
+  S.total -= gone.length; S.sel.clear(); S.open = null; renderList();
   try {
     await api(path, { json: { folder: S.folder, uids: uids, to: to } });
     const target = to && S.folders.find(function(f) { return f.path === to; });
     toast(action === 'delete' ? (currentFolder().special === '\\Trash' ? 'Удалено навсегда' : 'Перемещено в корзину') : action === 'spam' ? 'Перемещено в спам' : 'Перемещено в «' + (target ? target.name : to) + '»');
     refreshCounts();
-  } catch (e) { S.items = keep; S.total += uids.length; renderList(); toast(e.message); }
+  } catch (e) { S.items = keep; S.total = keepTotal; renderList(); toast(e.message); }
 }
 function moveMenu(x, y, uids) {
   popupMenu(x, y, S.folders.filter(function(f) { return f.path !== S.folder; }).map(function(f) {
@@ -624,7 +716,7 @@ function moveMenu(x, y, uids) {
   } }]));
 }
 function bulk(act, btn) {
-  const uids = Array.from(S.sel);
+  const uids = uidsOf(Array.from(S.sel));
   if (act === 'refresh') { refreshCounts(); loadList(true); return; }
   if (act === 'markall') { markAllRead(S.folder); return; }
   if (act === 'empty') { emptyFolder(S.folder); return; }
@@ -634,7 +726,7 @@ function bulk(act, btn) {
   else if (act === 'notspam') { const ib = folderBySpecial('\\Inbox'); removeUids(uids, 'move', ib ? ib.path : 'INBOX'); }
   else if (act === 'read') { setSeen(uids, true); S.sel.clear(); renderList(); }
   else if (act === 'unread') { setSeen(uids, false); S.sel.clear(); renderList(); }
-  else if (act === 'flag') { const allOn = uids.every(function(u) { const m = S.items.find(function(x) { return x.uid === u; }); return m && m.flagged; }); setFlag(uids, !allOn); S.sel.clear(); renderList(); }
+  else if (act === 'flag') { const allOn = rowsWith(uids).every(function(m) { return m.flagged; }); setFlag(uids, !allOn); S.sel.clear(); renderList(); }
   else if (act === 'move') { const r = btn.getBoundingClientRect(); moveMenu(r.left, r.bottom + 4, uids); }
 }
 async function refreshCounts() {
@@ -643,10 +735,43 @@ async function refreshCounts() {
     const prevUnseen = before ? before.unseen : 0, prevTotal = before ? before.total : 0;
     await loadFolders();
     const after = folderBySpecial('\\Inbox');
+    const schedBefore = S.sched.length;
+    await loadScheduled();
+    if (S.sched.length !== schedBefore) { renderFolders(); if (S.folder === SCHED && !S.open) renderScheduled(); }
+    if (S.folder === SCHED) return;
     if (after && (after.total !== prevTotal || after.unseen > prevUnseen) && S.folder === after.path && !S.q && !S.open && S.page === 0 && !S.sel.size) loadList(false);
     else if (!S.open && !S.sel.size && root.querySelector('#ml-selall')) renderList();
   } catch (e) { /* тихо: попробуем в следующий раз */ }
 }
+// ---------- запланированные письма ----------
+function whenText(iso) {
+  const d = new Date(iso), now = new Date();
+  if (isNaN(d)) return '';
+  const t = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  if (d.toDateString() === now.toDateString()) return 'сегодня в ' + t;
+  const tm = new Date(now); tm.setDate(now.getDate() + 1);
+  if (d.toDateString() === tm.toDateString()) return 'завтра в ' + t;
+  return d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : '') + ' в ' + t;
+}
+function renderScheduled() {
+  const main = root.querySelector('#ml-main');
+  if (!main) return;
+  const rows = S.sched.map(function(j) {
+    return '<div class="ml-sched-row"><div class="ml-sched-when">' + IC.clock + ' ' + esc(whenText(j.sendAt)) + '</div>'
+      + '<div class="ml-sched-main"><b>' + esc(j.subject || '(без темы)') + '</b> <span>· кому: ' + esc((j.to || []).join(', ')) + '</span>'
+      + (j.lastError ? '<div class="ml-sched-err">Не отправилось с ' + j.attempts + '-й попытки: ' + esc(j.lastError) + ' — попробуем ещё раз</div>' : '') + '</div>'
+      + '<button class="ml-btn" data-now="' + esc(j.id) + '">Отправить сейчас</button><button class="ml-btn" data-cancel="' + esc(j.id) + '" title="Письмо вернётся в черновики">Отменить</button></div>';
+  }).join('');
+  main.innerHTML = '<div class="ml-toolbar"><span style="font-size:17px;font-weight:600;margin-left:4px;">Запланированные</span><span style="margin-left:10px;color:#87898f;font-size:13px;">письма уйдут сами в назначенное время, даже если NocoBase закрыт</span></div>'
+    + '<div class="ml-list">' + (rows || '<div class="ml-empty"><b>Запланированных писем нет</b>Чтобы отправить письмо позже, нажмите ⏰ рядом с кнопкой «Отправить»</div>') + '</div>';
+  main.querySelectorAll('[data-now]').forEach(function(b) { b.addEventListener('click', async function() {
+    try { await api('/scheduled/now', { json: { id: b.getAttribute('data-now') } }); toast('Письмо отправляется'); setTimeout(function() { loadList(true); refreshCounts(); }, 3000); } catch (e) { toast(e.message); }
+  }); });
+  main.querySelectorAll('[data-cancel]').forEach(function(b) { b.addEventListener('click', async function() {
+    try { await api('/scheduled/cancel', { json: { id: b.getAttribute('data-cancel') } }); toast('Отправка отменена — письмо в черновиках'); loadList(true); refreshCounts(); } catch (e) { toast(e.message); }
+  }); });
+}
+
 // ---------- чтение письма ----------
 const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 function blockRemote(html) {
@@ -661,9 +786,14 @@ function frameDoc(html, allowImages) {
     + (allowImages ? html : blockRemote(html)) + '</body></html>';
 }
 function hasRemoteImages(html) { return /<img[^>]+src=["']?https?:/i.test(html) || /url\(\s*['"]?https?:/i.test(html) || /\sbackground=["']?https?:/i.test(html); }
-async function fetchMessage(uid) {
-  try { const m = await api('/message?' + qs({ folder: S.folder, uid: uid })); m.folder = S.folder; return m; }
+function memberBox(k) { const els = root.querySelectorAll('[data-member]'); for (let i = 0; i < els.length; i++) if (els[i].getAttribute('data-member') === k) return els[i]; return null; }
+async function fetchMessage(uid, folder) {
+  try { const m = await api('/message?' + qs({ folder: folder || S.folder, uid: uid })); m.folder = folder || S.folder; return m; }
   catch (e) { if (!handleFatal(e)) toast(e.message); return null; }
+}
+function markItemSeen(uid) {
+  const it = S.items.find(function(x) { return x.uid === uid || (x.uids && x.uids.indexOf(uid) !== -1); });
+  if (it && !it.seen) { it.seen = true; refreshCounts(); }
 }
 async function openMessage(uid) {
   S.open = { uid: uid, loading: true };
@@ -674,17 +804,82 @@ async function openMessage(uid) {
   if (!m) { S.open = null; renderList(); return; }
   if (!S.open || S.open.uid !== uid) return;
   S.open = m;
-  const it = S.items.find(function(x) { return x.uid === uid; });
-  if (it && !it.seen) { it.seen = true; refreshCounts(); }
+  markItemSeen(uid);
   renderMessage(false);
+}
+// цепочка: все письма переписки (включая ваши ответы из «Отправленных»); последнее и непрочитанные раскрыты
+async function openThread(item) {
+  S.open = { uid: item.uid, loading: true, thread: true, item: item };
+  const main = root.querySelector('#ml-main');
+  main.innerHTML = readToolbar() + '<div class="ml-read"><div class="ml-loading">Открываем переписку…</div></div>';
+  wireReadToolbar();
+  let members;
+  try { members = (await api('/thread?' + qs({ folder: S.folder, uid: item.uid }))).members || []; }
+  catch (e) { if (!handleFatal(e)) toast(e.message); S.open = null; renderList(); return; }
+  if (!S.open || S.open.uid !== item.uid) return;
+  const T = { uid: item.uid, thread: true, item: item, members: members, full: {}, expanded: {}, images: {} };
+  members.forEach(function(x, i) { if (i === members.length - 1 || !x.seen) T.expanded[x.folder + '#' + x.uid] = true; });
+  S.open = T;
+  renderThread();
+  // письма, которые раскрыты сразу, подгружаем (заодно они отмечаются прочитанными)
+  for (const x of members) { const k = x.folder + '#' + x.uid; if (T.expanded[k]) await loadMember(x, k); }
+  markItemSeen(item.uid);
+}
+async function loadMember(x, k) {
+  const T = S.open;
+  if (!T || !T.thread || T.full[k]) return;
+  const m = await fetchMessage(x.uid, x.folder);
+  if (!m || S.open !== T) return;
+  T.full[k] = m;
+  const box = memberBox(k);
+  if (box) paintMember(box, x, k);
+}
+function lastLoaded() {
+  const T = S.open;
+  if (!T || !T.thread) return T;
+  for (let i = T.members.length - 1; i >= 0; i--) { const k = T.members[i].folder + '#' + T.members[i].uid; if (T.full[k] && !T.members[i].sent) return T.full[k]; }
+  for (let i = T.members.length - 1; i >= 0; i--) { const k = T.members[i].folder + '#' + T.members[i].uid; if (T.full[k]) return T.full[k]; }
+  return null;
+}
+function renderThread() {
+  const T = S.open, main = root.querySelector('#ml-main');
+  const subj = (T.members[T.members.length - 1] || {}).subject || T.item.subject || '(без темы)';
+  main.innerHTML = readToolbar() + '<div class="ml-read"><h1>' + (T.item.important ? '<span class="ml-imp" title="Важное">!</span>' : '') + esc(subj)
+    + ' <span class="ml-thread-count">' + T.members.length + ' ' + plural(T.members.length, 'письмо', 'письма', 'писем') + '</span></h1>'
+    + T.members.map(function(x) { const k = x.folder + '#' + x.uid; return '<div class="ml-member' + (T.expanded[k] ? ' open' : '') + '" data-member="' + esc(k) + '"></div>'; }).join('')
+    + '<div class="ml-quick-reply" id="ml-quick-reply">Нажмите здесь, чтобы ответить…</div></div>';
+  wireReadToolbar();
+  T.members.forEach(function(x) { const k = x.folder + '#' + x.uid; paintMember(memberBox(k), x, k); });
+  main.querySelector('#ml-quick-reply').addEventListener('click', function() { const m = lastLoaded(); if (m) openCompose(replyDraft(m, 'reply')); });
+}
+function paintMember(box, x, k) {
+  const T = S.open;
+  const from = (x.from && x.from[0]) || {};
+  const who2 = from.address === S.me.email ? 'Я' : (from.name || from.address || '');
+  if (!T.expanded[k]) {
+    box.className = 'ml-member';
+    box.innerHTML = '<div class="ml-member-head">' + avatar(from) + '<b>' + esc(who2) + '</b>' + (x.sent ? '<span class="ml-member-tag">отправлено</span>' : '')
+      + '<span class="ml-member-snip">' + esc(x.snippet || '') + '</span>' + (x.attachments ? IC.clip : '') + '<span class="ml-read-date">' + esc(shortDate(x.date)) + '</span></div>';
+    box.querySelector('.ml-member-head').addEventListener('click', function() { T.expanded[k] = true; paintMember(box, x, k); loadMember(x, k); });
+    return;
+  }
+  box.className = 'ml-member open';
+  const m = T.full[k];
+  if (!m) { box.innerHTML = '<div class="ml-loading" style="padding:16px;">Загружаем письмо…</div>'; return; }
+  box.innerHTML = msgBlockHtml(m, k, !!T.images[k], true)
+    + '<div class="ml-member-actions"><button class="ml-btn" data-mact="reply">' + IC.reply + 'Ответить</button><button class="ml-btn" data-mact="replyAll">Ответить всем</button><button class="ml-btn" data-mact="forward">' + IC.fwd + 'Переслать</button></div>';
+  wireMsgBlock(box, m, k, !!T.images[k], function() { T.images[k] = true; paintMember(box, x, k); });
+  box.querySelector('.ml-read-head').addEventListener('click', function(e) { if (e.target.closest('a,button')) return; T.expanded[k] = false; paintMember(box, x, k); });
+  box.querySelectorAll('[data-mact]').forEach(function(b) { b.addEventListener('click', function() { openCompose(replyDraft(m, b.getAttribute('data-mact'))); }); });
 }
 function neighbour(dir) {
   if (!S.open) return null;
   const i = S.items.findIndex(function(x) { return x.uid === S.open.uid; });
   if (i === -1) return null;
   const n = S.items[i + dir];
-  return n ? n.uid : null;
+  return n || null;
 }
+function openItem(it) { if (!it) return; if (it.count > 1) openThread(it); else openMessage(it.uid); }
 function readToolbar() {
   const f = currentFolder();
   const prev = neighbour(-1), next = neighbour(1);
@@ -698,25 +893,31 @@ function readToolbar() {
     + '<span style="margin-left:auto;display:inline-flex;gap:2px;"><button class="ml-tbtn icon" data-ract="prev" title="Предыдущее письмо"' + (prev ? '' : ' disabled') + '>' + IC.up + '</button>'
     + '<button class="ml-tbtn icon" data-ract="next" title="Следующее письмо"' + (next ? '' : ' disabled') + '>' + IC.down + '</button></span></div>';
 }
+function openUids() { const o = S.open; return o.thread ? o.item.uids.slice() : [o.uid]; }
+function deleteOpen() { const nx = neighbour(1); removeUids(openUids(), 'delete'); if (nx) openItem(nx); }
 function wireReadToolbar() {
   root.querySelectorAll('[data-ract]').forEach(function(b) {
     b.addEventListener('click', function() {
-      const a = b.getAttribute('data-ract'), m = S.open;
+      const a = b.getAttribute('data-ract'), o = S.open;
       if (a === 'back') { S.open = null; renderList(); return; }
-      if (!m || m.loading) return;
-      if (a === 'reply' || a === 'replyAll' || a === 'forward') { openCompose(replyDraft(m, a)); return; }
-      if (a === 'prev' || a === 'next') { const u = neighbour(a === 'prev' ? -1 : 1); if (u) openMessage(u); return; }
-      if (a === 'delete') { const nx = neighbour(1); removeUids([m.uid], 'delete'); if (nx) openMessage(nx); }
-      else if (a === 'spam') removeUids([m.uid], 'spam');
-      else if (a === 'move') { const r = b.getBoundingClientRect(); moveMenu(r.left, r.bottom + 4, [m.uid]); }
+      if (!o || o.loading) return;
+      const m = o.thread ? lastLoaded() : o;
+      if (a === 'reply' || a === 'replyAll' || a === 'forward') { if (m) openCompose(replyDraft(m, a)); return; }
+      if (a === 'prev' || a === 'next') { openItem(neighbour(a === 'prev' ? -1 : 1)); return; }
+      if (a === 'delete') deleteOpen();
+      else if (a === 'spam') removeUids(openUids(), 'spam');
+      else if (a === 'move') { const r = b.getBoundingClientRect(); moveMenu(r.left, r.bottom + 4, openUids()); }
       else if (a === 'more') {
-        menuUnder(b, [
-          { text: 'Отметить непрочитанным', icon: IC.read, run: function() { S.open = null; setSeen([m.uid], false); } },
-          { text: (S.items.find(function(x) { return x.uid === m.uid; }) || {}).flagged ? 'Снять флажок' : 'Отметить флажком', icon: IC.flag, run: function() { const it = S.items.find(function(x) { return x.uid === m.uid; }); setFlag([m.uid], !(it && it.flagged)); } },
-          '-',
-          { text: 'Распечатать', run: function() { printMessage(m); } },
-          { text: 'Показать оригинал письма', run: function() { showSource(m); } }
-        ].concat(m.attachments.length ? [{ text: 'Скачать все вложения (ZIP)', icon: IC.dl, run: function() { downloadZip(m); } }] : []));
+        const it = S.items.find(function(x) { return x.uid === o.uid; }) || {};
+        const items = [
+          { text: 'Отметить непрочитанным', icon: IC.read, run: function() { const u = openUids(); S.open = null; setSeen(u, false); } },
+          { text: it.flagged ? 'Снять флажок' : 'Отметить флажком', icon: IC.flag, run: function() { setFlag(openUids(), !it.flagged); } }
+        ];
+        if (m) {
+          items.push('-', { text: 'Распечатать', run: function() { printMessage(m); } }, { text: 'Показать оригинал письма', run: function() { showSource(m); } });
+          if (m.attachments && m.attachments.length) items.push({ text: 'Скачать все вложения (ZIP)', icon: IC.dl, run: function() { downloadZip(m); } });
+        }
+        menuUnder(b, items);
       }
     });
   });
@@ -724,56 +925,63 @@ function wireReadToolbar() {
 function addrLine(list) { return (list || []).map(function(a) { return a.name ? esc(a.name) + ' <span class="ml-read-addr">&lt;' + esc(a.address) + '&gt;</span>' : esc(a.address); }).join(', '); }
 const PREVIEW_IMG = /^image\/(png|jpe?g|gif|webp|bmp|svg\+xml)$/i;
 function canPreview(a) { return PREVIEW_IMG.test(a.contentType || '') || /pdf$/i.test(a.contentType || '') || /\.(png|jpe?g|gif|webp|bmp|pdf)$/i.test(a.filename || ''); }
-function renderMessage(allowImages) {
-  const m = S.open, main = root.querySelector('#ml-main');
+// одно письмо: шапка, текст в изолированном iframe, вложения — общее для отдельного письма и цепочки
+function msgBlockHtml(m, key, allowImages, compact) {
   const from = (m.from && m.from[0]) || {};
   const remote = !allowImages && hasRemoteImages(m.html);
   const atts = m.attachments || [];
   const totalSize = atts.reduce(function(s, a) { return s + (a.size || 0); }, 0);
-  main.innerHTML = readToolbar() + '<div class="ml-read"><h1>' + (m.important ? '<span class="ml-imp" title="Важное">!</span>' : '') + esc(m.subject || '(без темы)') + '</h1>'
-    + '<div class="ml-read-head">' + avatar(from) + '<div class="ml-read-who"><b>' + esc(from.name || from.address || '') + '</b>' + (from.name ? ' <span class="ml-read-addr">' + esc(from.address) + '</span>' : '')
+  return '<div class="ml-read-head"' + (compact ? ' style="cursor:pointer;" title="Свернуть"' : '') + '>' + avatar(from) + '<div class="ml-read-who"><b>' + esc(from.name || from.address || '') + '</b>' + (from.name ? ' <span class="ml-read-addr">' + esc(from.address) + '</span>' : '')
     + '<div class="ml-read-to">Кому: ' + addrLine(m.to) + (m.cc && m.cc.length ? '<br>Копия: ' + addrLine(m.cc) : '') + '</div></div><div class="ml-read-date">' + esc(longDate(m.date)) + '</div></div>'
-    + (remote ? '<div class="ml-imgbar">Картинки из интернета в этом письме скрыты для безопасности. <a id="ml-show-img">Показать картинки</a></div>' : '')
-    + '<iframe class="ml-body-frame" id="ml-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>'
-    + (atts.length ? '<div class="ml-atts-head">' + atts.length + ' ' + plural(atts.length, 'вложение', 'вложения', 'вложений') + ' · ' + fmtSize(totalSize) + (atts.length > 1 ? ' <a id="ml-zip">' + IC.dl + ' Скачать все архивом</a>' : '') + '</div><div class="ml-atts">' + atts.map(function(a) {
+    + (remote ? '<div class="ml-imgbar">Картинки из интернета в этом письме скрыты для безопасности. <a data-show-img>Показать картинки</a></div>' : '')
+    + '<iframe class="ml-body-frame" data-frame="' + esc(key) + '" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>'
+    + (atts.length ? '<div class="ml-atts-head">' + atts.length + ' ' + plural(atts.length, 'вложение', 'вложения', 'вложений') + ' · ' + fmtSize(totalSize) + (atts.length > 1 ? ' <a data-zip>' + IC.dl + ' Скачать все архивом</a>' : '') + '</div><div class="ml-atts">' + atts.map(function(a) {
       return '<div class="ml-att" data-att="' + a.idx + '" title="' + esc((canPreview(a) ? 'Посмотреть ' : 'Скачать ') + a.filename) + '"><div class="ml-att-ico" data-thumb="' + a.idx + '">' + esc(extOf(a.filename)) + '</div><div style="min-width:0;"><div class="ml-att-name">' + esc(a.filename) + '</div><div class="ml-att-size">' + fmtSize(a.size) + '</div></div>'
         + '<span class="ml-att-dl" data-att-dl="' + a.idx + '" title="Скачать">' + IC.dl + '</span></div>';
-    }).join('') + '</div>' : '')
-    + '<div class="ml-quick-reply" id="ml-quick-reply">Нажмите здесь, чтобы ответить…</div>'
-    + '<div class="ml-quick"><button class="ml-btn ml-btn-primary" data-ract="reply">' + IC.reply + 'Ответить</button><button class="ml-btn" data-ract="replyAll">Ответить всем</button><button class="ml-btn" data-ract="forward">' + IC.fwd + 'Переслать</button></div>'
-    + '</div>';
-  wireReadToolbar();
-  const fr = main.querySelector('#ml-frame');
+    }).join('') + '</div>' : '');
+}
+function wireMsgBlock(el, m, key, allowImages, onShowImages) {
+  const fr = el.querySelector('[data-frame]');
   fr.addEventListener('load', function() {
     try {
       const d = fr.contentDocument;
-      const h = function() { fr.style.height = Math.max(120, d.documentElement.scrollHeight + 8) + 'px'; };
+      const h = function() { fr.style.height = Math.max(60, d.documentElement.scrollHeight + 8) + 'px'; };
       h(); setTimeout(h, 300); setTimeout(h, 1500);
       d.querySelectorAll('img').forEach(function(img) { img.addEventListener('load', h); });
       d.addEventListener('keydown', onKeys);
     } catch (e) { fr.style.height = '600px'; }
   });
   fr.srcdoc = frameDoc(m.html || '<pre>' + esc(m.text) + '</pre>', allowImages);
-  const si = main.querySelector('#ml-show-img');
-  if (si) si.addEventListener('click', function() { renderMessage(true); });
-  const zip = main.querySelector('#ml-zip');
+  const si = el.querySelector('[data-show-img]');
+  if (si) si.addEventListener('click', onShowImages);
+  const zip = el.querySelector('[data-zip]');
   if (zip) zip.addEventListener('click', function() { downloadZip(m); });
-  main.querySelector('#ml-quick-reply').addEventListener('click', function() { openCompose(replyDraft(m, 'reply')); });
-  main.querySelectorAll('[data-att]').forEach(function(el) {
-    el.addEventListener('click', function(e) {
-      const idx = Number(el.getAttribute('data-att'));
+  const atts = m.attachments || [];
+  el.querySelectorAll('[data-att]').forEach(function(a2) {
+    a2.addEventListener('click', function(e) {
+      const idx = Number(a2.getAttribute('data-att'));
       const a = atts.find(function(x) { return x.idx === idx; });
       if (e.target.closest('[data-att-dl]') || !canPreview(a)) downloadAtt(m, idx); else previewAtt(m, a);
     });
   });
-  // миниатюры картинок-вложений
   atts.forEach(function(a) {
     if (!PREVIEW_IMG.test(a.contentType || '') || a.size > 3 * 1024 * 1024) return;
     attBlob(m, a.idx).then(function(blob) {
-      const box = main.querySelector('[data-thumb="' + a.idx + '"]');
+      const box = el.querySelector('[data-thumb="' + a.idx + '"]');
       if (box && blob) box.innerHTML = '<img src="' + URL.createObjectURL(blob) + '">';
     });
   });
+}
+function renderMessage(allowImages) {
+  const m = S.open, main = root.querySelector('#ml-main');
+  main.innerHTML = readToolbar() + '<div class="ml-read"><h1>' + (m.important ? '<span class="ml-imp" title="Важное">!</span>' : '') + esc(m.subject || '(без темы)') + '</h1>'
+    + '<div id="ml-single">' + msgBlockHtml(m, 'single', allowImages, false) + '</div>'
+    + '<div class="ml-quick-reply" id="ml-quick-reply">Нажмите здесь, чтобы ответить…</div>'
+    + '<div class="ml-quick"><button class="ml-btn ml-btn-primary" data-ract="reply">' + IC.reply + 'Ответить</button><button class="ml-btn" data-ract="replyAll">Ответить всем</button><button class="ml-btn" data-ract="forward">' + IC.fwd + 'Переслать</button></div>'
+    + '</div>';
+  wireReadToolbar();
+  wireMsgBlock(main.querySelector('#ml-single'), m, 'single', allowImages, function() { renderMessage(true); });
+  main.querySelector('#ml-quick-reply').addEventListener('click', function() { openCompose(replyDraft(m, 'reply')); });
 }
 function plural(n, one, few, many) { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? one : (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? few : many); }
 const blobCache = new Map();
@@ -838,12 +1046,14 @@ function printMessage(m) {
 async function openSettings() {
   const w = modal('Настройки почты', '<label>Имя отправителя (его видят получатели)</label><input type="text" id="ml-set-name" value="' + esc(S.settings.name) + '">'
     + '<label>Подпись (добавляется в конец новых писем)</label><div class="ml-sig-edit" id="ml-set-sig" contenteditable="true">' + (S.settings.signature || '') + '</div>'
-    + '<label style="display:flex;align-items:center;gap:8px;color:#2c2d2e;cursor:pointer;"><input type="checkbox" id="ml-set-reply"' + (S.settings.sigOnReply ? ' checked' : '') + '> Добавлять подпись в ответы и пересылаемые письма</label>',
+    + '<label style="display:flex;align-items:center;gap:8px;color:#2c2d2e;cursor:pointer;"><input type="checkbox" id="ml-set-reply"' + (S.settings.sigOnReply ? ' checked' : '') + '> Добавлять подпись в ответы и пересылаемые письма</label>'
+    + '<label style="display:flex;align-items:center;gap:8px;color:#2c2d2e;cursor:pointer;margin-top:10px;"><input type="checkbox" id="ml-set-threads"' + (S.settings.threads !== false ? ' checked' : '') + '> Группировать письма в цепочки (переписка по одной теме — одной строкой)</label>',
     { foot: '<button class="ml-btn" data-no>Отмена</button><button class="ml-btn ml-btn-primary" data-ok>Сохранить</button>' });
   w.querySelector('[data-no]').addEventListener('click', function() { w.__close(); });
   w.querySelector('[data-ok]').addEventListener('click', async function() {
-    const v = { name: w.querySelector('#ml-set-name').value.trim(), signature: w.querySelector('#ml-set-sig').innerHTML.replace(/^(<br>|\s)+$/, ''), sigOnReply: w.querySelector('#ml-set-reply').checked };
-    try { const r = await api('/settings', { json: v }); S.settings = r.settings; w.remove(); toast('Настройки сохранены'); }
+    const v = { name: w.querySelector('#ml-set-name').value.trim(), signature: w.querySelector('#ml-set-sig').innerHTML.replace(/^(<br>|\s)+$/, ''), sigOnReply: w.querySelector('#ml-set-reply').checked, threads: w.querySelector('#ml-set-threads').checked };
+    const threadsChanged = (S.settings.threads !== false) !== v.threads;
+    try { const r = await api('/settings', { json: v }); S.settings = r.settings; w.remove(); toast('Настройки сохранены'); if (threadsChanged) loadList(true); }
     catch (e) { toast(e.message); }
   });
 }
@@ -912,7 +1122,7 @@ function openCompose(d) {
     + '<input type="file" id="ml-c-img" accept="image/*" style="display:none;"></div>'
     + '<div class="ml-editor-wrap"><div class="ml-editor" id="ml-c-body" contenteditable="true"></div><div class="ml-drop">Отпустите, чтобы прикрепить файлы</div></div>'
     + '<div class="ml-compose-atts" id="ml-c-atts"></div>'
-    + '<div class="ml-compose-foot"><button class="ml-btn ml-btn-primary" id="ml-c-send" title="Ctrl+Enter">Отправить</button><button class="ml-btn" id="ml-c-draft">Сохранить</button>'
+    + '<div class="ml-compose-foot"><span class="ml-send-group"><button class="ml-btn ml-btn-primary" id="ml-c-send" title="Ctrl+Enter">Отправить</button><button class="ml-btn ml-btn-primary" id="ml-c-later" title="Отправить позже">' + IC.clock + '</button></span><button class="ml-btn" id="ml-c-draft">Сохранить</button>'
     + '<button class="ml-btn" id="ml-c-attach">' + IC.clip + ' Прикрепить</button><input type="file" id="ml-c-file" multiple style="display:none;">'
     + '<span class="ml-opt" id="ml-c-imp" title="Письмо будет отмечено как важное">! Важное</span><span class="ml-opt" id="ml-c-rr" title="Уведомить о прочтении: попросить получателя подтвердить, что письмо прочитано">✓ Прочтение</span>'
     + '<span class="ml-status" id="ml-c-status"></span>'
@@ -1025,7 +1235,7 @@ function openCompose(d) {
   // автосохранение черновика, как в веб-почте: раз в 30 секунд, если были изменения
   const autosave = setInterval(function() { if (!document.body.contains(w)) { clearInterval(autosave); return; } if (st.dirty && !w.classList.contains('hidden') && nbSessionAlive()) saveDraft(true); }, 30000);
   w.__stopAutosave = function() { clearInterval(autosave); };
-  async function send() {
+  async function send(sendAt) {
     if (st.busy) return;
     rc.to.flush(); rc.cc.flush(); rc.bcc.flush();
     const p = payload();
@@ -1037,6 +1247,17 @@ function openCompose(d) {
     own.querySelectorAll('blockquote, .ml-sig').forEach(function(x) { x.remove(); });
     if (/вложени|прикрепл|attach/i.test(own.innerText || '') && !st.atts.length && !st.fwdAtts.length
       && !(await askConfirm('Забыли вложение?', 'В тексте письма упоминается вложение, но файлов не прикреплено. Отправить так?', 'Отправить'))) return;
+    if (sendAt) {
+      st.busy = true; status.textContent = 'Планируем…';
+      try {
+        const r = await api('/send', { json: Object.assign(p, { sendAt: sendAt }) });
+        st.dirty = false; clearInterval(autosave); w.remove();
+        toast('Письмо будет отправлено ' + whenText(r.sendAt || sendAt));
+        await loadScheduled(); renderFolders(); if (S.folder === SCHED) renderScheduled();
+        if (currentFolder().special === '\\Drafts' && !S.open) loadList(true);
+      } catch (e) { st.busy = false; status.textContent = ''; toast(e.message); }
+      return;
+    }
     // «Отменить отправку»: 5 секунд письмо ещё можно вернуть, как в веб-почте
     w.classList.add('hidden');
     let cancelled = false;
@@ -1054,7 +1275,33 @@ function openCompose(d) {
       if ((sp === '\\Sent' || sp === '\\Drafts') && !S.open) loadList(true);
     } catch (e) { st.busy = false; w.classList.remove('hidden'); status.textContent = ''; toast(e.message); }
   }
-  w.querySelector('#ml-c-send').addEventListener('click', send);
+  w.querySelector('#ml-c-send').addEventListener('click', function() { send(); });
+  w.querySelector('#ml-c-later').addEventListener('click', function(e) {
+    const at = function(days, h, m) { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(h, m || 0, 0, 0); return d; };
+    const now = new Date();
+    const opts = [];
+    const inHour = new Date(now.getTime() + 3600000); inHour.setSeconds(0, 0);
+    opts.push({ text: 'Через час (' + whenText(inHour.toISOString()) + ')', d: inHour });
+    if (now.getHours() < 17) opts.push({ text: 'Сегодня в 18:00', d: at(0, 18) });
+    opts.push({ text: 'Завтра в 9:00', d: at(1, 9) });
+    const mon = at((8 - now.getDay()) % 7 || 7, 9); if (now.getDay() !== 0) opts.push({ text: 'В понедельник в 9:00 (' + mon.getDate() + ' ' + MONTHS_FULL[mon.getMonth()] + ')', d: mon });
+    const items = opts.map(function(o) { return { text: o.text, icon: IC.clock, run: function() { send(o.d.toISOString()); } }; });
+    items.push('-', { text: 'Выбрать дату и время…', run: function() {
+      const def = new Date(now.getTime() + 2 * 3600000); def.setMinutes(0, 0, 0);
+      const local = def.getFullYear() + '-' + pad(def.getMonth() + 1) + '-' + pad(def.getDate()) + 'T' + pad(def.getHours()) + ':00';
+      const mw = modal('Отправить позже', '<div class="ml-when"><label>Когда отправить письмо</label><input type="datetime-local" id="ml-when" value="' + local + '"></div>',
+        { foot: '<button class="ml-btn" data-no>Отмена</button><button class="ml-btn ml-btn-primary" data-ok>Запланировать</button>' });
+      mw.querySelector('[data-no]').addEventListener('click', function() { mw.__close(); });
+      mw.querySelector('[data-ok]').addEventListener('click', function() {
+        const v = mw.querySelector('#ml-when').value;
+        const d = v ? new Date(v) : null;
+        if (!d || isNaN(d) || d.getTime() < Date.now() + 60000) { toast('Выберите время хотя бы на минуту позже текущего'); return; }
+        mw.remove(); send(d.toISOString());
+      });
+    } });
+    const r = e.currentTarget.getBoundingClientRect();
+    popupMenu(r.left, r.top - 8 - 44 * (items.length), items);
+  });
   w.querySelector('#ml-c-draft').addEventListener('click', function() { saveDraft(false); });
   w.addEventListener('keydown', function(e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); send(); } });
   async function close() {
@@ -1079,8 +1326,8 @@ function onKeys(e) {
   if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
   if (e.key === 'Escape' && S.open && !document.getElementById('ml-compose-win')) { S.open = null; renderList(); }
   else if (e.key === 'Delete' || (e.key === 'Backspace' && (e.metaKey || e.ctrlKey))) {
-    if (S.open && !S.open.loading) { const nx = neighbour(1); removeUids([S.open.uid], 'delete'); if (nx) openMessage(nx); }
-    else if (S.sel.size) removeUids(Array.from(S.sel), 'delete');
+    if (S.open && !S.open.loading) deleteOpen();
+    else if (S.sel.size) removeUids(uidsOf(Array.from(S.sel)), 'delete');
   }
 }
 if (window.__mlKeys) document.removeEventListener('keydown', window.__mlKeys);
@@ -1142,6 +1389,26 @@ function rcptField(el, initial, st) {
   return { list: function() { return list.map(function(a) { return a.address; }); }, flush: function() { if (input.value.trim()) { addRaw(input.value); input.value = ''; } }, bad: function() { return list.some(function(a) { return !EMAIL_RE.test(a.address); }); } };
 }
 
+// ---------- ссылка из уведомления: ?open=<папка>:<uid> ----------
+async function openFromUrl() {
+  const mm = location.search.match(/[?&]open=([^&]+)/);
+  if (!mm || !S.me || !S.me.configured || !root.querySelector('.ml-app')) return false;
+  try { history.replaceState(history.state, '', location.pathname); } catch (e) { /* ignore */ }
+  let v = mm[1];
+  try { v = decodeURIComponent(v); } catch (e) { /* ignore */ }
+  const i = v.lastIndexOf(':');
+  const folder = v.slice(0, i), uid = Number(v.slice(i + 1));
+  if (!folder || !uid) return false;
+  S.folder = folder; S.q = ''; S.filter = ''; S.open = null;
+  renderFolders();
+  await loadList(true);
+  const row = S.items.find(function(x) { return x.uid === uid || (x.uids && x.uids.indexOf(uid) !== -1); });
+  if (row && row.count > 1) openThread(row); else openMessage(uid);
+  return true;
+}
+if (window.__mlOpenTimer) clearInterval(window.__mlOpenTimer);
+window.__mlOpenTimer = setInterval(function() { if (!root.isConnected) { clearInterval(window.__mlOpenTimer); return; } if (nbSessionAlive() && /[?&]open=/.test(location.search)) openFromUrl(); }, 700);
+
 // ---------- запуск ----------
 async function start() {
   root.innerHTML = '<div class="ml-loading">Открываем почту…</div>';
@@ -1150,8 +1417,9 @@ async function start() {
     if (!S.me.configured) { showSetup(S.me.email, false); return; }
     try { const r = await api('/settings'); S.settings = r.settings || S.settings; } catch (e) { /* без подписи */ }
     renderShell();
+    await loadScheduled();
     await loadFolders();
-    await loadList(true);
+    if (!(await openFromUrl())) await loadList(true);
     loadContacts();
   } catch (e) { if (!handleFatal(e)) showCard('<h2>Не получилось открыть почту</h2><p>' + esc(e.message) + '</p>'); }
 }

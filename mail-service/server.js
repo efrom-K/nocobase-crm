@@ -58,7 +58,7 @@ function loadSettings() { try { return JSON.parse(fs.readFileSync(SETTINGS_FILE,
 function settingsOf(email) { return loadSettings()[email] || {}; }
 function saveSettings(email, v) {
   const all = loadSettings();
-  all[email] = { name: String(v.name || '').slice(0, 120), signature: String(v.signature || '').slice(0, 20000), sigOnReply: v.sigOnReply !== false };
+  all[email] = { name: String(v.name || '').slice(0, 120), signature: String(v.signature || '').slice(0, 20000), sigOnReply: v.sigOnReply !== false, threads: v.threads !== false };
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const tmp = SETTINGS_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(all, null, 1), { mode: 0o600 });
@@ -338,7 +338,7 @@ async function composeMail(user, body, client) {
   const opts = {
     from: { name: st.name || user.name || '', address: user.email }, to, cc, bcc,
     subject: String(body.subject || ''), html: html, text: body.text ? String(body.text) : undefined,
-    attachments, date: new Date(), headers: {}
+    attachments, date: body.sendAt ? new Date(body.sendAt) : new Date(), headers: {}
   };
   if (body.important) Object.assign(opts.headers, { 'X-Priority': '1 (Highest)', 'X-MSMail-Priority': 'High', 'Importance': 'High' });
   if (body.readReceipt) opts.headers['Disposition-Notification-To'] = user.email;
@@ -346,6 +346,286 @@ async function composeMail(user, body, client) {
   const raw = await new MailComposer(opts).compile().build();
   return { raw, rcpt: [...to, ...cc, ...bcc], opts };
 }
+
+
+// ---------- состояние сервиса: кто есть кто в NocoBase, последнее известное письмо ----------
+const STATE_FILE = path.join(DATA_DIR, 'state.json');
+function loadState() { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch (e) { return {}; } }
+function saveState(all) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = STATE_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(all, null, 1), { mode: 0o600 });
+  fs.renameSync(tmp, STATE_FILE);
+}
+function patchState(email, patch) { const all = loadState(); all[email] = Object.assign({}, all[email] || {}, patch); saveState(all); return all[email]; }
+
+// ---------- цепочки писем ----------
+const metaCache = new Map();   // email|path|uidValidity -> Map(uid -> meta)
+function normSubject(s) {
+  let t = String(s || '').trim(), prev;
+  do { prev = t; t = t.replace(/^\s*((re|fwd?|fw|aw|wg|sv|ответ|отв|пересл|переслать)(\[\d+\])?\s*:\s*)/i, '').trim(); } while (t !== prev);
+  return t.toLowerCase().replace(/\s+/g, ' ');
+}
+function hasReplyPrefix(s) { return /^\s*(re|fwd?|fw|aw|wg|sv|ответ|отв|пересл)(\[\d+\])?\s*:/i.test(String(s || '')); }
+function parseRefs(hdr) {
+  const m = String(hdr || '').match(/<[^<>\s]+>/g);
+  return m ? m.map(x => x.toLowerCase()) : [];
+}
+async function folderMeta(client, email, pathName) {
+  const lock = await client.getMailboxLock(pathName, { readOnly: true });
+  try {
+    const mb = client.mailbox;
+    const key = email + '|' + mb.path + '|' + mb.uidValidity;
+    let cache = metaCache.get(key);
+    if (!cache) { cache = new Map(); metaCache.set(key, cache); }
+    const uids = mb.exists ? await client.search({ all: true }, { uid: true }) : [];
+    const alive = new Set(uids);
+    for (const u of Array.from(cache.keys())) if (!alive.has(u)) cache.delete(u);
+    const missing = uids.filter(u => !cache.has(u));
+    for (let i = 0; i < missing.length; i += 500) {
+      const chunk = missing.slice(i, i + 500);
+      for await (const m of client.fetch(chunk.join(','), { uid: true, envelope: true, bodyStructure: true, internalDate: true, size: true, headers: ['references', 'x-priority', 'importance', 'priority'] }, { uid: true })) {
+        const env = m.envelope || {};
+        const hdr = m.headers ? m.headers.toString() : '';
+        const refsLine = (hdr.match(/^references:([\s\S]*?)(?:\r?\n\S|$)/im) || [])[1] || '';
+        cache.set(m.uid, {
+          uid: m.uid, subject: env.subject || '', from: addrList(env.from), to: addrList(env.to).concat(addrList(env.cc)),
+          date: (env.date || m.internalDate || new Date()).toISOString(), messageId: String(env.messageId || '').toLowerCase(),
+          inReplyTo: String(env.inReplyTo || '').toLowerCase(), refs: parseRefs(refsLine),
+          attachments: hasAttachments(m.bodyStructure), size: m.size,
+          part: findTextPart(m.bodyStructure, 'text/plain') || findTextPart(m.bodyStructure, 'text/html'),
+          important: /x-priority:\s*[12]\b|importance:\s*high|priority:\s*urgent/i.test(hdr)
+        });
+      }
+    }
+    // флаги меняются — берём свежие одним запросом
+    const flags = new Map();
+    if (uids.length) for await (const m of client.fetch('1:*', { uid: true, flags: true })) flags.set(m.uid, m.flags);
+    return uids.map(u => {
+      const x = Object.assign({}, cache.get(u));
+      const f = flags.get(u) || new Set();
+      x.folder = mb.path; x.seen = f.has('\\Seen'); x.flagged = f.has('\\Flagged'); x.answered = f.has('\\Answered'); x.draft = f.has('\\Draft');
+      return x;
+    }).filter(x => x.uid);
+  } finally { lock.release(); }
+}
+function buildThreads(msgs) {
+  // объединение по ссылкам Message-ID (In-Reply-To, References), затем — по теме без «Re:» при общих участниках
+  const parent = new Map();
+  const find = k => { while (parent.get(k) !== k) { parent.set(k, parent.get(parent.get(k))); k = parent.get(k); } return k; };
+  const union = (a, b) => { if (!parent.has(a)) parent.set(a, a); if (!parent.has(b)) parent.set(b, b); const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
+  const node = m => m.folder + '#' + m.uid;
+  const byMsgId = new Map();
+  msgs.forEach(m => { parent.set(node(m), node(m)); if (m.messageId) { if (byMsgId.has(m.messageId)) union(node(m), byMsgId.get(m.messageId)); else byMsgId.set(m.messageId, node(m)); } });
+  msgs.forEach(m => { [m.inReplyTo].concat(m.refs || []).forEach(id => { if (id && byMsgId.has(id)) union(node(m), byMsgId.get(id)); }); });
+  const bySubj = new Map();
+  msgs.forEach(m => { const s = normSubject(m.subject); if (s.length < 3) return; if (!bySubj.has(s)) bySubj.set(s, []); bySubj.get(s).push(m); });
+  const people = m => new Set((m.from || []).concat(m.to || []).map(a => a.address).filter(Boolean));
+  bySubj.forEach(list => {
+    if (list.length < 2 || !list.some(m => hasReplyPrefix(m.subject) || m.inReplyTo)) return;
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = people(list[i]), b = people(list[j]);
+      let common = 0; a.forEach(x => { if (b.has(x)) common++; });
+      if (common >= 2 || (common >= 1 && (hasReplyPrefix(list[i].subject) || hasReplyPrefix(list[j].subject)))) union(node(list[i]), node(list[j]));
+    }
+  });
+  const groups = new Map();
+  msgs.forEach(m => { const r = find(node(m)); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(m); });
+  return Array.from(groups.values()).map(list => list.sort((a, b) => a.date.localeCompare(b.date) || a.uid - b.uid));
+}
+const THREAD_EXTRA = { '\\Inbox': true, '\\Archive': true, null: true };
+async function threadsOf(client, email, folder) {
+  const own = await folderMeta(client, email, folder);
+  const folders = await foldersOf(client, email);
+  const cur = folders.find(f => f.path === folder) || {};
+  let extra = [];
+  // в цепочки входящих добавляем свои ответы из «Отправленных» (как в веб-почте)
+  const sent = folders.find(f => f.special === '\\Sent');
+  if (sent && sent.path !== folder && (THREAD_EXTRA[cur.special] || !cur.special)) { try { extra = await folderMeta(client, email, sent.path); } catch (e) { extra = []; } }
+  return buildThreads(own.concat(extra));
+}
+async function snippetsFor(client, folder, metas) {
+  // превью для писем одной папки (та же логика, что в списке)
+  const lock = await client.getMailboxLock(folder, { readOnly: true });
+  try {
+    const mb = client.mailbox;
+    const key = uid => mb.path + '|' + mb.uidValidity + '|' + uid;
+    const groups = new Map();
+    metas.forEach(it => {
+      const cached = snippetCache.get(key(it.uid));
+      if (cached !== undefined) { it.snippet = cached; return; }
+      if (!it.part) { it.snippet = ''; return; }
+      const k = it.part.part || '1';
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(it);
+    });
+    for (const [k, list] of groups) {
+      const byUid = new Map(list.map(it => [it.uid, it]));
+      try {
+        for await (const m of client.fetch(list.map(it => it.uid).join(','), { uid: true, bodyParts: [{ key: k, start: 0, maxLength: SNIPPET_BYTES }] }, { uid: true })) {
+          const it = byUid.get(m.uid);
+          if (!it || !m.bodyParts) continue;
+          const buf = m.bodyParts.values().next().value;
+          it.snippet = buf ? decodePart(buf, it.part, buf.length < SNIPPET_BYTES) : '';
+          snippetCache.set(key(it.uid), it.snippet);
+        }
+      } catch (e) { /* без превью */ }
+    }
+    metas.forEach(it => { if (it.snippet === undefined) it.snippet = ''; });
+  } finally { lock.release(); }
+}
+async function listThreads(client, email, folder, page, q, filter) {
+  const threads = await threadsOf(client, email, folder);
+  let match = null;
+  const crit = Object.assign({}, FILTERS[filter] || {});
+  if (q) { const s = String(q).slice(0, 100); crit.or = [{ subject: s }, { from: s }, { to: s }, { body: s }]; }
+  if (Object.keys(crit).length) {
+    const lock = await client.getMailboxLock(folder, { readOnly: true });
+    try { match = new Set(client.mailbox.exists ? await client.search(crit, { uid: true }) : []); } finally { lock.release(); }
+  }
+  const mine = me => (me || []).map(a => a.address);
+  let rows = threads.map(list => {
+    const inFolder = list.filter(m => m.folder === folder);
+    if (!inFolder.length) return null;
+    if (match && !inFolder.some(m => match.has(m.uid))) return null;
+    const lastHere = inFolder[inFolder.length - 1], last = list[list.length - 1];
+    const senders = [];
+    list.forEach(m => { const a = (m.from || [])[0]; if (!a) return; const nm = a.address === email ? 'я' : (a.name || a.address); if (senders.indexOf(nm) === -1) senders.push(nm); });
+    return {
+      uid: lastHere.uid, uids: inFolder.map(m => m.uid), count: list.length, subject: last.subject || lastHere.subject,
+      from: lastHere.from, to: lastHere.to, participants: senders, date: last.date,
+      seen: inFolder.every(m => m.seen), flagged: inFolder.some(m => m.flagged), answered: list.some(m => m.answered) || list.some(m => m.folder !== folder),
+      attachments: list.some(m => m.attachments), important: list.some(m => m.important), draft: lastHere.draft, __meta: lastHere
+    };
+  }).filter(Boolean);
+  rows.sort((a, b) => b.date.localeCompare(a.date) || b.uid - a.uid);
+  const total = rows.length;
+  rows = rows.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  await snippetsFor(client, folder, rows.map(r => r.__meta));
+  rows.forEach(r => { r.snippet = r.__meta.snippet || ''; delete r.__meta; });
+  return { total, page, pageSize: PAGE_SIZE, items: rows, threads: true };
+}
+async function threadMembers(client, email, folder, uid) {
+  const threads = await threadsOf(client, email, folder);
+  const list = threads.find(l => l.some(m => m.folder === folder && m.uid === uid)) || [];
+  const byFolder = new Map();
+  list.forEach(m => { if (!byFolder.has(m.folder)) byFolder.set(m.folder, []); byFolder.get(m.folder).push(m); });
+  for (const [f, ms] of byFolder) await snippetsFor(client, f, ms);
+  return list.map(m => ({ folder: m.folder, uid: m.uid, subject: m.subject, from: m.from, to: m.to, date: m.date, seen: m.seen, flagged: m.flagged,
+    attachments: m.attachments, important: m.important, snippet: m.snippet || '', sent: m.folder !== folder }));
+}
+
+// ---------- связь с NocoBase: служебная учётка для уведомлений в колокольчик ----------
+let nbServiceToken = null;
+async function nbServiceCall(pathName, body) {
+  if (!env.NB_SERVICE_USER || !env.NB_SERVICE_PASSWORD) return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!nbServiceToken) {
+      const r = await fetch(NB_URL + '/api/auth:signIn', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authenticator': 'basic' },
+        body: JSON.stringify({ account: env.NB_SERVICE_USER, password: env.NB_SERVICE_PASSWORD }) });
+      const j = await r.json().catch(() => null);
+      nbServiceToken = j && j.data && j.data.token;
+      if (!nbServiceToken) { console.error('nocobase service sign-in failed'); return null; }
+    }
+    const r = await fetch(NB_URL + '/api/' + pathName, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authenticator': 'basic', Authorization: 'Bearer ' + nbServiceToken }, body: JSON.stringify(body) });
+    if (r.status === 401) { nbServiceToken = null; continue; }
+    const nt = r.headers.get('x-new-token'); if (nt) nbServiceToken = nt;
+    return r.ok;
+  }
+  return false;
+}
+function openUrl(folder, uid) { return '/admin/' + (env.NB_MAIL_PAGE || 'mailpage01') + '?open=' + encodeURIComponent(folder + ':' + uid); }
+async function notifyUser(userId, title, text, url) {
+  try { await nbServiceCall('mail_notifications:create', { user_id: userId, title: title.slice(0, 250), text: text.slice(0, 1000), url: url }); }
+  catch (e) { console.error('notify', e.message); }
+}
+
+// ---------- новые письма: раз в минуту проверяем «Входящие» подключённых ящиков ----------
+const unreadNow = new Map();   // email -> { unseen, at }
+async function checkInbox(email) {
+  const st = loadState()[email] || {};
+  if (!st.userId) return;
+  await withImap(email, async c => {
+    const inbox = (await foldersOf(c, email)).find(f => f.special === '\\Inbox');
+    const p = inbox ? inbox.path : 'INBOX';
+    const s = await c.status(p, { uidNext: true, uidValidity: true, unseen: true });
+    unreadNow.set(email, { unseen: s.unseen || 0, at: Date.now() });
+    const top = (s.uidNext || 1) - 1, validity = String(s.uidValidity);
+    if (st.uidValidity !== validity || !st.lastUid) { patchState(email, { uidValidity: validity, lastUid: top }); return; }
+    if (top <= st.lastUid) return;
+    const fresh = [];
+    const lock = await c.getMailboxLock(p, { readOnly: true });
+    try {
+      for await (const m of c.fetch((st.lastUid + 1) + ':*', { uid: true, envelope: true, flags: true }, { uid: true })) {
+        if (m.uid <= st.lastUid || m.flags.has('\\Seen')) continue;
+        const f = ((m.envelope && m.envelope.from) || [])[0] || {};
+        fresh.push({ uid: m.uid, from: f.name || f.address || 'без отправителя', subject: (m.envelope && m.envelope.subject) || '(без темы)' });
+      }
+    } finally { lock.release(); }
+    patchState(email, { lastUid: top });
+    if (!fresh.length) return;
+    if (fresh.length <= 3) for (const x of fresh) await notifyUser(st.userId, 'Новое письмо: ' + x.from, x.subject, openUrl(p, x.uid));
+    else await notifyUser(st.userId, fresh.length + ' новых писем', fresh.slice(0, 5).map(x => x.from + ' — ' + x.subject).join('\n'), '/admin/' + (env.NB_MAIL_PAGE || 'mailpage01'));
+  });
+}
+async function inboxLoop() {
+  for (const email of Object.keys(loadCreds())) {
+    if (!mailEnabled(email)) continue;
+    try { await checkInbox(email); } catch (e) { if (e.code !== 'BAD_PASSWORD') console.error('inbox check', email, e.code || e.message); }
+  }
+}
+setInterval(inboxLoop, 60 * 1000);
+setTimeout(inboxLoop, 10 * 1000);
+
+// ---------- отложенная отправка ----------
+const SCHED_DIR = path.join(DATA_DIR, 'scheduled');
+function schedList(email) {
+  let files = [];
+  try { files = fs.readdirSync(SCHED_DIR).filter(f => f.endsWith('.json')); } catch (e) { return []; }
+  return files.map(f => { try { return JSON.parse(fs.readFileSync(path.join(SCHED_DIR, f), 'utf8')); } catch (e) { return null; } })
+    .filter(j => j && (!email || j.email === email)).sort((a, b) => a.sendAt.localeCompare(b.sendAt));
+}
+function schedSave(job) { fs.mkdirSync(SCHED_DIR, { recursive: true }); const f = path.join(SCHED_DIR, job.id + '.json'); fs.writeFileSync(f + '.tmp', JSON.stringify(job), { mode: 0o600 }); fs.renameSync(f + '.tmp', f); }
+function schedDelete(id) { try { fs.unlinkSync(path.join(SCHED_DIR, String(id).replace(/[^a-f0-9]/g, '') + '.json')); } catch (e) { /* уже нет */ } }
+async function deliver(email, raw, rcpt, replyTo, forward) {
+  await transportFor(email).sendMail({ envelope: { from: email, to: rcpt }, raw: raw });
+  await withImap(email, async c => {
+    const sent = await specialPath(c, email, '\\Sent');
+    if (sent) { try { await c.append(sent, raw, ['\\Seen']); } catch (e) { /* письмо ушло, копия не сохранилась */ } }
+    if (replyTo && replyTo.folder && replyTo.uid) {
+      const lock = await c.getMailboxLock(replyTo.folder);
+      try { await c.messageFlagsAdd(String(replyTo.uid), [forward ? '$Forwarded' : '\\Answered'], { uid: true }); } catch (e) { /* ignore */ } finally { lock.release(); }
+    }
+  });
+}
+let schedBusy = false;
+async function schedLoop() {
+  if (schedBusy) return;
+  schedBusy = true;
+  try {
+    const now = new Date().toISOString();
+    for (const job of schedList(null)) {
+      if (job.sendAt > now) continue;
+      try {
+        await deliver(job.email, Buffer.from(job.raw, 'base64'), job.rcpt, job.replyTo, job.forward);
+        schedDelete(job.id);
+        console.log(new Date().toISOString(), 'scheduled sent', job.email, job.id);
+      } catch (e) {
+        job.attempts = (job.attempts || 0) + 1;
+        job.lastError = String(e.response || e.message || e).slice(0, 300);
+        if (job.attempts >= 5) {
+          // не получилось — возвращаем в черновики и сообщаем
+          try { await withImap(job.email, async c => { const d = await specialPath(c, job.email, '\\Drafts'); if (d) await c.append(d, Buffer.from(job.raw, 'base64'), ['\\Seen', '\\Draft']); }); } catch (e2) { /* ignore */ }
+          schedDelete(job.id);
+          const st = loadState()[job.email] || {};
+          if (st.userId) await notifyUser(st.userId, 'Отложенное письмо не отправлено', '«' + (job.subject || 'без темы') + '» вернулось в черновики: ' + job.lastError, '/admin/' + (env.NB_MAIL_PAGE || 'mailpage01'));
+        } else { job.sendAt = new Date(Date.now() + job.attempts * 2 * 60000).toISOString(); schedSave(job); }
+        console.error('scheduled send failed', job.email, job.id, job.lastError);
+      }
+    }
+  } finally { schedBusy = false; }
+}
+setInterval(schedLoop, 30 * 1000);
 
 // ---------- HTTP ----------
 function send(res, status, obj, origin) {
@@ -382,7 +662,36 @@ const server = http.createServer(async (req, res) => {
     if (!mailEnabled(user.email)) throw new ApiError(403, 'NOT_ENABLED', 'Почта для вашей учётной записи пока не подключена');
     const email = user.email;
 
+    if ((loadState()[email] || {}).userId !== user.userId) patchState(email, { userId: user.userId });
     if (p === '/api/me') return send(res, 200, { email, name: user.name, configured: !!getPassword(email) }, origin);
+    if (p === '/api/unread') {
+      const u = unreadNow.get(email);
+      if (u && Date.now() - u.at < 120000) return send(res, 200, { unseen: u.unseen }, origin);
+      if (!getPassword(email)) return send(res, 200, { unseen: 0, configured: false }, origin);
+      const n = await withImap(email, async c => { const inbox = (await foldersOf(c, email)).find(f => f.special === '\\Inbox'); const st = await c.status(inbox ? inbox.path : 'INBOX', { unseen: true }); return st.unseen || 0; });
+      unreadNow.set(email, { unseen: n, at: Date.now() });
+      return send(res, 200, { unseen: n }, origin);
+    }
+    if (p === '/api/threads') {
+      const folder = url.searchParams.get('folder') || 'INBOX';
+      const page = Math.max(0, Number(url.searchParams.get('page')) || 0);
+      const data = await withImap(email, c => listThreads(c, email, folder, page, url.searchParams.get('q') || '', url.searchParams.get('filter') || ''));
+      return send(res, 200, data, origin);
+    }
+    if (p === '/api/thread') {
+      const list = await withImap(email, c => threadMembers(c, email, url.searchParams.get('folder') || 'INBOX', Number(url.searchParams.get('uid'))));
+      return send(res, 200, { members: list }, origin);
+    }
+    if (p === '/api/scheduled') return send(res, 200, { items: schedList(email).map(j => ({ id: j.id, sendAt: j.sendAt, subject: j.subject, to: j.to, attempts: j.attempts || 0, lastError: j.lastError || '' })) }, origin);
+    if ((p === '/api/scheduled/cancel' || p === '/api/scheduled/now') && req.method === 'POST') {
+      const b = await readJson(req);
+      const job = schedList(email).find(j => j.id === b.id);
+      if (!job) throw new ApiError(404, 'NOT_FOUND', 'Письмо уже отправлено или отменено');
+      if (p === '/api/scheduled/now') { job.sendAt = new Date().toISOString(); schedSave(job); setTimeout(schedLoop, 200); return send(res, 200, { ok: true }, origin); }
+      schedDelete(job.id);
+      const r = await withImap(email, async c => { const d = await specialPath(c, email, '\\Drafts'); return d ? c.append(d, Buffer.from(job.raw, 'base64'), ['\\Seen', '\\Draft']) : null; });
+      return send(res, 200, { ok: true, draftUid: r && r.uid }, origin);
+    }
 
     if (p === '/api/setup' && req.method === 'POST') {
       const b = await readJson(req);
@@ -399,6 +708,8 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/folders') {
       const list = await withImap(email, c => foldersOf(c, email, true));
+      const ib = list.find(f => f.special === '\\Inbox');
+      if (ib) unreadNow.set(email, { unseen: ib.unseen, at: Date.now() });   // счётчик в меню сразу видит прочитанные
       return send(res, 200, { folders: list }, origin);
     }
     if (p === '/api/messages') {
@@ -424,7 +735,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/settings') {
       if (req.method === 'POST') { const b = await readJson(req); return send(res, 200, { settings: saveSettings(email, b) }, origin); }
       const stt = settingsOf(email);
-      return send(res, 200, { settings: { name: stt.name || user.name || '', signature: stt.signature || '', sigOnReply: stt.sigOnReply !== false } }, origin);
+      return send(res, 200, { settings: { name: stt.name || user.name || '', signature: stt.signature || '', sigOnReply: stt.sigOnReply !== false, threads: stt.threads !== false } }, origin);
     }
     if (p === '/api/source') {
       const raw = await withImap(email, async c => {
@@ -548,6 +859,16 @@ const server = http.createServer(async (req, res) => {
       const b = await readJson(req);
       const result = await withImap(email, async c => {
         const m = await composeMail(user, b, c);
+        if (p === '/api/send' && b.sendAt) {
+          if (!m.rcpt.length) throw new ApiError(400, 'NO_RCPT', 'Укажите получателя');
+          const at = new Date(b.sendAt);
+          if (isNaN(at) || at.getTime() < Date.now() + 30000) throw new ApiError(400, 'BAD_TIME', 'Время отправки должно быть в будущем');
+          const job = { id: crypto.randomBytes(10).toString('hex'), email: email, sendAt: at.toISOString(), raw: m.raw.toString('base64'), rcpt: m.rcpt,
+            subject: String(b.subject || ''), to: cleanAddrs(b.to).concat(cleanAddrs(b.cc)), replyTo: b.replyTo || null, forward: !!b.forward, createdAt: new Date().toISOString() };
+          schedSave(job);
+          if (b.draftUid) { const drafts = await specialPath(c, email, '\\Drafts'); if (drafts) { const lock = await c.getMailboxLock(drafts); try { await c.messageDelete(String(b.draftUid), { uid: true }); } catch (e) { /* ignore */ } finally { lock.release(); } } }
+          return { scheduled: job.id, sendAt: job.sendAt };
+        }
         if (p === '/api/send') {
           if (!m.rcpt.length) throw new ApiError(400, 'NO_RCPT', 'Укажите получателя');
           try { await transportFor(email).sendMail({ envelope: { from: email, to: m.rcpt }, raw: m.raw }); }

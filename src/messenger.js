@@ -23,6 +23,54 @@ if (!window.__nbBellUnreadTimer) {
     if (unreadBtn && tabs.querySelector('.ant-tabs-tab[data-node-key="read"]')) unreadBtn.click();
   }, 250);
 }
+// счётчик непрочитанных писем на пункте «Почта» верхнего меню (видно с любой страницы, где есть наши блоки)
+if (!window.__mlBadgeTimer) {
+  window.__mlBadgeTimer = true;
+  (function() {
+    const MAIL_API = location.protocol + '//' + location.hostname + ':8096/api';
+    let off = false;
+    function menuItem() {
+      const els = document.querySelectorAll('.ant-menu-item, .ant-menu-submenu-title');
+      for (let i = 0; i < els.length; i++) { const t = (els[i].innerText || '').replace(/\d+\s*$/, '').trim(); if (t === 'Почта') return els[i]; }
+      return null;
+    }
+    function paint(n) {
+      window.__mlUnread = n;
+      const it = menuItem();
+      if (!it) return;
+      let b = it.querySelector('.ml-menu-badge');
+      if (!n) { if (b) b.remove(); return; }
+      if (!b) {
+        b = document.createElement('span');
+        b.className = 'ml-menu-badge';
+        b.style.cssText = 'display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:#ff4d4f;color:#fff;font-size:11px;font-weight:600;text-align:center;box-sizing:border-box;vertical-align:1px;';
+        const title = it.querySelector('.ant-menu-title-content') || it;
+        title.appendChild(b);
+      }
+      const txt = n > 99 ? '99+' : String(n);
+      if (b.textContent !== txt) b.textContent = txt;
+    }
+    async function poll() {
+      if (off || /\/signin|\/signup/.test(location.pathname)) return;
+      let token = null;
+      try { token = localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { token = null; }
+      if (!token) return;
+      try {
+        const r = await fetch(MAIL_API + '/unread', { headers: { Authorization: 'Bearer ' + token } });
+        if (r.status === 403) { off = true; return; }   // почта для этой учётной записи не подключена
+        if (!r.ok) return;
+        const j = await r.json();
+        paint(j.unseen || 0);
+      } catch (e) { /* сервис недоступен — попробуем позже */ }
+    }
+    window.__mlBadgePoll = poll;
+    poll();
+    setInterval(poll, 60000);
+    // меню перерисовывается при переходах — возвращаем значок на место без запросов
+    setInterval(function() { if (window.__mlUnread) paint(window.__mlUnread); }, 1500);
+  })();
+}
+
 (async function () {
 // фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
 // иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
@@ -287,7 +335,8 @@ function avatarHtml(label, id, size) {
 }
 
 async function loadUsers() {
-  const res = await ctx.api.resource('users').list({ fields: ['id', 'nickname', 'username'], pageSize: 200 });
+  // служебная учётка почтового сервиса — не собеседник
+  const res = await ctx.api.resource('users').list({ fields: ['id', 'nickname', 'username'], pageSize: 200, filter: { username: { $ne: 'mail-service' } } });
   return listPayload(res);
 }
 

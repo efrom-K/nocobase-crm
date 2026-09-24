@@ -218,7 +218,11 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-stage-form > .cm-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
     .cm-stage-form > .cm-section > :not(.cm-field-row), .cm-stage-form > .cm-section > .cm-field-row:has(textarea) { grid-column: 1 / -1; }
     .cm-field-row { margin-bottom: 12px; display: flex; flex-direction: column; min-width: 0; }
-    .cm-field-row .cm-label { margin-bottom: 4px; flex: 1 0 auto; display: flex; align-items: flex-end; line-height: 1.35; }
+    .cm-field-row .cm-label { margin-bottom: 4px; line-height: 1.35; }
+    /* в сетке форм у каждой строки три общих ряда: подпись (прижата к полю) / поле / подсказки — поля соседних колонок всегда на одной линии */
+    .cm-stage-form > .cm-field-row, .cm-stage-form > .cm-section > .cm-field-row, .cm-price-form-grid > .cm-field-row, .cm-contact-form-grid > .cm-field-row { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+    .cm-field-row > .cm-label { align-self: end; }
+    .cm-field-foot:empty { display: none; }
     .cm-field-input { width: 100%; height: 34px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; font-size: 13.5px; line-height: 32px; font-family: inherit; box-sizing: border-box; background: #fff; color: #262626; margin: 0; }
     select.cm-field-input { padding-right: 6px; }
     textarea.cm-field-input { height: auto; min-height: 60px; line-height: 1.45; padding: 6px 10px; resize: vertical; }
@@ -1042,6 +1046,24 @@ function invalidFieldNames(formEl) {
   return names;
 }
 
+// всё, что под полем ввода (ошибки, подсказки), — в один общий блок: строка формы остаётся из трёх рядов сетки
+function tidyFieldRows(scope) {
+  if (!scope || !scope.querySelectorAll) return;
+  scope.querySelectorAll('.cm-field-row').forEach(function(row) {
+    const input = row.querySelector(':scope > .cm-field-input');
+    if (!input) return;
+    let foot = row.querySelector(':scope > .cm-field-foot');
+    let n = input.nextElementSibling;
+    while (n) {
+      const next = n.nextElementSibling;
+      if (n !== foot && !n.classList.contains('cm-combo-list')) {
+        if (!foot) { foot = document.createElement('div'); foot.className = 'cm-field-foot'; row.appendChild(foot); }
+        foot.appendChild(n);
+      }
+      n = next;
+    }
+  });
+}
 function wireFieldRules(formEl) {
   if (!formEl) return;
   formEl.querySelectorAll('[data-field]').forEach(function(el) {
@@ -1070,6 +1092,7 @@ function wireFieldRules(formEl) {
       showFieldState(el);
     });
   });
+  tidyFieldRows(formEl);
 }
 
 function linkHtml(v) {
@@ -1381,8 +1404,9 @@ function wireDerivedHints(root) {
       totEl.value = t === null ? '' : formatNum(t) + ' ₽';
     });
   }
-  root.addEventListener('input', refresh);
+  root.addEventListener('input', function() { refresh(); tidyFieldRows(root); });
   refresh();
+  tidyFieldRows(root);
   root.__cmRefreshDerivedHints = refresh;
 }
 
@@ -2402,7 +2426,7 @@ const TENANT_FIELD_RULES = {
   legal_address: { label: { 'ИП': 'Адрес регистрации', 'Физлицо': 'Адрес регистрации' } },
   passport: { show: ['Физлицо'] },
   passport_issued: { show: ['Физлицо'] },
-  tenant_name: { label: { 'Юрлицо': 'Арендатор (наименование)', 'ИП': 'Арендатор (ИП, ФИО)', 'Физлицо': 'Арендатор (ФИО)' } }
+  tenant_name: { label: { 'Юрлицо': 'Наименование арендатора', 'ИП': 'Индивидуальный предприниматель, ФИО', 'Физлицо': 'Арендатор, ФИО' } }
 };
 // тип не выбран (старые договоры) — показываем реквизиты юрлица/ИП как раньше, паспорт прячем
 function tenantFieldVisible(name, type) {
@@ -2493,8 +2517,8 @@ const STAGE_DEFS = [
   ]},
   { title: 'Финал (Акт и Скан)', role: 'legal_dept', fields: [
       { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
-      { name: 'contract_scan_url', label: 'Скан подписанного Договора (имя файла)', type: 'text' },
-      { name: 'act_scan_url', label: 'Скан подписанного Акта (имя файла)', type: 'text' }
+      { name: 'contract_scan_url', label: 'Скан подписанного договора, имя файла', type: 'text' },
+      { name: 'act_scan_url', label: 'Скан подписанного акта, имя файла', type: 'text' }
   ]}
 ];
 const STAGE_ROLE_TITLES = { rental_dept: 'Отдел Аренды', legal_dept: 'Юридический отдел — Договоры', accounting_dept: 'Бухгалтерия' };

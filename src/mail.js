@@ -914,9 +914,9 @@ function openCompose(d) {
     + '<div class="ml-compose-atts" id="ml-c-atts"></div>'
     + '<div class="ml-compose-foot"><button class="ml-btn ml-btn-primary" id="ml-c-send" title="Ctrl+Enter">Отправить</button><button class="ml-btn" id="ml-c-draft">Сохранить</button>'
     + '<button class="ml-btn" id="ml-c-attach">' + IC.clip + ' Прикрепить</button><input type="file" id="ml-c-file" multiple style="display:none;">'
-    + '<span class="ml-opt" id="ml-c-imp" title="Письмо будет отмечено как важное">! Важное</span><span class="ml-opt" id="ml-c-rr" title="Попросить получателя подтвердить прочтение">✓ Уведомить о прочтении</span>'
+    + '<span class="ml-opt" id="ml-c-imp" title="Письмо будет отмечено как важное">! Важное</span><span class="ml-opt" id="ml-c-rr" title="Уведомить о прочтении: попросить получателя подтвердить, что письмо прочитано">✓ Прочтение</span>'
     + '<span class="ml-status" id="ml-c-status"></span>'
-    + '<button class="ml-btn" id="ml-c-cancel" style="margin-left:auto;">Отменить</button></div>';
+    + '<button class="ml-btn" id="ml-c-cancel" style="margin-left:auto;" title="Закрыть письмо">Отменить</button></div>';
   document.body.appendChild(w);
   const st = { atts: [], fwdAtts: (d.fwdAtts || []).slice(), draftUid: d.draftUid || null, dirty: false, busy: false, important: false, readReceipt: false };
   w.__st = st;

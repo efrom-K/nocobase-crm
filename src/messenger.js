@@ -24,6 +24,12 @@ if (!window.__nbBellUnreadTimer) {
   }, 250);
 }
 (async function () {
+// фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
+// иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
+function nbSessionAlive() {
+  if (/\/signin|\/signup/.test(location.pathname)) return false;
+  try { return !!localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return false; }
+}
 
 function authToken() { return localStorage.getItem('NOCOBASE_TOKEN'); }
 
@@ -611,7 +617,7 @@ async function openChatWindow(rootPage, convId) {
 
   state.msgTimer = setInterval(function () {
     if (state.activeConvId === convId && document.getElementById('msgr-chat-window')) {
-      loadAndRenderMessages(win, convId, true);
+      if (nbSessionAlive()) loadAndRenderMessages(win, convId, true);
     } else if (state.msgTimer) {
       clearInterval(state.msgTimer); state.msgTimer = null;
     }
@@ -1090,11 +1096,11 @@ await loadMyConversations();
 renderConvList(root, '');
 
 if (window.__msgrListTimer) clearInterval(window.__msgrListTimer);
-window.__msgrListTimer = setInterval(function () { refreshLoop(root); }, 4000);
+window.__msgrListTimer = setInterval(function () { if (nbSessionAlive()) refreshLoop(root); }, 4000);
 
 upsertPresence();
 if (window.__msgrPresenceTimer) clearInterval(window.__msgrPresenceTimer);
-window.__msgrPresenceTimer = setInterval(upsertPresence, 20000);
+window.__msgrPresenceTimer = setInterval(function () { if (nbSessionAlive()) upsertPresence(); }, 20000);
 
 window.__msgrOpenConversation = function (convId) {
   const doOpen = function () {

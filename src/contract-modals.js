@@ -1,3 +1,9 @@
+// фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
+// иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
+function nbSessionAlive() {
+  if (/\/signin|\/signup/.test(location.pathname)) return false;
+  try { return !!localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return false; }
+}
 // плавающая кнопка «Открыть ИИ-чат» плагина AI не используется — прячем (выключать сам плагин нельзя: на нём держится клиент NocoBase)
 if (!document.getElementById('cm-hide-ai-chat')) {
   const aiSt = document.createElement('style');
@@ -4363,7 +4369,7 @@ function openFromUrl() {
   else openContractModal(m[2]);
 }
 openFromUrl();
-if (!window.__cmOpenFromUrlInterval) window.__cmOpenFromUrlInterval = setInterval(openFromUrl, 700);
+if (!window.__cmOpenFromUrlInterval) window.__cmOpenFromUrlInterval = setInterval(function() { if (nbSessionAlive()) openFromUrl(); }, 700);
 
 markTables();
 if (!window.__mainRegistryMarkInterval) {

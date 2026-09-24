@@ -1,3 +1,9 @@
+// фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
+// иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
+function nbSessionAlive() {
+  if (/\/signin|\/signup/.test(location.pathname)) return false;
+  try { return !!localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return false; }
+}
 window.__cmEngine = ctx.model.flowEngine;
 
 ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #f0f0f0;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;"><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
@@ -467,7 +473,7 @@ window.__cmRefreshNotifRows = refreshNotifRows; // вызывается из к�
 if (!window.__cmNotifTimers) {
   window.__cmNotifTimers = true;
   refreshNotifRows();
-  setInterval(refreshNotifRows, 8000);      // подтягиваем новые/прочитанные сообщения
+  setInterval(function() { if (nbSessionAlive()) refreshNotifRows(); }, 8000);      // подтягиваем новые/прочитанные сообщения
   setInterval(paintNotifRows, 600);         // строки таблицы пересоздаются при сортировке и листании — перекрашиваем
-  window.addEventListener('focus', refreshNotifRows);
+  window.addEventListener('focus', function() { if (nbSessionAlive()) refreshNotifRows(); });
 }

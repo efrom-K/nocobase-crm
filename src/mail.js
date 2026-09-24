@@ -3,6 +3,12 @@
 // пароль от ящика вводится один раз, дальше почта открывается сама.
 ctx.render('<div id="ml-root"></div>');
 (async function () {
+// фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
+// иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
+function nbSessionAlive() {
+  if (/\/signin|\/signup/.test(location.pathname)) return false;
+  try { return !!localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return false; }
+}
 
 const API = location.protocol + '//' + location.hostname + ':8096/api';
 function authToken() { try { return localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return null; } }
@@ -717,7 +723,7 @@ async function start() {
 if (window.__mlPoll) clearInterval(window.__mlPoll);
 window.__mlPoll = setInterval(function() {
   if (!document.getElementById('ml-root') || !root.isConnected) { clearInterval(window.__mlPoll); window.__mlPoll = null; return; }
-  if (S.me && S.me.configured && root.querySelector('.ml-app')) refreshCounts();
+  if (nbSessionAlive() && S.me && S.me.configured && root.querySelector('.ml-app')) refreshCounts();
 }, 60000);
 start();
 

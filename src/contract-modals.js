@@ -97,9 +97,10 @@ if (!window.__mlBadgeTimer) {
       if (!b) {
         b = document.createElement('span');
         b.className = 'ml-menu-badge';
-        b.style.cssText = 'display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:#ff4d4f;color:#fff;font-size:11px;font-weight:600;text-align:center;box-sizing:border-box;vertical-align:1px;';
-        const title = it.querySelector('.ant-menu-title-content') || it;
-        title.appendChild(b);
+        // кружок в углу пункта меню (как у колокольчика): не меняет ширину пункта и не ломает строку меню
+        b.style.cssText = 'position:absolute;top:5px;right:2px;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;background:#ff4d4f;color:#fff;font-size:10.5px;font-weight:600;text-align:center;box-sizing:border-box;pointer-events:none;z-index:1;';
+        if (getComputedStyle(it).position === 'static') it.style.position = 'relative';
+        it.appendChild(b);
       }
       const txt = n > 99 ? '99+' : String(n);
       if (b.textContent !== txt) b.textContent = txt;

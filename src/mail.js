@@ -493,11 +493,11 @@ function renderFolders() {
   if (!el) return;
   let html = '', sepDone = false;
   S.folders.forEach(function(f) {
-    if (!f.special && !sepDone) { html += '<div class="ml-side-sep"></div>'; sepDone = true; }
+    if (!f.special && !f.depth && !sepDone) { html += '<div class="ml-side-sep"></div>'; sepDone = true; }
     const cnt = f.special === '\\Drafts' ? f.total : f.unseen;
     const showCnt = cnt && f.special !== '\\Sent' && f.special !== '\\Trash' && f.special !== '\\Archive';
-    html += '<div class="ml-folder' + (f.path === S.folder ? ' active' : '') + '" data-folder="' + esc(f.path) + '">' + (FOLDER_ICON[f.special] || IC.folder)
-      + '<span class="ml-folder-name">' + esc(f.name) + '</span>' + (showCnt ? '<span class="ml-folder-count">' + cnt + '</span>' : '') + '</div>';
+    html += '<div class="ml-folder' + (f.path === S.folder ? ' active' : '') + '" data-folder="' + esc(f.path) + '"' + (f.depth ? ' style="padding-left:' + (12 + f.depth * 20) + 'px;"' : '') + ' title="' + esc(f.path) + '">' + (FOLDER_ICON[f.special] || IC.folder)
+      + '<span class="ml-folder-name">' + esc(f.name) + (f.own ? ' <small style="color:#87898f;font-weight:400;">· своя папка</small>' : '') + '</span>' + (showCnt ? '<span class="ml-folder-count">' + cnt + '</span>' : '') + '</div>';
     if (f.special === '\\Drafts' && (S.sched.length || S.folder === SCHED))
       html += '<div class="ml-folder' + (S.folder === SCHED ? ' active' : '') + '" data-sched="1">' + IC.clock + '<span class="ml-folder-name">Запланированные</span>' + (S.sched.length ? '<span class="ml-folder-count">' + S.sched.length + '</span>' : '') + '</div>';
   });

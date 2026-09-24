@@ -136,24 +136,42 @@ const SPECIAL = [
   ['\\Trash', 'Корзина', /^(trash|deleted|deleted items|deleted messages|корзина|удаленные|удалённые)$/i],
   ['\\Archive', 'Архив', /^(archive|архив)$/i]
 ];
-function specialOf(f) {
-  if (f.specialUse && SPECIAL.some(s => s[0] === f.specialUse)) return f.specialUse;
-  const s = SPECIAL.find(x => x[2].test(f.name) || x[2].test(f.path));
-  return s ? s[0] : null;
-}
 async function listFolders(client) {
-  const list = await client.list({ statusQuery: { unseen: true, messages: true } });
-  const out = list.filter(f => !(f.flags && f.flags.has('\\Noselect'))).map(f => {
-    const sp = specialOf(f);
-    const sd = SPECIAL.find(s => s[0] === sp);
-    return { path: f.path, name: sd ? sd[1] : f.name, special: sp, unseen: (f.status && f.status.unseen) || 0, total: (f.status && f.status.messages) || 0 };
+  const raw = await client.list({ statusQuery: { unseen: true, messages: true } });
+  const list = raw.filter(f => !(f.flags && f.flags.has('\\Noselect')));
+  const depthOf = f => (f.delimiter ? f.path.split(f.delimiter).length - 1 : 0);
+  // системные папки: сначала то, что объявил сам почтовый сервер (SPECIAL-USE);
+  // по названию угадываем только верхнего уровня и только то, чего сервер не объявил — иначе «Черновики»/«Удаленные»
+  // от старой почтовой программы превращаются во вторые «Черновики»/«Корзину»
+  const special = new Map();
+  const taken = new Set();
+  list.forEach(f => { if (f.specialUse && SPECIAL.some(x => x[0] === f.specialUse) && !taken.has(f.specialUse)) { special.set(f.path, f.specialUse); taken.add(f.specialUse); } });
+  list.forEach(f => {
+    if (special.has(f.path) || depthOf(f) > 0) return;
+    const g = SPECIAL.find(x => !taken.has(x[0]) && (x[2].test(f.name) || x[2].test(f.path)));
+    if (g) { special.set(f.path, g[0]); taken.add(g[0]); }
   });
-  const order = SPECIAL.map(s => s[0]);
-  out.sort((a, b) => {
-    const ia = a.special ? order.indexOf(a.special) : 99, ib = b.special ? order.indexOf(b.special) : 99;
-    return ia - ib || a.name.localeCompare(b.name, 'ru');
+  const reserved = new Set(SPECIAL.map(x => x[1].toLowerCase()));
+  const out = list.map(f => {
+    const sp = special.get(f.path) || null;
+    const sd = SPECIAL.find(x => x[0] === sp);
+    const parent = f.parentPath || (f.delimiter && f.path.indexOf(f.delimiter) !== -1 ? f.path.slice(0, f.path.lastIndexOf(f.delimiter)) : '');
+    return { path: f.path, name: sd ? sd[1] : f.name, special: sp, depth: depthOf(f), parent: parent,
+      // своя папка с тем же названием, что у системной, — помечаем, чтобы их не путали
+      own: !sp && reserved.has(String(f.name).toLowerCase()),
+      unseen: (f.status && f.status.unseen) || 0, total: (f.status && f.status.messages) || 0 };
   });
-  return out;
+  // порядок: системные, затем свои по алфавиту; вложенные — сразу под родительской
+  const order = SPECIAL.map(x => x[0]);
+  const rank = f => (f.special ? order.indexOf(f.special) : 99);
+  const children = new Map();
+  out.forEach(f => { const k = out.some(x => x.path === f.parent) ? f.parent : ''; if (!children.has(k)) children.set(k, []); children.get(k).push(f); });
+  const sorted = [];
+  const walk = (k, depth) => {
+    (children.get(k) || []).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, 'ru')).forEach(f => { f.depth = depth; sorted.push(f); walk(f.path, depth + 1); });
+  };
+  walk('', 0);
+  return sorted;
 }
 const folderCache = new Map();   // email -> { at, list }
 async function foldersOf(client, email, fresh) {

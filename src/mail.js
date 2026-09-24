@@ -265,7 +265,7 @@ if (!window.__mlBadgeTimer) {
         b.className = 'ml-menu-badge';
         // кружок в углу пункта меню (как у колокольчика): не меняет ширину пункта и не ломает строку меню
         b.style.cssText = 'position:absolute;top:5px;right:2px;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;background:#ff4d4f;color:#fff;font-size:10.5px;font-weight:600;text-align:center;box-sizing:border-box;pointer-events:none;z-index:1;';
-        if (getComputedStyle(it).position === 'static') it.style.position = 'relative';
+        it.style.position = 'relative';   // getComputedStyle в песочнице блоков недоступен
         it.appendChild(b);
       }
       const txt = n > 99 ? '99+' : String(n);

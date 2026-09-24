@@ -15,7 +15,7 @@ errors = []
 def err(msg): errors.append(msg)
 
 # ---- 1. JS-блоки ----
-SANDBOX_MISSING = ['MutationObserver', 'requestAnimationFrame', 'URLSearchParams', 'new FormData']   # в песочнице JS-блоков NocoBase их нет
+SANDBOX_MISSING = ['MutationObserver', 'requestAnimationFrame', 'URLSearchParams', 'new FormData', 'getComputedStyle', 'CSS.escape']   # в песочнице JS-блоков NocoBase их нет
 for f in sorted(glob.glob('src/*.js')):
     code = open(f, encoding='utf-8').read()
     with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as t:

@@ -2880,8 +2880,6 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'purpose', label: 'Назначение по договору', type: 'text' },
       { name: 'date_signed', label: 'Дата заключения договора', type: 'date' },
       { name: 'date_act', label: 'Дата подписания акта приёма-передачи', type: 'date' },
-      { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
-      { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
       // необязательное: заполняют уже у действующего договора; за 90 дней — статус «На расторжении», за 90/60/30 дней уведомления
       { name: 'termination_date', label: 'Дата расторжения договора', type: 'date' }
   ]},
@@ -2910,15 +2908,6 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
       { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' }
-  ]},
-  { key: 'forming', title: 'Из оформления', fields: [
-      { name: 'comment_stage0', label: 'Комментарий по заявке', type: 'textarea', full: true },
-      { name: 'comment_stage2', label: 'Комментарий по условиям', type: 'textarea', full: true },
-      { name: 'avito_url', label: 'Ссылка Авито', type: 'url' },
-      { name: 'cian_url', label: 'Ссылка Циан', type: 'url' },
-      { name: 'other_url', label: 'Ссылка ещё где-то', type: 'url' },
-      { name: 'contract_scan_url', label: 'Скан подписанного договора', type: 'text' },
-      { name: 'act_scan_url', label: 'Скан подписанного акта', type: 'text' }
   ]},
   { key: 'notes', title: 'Примечания', fields: [
       { name: 'notes', label: 'Текст примечания', type: 'textarea', full: true }
@@ -3704,6 +3693,17 @@ async function completeContract(id, members, contractNumber) {
   setTimeout(function() { location.reload(); }, 400);
 }
 
+// у активного договора своих полей для данных этапов нет (форма утверждена) — дописываем их в «Примечания»
+function formingNotes(f) {
+  const extra = [
+    ['Комментарий по заявке', f.comment_stage0], ['Комментарий по условиям', f.comment_stage2],
+    ['Ссылка Авито', f.avito_url], ['Ссылка Циан', f.cian_url], ['Ссылка ещё где-то', f.other_url],
+    ['Способ подписания', f.signing_method && valueLabel('signing_method', f.signing_method)],
+    ['Дата фактического начала аренды', f.actual_start_date && fromISODateDisplay(f.actual_start_date)]
+  ].filter(function(x) { return x[1]; }).map(function(x) { return x[0] + ': ' + x[1]; });
+  return [f.notes].concat(extra).filter(Boolean).join('\n') || null;
+}
+
 // перевод в «Активные»: из «Формирующихся» (последний этап / срочная форма) или прямо из срочного черновика
 async function finalizeContract(id, members, contractNumber, fromDraft) {
   const srcColl = fromDraft ? 'draft_contracts' : 'forming_contracts', srcType = fromDraft ? 'draft' : 'forming';
@@ -3722,7 +3722,7 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: calcTotal(f.rent_amount, f.utility_amount),
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
-    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
+    contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: formingNotes(f)
   };
   const createRes = await ctx.api.resource('rental_contracts').create({ values: payload });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;

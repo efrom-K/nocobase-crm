@@ -572,9 +572,10 @@ async function loadDashData() {
     dashList('rental_contracts', { appends: ['contract_members'] }),
     dashList('forming_contracts'),
     dashList('completed_contracts'),
-    dashList('contract_price_periods', { filter: { contract_type: 'active' } }).catch(function() { return []; })
+    dashList('contract_price_periods', { filter: { contract_type: 'active' } }).catch(function() { return []; }),
+    dashList('contract_objects').catch(function() { return []; })
   ]);
-  return { active: all[0], forming: all[1], completed: all[2], periods: all[3] };
+  return { active: all[0], forming: all[1], completed: all[2], periods: all[3], objects: all[4] };
 }
 
 function ensureDashPanel() {
@@ -595,9 +596,9 @@ function showDashboard(show) {
   if (!panel) return;
   panel.style.display = show ? '' : 'none';
   if (!show) return;
-  // данные старше 2 минут перечитываем при каждом открытии вкладки
-  if (!dashState.data || Date.now() - dashState.loadedAt > 120000) refreshDashboard();
-  else renderDashboard();
+  // при каждом открытии вкладки: сразу прошлые данные (если есть), следом свежие
+  if (dashState.data) renderDashboard();
+  refreshDashboard();
 }
 async function refreshDashboard() {
   const panel = ensureDashPanel();
@@ -622,11 +623,12 @@ function monthlyKop(r) {
   const a = dKop(r.rent_amount), b = dKop(r.utility_amount);
   return a === null && b === null ? null : (a || 0) + (b || 0);
 }
-function objectStats(active, forming, completed) {
+function objectStats(active, forming, completed, objects) {
   const map = {};
   function get(name) {
-    return map[name] || (map[name] = { name: name, active: 0, forming: 0, completed: 0, areaKop: 0, monthly: 0, deposit: 0, problem: 0, terminating: 0, incomplete: 0 });
+    return map[name] || (map[name] = { name: name, id: null, totalKop: null, freeKop: null, active: 0, forming: 0, completed: 0, areaKop: 0, monthly: 0, deposit: 0, problem: 0, terminating: 0, incomplete: 0 });
   }
+  (objects || []).forEach(function(o) { const x = get((o.name || '').trim() || 'Без объекта'); x.id = o.id; x.totalKop = dKop(o.total_area); });
   active.forEach(function(r) {
     const o = get(objOf(r));
     o.active++;
@@ -640,7 +642,7 @@ function objectStats(active, forming, completed) {
   });
   forming.forEach(function(r) { get(objOf(r)).forming++; });
   completed.forEach(function(r) { get(objOf(r)).completed++; });
-  return Object.keys(map).map(function(k) { return map[k]; });
+  return Object.keys(map).map(function(k) { const o = map[k]; if (o.totalKop !== null) o.freeKop = o.totalKop - o.areaKop; return o; });
 }
 
 function tile(label, value, note, cls) {
@@ -677,7 +679,19 @@ function renderDashboard() {
     if (dp !== null) { depKop += dp; depN++; }
   });
   const of = function(n) { return 'указано у ' + n + ' из ' + active.length; };
-  const tiles = tile('Активные договоры', String(active.length))
+  let totalKop = 0, totalN = 0;
+  const objNames = obj ? [obj] : null;
+  (d.objects || []).forEach(function(o) {
+    const k = dKop(o.total_area);
+    if (k === null || (objNames && objNames.indexOf((o.name || '').trim()) === -1)) return;
+    totalKop += k; totalN++;
+  });
+  const occTile = totalN
+    ? '<div class="dash-tile"><div class="dash-tile-label">Сдано из общей площади</div><div class="dash-tile-value">' + dFmt2(areaKop) + ' / ' + dFmt2(totalKop) + ' м²</div>'
+      + '<div class="dash-hbar-track" style="margin-top:6px;"><div class="dash-hbar-fill" style="width:' + Math.min(100, Math.round(areaKop / totalKop * 100)) + '%;background:#1677ff;"></div></div>'
+      + '<div class="dash-tile-note' + (totalKop - areaKop < 0 ? ' dash-bad' : '') + '">свободно ' + dFmt2(totalKop - areaKop) + ' м²' + (obj ? '' : ' · общая площадь указана у ' + totalN + ' ' + dNoun(totalN, 'объекта', 'объектов', 'объектов')) + '</div></div>'
+    : tile('Сдано из общей площади', '—', 'укажите общую площадь объекта в таблице «По объектам»');
+  const tiles = occTile + tile('Активные договоры', String(active.length))
     + tile('Формирующиеся', String(forming.length))
     + tile('Архив', String(completed.length))
     + tile('Площадь в аренде', dFmt2(areaKop) + ' м²', of(areaN))
@@ -776,21 +790,24 @@ function renderDashboard() {
   // --- таблица объектов (только когда выбраны «Все объекты»)
   let objTable = '';
   if (!obj) {
-    const stats = objectStats(d.active, d.forming, d.completed);
+    const stats = objectStats(d.active, d.forming, d.completed, d.objects);
     const k = dashState.sortKey, dir = dashState.sortDir;
     stats.sort(function(a, b) { return k === 'name' ? dir * a.name.localeCompare(b.name, 'ru') : dir * (a[k] - b[k]) || a.name.localeCompare(b.name, 'ru'); });
-    const cols = [['name', 'Объект'], ['active', 'Активные'], ['forming', 'Формирующиеся'], ['completed', 'Архив'], ['areaKop', 'Площадь, м²'], ['monthly', 'В месяц, ₽'], ['deposit', 'Обеспечительные, ₽'], ['problem', 'Проблема'], ['terminating', 'На расторжении'], ['incomplete', 'Без площади или цены']];
-    const tot = stats.reduce(function(s, o) { cols.slice(1).forEach(function(c) { s[c[0]] = (s[c[0]] || 0) + o[c[0]]; }); return s; }, {});
+    const cols = [['name', 'Объект'], ['active', 'Активные'], ['forming', 'Формирующиеся'], ['completed', 'Архив'], ['totalKop', 'Общая площадь, м²'], ['areaKop', 'Сдано, м²'], ['freeKop', 'Свободно, м²'], ['monthly', 'В месяц, ₽'], ['deposit', 'Обеспечительные, ₽'], ['problem', 'Проблема'], ['terminating', 'На расторжении'], ['incomplete', 'Без площади или цены']];
+    const tot = stats.reduce(function(s, o) { cols.slice(1).forEach(function(c) { s[c[0]] = (s[c[0]] || 0) + (o[c[0]] || 0); }); return s; }, {});
+    dashState.lastStats = { cols: cols, stats: stats, tot: tot };
     const cell = function(key, v) {
+      if (key === 'totalKop') return v === null || v === undefined ? '<span class="dash-edit-area" style="color:#1677ff;">указать</span>' : '<span class="dash-edit-area" title="Изменить общую площадь">' + dFmt2(v) + ' ✎</span>';
+      if (key === 'freeKop') return v === null || v === undefined ? '—' : (v < 0 ? '<span class="dash-bad" title="Сдано больше общей площади — проверьте площади">' + dFmt2(v) + '</span>' : dFmt2(v));
       if (key === 'areaKop' || key === 'monthly' || key === 'deposit') return v ? dFmt2(v) : '—';
       if (key === 'problem' && v) return '<span class="dash-bad">' + v + '</span>';
       if ((key === 'terminating' || key === 'incomplete') && v) return '<span class="dash-warn">' + v + '</span>';
       return v ? String(v) : '—';
     };
-    objTable = '<div class="dash-card" style="margin-bottom:12px;"><div class="dash-card-title">По объектам<span>строка — открыть объект; суммы по договорам, где значение указано</span></div><div class="dash-table-wrap"><table class="dash-table"><thead><tr>'
+    objTable = '<div class="dash-card" style="margin-bottom:12px;"><div class="dash-card-title">По объектам<span>строка — открыть объект; суммы по договорам, где значение указано · <a data-act="csv" style="cursor:pointer;">выгрузить в Excel</a></span></div><div class="dash-table-wrap"><table class="dash-table"><thead><tr>'
       + cols.map(function(c) { return '<th data-sort="' + c[0] + '">' + dEsc(c[1]) + (k === c[0] ? (dir > 0 ? ' ↑' : ' ↓') : '') + '</th>'; }).join('')
       + '</tr></thead><tbody>'
-      + stats.map(function(o) { return '<tr data-obj="' + dEsc(o.name) + '">' + cols.map(function(c) { return '<td>' + (c[0] === 'name' ? dEsc(o.name) : cell(c[0], o[c[0]])) + '</td>'; }).join('') + '</tr>'; }).join('')
+      + stats.map(function(o) { return '<tr data-obj="' + dEsc(o.name) + '" data-obj-id="' + (o.id || '') + '">' + cols.map(function(c) { return '<td>' + (c[0] === 'name' ? dEsc(o.name) : cell(c[0], o[c[0]])) + '</td>'; }).join('') + '</tr>'; }).join('')
       + '</tbody><tfoot><tr><td>Итого</td>' + cols.slice(1).map(function(c) { return '<td>' + cell(c[0], tot[c[0]]) + '</td>'; }).join('') + '</tr></tfoot></table></div></div>';
   }
 
@@ -820,8 +837,12 @@ function onDashClick(e) {
     if (a === 'refresh') refreshDashboard();
     if (a === 'all') dashSetObject('');
     if (a === 'contracts') switchRegistryTable('ozazmpm4o4v');
+    if (a === 'csv') dashExportCsv();
     return;
   }
+  const ed = t.closest && t.closest('.dash-edit-area');
+  if (ed) { dashEditArea(ed.closest('tr')); return; }
+  if (t.closest && t.closest('.dash-area-input')) return;
   const th = t.closest && t.closest('th[data-sort]');
   if (th) {
     const k = th.getAttribute('data-sort');
@@ -850,4 +871,52 @@ function onDashClick(e) {
 function dashSetObject(name) {
   if (window.__cmApplyObjectFilter) window.__cmApplyObjectFilter(name);
   else { window.__activeObjectFilter = name; renderDashboard(); }
+}
+
+// общая площадь объекта — правка прямо в ячейке (Enter/уход с поля — сохранить, Esc — отмена)
+function dashEditArea(tr) {
+  const id = tr && tr.getAttribute('data-obj-id');
+  const td = tr && tr.querySelector('.dash-edit-area') ? tr.querySelector('.dash-edit-area').parentNode : null;
+  if (!td) return;
+  if (!id) { td.innerHTML = '<span class="dash-bad">объекта нет в справочнике</span>'; return; }
+  const o = (dashState.data.objects || []).find(function(x) { return String(x.id) === id; });
+  const cur = o && o.total_area !== null && o.total_area !== undefined ? String(o.total_area).replace('.', ',') : '';
+  td.innerHTML = '<input class="dash-area-input" inputmode="decimal" style="width:110px;text-align:right;border:1px solid #1677ff;border-radius:4px;padding:2px 6px;font:inherit;" value="' + dEsc(cur) + '">';
+  const inp = td.querySelector('input');
+  inp.focus(); inp.select();
+  let done = false;
+  async function save(commit) {
+    if (done) return; done = true;
+    const raw = inp.value.replace(/\s/g, '').replace(',', '.');
+    if (!commit || raw === cur.replace(',', '.')) { renderDashboard(); return; }
+    if (raw !== '' && !/^\d+(\.\d{1,2})?$/.test(raw)) { done = false; inp.style.borderColor = '#ff4d4f'; inp.title = 'Только число, до 2 знаков после запятой'; return; }
+    const val = raw === '' ? null : Number(raw);
+    try {
+      await ctx.api.resource('contract_objects').update({ filterByTk: Number(id), values: { total_area: val } });
+      if (o) o.total_area = val;
+    } catch (e) { /* нет прав — значение не меняется */ }
+    renderDashboard();
+  }
+  inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') save(true); if (e.key === 'Escape') save(false); });
+  inp.addEventListener('blur', function() { save(true); });
+}
+// выгрузка таблицы «По объектам» в CSV (открывается в Excel: разделитель «;», BOM для кириллицы)
+function dashExportCsv() {
+  const ls = dashState.lastStats;
+  if (!ls) return;
+  const num = function(key, v) {
+    if (v === null || v === undefined) return '';
+    return (key === 'totalKop' || key === 'areaKop' || key === 'freeKop' || key === 'monthly' || key === 'deposit') ? (v / 100).toFixed(2).replace('.', ',') : String(v);
+  };
+  const q = function(x) { return '"' + String(x).replace(/"/g, '""') + '"'; };
+  const lines = [ls.cols.map(function(c) { return q(c[1]); }).join(';')];
+  ls.stats.forEach(function(o) { lines.push(ls.cols.map(function(c) { return c[0] === 'name' ? q(o.name) : num(c[0], o[c[0]]); }).join(';')); });
+  lines.push([q('Итого')].concat(ls.cols.slice(1).map(function(c) { return num(c[0], ls.tot[c[0]]); })).join(';'));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  const t = new Date();
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Объекты ' + ('0' + t.getDate()).slice(-2) + '.' + ('0' + (t.getMonth() + 1)).slice(-2) + '.' + t.getFullYear() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
 }

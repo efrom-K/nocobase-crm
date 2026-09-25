@@ -3058,7 +3058,7 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
         if (!Object.keys(values).length) { form.style.display = 'none'; readonly.style.display = ''; if (toggleBtn) toggleBtn.style.display = ''; if (statusEl) statusEl.textContent = ''; btn.disabled = false; return; }
         // до расторжения 90 дней и меньше — «На расторжении» сразу, не дожидаясь ночного скрипта (статус «Проблема» не понижаем)
         if (values.termination_date && values.termination_date !== toISODate(r.termination_date) && r.contract_status !== '1_problem'
-            && (new Date(values.termination_date) - new Date(toISODate(new Date()))) / 86400000 <= 90)
+            && (parseAnyDate(values.termination_date) - new Date().setHours(0, 0, 0, 0)) / 86400000 <= 90)
           values.contract_status = '2_terminating';
         const upResp = await updateWithHistory('rental_contracts', id, values);
         Object.assign(r, values, (upResp && upResp.__cmDerived) || {});
@@ -3564,6 +3564,8 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone) {
         fireInput(scanEl);
         const nameEl = root.querySelector('[data-scan-name="' + scanField + '"]');
         if (nameEl) nameEl.textContent = file.name;
+        const upBtn = root.querySelector('[data-scan-upload="' + scanField + '"]');
+        if (upBtn) upBtn.textContent = 'Заменить файл';
       }
       if (onDone) await onDone();
     } catch (e) {

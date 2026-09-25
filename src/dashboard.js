@@ -13,10 +13,11 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-sub { font-size:12px; color:#8c8c8c; }
     #cm-dash-panel .dash-link { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:3px 10px; font-size:12.5px; cursor:pointer; }
     #cm-dash-panel .dash-link:hover { border-color:#1677ff; color:#1677ff; }
-    #cm-dash-panel .dash-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:12px; }
+    #cm-dash-panel .dash-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:10px; margin-bottom:12px; }
     #cm-dash-panel .dash-tile { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; }
     #cm-dash-panel .dash-tile-label { font-size:12px; color:#8c8c8c; margin-bottom:4px; }
-    #cm-dash-panel .dash-tile-value { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #cm-dash-panel .dash-tile-value { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.25; }
+    [aria-label="Открыть ИИ-чат"] { display:none !important; }
     #cm-dash-panel .dash-tile-note { font-size:11.5px; color:#8c8c8c; margin-top:3px; }
     #cm-dash-panel .dash-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:12px; margin-bottom:12px; }
     #cm-dash-panel .dash-card { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }

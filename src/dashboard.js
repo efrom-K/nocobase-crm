@@ -110,6 +110,7 @@ function dToday() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
 function dDays(d) { return Math.round((d.getTime() - dToday().getTime()) / 86400000); }
 function dNoun(n, one, few, many) { const a = Math.abs(n) % 100, b = a % 10; return (a > 10 && a < 20) ? many : b === 1 ? one : (b >= 2 && b <= 4) ? few : many; }
 function dContracts(n) { return n + ' ' + dNoun(n, 'договор', 'договора', 'договоров'); }
+function dOfContracts(n) { return n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'договора' : 'договоров'); }   // «из N …»
 function dDaysTxt(n) { return n + ' ' + dNoun(n, 'день', 'дня', 'дней'); }
 function dFilled(v) { return !(v === null || v === undefined || String(v).trim() === ''); }
 function dStatus(v) { return DASH_STATUS.find(function(s) { return s.v === (v || ''); }) || DASH_STATUS[DASH_STATUS.length - 1]; }
@@ -187,7 +188,7 @@ function summary(active, objects) {
 
 // ---------- плитки общих цифр ----------
 function areaTile(s, objCount, editId) {
-  const edit = editId ? ' <span class="dash-edit" data-edit-area="' + editId + '" title="Изменить общую площадь объекта">✎</span>' : '';
+  const edit = editId ? ' <span class="dash-edit" data-edit-area="' + editId + '" title="Изменить общую площадь объекта" style="font-size:12px;font-weight:400;margin-left:6px;">изменить</span>' : '';
   if (!s.totalN) {
     return '<div class="dash-tile"><div class="dash-tile-label">Площадь</div><div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>м² сдано</small></div>'
       + '<div class="dash-tile-note">общая площадь не указана' + (editId ? ' — <span class="dash-edit" data-edit-area="' + editId + '">указать</span>' : '') + '</div></div>';
@@ -211,7 +212,7 @@ function contractsTile(active, forming, completed) {
 }
 function depositTile(s) {
   return '<div class="dash-tile"><div class="dash-tile-label">Обеспечительные платежи</div><div class="dash-tile-value">' + dMoney(s.depKop) + '</div>'
-    + '<div class="dash-tile-note">указаны у ' + s.depN + ' из ' + dContracts(s.n) + '</div></div>';
+    + '<div class="dash-tile-note">указаны у ' + s.depN + ' из ' + dOfContracts(s.n) + '</div></div>';
 }
 function attentionTile(s) {
   const bad = DASH_STATUS.filter(function(x) { return x.v && x.v !== '3_ok' && s.status[x.v]; });

@@ -6,8 +6,7 @@
 Пороги: за 90 / 60 / 30 дней до даты расторжения. Каждый порог по конкретной дате отправляется один раз
 (таблица contract_reminders_log); если дату расторжения изменили — напоминания стартуют заново.
 Получатели: только прикреплённые к договору сотрудники (открепили — перестают получать); без сотрудников — никому.
-Заодно: за 90 дней до даты расторжения договор получает статус «На расторжении» (один раз на каждую дату,
-«Проблему» не понижает; если потом статус поменяли вручную — скрипт его не трогает).
+Статус «На расторжении» ставит сама база (db/migrations/002_contract_status_auto.sql), этот скрипт только напоминает.
 
     expiry_reminders.py            # отправить
     expiry_reminders.py --dry-run  # только показать, ничего не писать
@@ -21,8 +20,6 @@ REGISTRY_PAGE = os.environ.get('NB_REGISTRY_PAGE', 'b5znz7yxpy3')   # uid стр
 DRY = '--dry-run' in sys.argv
 SEED = '--seed' in sys.argv
 THRESHOLDS = [30, 60, 90]
-STATUS_MARK = 1001   # запись в журнале «статус «На расторжении» уже выставлен для этой даты» (1000 — прежний «Требует внимания», не используется)
-STATUS_DAYS = 90
 PSQL = ['sudo', '-n', 'docker', 'exec', '-i', 'nocobase-postgres-1', 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
 def psql(sql):
@@ -43,7 +40,7 @@ def parse(s):
 
 psql("create table if not exists contract_reminders_log(contract_id bigint not null, threshold int not null, end_date text not null, sent_at timestamptz default now(), primary key(contract_id, threshold, end_date));")
 today = date.today()
-contracts = jrows("select id, contract_number, object_name, tenant_name, contract_status, termination_date::text as termination_date from rental_contracts where termination_date is not null")
+contracts = jrows("select id, contract_number, object_name, tenant_name, termination_date::text as termination_date from rental_contracts where termination_date is not null")
 sent = {(r['contract_id'], r['threshold'], r['end_date']) for r in jrows("select contract_id, threshold, end_date from contract_reminders_log")}
 members = {}
 for r in jrows('select f_f6uc3x0qna1 as cid, f_z8ov78krtg5 as uid from "rentalContractsMembers"'):
@@ -55,11 +52,6 @@ for c in contracts:
     if not end: continue
     key_date = 't:' + c['termination_date']          # префикс — чтобы не пересечься со старыми записями по дате окончания
     days = (end - today).days
-    if days <= STATUS_DAYS and (c['id'], STATUS_MARK, key_date) not in sent:
-        if c['contract_status'] not in ('1_problem', '2_terminating'):
-            stmts.append("update rental_contracts set contract_status='2_terminating' where id=%s;" % c['id'])
-        stmts.append("insert into contract_reminders_log(contract_id,threshold,end_date) values(%s,%s,%s);" % (c['id'], STATUS_MARK, q(key_date)))
-        report.append((c['id'], 'статус', days, 0, 'статус «На расторжении»'))
     if days < 0: continue
     cands = [t for t in THRESHOLDS if days <= t]
     if not cands: continue

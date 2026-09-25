@@ -26,6 +26,9 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
     #cm-dash-panel .dash-chip { display:inline-flex; align-items:center; gap:5px; padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid; white-space:nowrap; }
     #cm-dash-panel .dash-chip b { font-variant-numeric:tabular-nums; }
+    #cm-dash-panel [data-go] { cursor:pointer; }
+    #cm-dash-panel .dash-chip[data-go]:hover { filter:brightness(.92); text-decoration:underline; }
+    #cm-dash-panel .dash-status div[data-go]:hover { box-shadow:0 0 0 2px currentColor inset; }
     #cm-dash-panel .dash-ok { color:#389e0d; }
     #cm-dash-panel .dash-warn { color:#d46b08; }
     #cm-dash-panel .dash-bad { color:#cf1322; }
@@ -114,8 +117,8 @@ function dOfContracts(n) { return n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? '�
 function dDaysTxt(n) { return n + ' ' + dNoun(n, 'день', 'дня', 'дней'); }
 function dFilled(v) { return !(v === null || v === undefined || String(v).trim() === ''); }
 function dStatus(v) { return DASH_STATUS.find(function(s) { return s.v === (v || ''); }) || DASH_STATUS[DASH_STATUS.length - 1]; }
-function dChip(text, color, num) {
-  return '<span class="dash-chip" style="color:' + color + ';border-color:' + color + '40;background:' + color + '0d;">' + (num !== undefined ? '<b>' + num + '</b>' : '') + dEsc(text) + '</span>';
+function dChip(text, color, num, go) {
+  return '<span class="dash-chip"' + (go ? ' data-go="' + dEsc(go) + '" title="Открыть эти договоры в реестре"' : '') + ' style="color:' + color + ';border-color:' + color + '40;background:' + color + '0d;">' + (num !== undefined ? '<b>' + num + '</b>' : '') + dEsc(text) + '</span>';
 }
 
 async function dashList(coll, extra) {
@@ -218,7 +221,7 @@ function attentionTile(s) {
   const bad = DASH_STATUS.filter(function(x) { return x.v && x.v !== '3_ok' && s.status[x.v]; });
   const total = bad.reduce(function(a, x) { return a + s.status[x.v]; }, 0);
   return '<div class="dash-tile"><div class="dash-tile-label">Требуют внимания</div>'
-    + (total ? '<div class="dash-tile-value dash-bad">' + dContracts(total) + '</div><div class="dash-chips">' + bad.map(function(x) { return dChip(' ' + x.label, x.color, s.status[x.v]); }).join('') + '</div>'
+    + (total ? '<div class="dash-tile-value dash-bad" data-go="status=attention" title="Открыть все эти договоры в реестре">' + dContracts(total) + '</div><div class="dash-chips">' + bad.map(function(x) { return dChip(' ' + x.label, x.color, s.status[x.v], 'status=' + x.v); }).join('') + '</div>'
       : '<div class="dash-tile-value dash-ok">нет</div><div class="dash-tile-note">все договоры в порядке или без статуса</div>')
     + '</div>';
 }
@@ -282,11 +285,12 @@ function objectCard(o) {
     if (t && (!term || t.days < term.days)) term = t;
   });
   const chips = [];
-  if (st['1_problem']) chips.push(dChip(' проблема', '#cf1322', st['1_problem']));
-  if (term) chips.push(dChip((term.days < 0 ? 'расторжение прошло ' + dDateTxt(term.t) : 'расторжение ' + dDateTxt(term.t)), '#722ed1'));
-  else if (st['2_terminating']) chips.push(dChip(' на расторжении', '#722ed1', st['2_terminating']));
-  if (st['2_docs']) chips.push(dChip(' нет документов', '#1677ff', st['2_docs']));
-  if (st['2_attention']) chips.push(dChip(' требуют внимания', '#d48806', st['2_attention']));
+  const go = function(v) { return 'status=' + v + '&obj=' + encodeURIComponent(o.name); };
+  if (st['1_problem']) chips.push(dChip(' проблема', '#cf1322', st['1_problem'], go('1_problem')));
+  if (term) chips.push(dChip((term.days < 0 ? 'расторжение прошло ' + dDateTxt(term.t) : 'расторжение ' + dDateTxt(term.t)), '#722ed1', undefined, go('2_terminating')));
+  else if (st['2_terminating']) chips.push(dChip(' на расторжении', '#722ed1', st['2_terminating'], go('2_terminating')));
+  if (st['2_docs']) chips.push(dChip(' нет документов', '#1677ff', st['2_docs'], go('2_docs')));
+  if (st['2_attention']) chips.push(dChip(' требуют внимания', '#d48806', st['2_attention'], go('2_attention')));
   if (noPrice) chips.push(dChip(' без цены', '#d46b08', noPrice));
   if (o.forming) chips.push(dChip(' оформляется', '#595959', o.forming));
   let area;
@@ -318,7 +322,7 @@ function renderObject(name) {
   // статусы — счётчики, нулевые приглушены
   const statusBody = '<div class="dash-status">' + DASH_STATUS.map(function(x) {
     const n = s.status[x.v] || 0;
-    return '<div class="' + (n ? '' : 'zero') + '" style="border-color:' + x.color + '40;background:' + x.color + '0d;color:' + x.color + ';"><b>' + n + '</b><span>' + dEsc(x.label) + '</span></div>';
+    return '<div class="' + (n ? '' : 'zero') + '"' + (n ? ' data-go="status=' + (x.v || 'none') + '&obj=' + encodeURIComponent(name) + '" title="Открыть эти договоры в реестре"' : '') + ' style="border-color:' + x.color + '40;background:' + x.color + '0d;color:' + x.color + ';"><b>' + n + '</b><span>' + dEsc(x.label) + '</span></div>';
   }).join('') + '</div>';
 
   // оформление: цепочка этапов, в кружке — сколько договоров сейчас на этапе
@@ -413,6 +417,8 @@ function onDashClick(e) {
     if (a === 'csv') dashExportCsv();
     return;
   }
+  const go = c('[data-go]');
+  if (go) { window.location.href = REGISTRY_URL + '?' + go.getAttribute('data-go'); return; }
   const ed = c('[data-edit-area]');
   if (ed) { dashEditArea(ed); return; }
   if (c('.dash-area-input')) return;

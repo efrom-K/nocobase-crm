@@ -333,18 +333,46 @@ function row(label, value, full) {
   return '<div class="cm-row' + (full ? ' full' : '') + '"><div class="cm-label">' + label + '</div><div class="cm-value">' + value + '</div></div>';
 }
 
-function renderFilesList(files, currentUser) {
+function fileDisplayName(f) { return f.title ? (f.title + (f.extname || '')) : f.filename; }
+// scans (только в активной карточке): { contract, act } — имена файлов-сканов; у файла пометка или ссылки «это скан …»
+function renderFilesList(files, currentUser, scans) {
   if (!files.length) return '<span style="color:#999;">Файлы не загружены</span>';
   return files.map(function(f) {
-    const name = esc(f.title ? (f.title + (f.extname || '')) : f.filename);
+    const raw = fileDisplayName(f);
+    const name = esc(raw);
+    let scanHtml = '';
+    if (scans) {
+      const isC = scans.contract === raw, isA = scans.act === raw;
+      const tag = function(t, color) { return '<span style="font-size:11px;color:' + color + ';border:1px solid ' + color + '55;border-radius:8px;padding:0 6px;white-space:nowrap;">' + t + '</span>'; };
+      scanHtml = (isC ? tag('скан договора', '#389e0d') : '') + (isA ? tag('скан акта', '#389e0d') : '')
+        + (scans.canEdit ? '<a href="#" class="cm-scan-mark" data-scan-kind="contract" data-scan-name="' + escAttr(raw) + '" title="' + (isC ? 'Снять отметку' : 'Отметить как скан подписанного договора') + '" style="font-size:11.5px;white-space:nowrap;">' + (isC ? 'не скан договора' : 'это скан договора') + '</a>'
+          + '<a href="#" class="cm-scan-mark" data-scan-kind="act" data-scan-name="' + escAttr(raw) + '" title="' + (isA ? 'Снять отметку' : 'Отметить как скан подписанного акта') + '" style="font-size:11.5px;white-space:nowrap;">' + (isA ? 'не скан акта' : 'это скан акта') + '</a>' : '');
+    }
     const canDelete = !!(currentUser && (currentUser.__isAdmin || currentUser.id === f.createdById));
-    return '<div class="cm-file-row" data-file-id="' + f.id + '"><span style="flex:1;">' + name + '</span>'
+    return '<div class="cm-file-row" data-file-id="' + f.id + '"><span style="flex:1;">' + name + '</span>' + scanHtml
       + '<span style="color:#999;font-size:12px;">' + fmtSize(f.size) + '</span>'
       + '<a href="#" class="cm-file-open" data-url="' + esc(f.url) + '">Открыть</a>'
       + '<a href="' + esc(f.url) + '" download="' + name + '">Скачать</a>'
       + (canDelete ? '<a href="#" class="cm-file-delete" data-file-id="' + f.id + '" title="Удалить файл">✕</a>' : '')
       + '</div>';
   }).join('');
+}
+
+function activeScans(r, currentUser) { return { contract: r.contract_scan_url || '', act: r.act_scan_url || '', canEdit: canEditActiveBlocks(currentUser) }; }
+function bindScanMarks(root, contractId, r, onDone) {
+  root.querySelectorAll('.cm-scan-mark').forEach(function(a) {
+    if (a.__cmBound) return;
+    a.__cmBound = true;
+    a.addEventListener('click', async function(e) {
+      e.preventDefault();
+      const field = a.getAttribute('data-scan-kind') === 'act' ? 'act_scan_url' : 'contract_scan_url';
+      const nm = a.getAttribute('data-scan-name');
+      const vals = {};
+      vals[field] = r[field] === nm ? null : nm;
+      try { await updateWithHistory('rental_contracts', contractId, vals); r[field] = vals[field]; if (onDone) await onDone(); }
+      catch (err) { cmToast('Не удалось сохранить отметку'); }
+    });
+  });
 }
 
 function bindFileOpenLinks(root) {
@@ -389,6 +417,13 @@ function bindFileDeleteLinks(root, contractId, collectionName, onDone) {
           await fetch('/api/attachments:destroy?filterByTk=' + fileId, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken() } });
         } catch (e2) { /* best-effort, ownership scope may block this — detach still succeeded */ }
         logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Удалён файл: ' + fileName }]);
+        try {
+          const rec = histPayload(await ctx.api.resource(collectionName).get({ filterByTk: contractId }));
+          const clear = {};
+          if (rec && rec.contract_scan_url === fileName) clear.contract_scan_url = null;
+          if (rec && rec.act_scan_url === fileName) clear.act_scan_url = null;
+          if (Object.keys(clear).length) await updateWithHistory(collectionName, contractId, clear);
+        } catch (e3) { /* отметка скана останется — её можно снять вручную */ }
         if (onDone) await onDone();
       } catch (e2) {
         cmToast('Не удалось удалить файл');
@@ -1329,7 +1364,8 @@ function renderHistoryList(items) {
     if (h.action === 'field') {
       body = '<b>' + esc(fieldLabel(h.field)) + '</b>: '
         + '<span style="color:#8c8c8c;">' + (h.old_value ? esc(histShort(h.old_value, h.field)) : 'пусто') + '</span>'
-        + ' → <span style="color:#262626;">' + (h.new_value ? esc(histShort(h.new_value, h.field)) : 'пусто') + '</span>';
+        + ' → <span style="color:#262626;">' + (h.new_value ? esc(histShort(h.new_value, h.field)) : 'пусто') + '</span>'
+        + (h.text ? '<div style="color:#8c8c8c;font-size:12px;">' + esc(h.text) + '</div>' : '');   // автоматическая смена статуса — с причиной
     } else {
       body = esc(h.text || h.action);
     }
@@ -1715,6 +1751,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     try { items = await loadPricePeriods(type, id); }
     catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить дополнительные расчёты</span>'; return; }
     renderList(); renderSummary();
+    if (overlay.__cmRefreshStatus) overlay.__cmRefreshStatus();
   }
   overlay.__cmPricePeriods = function() { return items; };
   overlay.__cmAfterPriceChange = async function() { await applySchedule(); renderSummary(); };
@@ -2529,7 +2566,7 @@ async function openContractModal(id) {
 
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-active-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
-      + '<div id="cm-active-files-list">' + renderFilesList(files, currentUser) + '</div>'
+      + '<div id="cm-active-files-list">' + renderFilesList(files, currentUser, activeScans(r, currentUser)) + '</div>'
       + '<div class="cm-upload-row"><input type="file" id="cm-active-file-input" style="display:none;">'
       + '<button class="cm-upload-btn" id="cm-active-upload-btn">+ Прикрепить файл</button>'
       + '<span id="cm-active-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
@@ -2550,10 +2587,25 @@ async function openContractModal(id) {
       const res2 = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files'] });
       const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
       const listEl = overlay.querySelector('#cm-active-files-list');
-      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser);
+      r.contract_scan_url = r2.contract_scan_url; r.act_scan_url = r2.act_scan_url;
+      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser, activeScans(r, currentUser));
       bindFileOpenLinks(overlay);
       bindFileDeleteLinks(overlay, id, 'rental_contracts', refreshActiveFiles);
+      bindScanMarks(overlay, id, r, refreshActiveFiles);
+      await overlay.__cmRefreshStatus();
     }
+    // статус считает база — после любых изменений договора (поля, файлы, доп. соглашения, периоды цены) перечитываем его
+    overlay.__cmRefreshStatus = async function() {
+      try {
+        const s = histPayload(await ctx.api.resource('rental_contracts').get({ filterByTk: id }));
+        if (!s) return;
+        ['contract_status', 'status_reason', 'status_manual', 'status_auto_key'].forEach(function(k) { r[k] = s[k]; });
+        const el = overlay.querySelector('[data-active-readonly="status"]');
+        const block = ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === 'status'; });
+        if (el && block) el.innerHTML = block.readonlyRenderer(r);
+      } catch (e) { /* покажем при следующем открытии */ }
+    };
+    bindScanMarks(overlay, id, r, refreshActiveFiles);
 
     bindFileOpenLinks(overlay);
     bindFileDeleteLinks(overlay, id, 'rental_contracts', refreshActiveFiles);
@@ -2761,7 +2813,7 @@ function renderEditableField(f, value, rec) {
     const opts = (STATUS_OPTIONS[f.name] || []).map(function(o) {
       return '<option value="' + escAttr(o.value) + '"' + (value === o.value ? ' selected' : '') + '>' + esc(o.label) + '</option>';
     }).join('');
-    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><select class="cm-field-input" data-field="' + f.name + '"><option value=""' + (!value ? ' selected' : '') + '>Не задан</option>' + opts + '</select></div>';
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><select class="cm-field-input" data-field="' + f.name + '"><option value=""' + (!value ? ' selected' : '') + '>Автоматически</option>' + opts + '</select></div>';
   }
   if (f.type === 'url') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="url" class="cm-field-input" data-field="' + f.name + '" placeholder="https://…" value="' + escAttr(value) + '"></div>';
@@ -2870,9 +2922,16 @@ function bindComboField(root, fieldName, options) {
 }
 
 const ACTIVE_BLOCK_DEFS = [
+  // статус считает база (db/migrations/002_contract_status_auto.sql); вручную — любой, «Проблема» только с причиной
   { key: 'status', title: 'Статусы', activeOnly: true, fields: [
-      { name: 'contract_status', label: 'Статус договора', type: 'status' }
-  ]},
+      { name: 'contract_status', label: 'Статус договора', type: 'status' },
+      { name: 'status_reason', label: 'Причина (для «Проблемы» обязательна)', type: 'textarea', full: true }
+  ], readonlyRenderer: function(r) {
+      return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' + statusPill('contract_status', r.contract_status)
+        + (r.status_reason ? '<span style="font-size:13px;color:#595959;">' + esc(r.status_reason) + '</span>' : '')
+        + (r.contract_status ? '<span style="font-size:11.5px;color:#8c8c8c;">' + (r.status_manual ? 'поставлен вручную' : 'автоматически') + '</span>' : '')
+        + '</div>';
+  } },
   { key: 'data', title: 'Блок Данных по договору', fields: [
       { name: 'object_name', label: 'Объект', type: 'text' },
       { name: 'contract_number', label: 'Номер договора', type: 'text' },
@@ -3045,13 +3104,29 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
         if (!Object.keys(values).length) { form.style.display = 'none'; readonly.style.display = ''; if (toggleBtn) toggleBtn.style.display = ''; if (statusEl) statusEl.textContent = ''; btn.disabled = false; return; }
-        // до расторжения 90 дней и меньше — «На расторжении» сразу, не дожидаясь ночного скрипта (статус «Проблема» не понижаем)
-        if (values.termination_date && values.termination_date !== toISODate(r.termination_date) && r.contract_status !== '1_problem'
-            && (parseAnyDate(values.termination_date) - new Date().setHours(0, 0, 0, 0)) / 86400000 <= 90)
-          values.contract_status = '2_terminating';
+        const becameProblem = values.contract_status === '1_problem' && r.contract_status !== '1_problem';
+        if (key === 'status') {
+          const reasonEl = form.querySelector('[data-field="status_reason"]');
+          const reason = reasonEl ? reasonEl.value.trim() : '';
+          if ((hasKey(values, 'contract_status') ? values.contract_status : r.contract_status) === '1_problem' && !reason) {
+            cmToast('Для статуса «Проблема» укажите причину'); if (reasonEl) reasonEl.focus();
+            btn.disabled = false; if (statusEl) statusEl.textContent = ''; return;
+          }
+          if (becameProblem) values.status_reason = reason;
+          // причину ручного статуса, кроме «Проблемы», база подставит сама
+          if (hasKey(values, 'contract_status') && values.contract_status !== '1_problem' && !hasKey(values, 'status_reason')) values.status_reason = null;
+        }
         const upResp = await updateWithHistory('rental_contracts', id, values);
+        if (becameProblem) {
+          const me = await getCurrentUser();
+          (r.contract_members || []).forEach(function(m) {
+            if (me && m.id === me.id) return;
+            createNotification(m.id, id, 'Договор ' + (r.contract_number || r.object_name || '#' + id), 'Статус «Проблема»: ' + (values.status_reason || ''), 'active', 'status');
+          });
+        }
         Object.assign(r, values, (upResp && upResp.__cmDerived) || {});
         if (root.__cmAfterPriceChange) await root.__cmAfterPriceChange();
+        if (root.__cmRefreshStatus) await root.__cmRefreshStatus();
         renderAllActiveReadonly(root, r);
         readonly.innerHTML = block.readonlyRenderer
           ? block.readonlyRenderer(r)
@@ -3416,6 +3491,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   async function refresh() {
     items = await loadAddendums(contractType, contractId);
     listEl.innerHTML = renderAddendumsList(items, canEdit);
+    if (overlay.__cmRefreshStatus) overlay.__cmRefreshStatus();
     wireAddendumFileOpen(overlay);
     if (!canEdit) return;
     listEl.querySelectorAll('[data-addendum-edit]').forEach(function(el) {

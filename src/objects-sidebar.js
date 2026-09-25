@@ -28,7 +28,7 @@ if (card) {
   card.style.background = 'transparent';
 }
 
-ctx.render('<div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#8c8c8c;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div></div>');
+ctx.render('<div><div id="obj-status-filter"></div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#8c8c8c;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div></div>');
 
 const root = ctx.element ? ctx.element.querySelector('#obj-list-root') : document.getElementById('obj-list-root');
 
@@ -88,14 +88,19 @@ async function load() {
       el.addEventListener('click', function() { applyFilter(el.getAttribute('data-obj')); });
     });
     paintActive();
-    // переход с дашборда «Договоры объекта →»: ?obj=<название> — сразу фильтр по объекту (таблица может ещё не прогрузиться)
+    // переход с дашборда: ?obj=<название> и/или ?status=<значение> — сразу фильтр на «Активных» (таблица может ещё не прогрузиться)
     const m = location.search.match(/[?&]obj=([^&]*)/);
-    if (m) {
-      const name = decodeURIComponent(m[1].replace(/\+/g, ' '));
+    const ms = location.search.match(/[?&]status=([^&]*)/);
+    if (m || ms) {
       let tries = 0;
       const t = setInterval(function() {
-        const target = ctx.model.flowEngine.getModel(getActiveTable());
-        if ((target && target.resource) || ++tries > 50) { clearInterval(t); applyFilter(name); try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
+        const target = ctx.model.flowEngine.getModel('ozazmpm4o4v');
+        if (!(target && target.resource) && ++tries <= 50) return;
+        clearInterval(t);
+        if (window.switchRegistryTable) window.switchRegistryTable('ozazmpm4o4v');
+        if (ms) applyStatusFilter(decodeURIComponent(ms[1]), !m);
+        if (m) applyFilter(decodeURIComponent(m[1].replace(/\+/g, ' ')));
+        try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ }
       }, 200);
     }
   } catch (e) {
@@ -124,4 +129,23 @@ if (!window.__registryMenuResetBound) {
       }
     }
   }, 300);
+}
+
+// фильтр по статусу (переход с дашборда «Требуют внимания»): метка над списком объектов, ✕ снимает
+const STATUS_LABELS = { '1_problem': 'Проблема', '2_terminating': 'На расторжении', '2_docs': 'Не хватает документов', '2_attention': 'Требует внимания', '3_ok': 'В порядке', 'none': 'Статус не задан', 'attention': 'Все, кроме «В порядке»' };
+async function applyStatusFilter(v, refresh) {
+  const target = ctx.model.flowEngine.getModel('ozazmpm4o4v');
+  const box = document.getElementById('obj-status-filter');
+  if (!target || !target.resource) return;
+  if (!v) target.resource.removeFilterGroup('statusFilter');
+  else if (v === 'none') target.resource.addFilterGroup('statusFilter', { contract_status: { $empty: true } });
+  else if (v === 'attention') target.resource.addFilterGroup('statusFilter', { contract_status: { $in: ['1_problem', '2_terminating', '2_docs', '2_attention'] } });
+  else target.resource.addFilterGroup('statusFilter', { contract_status: v });
+  if (box) {
+    box.innerHTML = v ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 10px;padding:6px 10px;border:1px solid #91caff;background:#e6f4ff;border-radius:6px;font-size:13px;color:#0958d9;">'
+      + '<span>Статус: <b>' + esc(STATUS_LABELS[v] || v) + '</b></span><a href="#" id="obj-status-clear" title="Снять фильтр по статусу" style="color:#0958d9;text-decoration:none;font-size:15px;">✕</a></div>' : '';
+    const x = document.getElementById('obj-status-clear');
+    if (x) x.addEventListener('click', function(e) { e.preventDefault(); applyStatusFilter('', true); });
+  }
+  if (refresh) { target.resource.setPage(1); await target.resource.refresh(); }
 }

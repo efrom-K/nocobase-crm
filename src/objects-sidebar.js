@@ -36,7 +36,7 @@ function esc(v) {
   return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// на вкладках «Черновики»/«Дашборд» своей таблицы нет — фильтр ставится на «Активные» (туда ведёт «Договоры объекта →»)
+// на вкладке «Черновики» своей таблицы нет — фильтр ставится на «Активные»
 function getActiveTable() { const t = window.__activeRegistryTable; return ['ozazmpm4o4v', 'formtbl000001', 'ipb7gfluldk'].indexOf(t) !== -1 ? t : 'ozazmpm4o4v'; }
 
 async function applyFilter(name) {
@@ -55,9 +55,7 @@ async function applyFilter(name) {
   if (search) search.value = '';
   window.__activeObjectFilter = name || '';
   paintActive();
-  if (window.__cmDashObjectChanged) window.__cmDashObjectChanged();
 }
-window.__cmApplyObjectFilter = applyFilter;   // дашборд (registry-tabs.js) выбирает объект через эту же панель
 
 function paintActive() {
   if (!root) return;
@@ -90,6 +88,16 @@ async function load() {
       el.addEventListener('click', function() { applyFilter(el.getAttribute('data-obj')); });
     });
     paintActive();
+    // переход с дашборда «Договоры объекта →»: ?obj=<название> — сразу фильтр по объекту (таблица может ещё не прогрузиться)
+    const m = location.search.match(/[?&]obj=([^&]*)/);
+    if (m) {
+      const name = decodeURIComponent(m[1].replace(/\+/g, ' '));
+      let tries = 0;
+      const t = setInterval(function() {
+        const target = ctx.model.flowEngine.getModel(getActiveTable());
+        if ((target && target.resource) || ++tries > 50) { clearInterval(t); applyFilter(name); history.replaceState(null, '', location.pathname); }
+      }, 200);
+    }
   } catch (e) {
     if (root) root.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки объектов</span>';
   }

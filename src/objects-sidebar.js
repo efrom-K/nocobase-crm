@@ -95,7 +95,7 @@ async function load() {
       let tries = 0;
       const t = setInterval(function() {
         const target = ctx.model.flowEngine.getModel(getActiveTable());
-        if ((target && target.resource) || ++tries > 50) { clearInterval(t); applyFilter(name); history.replaceState(null, '', location.pathname); }
+        if ((target && target.resource) || ++tries > 50) { clearInterval(t); applyFilter(name); try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
       }, 200);
     }
   } catch (e) {

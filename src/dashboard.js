@@ -58,7 +58,7 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-obj-area { font-size:13px; font-variant-numeric:tabular-nums; margin-bottom:4px; }
     #cm-dash-panel .dash-obj-kv { display:grid; grid-template-columns:1fr auto; gap:3px 10px; font-size:12.5px; margin-top:8px; }
     #cm-dash-panel .dash-obj-kv div:nth-child(odd) { color:#8c8c8c; }
-    #cm-dash-panel .dash-obj-kv div:nth-child(even) { text-align:right; font-variant-numeric:tabular-nums; }
+    #cm-dash-panel .dash-obj-kv div:nth-child(even) { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
     #cm-dash-panel .dash-obj-flags { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
     #cm-dash-panel .dash-bad { color:#cf1322; }
     @media (max-width: 700px) { #cm-dash-panel .dash-grid { grid-template-columns:1fr; } #cm-dash-panel .dash-hbar { grid-template-columns:120px 1fr 36px; } }
@@ -454,15 +454,16 @@ function objectCardsHtml(stats, active, today) {
     if (o.terminating) flags.push(flag('На расторжении: ' + o.terminating, '#722ed1'));
     if (o.incomplete) flags.push(flag('Без площади или цены: ' + o.incomplete, '#d46b08'));
     const nt = nearest[o.name];
-    const ntTxt = nt ? dDateTxt(nt.t) + (dDays(nt.t) < 0 ? ' (прошла)' : ' (через ' + dDays(nt.t) + ' ' + dNoun(dDays(nt.t), 'день', 'дня', 'дней') + ')') : '—';
+    const ntTxt = nt ? dDateTxt(nt.t) + (dDays(nt.t) < 0 ? ', прошла' : ', ' + dDays(nt.t) + ' ' + dNoun(dDays(nt.t), 'день', 'дня', 'дней')) : '—';
     return '<div class="dash-obj" data-obj-card="' + dEsc(o.name) + '">'
       + '<div class="dash-obj-name">' + dEsc(o.name) + '<span>' + o.active + ' ' + dNoun(o.active, 'договор', 'договора', 'договоров') + '</span></div>'
       + area
       + '<div class="dash-obj-kv">'
       + '<div>В месяц</div><div><b>' + (o.monthly ? dMoney(o.monthly) : '—') + '</b></div>'
       + '<div>Обеспечительные</div><div>' + (o.deposit ? dMoney(o.deposit) : '—') + '</div>'
-      + '<div>Формирующиеся / архив</div><div>' + o.forming + ' / ' + o.completed + '</div>'
-      + '<div>Ближайшее расторжение</div><div>' + ntTxt + '</div>'
+      + '<div>Формируются</div><div>' + o.forming + '</div>'
+      + '<div>В архиве</div><div>' + o.completed + '</div>'
+      + '<div>Расторжение</div><div>' + ntTxt + '</div>'
       + '</div>'
       + (flags.length ? '<div class="dash-obj-flags">' + flags.join('') + '</div>' : '')
       + '</div>';

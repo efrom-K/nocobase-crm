@@ -3058,6 +3058,12 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       form.style.display = 'block';
       btn.style.display = 'none';
       wireGenericFieldMasks(form);
+      if (key === 'status') {
+        // статус от системы показываем как «Автоматически», причину — только у ручного статуса (иначе в поле остаётся автоматическая)
+        const sel = form.querySelector('[data-field="contract_status"]'), rs = form.querySelector('[data-field="status_reason"]');
+        if (sel) sel.value = r.status_manual ? (r.contract_status || '') : '';
+        if (rs) rs.value = r.status_manual ? (r.status_reason || '') : '';
+      }
     });
   });
 
@@ -3104,6 +3110,12 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
         if (!Object.keys(values).length) { form.style.display = 'none'; readonly.style.display = ''; if (toggleBtn) toggleBtn.style.display = ''; if (statusEl) statusEl.textContent = ''; btn.disabled = false; return; }
+        if (key === 'status') {
+          // «Автоматически» при автоматическом статусе — ничего не меняли
+          if (hasKey(values, 'contract_status') && !values.contract_status && !r.status_manual) delete values.contract_status;
+          if (hasKey(values, 'status_reason') && !r.status_manual && !values.status_reason) delete values.status_reason;
+          if (!Object.keys(values).length) { form.style.display = 'none'; readonly.style.display = ''; if (toggleBtn) toggleBtn.style.display = ''; if (statusEl) statusEl.textContent = ''; btn.disabled = false; return; }
+        }
         const becameProblem = values.contract_status === '1_problem' && r.contract_status !== '1_problem';
         if (key === 'status') {
           const reasonEl = form.querySelector('[data-field="status_reason"]');

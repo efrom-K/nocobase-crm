@@ -36,7 +36,8 @@ function esc(v) {
   return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function getActiveTable() { return window.__activeRegistryTable || 'ozazmpm4o4v'; }
+// на вкладках «Черновики»/«Дашборд» своей таблицы нет — фильтр ставится на «Активные» (туда ведёт «Договоры объекта →»)
+function getActiveTable() { const t = window.__activeRegistryTable; return ['ozazmpm4o4v', 'formtbl000001', 'ipb7gfluldk'].indexOf(t) !== -1 ? t : 'ozazmpm4o4v'; }
 
 async function applyFilter(name) {
   const uid = getActiveTable();
@@ -54,7 +55,9 @@ async function applyFilter(name) {
   if (search) search.value = '';
   window.__activeObjectFilter = name || '';
   paintActive();
+  if (window.__cmDashObjectChanged) window.__cmDashObjectChanged();
 }
+window.__cmApplyObjectFilter = applyFilter;   // дашборд (registry-tabs.js) выбирает объект через эту же панель
 
 function paintActive() {
   if (!root) return;
@@ -65,8 +68,16 @@ function paintActive() {
 
 async function load() {
   try {
-    const res = await ctx.api.resource('contract_objects').list({ pageSize: 200, sort: '-count' });
-    const list = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+    // число активных договоров считается вживую по rental_contracts (поле count в contract_objects больше не используется)
+    const both = await Promise.all([
+      ctx.api.resource('contract_objects').list({ pageSize: 200, sort: 'name' }),
+      ctx.api.resource('rental_contracts').list({ paginate: false, fields: ['id', 'object_name'] })
+    ]);
+    const rows = function(res) { const d = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : []; return Array.isArray(d) ? d : []; };
+    const counts = {};
+    rows(both[1]).forEach(function(r) { const n = (r.object_name || '').trim(); if (n) counts[n] = (counts[n] || 0) + 1; });
+    const list = rows(both[0]).map(function(o) { return { name: o.name, count: counts[o.name] || 0 }; })
+      .sort(function(a, b) { return b.count - a.count || String(a.name).localeCompare(String(b.name), 'ru'); });
     const total = list.reduce(function(sum, o) { return sum + (Number(o.count) || 0); }, 0);
     let html = '<div class="obj-item" data-obj="">'
       + '<span class="obj-name">Все объекты</span><span class="obj-count">' + total + '</span></div>';

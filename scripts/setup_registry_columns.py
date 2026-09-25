@@ -18,9 +18,9 @@ def psql(sql, tuples=True):
 def uid():
     return ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(11))
 TABLES = [('ozazmpm4o4v','rental_contracts'),('formtbl000001','forming_contracts'),('ipb7gfluldk','completed_contracts')]
-ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','termination_date','rent_amount','deposit_amount','inn']
-NEW = ['contract_status','payment_status','total_amount','termination_date','rent_amount','deposit_amount','inn']
-ACTIVE_ONLY = {'contract_status', 'payment_status'}     # статусы-светофоры есть только у активных договоров (rental_contracts)
+ORDER = ['contract_number','contract_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','termination_date','rent_amount','deposit_amount','inn']
+NEW = ['contract_status','total_amount','termination_date','rent_amount','deposit_amount','inn']
+ACTIVE_ONLY = {'contract_status'}     # статусы-светофоры есть только у активных договоров (rental_contracts)
 STATUS_FIELDS = ACTIVE_ONLY
 HIDDEN_DEFAULT = {'termination_date','rent_amount','deposit_amount','inn'}
 DATES = {'date_signed','date_act','termination_date'}
@@ -72,7 +72,7 @@ def psql(sql, tuples=True):
     return r.stdout.decode()
 def q(s): return "'" + str(s).replace("'", "''") + "'"
 TABLES = ['ozazmpm4o4v','formtbl000001','ipb7gfluldk']
-ORDER = ['contract_number','contract_status','payment_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','termination_date','rent_amount','deposit_amount','inn']
+ORDER = ['contract_number','contract_status','date_signed','date_act','object_name','tenant_name','area_sqm','total_amount','email','phone','tenant_fio','termination_date','rent_amount','deposit_amount','inn']
 MONEY = {'total_amount','rent_amount','deposit_amount'}
 AREA = {'area_sqm'}
 stmts = ['begin;']

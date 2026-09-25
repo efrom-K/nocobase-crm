@@ -6,7 +6,7 @@
 Пороги: за 90 / 60 / 30 дней до даты расторжения. Каждый порог по конкретной дате отправляется один раз
 (таблица contract_reminders_log); если дату расторжения изменили — напоминания стартуют заново.
 Получатели: только прикреплённые к договору сотрудники (открепили — перестают получать); без сотрудников — никому.
-Заодно: договор с заполненной датой расторжения получает статус «Требует внимания» (один раз на каждую дату,
+Заодно: за 90 дней до даты расторжения договор получает статус «На расторжении» (один раз на каждую дату,
 «Проблему» не понижает; если потом статус поменяли вручную — скрипт его не трогает).
 
     expiry_reminders.py            # отправить
@@ -21,7 +21,8 @@ REGISTRY_PAGE = os.environ.get('NB_REGISTRY_PAGE', 'b5znz7yxpy3')   # uid стр
 DRY = '--dry-run' in sys.argv
 SEED = '--seed' in sys.argv
 THRESHOLDS = [30, 60, 90]
-STATUS_MARK = 1000   # запись в журнале «статус «Требует внимания» уже выставлен для этой даты»
+STATUS_MARK = 1001   # запись в журнале «статус «На расторжении» уже выставлен для этой даты» (1000 — прежний «Требует внимания», не используется)
+STATUS_DAYS = 90
 PSQL = ['sudo', '-n', 'docker', 'exec', '-i', 'nocobase-postgres-1', 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
 def psql(sql):
@@ -53,12 +54,12 @@ for c in contracts:
     end = parse(c['termination_date'])
     if not end: continue
     key_date = 't:' + c['termination_date']          # префикс — чтобы не пересечься со старыми записями по дате окончания
-    if (c['id'], STATUS_MARK, key_date) not in sent:
-        if c['contract_status'] != '1_problem':
-            stmts.append("update rental_contracts set contract_status='2_attention' where id=%s;" % c['id'])
-        stmts.append("insert into contract_reminders_log(contract_id,threshold,end_date) values(%s,%s,%s);" % (c['id'], STATUS_MARK, q(key_date)))
-        report.append((c['id'], 'статус', '-', 0, 'статус «Требует внимания»'))
     days = (end - today).days
+    if days <= STATUS_DAYS and (c['id'], STATUS_MARK, key_date) not in sent:
+        if c['contract_status'] not in ('1_problem', '2_terminating'):
+            stmts.append("update rental_contracts set contract_status='2_terminating' where id=%s;" % c['id'])
+        stmts.append("insert into contract_reminders_log(contract_id,threshold,end_date) values(%s,%s,%s);" % (c['id'], STATUS_MARK, q(key_date)))
+        report.append((c['id'], 'статус', days, 0, 'статус «На расторжении»'))
     if days < 0: continue
     cands = [t for t in THRESHOLDS if days <= t]
     if not cands: continue

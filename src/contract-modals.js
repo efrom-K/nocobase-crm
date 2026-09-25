@@ -1851,19 +1851,18 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
 const STATUS_TONES = {
   green: { bg: '#f6ffed', border: '#b7eb8f', fg: '#389e0d' },
   amber: { bg: '#fffbe6', border: '#ffe58f', fg: '#d48806' },
-  red: { bg: '#fff2f0', border: '#ffccc7', fg: '#cf1322' }
+  red: { bg: '#fff2f0', border: '#ffccc7', fg: '#cf1322' },
+  blue: { bg: '#e6f4ff', border: '#91caff', fg: '#0958d9' },
+  purple: { bg: '#f9f0ff', border: '#d3adf7', fg: '#531dab' }
 };
 // значения имеют числовой префикс, чтобы при сортировке по столбцу проблемные («красные») шли первыми
 const STATUS_OPTIONS = {
   contract_status: [
     { value: '3_ok', label: 'В порядке', tone: 'green' },
     { value: '2_attention', label: 'Требует внимания', tone: 'amber' },
+    { value: '2_docs', label: 'Не хватает документов', tone: 'blue' },
+    { value: '2_terminating', label: 'На расторжении', tone: 'purple' },   // ставится сам за 90 дней до даты расторжения
     { value: '1_problem', label: 'Проблема', tone: 'red' }
-  ],
-  payment_status: [
-    { value: '3_paid', label: 'Оплачено', tone: 'green' },
-    { value: '2_waiting', label: 'Ожидает оплаты', tone: 'amber' },
-    { value: '1_overdue', label: 'Просрочка', tone: 'red' }
   ]
 };
 function statusPill(name, value) {
@@ -2674,8 +2673,8 @@ const STAGE_DEFS = [
   ]},
   { title: 'Финал (Акт и Скан)', role: 'legal_dept', fields: [
       { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
-      { name: 'contract_scan_url', label: 'Скан подписанного договора, имя файла', type: 'text' },
-      { name: 'act_scan_url', label: 'Скан подписанного акта, имя файла', type: 'text' }
+      { name: 'contract_scan_url', label: 'Скан подписанного договора', type: 'scan' },
+      { name: 'act_scan_url', label: 'Скан подписанного акта', type: 'scan' }
   ]}
 ];
 const STAGE_ROLE_TITLES = { rental_dept: 'Отдел Аренды', legal_dept: 'Юридический отдел — Договоры', accounting_dept: 'Бухгалтерия' };
@@ -2722,6 +2721,12 @@ function readonlyFieldValue(f, r) {
 }
 
 function renderEditableField(f, value, rec) {
+  if (f.type === 'scan') {
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><div style="display:flex;align-items:center;gap:8px;">'
+      + '<input type="hidden" data-field="' + f.name + '" value="' + escAttr(value) + '">'
+      + '<button type="button" class="cm-upload-btn" data-scan-upload="' + f.name + '">' + (value ? 'Заменить файл' : '+ Загрузить файл') + '</button>'
+      + '<span data-scan-name="' + f.name + '" style="font-size:12px;color:#595959;">' + esc(value || 'не загружен') + '</span></div></div>';
+  }
   if (f.type === 'calc') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input cm-field-calc" data-calc-total="1" readonly tabindex="-1" value="' + escAttr(f.name === 'total_amount' && rec ? readonlyTotalText(rec) : '') + '">'
       + (f.hint ? '<div class="cm-derived-hint">' + esc(f.hint) + '</div>' : '') + '</div>';
@@ -2866,8 +2871,7 @@ function bindComboField(root, fieldName, options) {
 
 const ACTIVE_BLOCK_DEFS = [
   { key: 'status', title: 'Статусы', activeOnly: true, fields: [
-      { name: 'contract_status', label: 'Статус договора', type: 'status' },
-      { name: 'payment_status', label: 'Статус оплаты', type: 'status' }
+      { name: 'contract_status', label: 'Статус договора', type: 'status' }
   ]},
   { key: 'data', title: 'Блок Данных по договору', fields: [
       { name: 'object_name', label: 'Объект', type: 'text' },
@@ -2876,7 +2880,9 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'purpose', label: 'Назначение по договору', type: 'text' },
       { name: 'date_signed', label: 'Дата заключения договора', type: 'date' },
       { name: 'date_act', label: 'Дата подписания акта приёма-передачи', type: 'date' },
-      // необязательное: заполняют уже у действующего договора; заполнили — статус «Требует внимания», за 90/60/30 дней уведомления
+      { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
+      { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
+      // необязательное: заполняют уже у действующего договора; за 90 дней — статус «На расторжении», за 90/60/30 дней уведомления
       { name: 'termination_date', label: 'Дата расторжения договора', type: 'date' }
   ]},
   // основная цена (на весь срок) — base_*; текущая цена договора (rent_*) считается по «Графику цены аренды»
@@ -2904,6 +2910,15 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
       { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' }
+  ]},
+  { key: 'forming', title: 'Из оформления', fields: [
+      { name: 'comment_stage0', label: 'Комментарий по заявке', type: 'textarea', full: true },
+      { name: 'comment_stage2', label: 'Комментарий по условиям', type: 'textarea', full: true },
+      { name: 'avito_url', label: 'Ссылка Авито', type: 'url' },
+      { name: 'cian_url', label: 'Ссылка Циан', type: 'url' },
+      { name: 'other_url', label: 'Ссылка ещё где-то', type: 'url' },
+      { name: 'contract_scan_url', label: 'Скан подписанного договора', type: 'text' },
+      { name: 'act_scan_url', label: 'Скан подписанного акта', type: 'text' }
   ]},
   { key: 'notes', title: 'Примечания', fields: [
       { name: 'notes', label: 'Текст примечания', type: 'textarea', full: true }
@@ -3041,9 +3056,10 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
       if (statusEl) statusEl.textContent = 'Сохранение…';
       try {
         if (!Object.keys(values).length) { form.style.display = 'none'; readonly.style.display = ''; if (toggleBtn) toggleBtn.style.display = ''; if (statusEl) statusEl.textContent = ''; btn.disabled = false; return; }
-        // заполнили дату расторжения — договор «Требует внимания» (статус «Проблема» не понижаем)
-        if (values.termination_date && values.termination_date !== toISODate(r.termination_date) && r.contract_status !== '1_problem')
-          values.contract_status = '2_attention';
+        // до расторжения 90 дней и меньше — «На расторжении» сразу, не дожидаясь ночного скрипта (статус «Проблема» не понижаем)
+        if (values.termination_date && values.termination_date !== toISODate(r.termination_date) && r.contract_status !== '1_problem'
+            && (new Date(values.termination_date) - new Date(toISODate(new Date()))) / 86400000 <= 90)
+          values.contract_status = '2_terminating';
         const upResp = await updateWithHistory('rental_contracts', id, values);
         Object.assign(r, values, (upResp && upResp.__cmDerived) || {});
         if (root.__cmAfterPriceChange) await root.__cmAfterPriceChange();
@@ -3527,16 +3543,28 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone) {
   const btn = root.querySelector('#' + ids.btn);
   const status = root.querySelector('#' + ids.status);
   if (!input || !btn) return;
-  btn.addEventListener('click', function() { input.click(); });
+  btn.addEventListener('click', function() { root.__cmScanField = null; input.click(); });
+  // кнопки «Загрузить файл» у сканов финального этапа: тот же файл уходит в «Файлы», имя — в поле скана
+  root.querySelectorAll('[data-scan-upload]').forEach(function(b) {
+    b.addEventListener('click', function() { root.__cmScanField = b.getAttribute('data-scan-upload'); input.click(); });
+  });
   input.addEventListener('change', async function() {
     const file = input.files[0];
     if (!file) return;
+    const scanField = root.__cmScanField; root.__cmScanField = null;
     btn.disabled = true;
     status.textContent = 'Загрузка…';
     try {
       await uploadContractFile(file, contractId, collectionName);
       logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Загружен файл: ' + file.name }]);
       status.textContent = 'Готово';
+      const scanEl = scanField && root.querySelector('[data-field="' + scanField + '"]');
+      if (scanEl) {
+        scanEl.value = file.name;
+        fireInput(scanEl);
+        const nameEl = root.querySelector('[data-scan-name="' + scanField + '"]');
+        if (nameEl) nameEl.textContent = file.name;
+      }
       if (onDone) await onDone();
     } catch (e) {
       status.textContent = '';
@@ -3615,7 +3643,8 @@ async function completeContract(id, members, contractNumber) {
     rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: f.total_amount,
     deposit_invoiced: f.deposit_invoiced, deposit_paid: f.deposit_paid, rent_invoiced: f.rent_invoiced, rent_paid: f.rent_paid,
-    calc_comment: f.calc_comment,
+    calc_comment: f.calc_comment, comment_stage0: f.comment_stage0, comment_stage2: f.comment_stage2,
+    avito_url: f.avito_url, cian_url: f.cian_url, other_url: f.other_url, actual_start_date: f.actual_start_date, signing_method: f.signing_method,
     inn: f.inn, contact_person: f.contact_person, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
@@ -3686,7 +3715,8 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
     end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount,
     base_utility_per_sqm: f.utility_per_sqm, base_utility_amount: f.utility_amount, base_deposit_amount: f.deposit_amount,
-    calc_comment: f.comment_stage4,
+    calc_comment: f.comment_stage4, comment_stage0: f.comment_stage0, comment_stage2: f.comment_stage2,
+    avito_url: f.avito_url, cian_url: f.cian_url, other_url: f.other_url, actual_start_date: f.actual_start_date, signing_method: f.signing_method,
     deposit_amount: f.deposit_amount, rent_amount: f.rent_amount, utility_amount: f.utility_amount, total_amount: calcTotal(f.rent_amount, f.utility_amount),
     inn: f.inn, contact_person: f.tenant_fio, bank_account: f.bank_account, bik: f.bik, bank_name: f.bank_name, corr_account: f.corr_account,
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,

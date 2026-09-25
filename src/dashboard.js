@@ -59,6 +59,8 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-step:not(:last-child)::after { content:''; position:absolute; top:17px; left:calc(50% + 19px); right:calc(-50% + 19px); height:2px; background:#e8e8e8; }
     #cm-dash-panel .dash-step-dot { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; border:2px solid #e8e8e8; color:#bfbfbf; background:#fff; font-variant-numeric:tabular-nums; }
     #cm-dash-panel .dash-step-dot.on { background:#1677ff; border-color:#1677ff; color:#fff; }
+    #cm-dash-panel .dash-step[data-go]:hover .dash-step-dot { box-shadow:0 0 0 4px #bae0ff; }
+    #cm-dash-panel .dash-step[data-go]:hover .dash-step-lbl { color:#1677ff; }
     #cm-dash-panel .dash-step-lbl { font-size:11.5px; color:#595959; text-align:center; margin-top:6px; line-height:1.3; padding:0 2px; }
     #cm-dash-panel .dash-row { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid #f5f5f5; font-size:13px; }
     #cm-dash-panel .dash-row:first-child { border-top:none; }
@@ -331,8 +333,9 @@ function renderObject(name) {
   forming.forEach(function(r) { if (r.is_quick) quick++; else stageN[Math.min(r.current_stage || 0, 5)]++; });
   const stepsBody = forming.length
     ? '<div class="dash-steps">' + DASH_STAGES.map(function(t, i) {
-        return '<div class="dash-step"><div class="dash-step-dot' + (stageN[i] ? ' on' : '') + '">' + stageN[i] + '</div><div class="dash-step-lbl">' + (i + 1) + '. ' + dEsc(t) + '</div></div>';
-      }).join('') + '</div>' + (quick ? '<div class="dash-tile-note" style="margin-top:10px;">и срочных (одной формой): ' + quick + '</div>' : '')
+        const go = stageN[i] ? ' data-go="stage=' + i + '&obj=' + encodeURIComponent(name) + '" title="Открыть договоры на этом этапе"' : '';
+        return '<div class="dash-step"' + go + '><div class="dash-step-dot' + (stageN[i] ? ' on' : '') + '">' + stageN[i] + '</div><div class="dash-step-lbl">' + (i + 1) + '. ' + dEsc(t) + '</div></div>';
+      }).join('') + '</div>' + (quick ? '<div class="dash-tile-note" style="margin-top:10px;" data-go="stage=quick&obj=' + encodeURIComponent(name) + '">и срочных (одной формой): <a style="color:#1677ff;">' + quick + '</a></div>' : '')
     : '<div class="dash-empty">Новых договоров в оформлении нет</div>';
 
   // сроки: расторжения и смены цены

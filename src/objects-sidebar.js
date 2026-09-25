@@ -89,16 +89,20 @@ async function load() {
     });
     paintActive();
     // переход с дашборда: ?obj=<название> и/или ?status=<значение> — сразу фильтр на «Активных» (таблица может ещё не прогрузиться)
+    // ?stage=<0..5>|quick — «Формирующиеся» на этапе оформления (кружки этапов на дашборде)
     const m = location.search.match(/[?&]obj=([^&]*)/);
     const ms = location.search.match(/[?&]status=([^&]*)/);
-    if (m || ms) {
+    const mg = location.search.match(/[?&]stage=([^&]*)/);
+    if (m || ms || mg) {
+      const uid = mg ? 'formtbl000001' : 'ozazmpm4o4v';
       let tries = 0;
       const t = setInterval(function() {
-        const target = ctx.model.flowEngine.getModel('ozazmpm4o4v');
+        const target = ctx.model.flowEngine.getModel(uid);
         if (!(target && target.resource) && ++tries <= 50) return;
         clearInterval(t);
-        if (window.switchRegistryTable) window.switchRegistryTable('ozazmpm4o4v');
+        if (window.switchRegistryTable) window.switchRegistryTable(uid);
         if (ms) applyStatusFilter(decodeURIComponent(ms[1]), !m);
+        if (mg) applyStageFilter(decodeURIComponent(mg[1]), !m);
         if (m) applyFilter(decodeURIComponent(m[1].replace(/\+/g, ' ')));
         try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ }
       }, 200);
@@ -133,19 +137,31 @@ if (!window.__registryMenuResetBound) {
 
 // фильтр по статусу (переход с дашборда «Требуют внимания»): метка над списком объектов, ✕ снимает
 const STATUS_LABELS = { '1_problem': 'Проблема', '2_terminating': 'На расторжении', '2_docs': 'Не хватает документов', '2_attention': 'Требует внимания', '3_ok': 'В порядке', 'none': 'Статус не задан', 'attention': 'Все, кроме «В порядке»' };
-async function applyStatusFilter(v, refresh) {
-  const target = ctx.model.flowEngine.getModel('ozazmpm4o4v');
+function applyStatusFilter(v, refresh) {
+  const f = !v ? null : v === 'none' ? { contract_status: { $empty: true } }
+    : v === 'attention' ? { contract_status: { $in: ['1_problem', '2_terminating', '2_docs', '2_attention'] } } : { contract_status: v };
+  return applyExtraFilter('ozazmpm4o4v', f, 'Статус', STATUS_LABELS[v] || v, refresh);
+}
+const STAGE_LABELS = ['1. Заявка на аренду', '2. Размещение объявления', '3. Согласование условий', '4. Подписание договора', '5. Оплата счетов', '6. Финал (акт и скан)'];
+function applyStageFilter(v, refresh) {
+  const n = Number(v);
+  const f = v === 'quick' ? { is_quick: { $isTruly: true } }
+    : n === 0 ? { is_quick: { $isFalsy: true }, $or: [{ current_stage: 0 }, { current_stage: { $empty: true } }] }
+    : { is_quick: { $isFalsy: true }, current_stage: n };
+  return applyExtraFilter('formtbl000001', f, 'Этап', v === 'quick' ? 'срочные (одной формой)' : (STAGE_LABELS[n] || v), refresh);
+}
+// дополнительный фильтр (с дашборда) на одну таблицу: метка над списком объектов, ✕ снимает
+async function applyExtraFilter(uid, filter, what, label, refresh) {
+  const target = ctx.model.flowEngine.getModel(uid);
   const box = document.getElementById('obj-status-filter');
   if (!target || !target.resource) return;
-  if (!v) target.resource.removeFilterGroup('statusFilter');
-  else if (v === 'none') target.resource.addFilterGroup('statusFilter', { contract_status: { $empty: true } });
-  else if (v === 'attention') target.resource.addFilterGroup('statusFilter', { contract_status: { $in: ['1_problem', '2_terminating', '2_docs', '2_attention'] } });
-  else target.resource.addFilterGroup('statusFilter', { contract_status: v });
+  if (!filter) target.resource.removeFilterGroup('statusFilter');
+  else target.resource.addFilterGroup('statusFilter', filter);
   if (box) {
-    box.innerHTML = v ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 10px;padding:6px 10px;border:1px solid #91caff;background:#e6f4ff;border-radius:6px;font-size:13px;color:#0958d9;">'
-      + '<span>Статус: <b>' + esc(STATUS_LABELS[v] || v) + '</b></span><a href="#" id="obj-status-clear" title="Снять фильтр по статусу" style="color:#0958d9;text-decoration:none;font-size:15px;">✕</a></div>' : '';
+    box.innerHTML = filter ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 10px;padding:6px 10px;border:1px solid #91caff;background:#e6f4ff;border-radius:6px;font-size:13px;color:#0958d9;">'
+      + '<span>' + esc(what) + ': <b>' + esc(label) + '</b></span><a href="#" id="obj-status-clear" title="Снять фильтр" style="color:#0958d9;text-decoration:none;font-size:15px;">✕</a></div>' : '';
     const x = document.getElementById('obj-status-clear');
-    if (x) x.addEventListener('click', function(e) { e.preventDefault(); applyStatusFilter('', true); });
+    if (x) x.addEventListener('click', function(e) { e.preventDefault(); applyExtraFilter(uid, null, '', '', true); });
   }
   if (refresh) { target.resource.setPage(1); await target.resource.refresh(); }
 }

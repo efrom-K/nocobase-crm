@@ -687,7 +687,7 @@ function renderDashboard() {
     totalKop += k; totalN++;
   });
   const occTile = totalN
-    ? '<div class="dash-tile"><div class="dash-tile-label">Сдано из общей площади</div><div class="dash-tile-value">' + dFmt2(areaKop) + ' / ' + dFmt2(totalKop) + ' м²</div>'
+    ? '<div class="dash-tile" style="grid-column:span 2;"><div class="dash-tile-label">Сдано из общей площади</div><div class="dash-tile-value">' + dFmt2(areaKop) + ' / ' + dFmt2(totalKop) + ' м²</div>'
       + '<div class="dash-hbar-track" style="margin-top:6px;"><div class="dash-hbar-fill" style="width:' + Math.min(100, Math.round(areaKop / totalKop * 100)) + '%;background:#1677ff;"></div></div>'
       + '<div class="dash-tile-note' + (totalKop - areaKop < 0 ? ' dash-bad' : '') + '">свободно ' + dFmt2(totalKop - areaKop) + ' м²' + (obj ? '' : ' · общая площадь указана у ' + totalN + ' ' + dNoun(totalN, 'объекта', 'объектов', 'объектов')) + '</div></div>'
     : tile('Сдано из общей площади', '—', 'укажите общую площадь объекта в таблице «По объектам»');

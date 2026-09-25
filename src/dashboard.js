@@ -50,6 +50,16 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-table tbody tr:hover td { background:#f5faff; }
     #cm-dash-panel .dash-table tfoot td { font-weight:700; border-top:1px solid #f0f0f0; border-bottom:none; }
     #cm-dash-panel .dash-warn { color:#d46b08; }
+    #cm-dash-panel .dash-objs { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; margin-bottom:12px; }
+    #cm-dash-panel .dash-obj { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .12s, box-shadow .12s; }
+    #cm-dash-panel .dash-obj:hover { border-color:#91caff; box-shadow:0 2px 8px rgba(22,119,255,.08); }
+    #cm-dash-panel .dash-obj-name { font-size:15px; font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; gap:8px; }
+    #cm-dash-panel .dash-obj-name span { font-size:12px; font-weight:400; color:#8c8c8c; white-space:nowrap; }
+    #cm-dash-panel .dash-obj-area { font-size:13px; font-variant-numeric:tabular-nums; margin-bottom:4px; }
+    #cm-dash-panel .dash-obj-kv { display:grid; grid-template-columns:1fr auto; gap:3px 10px; font-size:12.5px; margin-top:8px; }
+    #cm-dash-panel .dash-obj-kv div:nth-child(odd) { color:#8c8c8c; }
+    #cm-dash-panel .dash-obj-kv div:nth-child(even) { text-align:right; font-variant-numeric:tabular-nums; }
+    #cm-dash-panel .dash-obj-flags { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
     #cm-dash-panel .dash-bad { color:#cf1322; }
     @media (max-width: 700px) { #cm-dash-panel .dash-grid { grid-template-columns:1fr; } #cm-dash-panel .dash-hbar { grid-template-columns:120px 1fr 36px; } }
   `;
@@ -289,7 +299,7 @@ function renderDashboard() {
   }).join('') : '<div class="dash-empty">Нет арендаторов с несколькими договорами</div>';
 
   // --- таблица объектов (только когда выбраны «Все объекты»)
-  let objTable = '';
+  let objTable = '', objCards = '';
   if (!obj) {
     const stats = objectStats(d.active, d.forming, d.completed, d.objects);
     const k = dashState.sortKey, dir = dashState.sortDir;
@@ -305,6 +315,7 @@ function renderDashboard() {
       if ((key === 'terminating' || key === 'incomplete') && v) return '<span class="dash-warn">' + v + '</span>';
       return v ? String(v) : '—';
     };
+    objCards = objectCardsHtml(stats, d.active, today);
     objTable = '<div class="dash-card" style="margin-bottom:12px;"><div class="dash-card-title">По объектам<span>строка — открыть объект; суммы по договорам, где значение указано · <a data-act="csv" style="cursor:pointer;">выгрузить в Excel</a></span></div><div class="dash-table-wrap"><table class="dash-table"><thead><tr>'
       + cols.map(function(c) { return '<th data-sort="' + c[0] + '">' + dEsc(c[1]) + (k === c[0] ? (dir > 0 ? ' ↑' : ' ↓') : '') + '</th>'; }).join('')
       + '</tr></thead><tbody>'
@@ -320,6 +331,7 @@ function renderDashboard() {
     + '<div class="dash-sub">обновлено ' + (upd ? ('0' + upd.getHours()).slice(-2) + ':' + ('0' + upd.getMinutes()).slice(-2) : '') + '</div>'
     + '<button class="dash-link" data-act="refresh">↻ Обновить</button></div>'
     + '<div class="dash-tiles">' + tiles + '</div>'
+    + objCards
     + objTable
     + '<div class="dash-grid">'
     + card('Статусы активных договоров', active.length + ' ' + dNoun(active.length, 'договор', 'договора', 'договоров'), statusBody)
@@ -354,6 +366,8 @@ function onDashClick(e) {
     renderDashboard();
     return;
   }
+  const oc = t.closest && t.closest('[data-obj-card]');
+  if (oc) { dashSetObject(oc.getAttribute('data-obj-card')); return; }
   const tr = t.closest && t.closest('tr[data-obj]');
   if (tr) { dashSetObject(tr.getAttribute('data-obj')); return; }
   const op = t.closest && t.closest('[data-open]');
@@ -410,4 +424,49 @@ function dashExportCsv() {
   a.download = 'Объекты ' + ('0' + t.getDate()).slice(-2) + '.' + ('0' + (t.getMonth() + 1)).slice(-2) + '.' + t.getFullYear() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
+}
+
+// карточки объектов: у каждого объекта — свои цифры; объекты без договоров и без общей площади — одной строкой внизу
+function objectCardsHtml(stats, active, today) {
+  const nearest = {};
+  active.forEach(function(r) {
+    const t = dDate(r.termination_date);
+    if (!t) return;
+    const n = objOf(r);
+    if (!nearest[n] || t < nearest[n].t) nearest[n] = { t: t, r: r };
+  });
+  const used = stats.filter(function(o) { return o.active || o.forming || o.completed || o.totalKop !== null; })
+    .sort(function(a, b) { return b.monthly - a.monthly || b.active - a.active || a.name.localeCompare(b.name, 'ru'); });
+  const empty = stats.filter(function(o) { return used.indexOf(o) === -1; }).map(function(o) { return o.name; }).sort(function(a, b) { return a.localeCompare(b, 'ru'); });
+  const flag = function(text, color) { return '<span class="dash-pill" style="color:' + color + ';border-color:' + color + '33;background:' + color + '0d;">' + dEsc(text) + '</span>'; };
+  const cards = used.map(function(o) {
+    let area;
+    if (o.totalKop !== null) {
+      const w = o.totalKop ? Math.min(100, Math.round(o.areaKop / o.totalKop * 100)) : 0;
+      area = '<div class="dash-obj-area">Сдано <b>' + dFmt2(o.areaKop) + '</b> из ' + dFmt2(o.totalKop) + ' м²</div>'
+        + '<div class="dash-hbar-track"><div class="dash-hbar-fill" style="width:' + w + '%;background:#1677ff;"></div></div>'
+        + '<div class="dash-tile-note' + (o.freeKop < 0 ? ' dash-bad' : '') + '">свободно ' + dFmt2(o.freeKop) + ' м²</div>';
+    } else {
+      area = '<div class="dash-obj-area">Сдано <b>' + dFmt2(o.areaKop) + '</b> м²</div><div class="dash-tile-note">общая площадь не указана</div>';
+    }
+    const flags = [];
+    if (o.problem) flags.push(flag('Проблема: ' + o.problem, '#cf1322'));
+    if (o.terminating) flags.push(flag('На расторжении: ' + o.terminating, '#722ed1'));
+    if (o.incomplete) flags.push(flag('Без площади или цены: ' + o.incomplete, '#d46b08'));
+    const nt = nearest[o.name];
+    const ntTxt = nt ? dDateTxt(nt.t) + (dDays(nt.t) < 0 ? ' (прошла)' : ' (через ' + dDays(nt.t) + ' ' + dNoun(dDays(nt.t), 'день', 'дня', 'дней') + ')') : '—';
+    return '<div class="dash-obj" data-obj-card="' + dEsc(o.name) + '">'
+      + '<div class="dash-obj-name">' + dEsc(o.name) + '<span>' + o.active + ' ' + dNoun(o.active, 'договор', 'договора', 'договоров') + '</span></div>'
+      + area
+      + '<div class="dash-obj-kv">'
+      + '<div>В месяц</div><div><b>' + (o.monthly ? dMoney(o.monthly) : '—') + '</b></div>'
+      + '<div>Обеспечительные</div><div>' + (o.deposit ? dMoney(o.deposit) : '—') + '</div>'
+      + '<div>Формирующиеся / архив</div><div>' + o.forming + ' / ' + o.completed + '</div>'
+      + '<div>Ближайшее расторжение</div><div>' + ntTxt + '</div>'
+      + '</div>'
+      + (flags.length ? '<div class="dash-obj-flags">' + flags.join('') + '</div>' : '')
+      + '</div>';
+  }).join('');
+  return '<div class="dash-objs">' + cards + '</div>'
+    + (empty.length ? '<div class="dash-tile-note" style="margin:-4px 0 12px;">Без договоров и общей площади: ' + dEsc(empty.join(', ')) + '</div>' : '');
 }

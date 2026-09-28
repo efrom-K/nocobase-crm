@@ -140,9 +140,9 @@ function measureRow(x, editId, objCount, compact) {
   const edit = editId ? ' <span class="dash-edit" data-edit-area="' + editId + '" data-edit-field="' + x.m.field + '" style="font-size:12px;font-weight:400;margin-left:4px;">' + (x.totalN ? 'изменить' : 'указать всего') + '</span>' : '';
   const notes = [];
   if (has) notes.push('<span class="' + (free < 0 ? 'dash-bad' : '') + '">свободно ' + mFmt(x, free) + '</span>');
-  else if (!compact) notes.push('всего не указано');
+  else if (!compact && !editId) notes.push('всего не указано');
   if (!compact && objCount && x.totalN && x.totalN < objCount) notes.push('всего указано у ' + x.totalN + ' из ' + objCount + ' объектов');
-  if (!compact && x.noArea) notes.push('площадь не указана у ' + dContracts(x.noArea));
+  if (!compact && x.noArea) notes.push('площадь не указана у ' + dOfContracts(x.noArea));
   if (compact) {
     return '<div class="dash-obj-area"><b style="font-weight:600;">' + dEsc(x.m.label) + ':</b> сдано ' + mFmt(x, x.rent) + (has ? ' из ' + mFmt(x, x.total) + ' · ' + notes.join('') : '') + '</div>'
       + (has ? '<div class="dash-track" style="height:5px;margin-top:4px;"><div class="dash-fill" style="width:' + Math.min(100, Math.round(x.rent / x.total * 100)) + '%;"></div></div>' : '');

@@ -4009,11 +4009,37 @@ function wireAutoSaveDraftLazy(root, stageOrQuick, statusElId, isQuick, currentU
     clearTimeout(timer);
     timer = setTimeout(doSave, 700);
   }
+  // запись создаётся, когда поле заполнено (ушли из поля / выбрали значение), а не на каждый символ;
+  // программные подстановки (список объектов, DaData, БИК) шлют input без isTrusted — их тоже считаем заполнением
   formEl.querySelectorAll('[data-field]').forEach(function(el) {
-    const evt = (el.type === 'checkbox') ? 'change' : 'input';
-    el.addEventListener(evt, scheduleSave);
+    el.addEventListener('change', scheduleSave);
+    el.addEventListener('input', function(e) { if (!e.isTrusted) scheduleSave(); });
   });
   formEl.__cmFlush = function() { clearTimeout(timer); return doSave(); };
+}
+
+// перерисовка модалки после создания черновика не должна мешать вводу: запоминаем значения, фокус, курсор и прокрутку
+function snapshotDraftForm(root) {
+  const vals = {};
+  root.querySelectorAll('.cm-stage-form [data-field]').forEach(function(el) { vals[el.getAttribute('data-field')] = el.type === 'checkbox' ? el.checked : el.value; });
+  const a = document.activeElement, wrap = root.querySelector('.ant-modal-wrap');
+  return { vals: vals, focus: a && root.contains(a) ? a.getAttribute('data-field') : null,
+    sel: a && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null, scroll: wrap ? wrap.scrollTop : 0 };
+}
+function restoreDraftForm(root, snap) {
+  let changed = false;
+  root.querySelectorAll('.cm-stage-form [data-field]').forEach(function(el) {
+    const n = el.getAttribute('data-field');
+    if (!(n in snap.vals)) return;
+    if (el.type === 'checkbox') { if (el.checked !== snap.vals[n]) { el.checked = snap.vals[n]; changed = true; } }
+    else if (el.value !== snap.vals[n]) { el.value = snap.vals[n]; changed = true; }
+  });
+  const wrap = root.querySelector('.ant-modal-wrap');
+  if (wrap) wrap.scrollTop = snap.scroll;
+  const f = snap.focus && root.querySelector('.cm-stage-form [data-field="' + snap.focus + '"]');
+  if (f) { f.focus({ preventScroll: true }); if (snap.sel) { try { f.setSelectionRange(snap.sel[0], snap.sel[1]); } catch (e) { /* select/date */ } } }
+  // то, что успели ввести, пока создавалась запись, — сохранить уже в созданный черновик
+  if (changed) root.querySelectorAll('.cm-stage-form').forEach(function(fm) { if (fm.__cmFlush) fm.__cmFlush(); });
 }
 
 async function advanceDraftStage(id, root) {
@@ -4312,7 +4338,9 @@ async function openDraftModal(id, isQuickHint) {
       wireAutoSaveDraftLazy(overlay, stageOrQuick, placeholder.is_quick ? 'cm-save-status-quick' : 'cm-save-status-0', placeholder.is_quick, currentUser.id, async function(realId) {
         const res = await ctx.api.resource('draft_contracts').get({ filterByTk: realId, appends: ['contract_files'] });
         const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+        const snap = snapshotDraftForm(overlay);
         await wireLoadedDraft(r, realId);
+        restoreDraftForm(overlay, snap);
         cmToast('Договор сохранён во вкладку «Черновики» — он виден только вам, пока не опубликуете');
         if (window.refreshDraftsList) window.refreshDraftsList();
       });

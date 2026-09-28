@@ -264,7 +264,7 @@ function kindsTile(active) {
     const on = dashState.kind === kindKey(k.v);
     return '<div class="dash-row" data-act="kind" data-kind="' + dEsc(on ? '' : kindKey(k.v)) + '" style="cursor:pointer;' + (on ? 'background:' + k.color + '14;border-radius:4px;margin:0 -6px;padding:7px 6px;font-weight:600;' : '') + '" title="' + (on ? 'Показать все виды' : 'Показать только ' + dEsc(k.many.toLowerCase())) + '">'
       + '<div class="dash-row-main" style="color:' + k.color + ';">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + (k.v !== 'Машино-место' && x.areaKop ? ' <span class="dash-sub">· ' + dFmt2(x.areaKop) + ' м²</span>' : '') + '</div>'
-      + '<div class="dash-row-side">' + dMoney(x.monthly) + '</div></div>';
+      + '<div class="dash-row-side">' + dMoney(x.monthly) + ' <a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1677ff;margin-left:8px;font-weight:400;">договоры →</a></div></div>';
   }).join('');
   return '<div class="dash-tile"><div class="dash-tile-label">По видам объектов <span style="float:right;">в месяц</span></div>'
     + (rows || '<div class="dash-empty">Договоров нет</div>') + '</div>';
@@ -354,7 +354,9 @@ function objectCard(o) {
   let area;
   const kc = {};
   o.active.forEach(function(r) { kc[kindOf(r)] = (kc[kindOf(r)] || 0) + 1; });
-  const kinds = DASH_KINDS.filter(function(k) { return k.v && kc[k.v]; }).map(function(k) { return kindTxt(k, kc[k.v]); });
+  const kinds = DASH_KINDS.filter(function(k) { return kc[k.v]; }).map(function(k) {
+    return '<a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '&obj=' + encodeURIComponent(o.name) + '" title="Открыть эти договоры в реестре" style="color:' + k.color + ';">' + dEsc(k.v ? kindTxt(k, kc[k.v]) : 'без вида: ' + kc[k.v]) + '</a>';
+  });
   if (dashState.kind === 'Машино-место') {
     area = '<div class="dash-obj-area">сдано машино-мест: ' + o.active.length + '</div>';
   } else if (dashState.kind === 'Земельный участок') {
@@ -369,7 +371,7 @@ function objectCard(o) {
     + '<div class="dash-obj-name">' + dEsc(o.name) + '<span>' + dContracts(o.active.length) + '</span></div>'
     + '<div class="dash-obj-money">' + (o.monthly ? dMoney(o.monthly) : '—') + ' <small>в месяц</small></div>'
     + area
-    + (!dashState.kind && kinds.length ? '<div class="dash-obj-area" style="color:#8c8c8c;">' + dEsc(kinds.join(' · ')) + (kc[''] ? ' · без вида: ' + kc[''] : '') + '</div>' : '')
+    + (!dashState.kind && kinds.length ? '<div class="dash-obj-area" style="color:#8c8c8c;">' + kinds.join(' · ') + '</div>' : '')
     + (chips.length ? '<div class="dash-chips">' + chips.join('') + '</div>' : (o.active.length ? '<div class="dash-chips">' + dChip('без замечаний', '#389e0d') + '</div>' : ''))
     + '</div>';
 }
@@ -476,6 +478,12 @@ function renderObject(name) {
 function onDashClick(e) {
   const t = e.target;
   const c = function(sel) { return t.closest ? t.closest(sel) : null; };
+  const go = c('[data-go]');
+  if (go) {
+    const q = go.getAttribute('data-go');
+    window.location.href = REGISTRY_URL + '?' + q + (/(^|&)kind=/.test(q) ? '' : kindParam());
+    return;
+  }
   const act = c('[data-act]');
   if (act && act.tagName !== 'SELECT') {
     const a = act.getAttribute('data-act');
@@ -486,8 +494,6 @@ function onDashClick(e) {
     if (a === 'csv') dashExportCsv();
     return;
   }
-  const go = c('[data-go]');
-  if (go) { window.location.href = REGISTRY_URL + '?' + go.getAttribute('data-go') + kindParam(); return; }
   const ed = c('[data-edit-area]');
   if (ed) { dashEditArea(ed); return; }
   if (c('.dash-area-input')) return;

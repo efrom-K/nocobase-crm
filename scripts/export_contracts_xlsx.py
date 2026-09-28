@@ -101,7 +101,7 @@ for coll, t, kind, mem, att in KINDS:
         r['_kind'], r['_type'] = kind, t
         r['_contacts'] = '; '.join(', '.join(x for x in (c.get('name'), c.get('position'), c.get('phone'), c.get('email')) if x) for c in by_ref(contacts, t, i)) or None
         r['_members'] = ', '.join(sorted(members.get(i, []))) or None
-        r['_addendums'] = '; '.join((a.get('title') or 'Доп. соглашение') + (' — ' + a['description'] if a.get('description') else '')
+        r['_addendums'] = '; '.join((a.get('title') or 'Доп. соглашение') + (' от ' + '.'.join(reversed(str(a['date_signed'])[:10].split('-'))) if a.get('date_signed') else '') + (' — ' + a['description'] if a.get('description') else '')
                                     + (' [скан: %s]' % files.get(a['file_id'], '#%s' % a['file_id']) if a.get('file_id') else ' [без скана]') for a in by_ref(addendums, t, i)) or None
         r['_periods'] = '; '.join(fmt_period(p) for p in by_ref(periods, t, i)) or None
         r['_files'] = ', '.join(fl.get(i, [])) or None

@@ -3449,7 +3449,8 @@ function renderAddendumsSection(prefix) {
     + '<div id="' + prefix + '-addendums-list" style="margin-top:6px;"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-addendum-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
-    + '<div class="cm-field-row full"><div class="cm-label">Название</div><input type="text" class="cm-field-input" id="' + prefix + '-addendum-title" placeholder="например, Дополнительное соглашение №1"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Название</div><input type="text" class="cm-field-input" id="' + prefix + '-addendum-title" placeholder="например, Дополнительное соглашение №1"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Дата заключения</div><input type="date" class="cm-field-input" id="' + prefix + '-addendum-date"></div>'
     + '<div class="cm-field-row full"><div class="cm-label">Описание и условия</div><textarea class="cm-field-input" id="' + prefix + '-addendum-desc" rows="2"></textarea></div>'
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:8px;">'
@@ -3471,7 +3472,7 @@ function renderAddendumsList(items, canEdit) {
       ? '<span class="cm-addendum-file" data-att-url="' + esc(a.file.url) + '" data-att-name="' + esc((a.file.title || 'file') + (a.file.extname || '')) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc((a.file.title || 'file') + (a.file.extname || '')) + '</span>'
       : '';
     return '<div class="cm-contact-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
-      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + '</div>'
+      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#595959;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
       + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
       + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + (fileHtml ? ' · ' + fileHtml : '') + '</div>'
       + '</div>' + (canEdit ? '<div class="cm-contact-actions"><a data-addendum-edit="' + a.id + '" title="Изменить">✎</a><a data-addendum-del="' + a.id + '" title="Удалить">✕</a></div>' : '')
@@ -3517,6 +3518,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   const formEl = overlay.querySelector('#' + prefix + '-addendum-form');
   const titleInput = overlay.querySelector('#' + prefix + '-addendum-title');
   const descInput = overlay.querySelector('#' + prefix + '-addendum-desc');
+  const dateInput = overlay.querySelector('#' + prefix + '-addendum-date');
   const fileInput = overlay.querySelector('#' + prefix + '-addendum-file');
   const pickBtn = overlay.querySelector('#' + prefix + '-addendum-pick-btn');
   const filenameSpan = overlay.querySelector('#' + prefix + '-addendum-filename');
@@ -3530,7 +3532,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   let items = [], editId = null;
   function resetForm() {
     editId = null;
-    titleInput.value = ''; descInput.value = ''; fileInput.value = '';
+    titleInput.value = ''; descInput.value = ''; dateInput.value = ''; fileInput.value = '';
     filenameSpan.textContent = 'Файл не выбран';
     saveBtn.textContent = 'Сохранить';
   }
@@ -3545,7 +3547,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
         const a = items.find(function(x) { return String(x.id) === el.getAttribute('data-addendum-edit'); });
         if (!a) return;
         editId = a.id;
-        titleInput.value = a.title || ''; descInput.value = a.description || ''; fileInput.value = '';
+        titleInput.value = a.title || ''; descInput.value = a.description || ''; dateInput.value = toISODate(a.date_signed) || ''; fileInput.value = '';
         filenameSpan.textContent = a.file ? 'Сейчас: ' + (a.file.title || 'файл') + (a.file.extname || '') + ' — можно выбрать другой' : 'Файл не выбран';
         saveBtn.textContent = 'Сохранить изменения';
         formEl.style.display = 'block';
@@ -3595,7 +3597,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
       }
       if (editId) {
         const old = items.find(function(x) { return x.id === editId; }) || {};
-        const upd = { title: title, description: descInput.value.trim() };
+        const upd = { title: title, description: descInput.value.trim(), date_signed: dateInput.value || null };
         if (fileId) upd.file_id = fileId;
         await ctx.api.resource('contract_addendums').update({ filterByTk: editId, values: upd });
         // новый файл заменил старый — старый удаляем
@@ -3603,17 +3605,18 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
         const what = [];
         if ((old.title || '') !== title) what.push('название «' + (old.title || '') + '» → «' + title + '»');
         if ((old.description || '') !== upd.description) what.push('описание');
+        if ((toISODate(old.date_signed) || '') !== (upd.date_signed || '')) what.push('дата заключения ' + (upd.date_signed ? fmtDate(upd.date_signed) : '— удалена'));
         if (fileId) what.push('файл');
         logHistory(contractType, contractId, [{ action: 'addendum', text: 'Изменено дополнительное соглашение «' + title + '»' + (what.length ? ': ' + what.join(', ') : '') }]);
       } else {
         await ctx.api.resource('contract_addendums').create({
           values: {
             contract_type: contractType, contract_ref_id: contractId,
-            title: title, description: descInput.value.trim(),
+            title: title, description: descInput.value.trim(), date_signed: dateInput.value || null,
             file_id: fileId, author_id: currentUser.id, created_at: new Date().toISOString()
           }
         });
-        logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено дополнительное соглашение: ' + title }]);
+        logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено дополнительное соглашение: ' + title + (dateInput.value ? ' от ' + fmtDate(dateInput.value) : '') }]);
       }
       resetForm();
       formEl.style.display = 'none';

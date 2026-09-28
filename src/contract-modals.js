@@ -2620,6 +2620,7 @@ window.openContractModal = openContractModal;
 
 // ---------- тип арендатора: юрлицо / ИП / физлицо — от него зависит набор реквизитов ----------
 // ОГРН бывает только у юрлица; у ИП свой номер — ОГРНИП; у физлица ни того, ни другого, зато паспорт.
+const OBJECT_KINDS = ['Помещение', 'Земельный участок', 'Машино-место'];   // вид объекта договора; значения в базе = подписи
 const TENANT_TYPES = ['Юрлицо', 'ИП', 'Физлицо'];   // значения в базе; показываем полными словами (VALUE_LABELS)
 const VALUE_LABELS = {
   tenant_type: { 'Юрлицо': 'Юридическое лицо', 'ИП': 'Индивидуальный предприниматель', 'Физлицо': 'Физическое лицо' },
@@ -2681,6 +2682,7 @@ function wireTenantType(scope, fallbackType) {
 const STAGE_DEFS = [
   { title: 'Заявка на аренду', role: 'rental_dept', fields: [
       { name: 'object_name', label: 'Объект', type: 'combo', listId: 'cm-object-datalist' },
+      { name: 'object_kind', label: 'Вид объекта', type: 'select', options: OBJECT_KINDS },
       { name: 'area_sqm', label: 'Площадь, квадратных метров', type: 'decimal' },
       { name: 'rent_per_sqm', label: 'Арендная плата за 1 квадратный метр в месяц', type: 'money' },
       { name: 'utility_per_sqm', label: 'Эксплуатационный сбор за 1 квадратный метр в месяц', type: 'money' },
@@ -2935,6 +2937,7 @@ const ACTIVE_BLOCK_DEFS = [
   { key: 'data', title: 'Блок Данных по договору', fields: [
       { name: 'object_name', label: 'Объект', type: 'text' },
       { name: 'contract_number', label: 'Номер договора', type: 'text' },
+      { name: 'object_kind', label: 'Вид объекта', type: 'select', options: OBJECT_KINDS },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
       { name: 'purpose', label: 'Назначение по договору', type: 'text' },
       { name: 'date_signed', label: 'Дата заключения договора', type: 'date' },
@@ -3725,7 +3728,7 @@ async function completeContract(id, members, contractNumber) {
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
-    object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
     end_date: f.end_date, termination_date: f.termination_date, purpose: f.purpose,
     rooms_list: f.rooms_list, room_ids: f.room_ids,
@@ -3810,7 +3813,7 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
-    object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
     end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount,
@@ -4068,7 +4071,7 @@ async function publishDraftContract(id, root, nextStage, doneStageTitle) {
   const contractNumber = f.contract_number || f.object_name || ('#' + id);
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
-    object_name: f.object_name, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio, current_stage: nextStage || 0,
     avito_url: f.avito_url, cian_url: f.cian_url, other_url: f.other_url, purpose: f.purpose,
     comment_stage0: f.comment_stage0, comment_stage2: f.comment_stage2, comment_stage4: f.comment_stage4,

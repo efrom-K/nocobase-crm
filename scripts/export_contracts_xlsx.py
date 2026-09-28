@@ -37,7 +37,7 @@ COLS = [
     ('Раздел', lambda r: r['_kind']),
     ('Этап оформления', lambda r: ('Срочный (одной формой)' if r.get('is_quick') else STAGES[min(r.get('current_stage') or 0, 5)]) if r['_type'] in ('forming', 'draft') else None),
     ('Номер в системе', lambda r: '%s-%s' % (r['_type'], r['id'])),
-    ('Объект', g('object_name')), ('Номер договора', g('contract_number')), ('Арендатор', g('tenant_name')),
+    ('Объект', g('object_name')), ('Номер договора', g('contract_number')), ('Вид объекта', g('object_kind')), ('Арендатор', g('tenant_name')),
     ('Тип арендатора', lambda r: LABELS['tenant_type'].get(r.get('tenant_type'), r.get('tenant_type'))),
     ('Статус', lambda r: STATUS.get(r.get('contract_status'), r.get('contract_status'))), ('Причина статуса', g('status_reason')),
     ('Дата заключения', g('date_signed')), ('Дата акта приёма-передачи', g('date_act')), ('Дата расторжения', g('termination_date')),

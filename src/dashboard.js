@@ -99,7 +99,28 @@ const DASH_STATUS = [
   { v: '', label: 'Статус не задан', color: '#8c8c8c' }
 ];
 const DASH_STAGES = ['Заявка', 'Объявление', 'Условия', 'Подписание', 'Оплата счетов', 'Акт и скан'];
-const dashState = { data: null, loadedAt: null, loading: null, obj: '' };
+const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '' };
+// вид объекта договора (поле object_kind); '' — вид не указан. Площадь в м² складываем только у помещений (и у договоров без вида —
+// до внедрения поля все договоры были помещениями); участки — отдельной площадью, машино-места — штуками.
+const DASH_KINDS = [
+  { v: 'Помещение', many: 'Помещения', n: ['помещение', 'помещения', 'помещений'], color: '#1677ff' },
+  { v: 'Земельный участок', many: 'Земельные участки', n: ['земельный участок', 'земельных участка', 'земельных участков'], color: '#389e0d' },
+  { v: 'Машино-место', many: 'Машино-места', n: ['машино-место', 'машино-места', 'машино-мест'], color: '#d46b08' },
+  { v: '', many: 'Вид не указан', n: ['без вида', 'без вида', 'без вида'], color: '#8c8c8c' }
+];
+function kindOf(r) { return r.object_kind || ''; }
+function kindTxt(k, n) { return n + ' ' + dNoun(n, k.n[0], k.n[1], k.n[2]); }
+function kindKey(v) { return v === '' ? 'none' : v; }   // для ?kind= и выбора в шапке
+// что складывается в «площадь» при текущем фильтре: по умолчанию помещения (+ без вида), при фильтре «участки» — участки
+function areaCounts(r) { const k = kindOf(r); return dashState.kind === 'Земельный участок' ? k === 'Земельный участок' : (k === 'Помещение' || k === ''); }
+// данные с учётом фильтра по виду объекта
+function dv() {
+  const d = dashState.data;
+  if (!dashState.kind) return d;
+  const want = dashState.kind === 'none' ? '' : dashState.kind;
+  const f = function(r) { return kindOf(r) === want; };
+  return Object.assign({}, d, { active: d.active.filter(f), forming: d.forming.filter(f), completed: d.completed.filter(f) });
+}
 const REGISTRY_URL = '/admin/b5znz7yxpy3';
 
 function dEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -157,6 +178,7 @@ async function refreshDashboard() {
 ensureDashPanel().addEventListener('click', onDashClick);
 ensureDashPanel().addEventListener('change', function(e) {
   if (e.target && e.target.getAttribute('data-act') === 'obj') dashSetObject(e.target.value);
+  if (e.target && e.target.getAttribute('data-act') === 'kindsel') { dashState.kind = e.target.value; renderDashboard(); }
 });
 refreshDashboard();
 
@@ -176,10 +198,11 @@ function termTxt(x) { return x.days < 0 ? 'прошло ' + dDaysTxt(-x.days) + 
 
 // сводка по набору договоров (все объекты или один)
 function summary(active, objects) {
-  const s = { n: active.length, areaKop: 0, areaN: 0, rentKop: 0, rentN: 0, utilKop: 0, utilN: 0, depKop: 0, depN: 0, noPrice: 0, totalKop: 0, totalN: 0, status: {} };
+  const s = { n: active.length, areaKop: 0, areaN: 0, areaOf: 0, parking: 0, rentKop: 0, rentN: 0, utilKop: 0, utilN: 0, depKop: 0, depN: 0, noPrice: 0, totalKop: 0, totalN: 0, status: {} };
   active.forEach(function(r) {
     const a = dKop(r.area_sqm), re = dKop(r.rent_amount), u = dKop(r.utility_amount), dp = dKop(r.deposit_amount);
-    if (a !== null) { s.areaKop += a; s.areaN++; }
+    if (kindOf(r) === 'Машино-место') s.parking++;
+    if (areaCounts(r)) { s.areaOf++; if (a !== null) { s.areaKop += a; s.areaN++; } }
     if (re !== null) { s.rentKop += re; s.rentN++; }
     if (u !== null) { s.utilKop += u; s.utilN++; }
     if (dp !== null) { s.depKop += dp; s.depN++; }
@@ -193,18 +216,26 @@ function summary(active, objects) {
 
 // ---------- плитки общих цифр ----------
 function areaTile(s, objCount, editId) {
+  if (dashState.kind === 'Машино-место') {
+    return '<div class="dash-tile"><div class="dash-tile-label">Машино-места</div><div class="dash-tile-value">' + s.parking + ' <small>сдано</small></div>'
+      + '<div class="dash-tile-note">по одному машино-месту на договор</div></div>';
+  }
+  if (dashState.kind === 'Земельный участок') {
+    return '<div class="dash-tile"><div class="dash-tile-label">Земельные участки</div><div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>м² сдано</small></div>'
+      + '<div class="dash-tile-note">' + (s.areaN < s.n ? 'площадь не указана у ' + dContracts(s.n - s.areaN) : 'общая площадь объекта считается для помещений') + '</div></div>';
+  }
   const edit = editId ? ' <span class="dash-edit" data-edit-area="' + editId + '" title="Изменить общую площадь объекта" style="font-size:12px;font-weight:400;margin-left:6px;">изменить</span>' : '';
   if (!s.totalN) {
-    return '<div class="dash-tile"><div class="dash-tile-label">Площадь</div><div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>м² сдано</small></div>'
+    return '<div class="dash-tile"><div class="dash-tile-label">Площадь помещений</div><div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>м² сдано</small></div>'
       + '<div class="dash-tile-note">общая площадь не указана' + (editId ? ' — <span class="dash-edit" data-edit-area="' + editId + '">указать</span>' : '') + '</div></div>';
   }
   const free = s.totalKop - s.areaKop;
-  return '<div class="dash-tile"><div class="dash-tile-label">Площадь</div>'
+  return '<div class="dash-tile"><div class="dash-tile-label">Площадь помещений</div>'
     + '<div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>из ' + dFmt2(s.totalKop) + ' м² сдано</small>' + edit + '</div>'
     + '<div class="dash-track"><div class="dash-fill" style="width:' + Math.min(100, Math.round(s.areaKop / s.totalKop * 100)) + '%;"></div></div>'
     + '<div class="dash-tile-note"><span class="' + (free < 0 ? 'dash-bad' : '') + '">свободно ' + dFmt2(free) + ' м²</span>'
     + (objCount && s.totalN < objCount ? ' · общая площадь указана у ' + s.totalN + ' из ' + objCount + ' объектов' : '')
-    + (s.areaN < s.n ? ' · площадь не указана у ' + dContracts(s.n - s.areaN) : '') + '</div></div>';
+    + (s.areaN < s.areaOf ? ' · площадь не указана у ' + dContracts(s.areaOf - s.areaN) : '') + '</div></div>';
 }
 function moneyTile(s) {
   return '<div class="dash-tile"><div class="dash-tile-label">Доход в месяц</div><div class="dash-tile-value">' + dMoney(s.rentKop + s.utilKop) + '</div>'
@@ -218,6 +249,24 @@ function contractsTile(active, forming, completed) {
 function depositTile(s) {
   return '<div class="dash-tile"><div class="dash-tile-label">Обеспечительные платежи</div><div class="dash-tile-value">' + dMoney(s.depKop) + '</div>'
     + '<div class="dash-tile-note">указаны у ' + s.depN + ' из ' + dOfContracts(s.n) + '</div></div>';
+}
+function kindsTile(active) {
+  const by = {};
+  active.forEach(function(r) {
+    const k = kindOf(r), x = by[k] || (by[k] = { n: 0, areaKop: 0, monthly: 0 });
+    x.n++;
+    const a = dKop(r.area_sqm), m = monthlyKop(r);
+    if (a !== null && k !== 'Машино-место') x.areaKop += a;
+    if (m !== null) x.monthly += m;
+  });
+  const rows = DASH_KINDS.filter(function(k) { return by[k.v]; }).map(function(k) {
+    const x = by[k.v];
+    return '<div class="dash-row" data-act="kind" data-kind="' + dEsc(kindKey(k.v)) + '" style="cursor:pointer;" title="Показать только ' + dEsc(k.many.toLowerCase()) + '">'
+      + '<div class="dash-row-main" style="color:' + k.color + ';">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + (k.v !== 'Машино-место' && x.areaKop ? ' <span class="dash-sub">· ' + dFmt2(x.areaKop) + ' м²</span>' : '') + '</div>'
+      + '<div class="dash-row-side">' + dMoney(x.monthly) + '</div></div>';
+  }).join('');
+  return '<div class="dash-tile"><div class="dash-tile-label">По видам объектов <span style="float:right;">в месяц</span></div>'
+    + (rows || '<div class="dash-empty">Договоров нет</div>') + '</div>';
 }
 function attentionTile(s) {
   const bad = DASH_STATUS.filter(function(x) { return x.v && x.v !== '3_ok' && s.status[x.v]; });
@@ -234,24 +283,30 @@ function renderDashboard() {
   if (dashState.obj) renderObject(dashState.obj); else renderMain();
 }
 
+function kindSelect() {
+  return '<select data-act="kindsel" class="dash-link" style="padding:3px 6px;' + (dashState.kind ? 'border-color:#1677ff;color:#1677ff;' : '') + '" title="Вид объекта">'
+    + '<option value="">Все виды объектов</option>'
+    + DASH_KINDS.map(function(k) { const key = kindKey(k.v); return '<option value="' + dEsc(key) + '"' + (dashState.kind === key ? ' selected' : '') + '>' + dEsc(k.many) + '</option>'; }).join('')
+    + '</select>';
+}
 function headHtml(title, extra) {
   const upd = dashState.loadedAt ? new Date(dashState.loadedAt) : null;
-  return '<div class="dash-head">' + extra.before + '<div class="dash-title">' + dEsc(title) + '</div>' + extra.after
+  return '<div class="dash-head">' + extra.before + '<div class="dash-title">' + dEsc(title) + '</div>' + kindSelect() + extra.after
     + '<div class="dash-sub">обновлено ' + (upd ? ('0' + upd.getHours()).slice(-2) + ':' + ('0' + upd.getMinutes()).slice(-2) : '') + '</div>'
     + '<button class="dash-link" data-act="refresh">↻ Обновить</button></div>';
 }
 
 // ---------- главный экран: общие цифры + карточки объектов ----------
 function renderMain() {
-  const d = dashState.data;
+  const d = dv();
   const s = summary(d.active, d.objects);
   const stats = objectStats(d);
-  const used = stats.filter(function(o) { return o.active.length || o.forming || o.completed || o.totalKop !== null; })
+  const used = stats.filter(function(o) { return o.active.length || o.forming || o.completed || (!dashState.kind && o.totalKop !== null); })
     .sort(function(a, b) { return b.monthly - a.monthly || b.active.length - a.active.length || a.name.localeCompare(b.name, 'ru'); });
   const empty = stats.filter(function(o) { return used.indexOf(o) === -1; }).map(function(o) { return o.name; }).sort(function(a, b) { return a.localeCompare(b, 'ru'); });
   ensureDashPanel().innerHTML = headHtml('Объекты аренды', { before: '', after: '<button class="dash-link" data-act="csv">Выгрузить в Excel</button>' })
     + '<div class="dash-tiles">' + areaTile(s, used.filter(function(o) { return o.active.length; }).length) + moneyTile(s)
-    + contractsTile(d.active.length, d.forming.length, d.completed.length) + depositTile(s) + attentionTile(s) + '</div>'
+    + contractsTile(d.active.length, d.forming.length, d.completed.length) + depositTile(s) + attentionTile(s) + (dashState.kind ? '' : kindsTile(d.active)) + '</div>'
     + '<div class="dash-section">По объектам</div>'
     + (used.length ? '<div class="dash-objs">' + used.map(objectCard).join('') + '</div>' : '<div class="dash-empty">Договоров пока нет</div>')
     + (empty.length ? '<div class="dash-rest">Без договоров: ' + dEsc(empty.join(', ')) + '</div>' : '');
@@ -267,7 +322,7 @@ function objectStats(d) {
     const o = get(objOf(r));
     o.active.push(r);
     const a = dKop(r.area_sqm), m = monthlyKop(r), dp = dKop(r.deposit_amount);
-    if (a !== null) o.areaKop += a;
+    if (a !== null && areaCounts(r)) o.areaKop += a;
     if (m !== null) o.monthly += m;
     if (dp !== null) o.deposit += dp;
   });
@@ -296,7 +351,14 @@ function objectCard(o) {
   if (noPrice) chips.push(dChip(' без цены', '#d46b08', noPrice));
   if (o.forming) chips.push(dChip(' оформляется', '#595959', o.forming));
   let area;
-  if (o.totalKop !== null && o.totalKop > 0) {
+  const kc = {};
+  o.active.forEach(function(r) { kc[kindOf(r)] = (kc[kindOf(r)] || 0) + 1; });
+  const kinds = DASH_KINDS.filter(function(k) { return k.v && kc[k.v]; }).map(function(k) { return kindTxt(k, kc[k.v]); });
+  if (dashState.kind === 'Машино-место') {
+    area = '<div class="dash-obj-area">сдано машино-мест: ' + o.active.length + '</div>';
+  } else if (dashState.kind === 'Земельный участок') {
+    area = '<div class="dash-obj-area">сдано ' + dFmt2(o.areaKop) + ' м² земли</div>';
+  } else if (o.totalKop !== null && o.totalKop > 0) {
     area = '<div class="dash-obj-area">сдано ' + dFmt2(o.areaKop) + ' из ' + dFmt2(o.totalKop) + ' м² · свободно <span class="' + (o.totalKop - o.areaKop < 0 ? 'dash-bad' : '') + '">' + dFmt2(o.totalKop - o.areaKop) + '</span></div>'
       + '<div class="dash-track"><div class="dash-fill" style="width:' + Math.min(100, Math.round(o.areaKop / o.totalKop * 100)) + '%;"></div></div>';
   } else {
@@ -306,13 +368,14 @@ function objectCard(o) {
     + '<div class="dash-obj-name">' + dEsc(o.name) + '<span>' + dContracts(o.active.length) + '</span></div>'
     + '<div class="dash-obj-money">' + (o.monthly ? dMoney(o.monthly) : '—') + ' <small>в месяц</small></div>'
     + area
+    + (!dashState.kind && kinds.length ? '<div class="dash-obj-area" style="color:#8c8c8c;">' + dEsc(kinds.join(' · ')) + (kc[''] ? ' · без вида: ' + kc[''] : '') + '</div>' : '')
     + (chips.length ? '<div class="dash-chips">' + chips.join('') + '</div>' : (o.active.length ? '<div class="dash-chips">' + dChip('без замечаний', '#389e0d') + '</div>' : ''))
     + '</div>';
 }
 
 // ---------- экран объекта ----------
 function renderObject(name) {
-  const d = dashState.data;
+  const d = dv();
   const active = d.active.filter(function(r) { return objOf(r) === name; });
   const forming = d.forming.filter(function(r) { return objOf(r) === name; });
   const completedN = d.completed.filter(function(r) { return objOf(r) === name; }).length;
@@ -366,7 +429,8 @@ function renderObject(name) {
 
   // что не заполнено — по каждому пункту номера договоров, клик открывает карточку
   const checks = [
-    ['площадь', function(r) { return dFilled(r.area_sqm); }],
+    ['вид объекта', function(r) { return dFilled(r.object_kind); }],
+    ['площадь', function(r) { return kindOf(r) === 'Машино-место' || dFilled(r.area_sqm); }],
     ['цена (аренда и сбор)', function(r) { return monthlyKop(r) !== null; }],
     ['дата заключения', function(r) { return dFilled(r.date_signed); }],
     ['акт приёма-передачи', function(r) { return dFilled(r.date_act); }],
@@ -389,10 +453,10 @@ function renderObject(name) {
   const order = {};
   DASH_STATUS.forEach(function(x, i) { order[x.v] = i; });
   const rows = active.slice().sort(function(a, b) { return order[a.contract_status || ''] - order[b.contract_status || ''] || String(a.contract_number || '').localeCompare(String(b.contract_number || ''), 'ru'); });
-  const listBody = rows.length ? '<div class="dash-table-wrap"><table class="dash-table"><thead><tr><th>Договор</th><th>Арендатор</th><th>Статус</th><th class="num">Площадь, м²</th><th class="num">В месяц, ₽</th><th>Заключён</th><th>Расторжение</th></tr></thead><tbody>'
+  const listBody = rows.length ? '<div class="dash-table-wrap"><table class="dash-table"><thead><tr><th>Договор</th><th>Вид</th><th>Арендатор</th><th>Статус</th><th class="num">Площадь, м²</th><th class="num">В месяц, ₽</th><th>Заключён</th><th>Расторжение</th></tr></thead><tbody>'
     + rows.map(function(r) {
         const stt = dStatus(r.contract_status), m = monthlyKop(r), ds = dDate(r.date_signed), dt = dDate(r.termination_date);
-        return '<tr data-open="active:' + r.id + '"><td>' + dEsc(r.contract_number || '—') + '</td><td>' + dEsc(r.tenant_name || '—') + '</td><td>' + dChip(stt.label, stt.color) + '</td>'
+        return '<tr data-open="active:' + r.id + '"><td>' + dEsc(r.contract_number || '—') + '</td><td>' + dEsc(r.object_kind || '—') + '</td><td>' + dEsc(r.tenant_name || '—') + '</td><td>' + dChip(stt.label, stt.color) + '</td>'
           + '<td class="num">' + (dKop(r.area_sqm) === null ? '—' : dFmt2(dKop(r.area_sqm))) + '</td><td class="num">' + (m === null ? '—' : dFmt2(m)) + '</td>'
           + '<td>' + (ds ? dDateTxt(ds) : '—') + '</td><td>' + (dt ? dDateTxt(dt) : '—') + '</td></tr>';
       }).join('') + '</tbody></table></div>' : '<div class="dash-empty">Действующих договоров нет</div>';
@@ -416,12 +480,13 @@ function onDashClick(e) {
     const a = act.getAttribute('data-act');
     if (a === 'refresh') refreshDashboard();
     if (a === 'all') dashSetObject('');
-    if (a === 'contracts') window.location.href = REGISTRY_URL + '?obj=' + encodeURIComponent(dashState.obj);
+    if (a === 'contracts') window.location.href = REGISTRY_URL + '?obj=' + encodeURIComponent(dashState.obj) + kindParam();
+    if (a === 'kind') { dashState.kind = act.getAttribute('data-kind') || ''; renderDashboard(); }
     if (a === 'csv') dashExportCsv();
     return;
   }
   const go = c('[data-go]');
-  if (go) { window.location.href = REGISTRY_URL + '?' + go.getAttribute('data-go'); return; }
+  if (go) { window.location.href = REGISTRY_URL + '?' + go.getAttribute('data-go') + kindParam(); return; }
   const ed = c('[data-edit-area]');
   if (ed) { dashEditArea(ed); return; }
   if (c('.dash-area-input')) return;
@@ -430,6 +495,7 @@ function onDashClick(e) {
   const op = c('[data-open]');
   if (op) window.location.href = REGISTRY_URL + '?open=' + op.getAttribute('data-open');   // карточка открывается на странице реестра
 }
+function kindParam() { return dashState.kind ? '&kind=' + encodeURIComponent(dashState.kind) : ''; }
 function dashSetObject(name) { dashState.obj = name || ''; renderDashboard(); try { window.scrollTo(0, 0); } catch (e) { /* ignore */ } }
 
 // общая площадь объекта — правка прямо в плитке (Enter/уход с поля — сохранить, Esc — отмена)
@@ -462,18 +528,19 @@ function dashEditArea(el) {
 
 // выгрузка сводки по объектам в CSV (открывается в Excel: разделитель «;», BOM для кириллицы)
 function dashExportCsv() {
-  const d = dashState.data;
+  const d = dv();
   if (!d) return;
   const stats = objectStats(d).sort(function(a, b) { return a.name.localeCompare(b.name, 'ru'); });
   const f2 = function(k) { return k === null || k === undefined ? '' : (k / 100).toFixed(2).replace('.', ','); };
   const q = function(x) { return '"' + String(x).replace(/"/g, '""') + '"'; };
   const cnt = function(o, v) { return o.active.filter(function(r) { return (r.contract_status || '') === v; }).length; };
-  const head = ['Объект', 'Действующие договоры', 'Оформляются', 'В архиве', 'Общая площадь, м²', 'Сдано, м²', 'Свободно, м²', 'В месяц, ₽', 'Обеспечительные, ₽']
-    .concat(DASH_STATUS.map(function(x) { return x.label; }));
+  const head = ['Объект', 'Действующие договоры', 'Оформляются', 'В архиве', 'Общая площадь, м²', 'Сдано помещений, м²', 'Свободно, м²', 'В месяц, ₽', 'Обеспечительные, ₽']
+    .concat(DASH_STATUS.map(function(x) { return x.label; })).concat(DASH_KINDS.map(function(k) { return k.many; }));
   const lines = [head.map(q).join(';')];
   stats.forEach(function(o) {
     lines.push([q(o.name), o.active.length, o.forming, o.completed, f2(o.totalKop), f2(o.areaKop), o.totalKop === null ? '' : f2(o.totalKop - o.areaKop), f2(o.monthly), f2(o.deposit)]
-      .concat(DASH_STATUS.map(function(x) { return cnt(o, x.v); })).join(';'));
+      .concat(DASH_STATUS.map(function(x) { return cnt(o, x.v); }))
+      .concat(DASH_KINDS.map(function(k) { return o.active.filter(function(r) { return kindOf(r) === k.v; }).length; })).join(';'));
   });
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');

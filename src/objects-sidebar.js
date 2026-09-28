@@ -9,6 +9,9 @@ if (!document.getElementById('obj-list-style')) {
     .obj-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .obj-count { color:#8c8c8c; font-size:13px; font-weight:600; flex-shrink:0; }
     .obj-item.active .obj-count { color:#1677ff; }
+    #obj-kind-filter { display:flex; flex-wrap:wrap; gap:4px; padding:0 6px 10px; }
+    .obj-kind { border:1px solid #d9d9d9; background:#fff; color:#595959; border-radius:12px; padding:2px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+    .obj-kind.active { border-color:#1677ff; background:#e6f4ff; color:#1677ff; font-weight:600; }
     @media (max-width: 700px) {
       #obj-list-root { display:flex; flex-direction:row; overflow-x:auto; gap:6px; padding:2px 2px 8px; -webkit-overflow-scrolling:touch; }
       #obj-list-root .obj-item { flex:0 0 auto; flex-direction:row; background:#f5f5f5; border-radius:16px; padding:6px 12px; margin:0; white-space:nowrap; }
@@ -28,7 +31,7 @@ if (card) {
   card.style.background = 'transparent';
 }
 
-ctx.render('<div><div id="obj-status-filter"></div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#8c8c8c;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div></div>');
+ctx.render('<div><div id="obj-status-filter"></div><div id="obj-kind-filter"></div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#8c8c8c;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div></div>');
 
 const root = ctx.element ? ctx.element.querySelector('#obj-list-root') : document.getElementById('obj-list-root');
 
@@ -90,10 +93,11 @@ async function load() {
     paintActive();
     // переход с дашборда: ?obj=<название> и/или ?status=<значение> — сразу фильтр на «Активных» (таблица может ещё не прогрузиться)
     // ?stage=<0..5>|quick — «Формирующиеся» на этапе оформления (кружки этапов на дашборде)
+    const mk = location.search.match(/[?&]kind=([^&]*)/);
     const m = location.search.match(/[?&]obj=([^&]*)/);
     const ms = location.search.match(/[?&]status=([^&]*)/);
     const mg = location.search.match(/[?&]stage=([^&]*)/);
-    if (m || ms || mg) {
+    if (m || ms || mg || mk) {
       const uid = mg ? 'formtbl000001' : 'ozazmpm4o4v';
       let tries = 0;
       const t = setInterval(function() {
@@ -101,6 +105,7 @@ async function load() {
         if (!(target && target.resource) && ++tries <= 50) return;
         clearInterval(t);
         if (window.switchRegistryTable) window.switchRegistryTable(uid);
+        if (mk) applyKindFilter(decodeURIComponent(mk[1].replace(/\+/g, ' ')), true);
         if (ms) applyStatusFilter(decodeURIComponent(ms[1]), !m);
         if (mg) applyStageFilter(decodeURIComponent(mg[1]), !m);
         if (m) applyFilter(decodeURIComponent(m[1].replace(/\+/g, ' ')));
@@ -113,7 +118,31 @@ async function load() {
 }
 load();
 
+// вид объекта: фильтр сразу на все три таблицы реестра (переключение вкладок его не сбрасывает); ?kind=<значение> с дашборда
+const KIND_CHIPS = [['', 'Все виды'], ['Помещение', 'Помещения'], ['Земельный участок', 'Земельные участки'], ['Машино-место', 'Машино-места'], ['none', 'Вид не указан']];
+function paintKinds() {
+  const box = document.getElementById('obj-kind-filter');
+  if (!box) return;
+  const cur = window.__activeKindFilter || '';
+  box.innerHTML = KIND_CHIPS.map(function(k) { return '<button class="obj-kind' + (k[0] === cur ? ' active' : '') + '" data-kind="' + esc(k[0]) + '">' + esc(k[1]) + '</button>'; }).join('');
+  box.querySelectorAll('[data-kind]').forEach(function(b) { b.addEventListener('click', function() { applyKindFilter(b.getAttribute('data-kind'), true); }); });
+}
+async function applyKindFilter(v, refresh) {
+  window.__activeKindFilter = v || '';
+  paintKinds();
+  const f = !v ? null : v === 'none' ? { object_kind: { $empty: true } } : { object_kind: v };
+  for (const uid of ['ozazmpm4o4v', 'formtbl000001', 'ipb7gfluldk']) {
+    const target = ctx.model.flowEngine.getModel(uid);
+    if (!target || !target.resource) continue;
+    if (f) target.resource.addFilterGroup('kindFilter', f); else target.resource.removeFilterGroup('kindFilter');
+    target.resource.setPage(1);
+    if (refresh) await target.resource.refresh();
+  }
+}
+paintKinds();
+
 function doReset() {
+  if (window.__activeKindFilter) applyKindFilter('', true);
   applyFilter('');
 }
 if (!window.__registryMenuResetBound) {

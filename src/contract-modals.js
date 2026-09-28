@@ -2145,9 +2145,11 @@ function attachInnLookup(el) {
     async function npdLine() {
       const npd = await lookupNpd(v);
       if (my !== seq || npd === null) return;
-      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход' : 'Не самозанятый по данным ФНС') + '</div>');
+      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход' + (currentType() !== 'Самозанятый' ? link('Отметить как самозанятого', 'cm-party-npd') : '') : 'Не самозанятый по данным ФНС' + (currentType() === 'Самозанятый' ? ' — проверьте тип арендатора' : '')) + '</div>');
+      const a = hint.querySelector('.cm-party-npd');
+      if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Самозанятый' }); run(); });
     }
-    if (currentType() === 'Физлицо' && v.length === 12) {
+    if ((currentType() === 'Физлицо' || currentType() === 'Самозанятый') && v.length === 12) {
       hint.style.color = '#8c8c8c'; hint.textContent = 'Частное лицо: реквизиты из реестров не подставляются — заполните паспорт и адрес регистрации';
       npdLine();
       return;
@@ -2161,7 +2163,7 @@ function attachInnLookup(el) {
       if (v.length === 12) {
         // 12 цифр и нет в реестре ИП — это ИНН частного лица
         hint.style.color = '#8c8c8c';
-        hint.innerHTML = 'ИНН физического лица: в реестре индивидуальных предпринимателей не найден.' + (currentType() !== 'Физлицо' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
+        hint.innerHTML = 'ИНН физического лица: в реестре индивидуальных предпринимателей не найден.' + (currentType() !== 'Физлицо' && currentType() !== 'Самозанятый' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
         const a = hint.querySelector('.cm-party-person');
         if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Физлицо' }); run(); });
         npdLine();
@@ -2621,9 +2623,9 @@ window.openContractModal = openContractModal;
 // ---------- тип арендатора: юрлицо / ИП / физлицо — от него зависит набор реквизитов ----------
 // ОГРН бывает только у юрлица; у ИП свой номер — ОГРНИП; у физлица ни того, ни другого, зато паспорт.
 const OBJECT_KINDS = ['Помещение', 'Земельный участок', 'Машино-место'];   // вид объекта договора; значения в базе = подписи
-const TENANT_TYPES = ['Юрлицо', 'ИП', 'Физлицо'];   // значения в базе; показываем полными словами (VALUE_LABELS)
+const TENANT_TYPES = ['Юрлицо', 'ИП', 'Самозанятый', 'Физлицо'];   // значения в базе; показываем полными словами (VALUE_LABELS)
 const VALUE_LABELS = {
-  tenant_type: { 'Юрлицо': 'Юридическое лицо', 'ИП': 'Индивидуальный предприниматель', 'Физлицо': 'Физическое лицо' },
+  tenant_type: { 'Юрлицо': 'Юридическое лицо', 'ИП': 'Индивидуальный предприниматель', 'Самозанятый': 'Самозанятый', 'Физлицо': 'Физическое лицо' },
   signing_method: { 'ЭДО': 'Электронный документооборот', 'Лично': 'Лично' }
 };
 function valueLabel(field, v) { const m = VALUE_LABELS[field]; return m && m[v] ? m[v] : v; }
@@ -2632,10 +2634,10 @@ const TENANT_FIELD_RULES = {
   director: { show: ['Юрлицо'] },
   director_post: { show: ['Юрлицо'] },
   ogrn: { show: ['Юрлицо', 'ИП'], label: { 'ИП': 'ОГРНИП' } },
-  legal_address: { label: { 'ИП': 'Адрес регистрации', 'Физлицо': 'Адрес регистрации' } },
-  passport: { show: ['Физлицо'] },
-  passport_issued: { show: ['Физлицо'] },
-  tenant_name: { label: { 'Юрлицо': 'Наименование арендатора', 'ИП': 'Фамилия, имя, отчество индивидуального предпринимателя', 'Физлицо': 'Фамилия, имя, отчество арендатора' } }
+  legal_address: { label: { 'ИП': 'Адрес регистрации', 'Самозанятый': 'Адрес регистрации', 'Физлицо': 'Адрес регистрации' } },
+  passport: { show: ['Физлицо', 'Самозанятый'] },
+  passport_issued: { show: ['Физлицо', 'Самозанятый'] },
+  tenant_name: { label: { 'Юрлицо': 'Наименование арендатора', 'ИП': 'Фамилия, имя, отчество индивидуального предпринимателя', 'Самозанятый': 'Фамилия, имя, отчество самозанятого', 'Физлицо': 'Фамилия, имя, отчество арендатора' } }
 };
 // тип не выбран (старые договоры) — показываем реквизиты юрлица/ИП как раньше, паспорт прячем
 function tenantFieldVisible(name, type) {
@@ -3227,6 +3229,7 @@ const QUICK_FIELD_MAP = { base_rent_per_sqm: 'rent_per_sqm', base_rent_amount: '
   base_utility_amount: 'utility_amount', base_deposit_amount: 'deposit_amount', calc_comment: 'comment_stage4' };
 const QUICK_BLOCK_DEFS = ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(b) {
   return { title: b.title, fields: b.fields.filter(function(f) { return f.name !== 'termination_date'; }).map(function(f) {
+    if (f.name === 'object_name') return Object.assign({}, f, { type: 'combo' });   // объект — выбор из справочника, как в «Создать договор»
     return QUICK_FIELD_MAP[f.name] ? Object.assign({}, f, { name: QUICK_FIELD_MAP[f.name] }) : f;
   }) };
 });

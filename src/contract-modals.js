@@ -2138,9 +2138,23 @@ function attachInnLookup(el) {
     await saveOutside(extra);
   }
   function link(text, cls) { return ' <a href="#" class="' + cls + '" style="color:#1677ff;font-weight:600;text-decoration:none;">' + text + '</a>'; }
+  // реквизиты, найденные по последнему ИНН: стёрли или изменили ИНН — поля с этими же значениями очищаются (как у БИК);
+  // исправленное вручную не трогаем, поля из других блоков карточки — тоже (они сохраняются сразу, а правку ИНН можно отменить)
+  let found = null;
+  function clearFound() {
+    if (!found) return;
+    Object.keys(found.values).forEach(function(n) {
+      const f = n !== 'inn' && found.values[n] && scope.querySelector('[data-field="' + n + '"]');
+      if (!f || f.value !== found.values[n]) return;
+      f.value = ''; fireInput(f); if (f.tagName === 'SELECT') fireChange(f);
+    });
+    found = null;
+    applyTenantTypeToForm(scope);
+  }
   async function run() {
     const my = ++seq;
     const v = String(el.value || '').replace(/\D/g, '');
+    if (found && v !== found.inn) clearFound();
     if (!/^(\d{10}|\d{12})$/.test(v) || !innValid(v)) { hint.innerHTML = ''; return; }
     async function npdLine() {
       const npd = await lookupNpd(v);
@@ -2171,6 +2185,7 @@ function attachInnLookup(el) {
       return;
     }
     const val = p.values;
+    found = { inn: v, values: val };
     const differs = Object.keys(val).some(function(n) {
       if (!val[n]) return false;
       const f = scope.querySelector('[data-field="' + n + '"]');
@@ -2703,9 +2718,9 @@ const STAGE_DEFS = [
   ]},
   { title: 'Подписание договора / Данные контрагента', role: 'accounting_dept', fields: [
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
+      { name: 'inn', label: 'ИНН', type: 'text' },
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
-      { name: 'inn', label: 'ИНН', type: 'text' },
       { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text' },
       { name: 'ogrn', label: 'ОГРН', type: 'text' },
@@ -2713,8 +2728,8 @@ const STAGE_DEFS = [
       { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
-      { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
+      { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
       { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' },
       { name: 'signing_method', label: 'Способ подписания', type: 'select', options: ['ЭДО', 'Лично'] },
@@ -2959,8 +2974,8 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'calc_comment', label: 'Комментарий', type: 'textarea', full: true }
   ]},
   { key: 'counterparty', title: 'Блок Контрагента', fields: [
-      { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'inn', label: 'ИНН', type: 'text' },
+      { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
       { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text', full: true },
       { name: 'ogrn', label: 'ОГРН', type: 'text' },
@@ -2968,8 +2983,8 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
       { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
-      { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
+      { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
       { name: 'corr_account', label: 'Корреспондентский счёт', type: 'text', mask: 'bankaccount' }
   ]},
@@ -3210,7 +3225,8 @@ function renderFormingBody(r, currentUser) {
   return html;
 }
 
-function renderFormingSideSections(r, currentUser) {
+// beforeHistory — разметка между доп. соглашениями и историей (кнопки срочного договора стоят в самом низу)
+function renderFormingSideSections(r, currentUser, beforeHistory) {
   const files = r.contract_files || [];
   return renderPricesSection('cm-forming') + renderContactsSection('cm-forming')
     + '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
@@ -3219,6 +3235,7 @@ function renderFormingSideSections(r, currentUser) {
     + '<button class="cm-upload-btn" id="cm-forming-upload-btn">+ Прикрепить файл</button>'
     + '<span id="cm-forming-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
     + renderAddendumsSection('cm-forming')
+    + (beforeHistory || '')
     + renderHistorySection('cm-forming');
 }
 
@@ -3241,12 +3258,12 @@ function renderQuickFormingBody(r, currentUser) {
     return '<div class="cm-section"><div class="cm-section-title">' + esc(block.title) + '</div>'
       + block.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>';
   }).join('') + '</div>';
-  html += '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>';
-  html += '<div class="cm-stage-actions" style="margin-top:2px;padding-top:10px;border-top:1px solid #f0f0f0;">'
+  const actions = '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>'
+    + '<div class="cm-stage-actions" style="margin:0 0 14px;">'
     + '<button class="cm-btn-save cm-btn-primary" id="cm-quick-save">Сохранить</button>'
     + '<button class="cm-btn-advance cm-btn-finalize" id="cm-quick-publish">Опубликовать → Активные</button>'
     + '</div>';
-  html += renderFormingSideSections(r, currentUser);
+  html += renderFormingSideSections(r, currentUser, actions);
   return html;
 }
 

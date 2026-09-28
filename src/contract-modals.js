@@ -2143,12 +2143,13 @@ function attachInnLookup(el) {
   let found = null;
   function clearFound() {
     if (!found) return;
-    Object.keys(found.values).forEach(function(n) {
-      const f = n !== 'inn' && found.values[n] && scope.querySelector('[data-field="' + n + '"]');
-      if (!f || f.value !== found.values[n]) return;
+    const vals = found.values;
+    found = null;   // смена типа арендатора снова запускает run() — без этого очистка пошла бы по кругу
+    Object.keys(vals).forEach(function(n) {
+      const f = n !== 'inn' && vals[n] && scope.querySelector('[data-field="' + n + '"]');
+      if (!f || f.value !== vals[n]) return;
       f.value = ''; fireInput(f); if (f.tagName === 'SELECT') fireChange(f);
     });
-    found = null;
     applyTenantTypeToForm(scope);
   }
   async function run() {

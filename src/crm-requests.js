@@ -40,7 +40,7 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .rq-tile-l { font-size:12px; color:#8c8c8c; }
     #crm-req .rq-tile-v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
     #crm-req .rq-tile-n { font-size:12px; color:#8c8c8c; margin-top:2px; }
-    #crm-req .rq-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(380px, 1fr)); gap:12px; }
+    #crm-req .rq-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(540px, 1fr)); gap:12px; }
     #crm-req .rq-card { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; }
     #crm-req .rq-card-t { font-weight:600; margin-bottom:8px; }
     #crm-req table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -517,7 +517,7 @@ function rqRenderStats() {
       return { k: k, open: o.length, late: o.filter(rqLate).length, em: o.filter(function(r) { return r.urgency === 'emergency'; }).length,
         done30: l.filter(function(r) { return r.done_at && String(r.done_at).slice(0, 10) >= d30; }).length, med: rqMedian(doneDays(l)) };
     }).sort(function(a, b) { return b.late - a.late || b.open - a.open || b.done30 - a.done30; });
-    return '<div class="rq-card"><div class="rq-card-t">' + title + '</div>' + (rows.length ? '<table><thead><tr><th></th><th class="n">Открыто</th><th class="n">Просрочено</th><th class="n">Аварии</th><th class="n">Выполнено за 30 дн.</th><th class="n">Медиана, дн.</th></tr></thead><tbody>'
+    return '<div class="rq-card"><div class="rq-card-t">' + title + '</div>' + (rows.length ? '<table><thead><tr><th></th><th class="n">Открыто</th><th class="n">Просрочено</th><th class="n">Аварии</th><th class="n" title="Выполнено за последние 30 дней">Выполнено, 30 дн.</th><th class="n" title="Медиана дней от создания до выполнения, за 30 дней">Медиана, дн.</th></tr></thead><tbody>'
       + rows.map(function(x) { const go = {}; go[goKey] = x.k; return '<tr data-go="' + rqEsc(JSON.stringify(go)) + '"><td>' + rqEsc(labelFn(x.k)) + '</td><td class="n">' + x.open + '</td><td class="n' + (x.late ? ' rq-late' : '') + '">' + x.late + '</td><td class="n">' + (x.em || '') + '</td><td class="n">' + x.done30 + '</td><td class="n">' + (x.med === null ? '—' : x.med) + '</td></tr>'; }).join('')
       + '</tbody></table>' : '<div class="rq-empty" style="padding:8px 0;">Данных пока нет</div>') + '</div>';
   }

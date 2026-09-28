@@ -226,11 +226,11 @@ function areaTile(s, objCount, editId) {
   }
   const edit = editId ? ' <span class="dash-edit" data-edit-area="' + editId + '" title="Изменить общую площадь объекта" style="font-size:12px;font-weight:400;margin-left:6px;">изменить</span>' : '';
   if (!s.totalN) {
-    return '<div class="dash-tile"><div class="dash-tile-label">Площадь помещений</div><div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>м² сдано</small></div>'
+    return '<div class="dash-tile"><div class="dash-tile-label">Общая площадь</div><div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>м² сдано</small></div>'
       + '<div class="dash-tile-note">общая площадь не указана' + (editId ? ' — <span class="dash-edit" data-edit-area="' + editId + '">указать</span>' : '') + '</div></div>';
   }
   const free = s.totalKop - s.areaKop;
-  return '<div class="dash-tile"><div class="dash-tile-label">Площадь помещений</div>'
+  return '<div class="dash-tile"><div class="dash-tile-label">Общая площадь</div>'
     + '<div class="dash-tile-value">' + dFmt2(s.areaKop) + ' <small>из ' + dFmt2(s.totalKop) + ' м² сдано</small>' + edit + '</div>'
     + '<div class="dash-track"><div class="dash-fill" style="width:' + Math.min(100, Math.round(s.areaKop / s.totalKop * 100)) + '%;"></div></div>'
     + '<div class="dash-tile-note"><span class="' + (free < 0 ? 'dash-bad' : '') + '">свободно ' + dFmt2(free) + ' м²</span>'
@@ -253,17 +253,17 @@ function depositTile(s) {
 function kindsTile(active) {
   const by = {};
   active.forEach(function(r) {
-    const k = kindOf(r), x = by[k] || (by[k] = { n: 0, areaKop: 0, monthly: 0 });
+    const k = kindOf(r), x = by[k] || (by[k] = { n: 0, areaKop: 0, areaN: 0, monthly: 0 });
     x.n++;
     const a = dKop(r.area_sqm), m = monthlyKop(r);
-    if (a !== null && k !== 'Машино-место') x.areaKop += a;
+    if (a !== null) { x.areaKop += a; x.areaN++; }
     if (m !== null) x.monthly += m;
   });
   const rows = DASH_KINDS.filter(function(k) { return by[k.v]; }).map(function(k) {
     const x = by[k.v];
     const on = dashState.kind === kindKey(k.v);
     return '<div class="dash-row" data-act="kind" data-kind="' + dEsc(on ? '' : kindKey(k.v)) + '" style="cursor:pointer;' + (on ? 'background:' + k.color + '14;border-radius:4px;margin:0 -6px;padding:7px 6px;font-weight:600;' : '') + '" title="' + (on ? 'Показать все виды' : 'Показать только ' + dEsc(k.many.toLowerCase())) + '">'
-      + '<div class="dash-row-main" style="color:' + k.color + ';">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + (k.v !== 'Машино-место' && x.areaKop ? ' <span class="dash-sub">· ' + dFmt2(x.areaKop) + ' м²</span>' : '') + '</div>'
+      + '<div class="dash-row-main" style="color:' + k.color + ';">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + ' <span class="dash-sub">· ' + (x.areaN ? dFmt2(x.areaKop) + ' м²' + (x.areaN < x.n ? ' (площадь указана у ' + x.areaN + ' из ' + dOfContracts(x.n) + ')' : '') : 'площадь не указана') + '</span>' + '</div>'
       + '<div class="dash-row-side">' + dMoney(x.monthly) + ' <a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1677ff;margin-left:8px;font-weight:400;">договоры →</a></div></div>';
   }).join('');
   return '<div class="dash-tile"><div class="dash-tile-label">По видам объектов <span style="float:right;">в месяц</span></div>'

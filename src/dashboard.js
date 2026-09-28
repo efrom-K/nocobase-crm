@@ -261,7 +261,8 @@ function kindsTile(active) {
   });
   const rows = DASH_KINDS.filter(function(k) { return by[k.v]; }).map(function(k) {
     const x = by[k.v];
-    return '<div class="dash-row" data-act="kind" data-kind="' + dEsc(kindKey(k.v)) + '" style="cursor:pointer;" title="Показать только ' + dEsc(k.many.toLowerCase()) + '">'
+    const on = dashState.kind === kindKey(k.v);
+    return '<div class="dash-row" data-act="kind" data-kind="' + dEsc(on ? '' : kindKey(k.v)) + '" style="cursor:pointer;' + (on ? 'background:' + k.color + '14;border-radius:4px;margin:0 -6px;padding:7px 6px;font-weight:600;' : '') + '" title="' + (on ? 'Показать все виды' : 'Показать только ' + dEsc(k.many.toLowerCase())) + '">'
       + '<div class="dash-row-main" style="color:' + k.color + ';">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + (k.v !== 'Машино-место' && x.areaKop ? ' <span class="dash-sub">· ' + dFmt2(x.areaKop) + ' м²</span>' : '') + '</div>'
       + '<div class="dash-row-side">' + dMoney(x.monthly) + '</div></div>';
   }).join('');
@@ -306,7 +307,7 @@ function renderMain() {
   const empty = stats.filter(function(o) { return used.indexOf(o) === -1; }).map(function(o) { return o.name; }).sort(function(a, b) { return a.localeCompare(b, 'ru'); });
   ensureDashPanel().innerHTML = headHtml('Объекты аренды', { before: '', after: '<button class="dash-link" data-act="csv">Выгрузить в Excel</button>' })
     + '<div class="dash-tiles">' + areaTile(s, used.filter(function(o) { return o.active.length; }).length) + moneyTile(s)
-    + contractsTile(d.active.length, d.forming.length, d.completed.length) + depositTile(s) + attentionTile(s) + (dashState.kind ? '' : kindsTile(d.active)) + '</div>'
+    + contractsTile(d.active.length, d.forming.length, d.completed.length) + depositTile(s) + attentionTile(s) + kindsTile(dashState.data.active) + '</div>'
     + '<div class="dash-section">По объектам</div>'
     + (used.length ? '<div class="dash-objs">' + used.map(objectCard).join('') + '</div>' : '<div class="dash-empty">Договоров пока нет</div>')
     + (empty.length ? '<div class="dash-rest">Без договоров: ' + dEsc(empty.join(', ')) + '</div>' : '');

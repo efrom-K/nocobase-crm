@@ -1102,8 +1102,15 @@ function sanitizeInput(el, kind) {
   if (v !== el.value) el.value = v;
 }
 
+const DATE_ATTRS = ' min="1900-01-01" max="2099-12-31"';
+function dateProblem(v) {
+  if (!v) return '';
+  const m = /^(\d{4})-\d{2}-\d{2}$/.exec(v);
+  return m && +m[1] >= 1900 && +m[1] <= 2099 ? '' : 'некорректная дата — год из 4 цифр, от 1900 до 2099';
+}
 function validateElement(el, strict) {
   const name = el.getAttribute('data-field');
+  if (el.type === 'date') { const dp = dateProblem(el.value); if (dp) { el.style.borderColor = '#ff4d4f'; return dp; } el.style.borderColor = ''; }
   if (!FIELD_RULES[name]) return '';
   const norm = normalizeValue(name, el.value);
   if (!strict && norm === el.__origNorm) return '';
@@ -1640,8 +1647,8 @@ function renderPricesSection(prefix) {
     + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
     + '<div class="cm-price-form-grid">'
-    + '<div class="cm-field-row"><div class="cm-label">Начало периода</div><input type="date" class="cm-field-input" id="' + prefix + '-price-from"></div>'
-    + '<div class="cm-field-row"><div class="cm-label">Окончание периода</div><input type="date" class="cm-field-input" id="' + prefix + '-price-to"><div class="cm-derived-hint">Если не указать, изменение действует бессрочно</div></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Начало периода</div><input type="date" class="cm-field-input"' + DATE_ATTRS + ' id="' + prefix + '-price-from"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Окончание периода</div><input type="date" class="cm-field-input"' + DATE_ATTRS + ' id="' + prefix + '-price-to"><div class="cm-derived-hint">Если не указать, изменение действует бессрочно</div></div>'
     + '<div class="cm-field-row full"><div class="cm-label">Какие цены меняются в этом периоде</div><div class="cm-price-comps">' + PRICE_COMPONENTS.map(comp).join('') + '</div></div>'
     + '<div class="cm-field-row full"><div class="cm-label">Комментарий</div><input type="text" class="cm-field-input" id="' + prefix + '-price-note" placeholder="Например: скидка на время ремонта"></div>'
     + '</div>'
@@ -1819,14 +1826,20 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   cancelBtn.addEventListener('click', closeForm);
   saveBtn.addEventListener('click', async function() {
     if (!fromEl.value) { cmToast('Укажите дату начала периода'); fromEl.focus(); return; }
+    for (const el of [fromEl, toEl]) { const dp = dateProblem(el.value); if (dp) { cmToast((el === fromEl ? 'Начало' : 'Окончание') + ' периода: ' + dp); el.focus(); return; } }
+    if (toEl.value && toEl.value < fromEl.value) { cmToast('Окончание периода раньше начала'); toEl.focus(); return; }
+    // периоды одного договора не пересекаются (без окончания — бессрочный, до OPEN_END)
+    const newTo = toEl.value || OPEN_END;
+    const clash = items.find(function(p) { return p.id !== editId && p.date_from <= newTo && fromEl.value <= (p.date_to || OPEN_END); });
+    if (clash) { cmToast('Период пересекается с уже добавленным: ' + periodRange(clash) + '. Измените даты или сначала поправьте тот период'); fromEl.focus(); return; }
     const chosen = PRICE_COMPONENTS.filter(function(c) { return compEl(c.key, 'on').checked; });
     if (!chosen.length) { cmToast('Отметьте хотя бы одну цену, которая меняется в этом периоде'); return; }
     for (const c of chosen) { if (!(numOf(compEl(c.key, 'value').value) > 0)) { cmToast(c.title + ': укажите новое значение больше нуля'); compEl(c.key, 'value').focus(); return; } }
     const on = function(key) { return chosen.some(function(c) { return c.key === key; }); };
     const val = function(key) { return on(key) ? numOf(compEl(key, 'value').value) : null; };
     const bas = function(key) { const b = compEl(key, 'basis'); return on(key) && b ? b.value : null; };
-    // «по» не указана или раньше «с» — период без даты окончания. Пересечения допустимы: для каждой цены действует период, начавшийся позже
-    const values = { contract_type: type, contract_ref_id: id, date_from: fromEl.value, date_to: toEl.value && toEl.value >= fromEl.value ? toEl.value : OPEN_END, unit: 'month', note: noteEl.value.trim(),
+    // «по» не указана — период без даты окончания
+    const values = { contract_type: type, contract_ref_id: id, date_from: fromEl.value, date_to: newTo, unit: 'month', note: noteEl.value.trim(),
       rent_on: on('rent'), basis: bas('rent') || 'per_sqm', amount: val('rent'),
       utility_on: on('utility'), utility_basis: bas('utility'), utility_value: val('utility'),
       deposit_on: on('deposit'), deposit_value: val('deposit') };
@@ -2815,7 +2828,7 @@ function renderEditableField(f, value, rec) {
       + '<div class="cm-combo-list" id="cm-combo-list-' + f.name + '" style="display:none;"></div></div>';
   }
   if (f.type === 'date') {
-    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="date" class="cm-field-input" data-field="' + f.name + '" value="' + escAttr(toISODate(value)) + '"></div>';
+    return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="date" class="cm-field-input"' + DATE_ATTRS + ' data-field="' + f.name + '" value="' + escAttr(toISODate(value)) + '"></div>';
   }
   if (f.type === 'tel') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="tel" class="cm-field-input" data-field="' + f.name + '" data-mask="phone" placeholder="+7 (___) ___-__-__" value="' + escAttr(value) + '"></div>';
@@ -3450,7 +3463,7 @@ function renderAddendumsSection(prefix) {
     + '<div class="cm-contact-form" id="' + prefix + '-addendum-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
     + '<div class="cm-field-row"><div class="cm-label">Название</div><input type="text" class="cm-field-input" id="' + prefix + '-addendum-title" placeholder="например, Дополнительное соглашение №1"></div>'
-    + '<div class="cm-field-row"><div class="cm-label">Дата заключения</div><input type="date" class="cm-field-input" id="' + prefix + '-addendum-date"></div>'
+    + '<div class="cm-field-row"><div class="cm-label">Дата заключения</div><input type="date" class="cm-field-input"' + DATE_ATTRS + ' id="' + prefix + '-addendum-date"></div>'
     + '<div class="cm-field-row full"><div class="cm-label">Описание и условия</div><textarea class="cm-field-input" id="' + prefix + '-addendum-desc" rows="2"></textarea></div>'
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:8px;">'
@@ -3587,6 +3600,8 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   saveBtn.addEventListener('click', async function() {
     const title = titleInput.value.trim();
     if (!title) { cmToast('Укажите название'); return; }
+    const dp = dateProblem(dateInput.value);
+    if (dp) { cmToast('Дата заключения: ' + dp); dateInput.focus(); return; }
     saveBtn.disabled = true;
     statusSpan.textContent = 'Сохранение…';
     try {

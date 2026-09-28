@@ -259,14 +259,19 @@ function kindsTile(active) {
     if (a !== null) { x.areaKop += a; x.areaN++; }
     if (m !== null) x.monthly += m;
   });
+  // строка вида — в три строки, ничего не обрезается: вид и ссылка / площадь и деньги / пометка о неполных данных
   const rows = DASH_KINDS.filter(function(k) { return by[k.v]; }).map(function(k) {
     const x = by[k.v];
     const on = dashState.kind === kindKey(k.v);
-    return '<div class="dash-row" data-act="kind" data-kind="' + dEsc(on ? '' : kindKey(k.v)) + '" style="cursor:pointer;' + (on ? 'background:' + k.color + '14;border-radius:4px;margin:0 -6px;padding:7px 6px;font-weight:600;' : '') + '" title="' + (on ? 'Показать все виды' : 'Показать только ' + dEsc(k.many.toLowerCase())) + '">'
-      + '<div class="dash-row-main" style="color:' + k.color + ';">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + ' <span class="dash-sub">· ' + (x.areaN ? dFmt2(x.areaKop) + ' м²' + (x.areaN < x.n ? ' (площадь указана у ' + x.areaN + ' из ' + dOfContracts(x.n) + ')' : '') : 'площадь не указана') + '</span>' + '</div>'
-      + '<div class="dash-row-side">' + dMoney(x.monthly) + ' <a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1677ff;margin-left:8px;font-weight:400;">договоры →</a></div></div>';
+    return '<div data-act="kind" data-kind="' + dEsc(on ? '' : kindKey(k.v)) + '" title="' + (on ? 'Показать все виды' : 'Показать только ' + dEsc(k.many.toLowerCase())) + '" style="cursor:pointer;padding:7px 6px;margin:0 -6px;border-radius:6px;border-top:1px solid #f5f5f5;' + (on ? 'background:' + k.color + '14;' : '') + '">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;">'
+      + '<span style="color:' + k.color + ';font-weight:600;font-size:13.5px;">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + '</span>'
+      + '<a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1677ff;font-size:12px;white-space:nowrap;">договоры →</a></div>'
+      + '<div style="font-size:13px;color:#262626;font-variant-numeric:tabular-nums;margin-top:2px;">' + (x.areaN ? dFmt2(x.areaKop) + ' м²' : '<span class="dash-warn">площадь не указана</span>') + ' · ' + dMoney(x.monthly) + ' <span class="dash-sub">в месяц</span></div>'
+      + (x.areaN && x.areaN < x.n ? '<div class="dash-sub" style="margin-top:1px;">площадь указана у ' + x.areaN + ' из ' + dOfContracts(x.n) + '</div>' : '')
+      + '</div>';
   }).join('');
-  return '<div class="dash-tile"><div class="dash-tile-label">По видам объектов <span style="float:right;">в месяц</span></div>'
+  return '<div class="dash-tile"><div class="dash-tile-label">По видам объектов</div>'
     + (rows || '<div class="dash-empty">Договоров нет</div>') + '</div>';
 }
 function attentionTile(s) {

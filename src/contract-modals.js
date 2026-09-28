@@ -359,7 +359,20 @@ function renderFilesList(files, currentUser, scans) {
 }
 
 function activeScans(r, currentUser) { return { contract: r.contract_scan_url || '', act: r.act_scan_url || '', canEdit: canEditActiveBlocks(currentUser) }; }
-function bindScanMarks(root, contractId, r, onDone) {
+function recScans(r, canEdit) { return { contract: (r && r.contract_scan_url) || '', act: (r && r.act_scan_url) || '', canEdit: !!canEdit }; }
+// записать/снять отметку скана: в договор и в поле формы, если оно есть (финальный этап оформления)
+async function setScanField(root, collectionName, contractId, r, field, value) {
+  const vals = {}; vals[field] = value || null;
+  await updateWithHistory(collectionName, contractId, vals);
+  if (r) r[field] = vals[field];
+  const el = root.querySelector('[data-field="' + field + '"]');
+  if (el) {
+    el.value = value || '';
+    const nameEl = root.querySelector('[data-scan-name="' + field + '"]'); if (nameEl) nameEl.textContent = value || 'не загружен';
+    const upBtn = root.querySelector('[data-scan-upload="' + field + '"]'); if (upBtn) upBtn.textContent = value ? 'Заменить файл' : '+ Загрузить файл';
+  }
+}
+function bindScanMarks(root, contractId, r, onDone, collectionName) {
   root.querySelectorAll('.cm-scan-mark').forEach(function(a) {
     if (a.__cmBound) return;
     a.__cmBound = true;
@@ -367,9 +380,7 @@ function bindScanMarks(root, contractId, r, onDone) {
       e.preventDefault();
       const field = a.getAttribute('data-scan-kind') === 'act' ? 'act_scan_url' : 'contract_scan_url';
       const nm = a.getAttribute('data-scan-name');
-      const vals = {};
-      vals[field] = r[field] === nm ? null : nm;
-      try { await updateWithHistory('rental_contracts', contractId, vals); r[field] = vals[field]; if (onDone) await onDone(); }
+      try { await setScanField(root, collectionName || 'rental_contracts', contractId, r, field, r[field] === nm ? null : nm); if (onDone) await onDone(); }
       catch (err) { cmToast('Не удалось сохранить отметку'); }
     });
   });
@@ -470,6 +481,25 @@ function cmConfirm(msg) {
     overlay.querySelector('#cm-confirm-no').addEventListener('click', function() { overlay.remove(); resolve(false); });
   });
 }
+
+// выбор варианта: resolve(value) или null при «Отмена»
+function cmChoice(msg, options) {
+  return new Promise(function(resolve) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:#fff;border-radius:8px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 28px rgba(0,0,0,0.22);">'
+      + '<div style="font-size:14px;color:#262626;margin-bottom:16px;line-height:1.5;">' + esc(msg) + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:8px;">' + options.map(function(o, i) {
+          return '<button data-i="' + i + '" style="border:1px solid ' + (i === 0 ? '#1677ff' : '#d9d9d9') + ';background:' + (i === 0 ? '#1677ff' : '#fff') + ';color:' + (i === 0 ? '#fff' : '#262626') + ';border-radius:6px;padding:8px 14px;font-size:13.5px;cursor:pointer;text-align:left;">' + esc(o.label) + '</button>';
+        }).join('')
+      + '<button data-i="-1" style="border:none;background:transparent;color:#8c8c8c;padding:6px;font-size:13px;cursor:pointer;">Отмена</button></div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelectorAll('[data-i]').forEach(function(b) {
+      b.addEventListener('click', function() { const i = Number(b.getAttribute('data-i')); overlay.remove(); resolve(i < 0 ? null : options[i].value); });
+    });
+  });
+}
+const SCAN_CHOICES = [{ value: 'contract_scan_url', label: 'Скан подписанного договора' }, { value: 'act_scan_url', label: 'Скан подписанного акта' }, { value: '', label: 'Другой документ' }];
 
 async function createNotification(userId, contractId, title, text, source, channel) {
   try {
@@ -2640,7 +2670,7 @@ async function openContractModal(id) {
 
     bindFileOpenLinks(overlay);
     bindFileDeleteLinks(overlay, id, 'rental_contracts', refreshActiveFiles);
-    bindFileUpload(overlay, id, 'rental_contracts', { input: 'cm-active-file-input', btn: 'cm-active-upload-btn', status: 'cm-active-upload-status' }, refreshActiveFiles);
+    bindFileUpload(overlay, id, 'rental_contracts', { input: 'cm-active-file-input', btn: 'cm-active-upload-btn', status: 'cm-active-upload-status' }, refreshActiveFiles, r);
 
     initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state);
   } catch (e) {
@@ -3244,7 +3274,7 @@ function renderFormingSideSections(r, currentUser, beforeHistory) {
   const files = r.contract_files || [];
   return renderPricesSection('cm-forming') + renderContactsSection('cm-forming')
     + '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
-    + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser) + '</div>'
+    + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser, recScans(r, true)) + '</div>'
     + '<div class="cm-upload-row"><input type="file" id="cm-forming-file-input" style="display:none;">'
     + '<button class="cm-upload-btn" id="cm-forming-upload-btn">+ Прикрепить файл</button>'
     + '<span id="cm-forming-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
@@ -3602,6 +3632,9 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
     if (!title) { cmToast('Укажите название'); return; }
     const dp = dateProblem(dateInput.value);
     if (dp) { cmToast('Дата заключения: ' + dp); dateInput.focus(); return; }
+    // без скана ДС договор получит статус «Не хватает документов» — предупреждаем, а не молча сохраняем
+    const hadFile = editId && (items.find(function(x) { return x.id === editId; }) || {}).file;
+    if (!fileInput.files[0] && !hadFile && !(await cmConfirm('Скан дополнительного соглашения не выбран — договор получит статус «Не хватает документов», пока скан не загрузят. Сохранить без файла?'))) return;
     saveBtn.disabled = true;
     statusSpan.textContent = 'Сохранение…';
     try {
@@ -3667,7 +3700,7 @@ async function uploadContractFile(file, contractId, collectionName) {
   });
 }
 
-function bindFileUpload(root, contractId, collectionName, ids, onDone) {
+function bindFileUpload(root, contractId, collectionName, ids, onDone, rec) {
   const input = root.querySelector('#' + ids.input);
   const btn = root.querySelector('#' + ids.btn);
   const status = root.querySelector('#' + ids.status);
@@ -3680,21 +3713,22 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone) {
   input.addEventListener('change', async function() {
     const file = input.files[0];
     if (!file) return;
-    const scanField = root.__cmScanField; root.__cmScanField = null;
+    let scanField = root.__cmScanField; root.__cmScanField = null;
+    // «+ Прикрепить файл»: спрашиваем, что это за документ — сканы договора и акта нужны для статуса «Не хватает документов»
+    if (!scanField) {
+      const kind = await cmChoice('Что это за файл «' + file.name + '»?', SCAN_CHOICES);
+      if (kind === null) { input.value = ''; return; }
+      scanField = kind;
+    }
     btn.disabled = true;
     status.textContent = 'Загрузка…';
     try {
       await uploadContractFile(file, contractId, collectionName);
       logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Загружен файл: ' + file.name }]);
       status.textContent = 'Готово';
-      const scanEl = scanField && root.querySelector('[data-field="' + scanField + '"]');
-      if (scanEl) {
-        scanEl.value = file.name;
-        fireInput(scanEl);
-        const nameEl = root.querySelector('[data-scan-name="' + scanField + '"]');
-        if (nameEl) nameEl.textContent = file.name;
-        const upBtn = root.querySelector('[data-scan-upload="' + scanField + '"]');
-        if (upBtn) upBtn.textContent = 'Заменить файл';
+      if (scanField) {
+        await setScanField(root, collectionName, contractId, rec, scanField, file.name);
+        if (root.__cmRefreshStatus) await root.__cmRefreshStatus();
       }
       if (onDone) await onDone();
     } catch (e) {
@@ -4237,13 +4271,16 @@ async function openDraftModal(id, isQuickHint) {
       const res2 = await ctx.api.resource('draft_contracts').get({ filterByTk: realId, appends: ['contract_files'] });
       const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
       const listEl = overlay.querySelector('#cm-forming-files-list');
-      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser);
+      r.contract_scan_url = r2.contract_scan_url; r.act_scan_url = r2.act_scan_url;
+      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser, recScans(r2, true));
       bindFileOpenLinks(overlay);
       bindFileDeleteLinks(overlay, realId, 'draft_contracts', refreshDraftFiles);
+      bindScanMarks(overlay, realId, r, refreshDraftFiles, 'draft_contracts');
     }
     bindFileOpenLinks(overlay);
     bindFileDeleteLinks(overlay, realId, 'draft_contracts', refreshDraftFiles);
-    bindFileUpload(overlay, realId, 'draft_contracts', { input: 'cm-forming-file-input', btn: 'cm-forming-upload-btn', status: 'cm-forming-upload-status' }, refreshDraftFiles);
+    bindScanMarks(overlay, realId, r, refreshDraftFiles, 'draft_contracts');
+    bindFileUpload(overlay, realId, 'draft_contracts', { input: 'cm-forming-file-input', btn: 'cm-forming-upload-btn', status: 'cm-forming-upload-status' }, refreshDraftFiles, r);
 
     wireStageCollapseToggles(overlay);
     wireStageEditToggles(overlay, realId);
@@ -4604,13 +4641,16 @@ async function openFormingContractModal(id) {
       const res2 = await ctx.api.resource('forming_contracts').get({ filterByTk: id, appends: ['contract_files'] });
       const r2 = (res2 && res2.data && res2.data.data) ? res2.data.data : (res2 && res2.data) ? res2.data : res2;
       const listEl = overlay.querySelector('#cm-forming-files-list');
-      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser);
+      r.contract_scan_url = r2.contract_scan_url; r.act_scan_url = r2.act_scan_url;
+      if (listEl) listEl.innerHTML = renderFilesList(r2.contract_files || [], currentUser, recScans(r2, true));
       bindFileOpenLinks(overlay);
       bindFileDeleteLinks(overlay, id, 'forming_contracts', refreshFormingFiles);
+      bindScanMarks(overlay, id, r, refreshFormingFiles, 'forming_contracts');
     }
     bindFileOpenLinks(overlay);
     bindFileDeleteLinks(overlay, id, 'forming_contracts', refreshFormingFiles);
-    bindFileUpload(overlay, id, 'forming_contracts', { input: 'cm-forming-file-input', btn: 'cm-forming-upload-btn', status: 'cm-forming-upload-status' }, refreshFormingFiles);
+    bindScanMarks(overlay, id, r, refreshFormingFiles, 'forming_contracts');
+    bindFileUpload(overlay, id, 'forming_contracts', { input: 'cm-forming-file-input', btn: 'cm-forming-upload-btn', status: 'cm-forming-upload-status' }, refreshFormingFiles, r);
 
     wireStageCollapseToggles(overlay);
     wireStageEditToggles(overlay, id);

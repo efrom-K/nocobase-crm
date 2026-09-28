@@ -3217,13 +3217,23 @@ function renderFormingSideSections(r, currentUser) {
     + renderHistorySection('cm-forming');
 }
 
-// «Срочный договор»: все поля из всех этапов в одной форме, без ролевого гейтинга по этапам.
+// «Срочный договор»: те же блоки, что в карточке активного договора (без «Статусов»), но поля черновика:
+// цены — текущие rent_*/utility_*/deposit_amount (при публикации становятся base_*), комментарий — comment_stage4 (→ calc_comment).
+// Дата расторжения, ссылки, комментарии этапов, способ подписания и сканы в карточке не показываются — в срочной форме их тоже нет.
+const QUICK_FIELD_MAP = { base_rent_per_sqm: 'rent_per_sqm', base_rent_amount: 'rent_amount', base_utility_per_sqm: 'utility_per_sqm',
+  base_utility_amount: 'utility_amount', base_deposit_amount: 'deposit_amount', calc_comment: 'comment_stage4' };
+const QUICK_BLOCK_DEFS = ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(b) {
+  return { title: b.title, fields: b.fields.filter(function(f) { return f.name !== 'termination_date'; }).map(function(f) {
+    return QUICK_FIELD_MAP[f.name] ? Object.assign({}, f, { name: QUICK_FIELD_MAP[f.name] }) : f;
+  }) };
+});
+// «Срочный договор»: одна форма без этапов и ролевого гейтинга.
 function renderQuickFormingBody(r, currentUser) {
   let html = '<div style="background:#fff7e6;border:1px solid #ffd591;color:#ad6800;border-radius:6px;'
-    + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — все поля в одной форме, без этапов оформления</div>';
-  html += '<div class="cm-stage-form" data-stage="quick">' + STAGE_DEFS.map(function(stage) {
-    return '<div class="cm-section"><div class="cm-section-title">' + esc(stage.title) + '</div>'
-      + stage.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>';
+    + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — сразу вся карточка договора, без этапов оформления</div>';
+  html += '<div class="cm-stage-form" data-stage="quick">' + QUICK_BLOCK_DEFS.map(function(block) {
+    return '<div class="cm-section"><div class="cm-section-title">' + esc(block.title) + '</div>'
+      + block.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>';
   }).join('') + '</div>';
   html += '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>';
   html += '<div class="cm-stage-actions" style="margin-top:2px;padding-top:10px;border-top:1px solid #f0f0f0;">'
@@ -3339,7 +3349,7 @@ function collectStageValues(root, stageIndex) {
   if (!formEl) return values;
   const fieldTypes = {};
   if (stageIndex === 'quick') {
-    STAGE_DEFS.forEach(function(s) { s.fields.forEach(function(f) { fieldTypes[f.name] = f.type; }); });
+    QUICK_BLOCK_DEFS.forEach(function(s) { s.fields.forEach(function(f) { fieldTypes[f.name] = f.type; }); });
   } else {
     const stage = STAGE_DEFS[Number(stageIndex)];
     if (stage) stage.fields.forEach(function(f) { fieldTypes[f.name] = f.type; });

@@ -2622,7 +2622,6 @@ window.openContractModal = openContractModal;
 
 // ---------- тип арендатора: юрлицо / ИП / физлицо — от него зависит набор реквизитов ----------
 // ОГРН бывает только у юрлица; у ИП свой номер — ОГРНИП; у физлица ни того, ни другого, зато паспорт.
-const TENANT_NAME_HINT = 'Введите ИНН арендатора — наименование и реквизиты организации или ИП подтянутся сами';
 const OBJECT_KINDS = ['Помещение', 'Земельный участок', 'Машино-место'];   // вид объекта договора; значения в базе = подписи
 const TENANT_TYPES = ['Юрлицо', 'ИП', 'Самозанятый', 'Физлицо'];   // значения в базе; показываем полными словами (VALUE_LABELS)
 const VALUE_LABELS = {
@@ -2705,7 +2704,7 @@ const STAGE_DEFS = [
   { title: 'Подписание договора / Данные контрагента', role: 'accounting_dept', fields: [
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
-      { name: 'tenant_name', label: 'Арендатор', type: 'text', hint: TENANT_NAME_HINT },
+      { name: 'tenant_name', label: 'Арендатор', type: 'text' },
       { name: 'inn', label: 'ИНН', type: 'text' },
       { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text' },
@@ -2825,8 +2824,7 @@ function renderEditableField(f, value, rec) {
   }
   const maskAttr = f.mask ? ' data-mask="' + f.mask + '"' : '';
   const maskPlaceholder = f.mask === 'bankaccount' ? ' placeholder="0000 0000 0000 0000 0000"' : (f.mask === 'bik' ? ' placeholder="000000000"' : '');
-  return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '">'
-    + (f.hint ? '<div class="cm-derived-hint">' + esc(f.hint) + '</div>' : '') + '</div>';
+  return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '"></div>';
 }
 
 function readonlyTotalText(r) {
@@ -2942,7 +2940,7 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'object_name', label: 'Объект', type: 'text' },
       { name: 'contract_number', label: 'Номер договора', type: 'text' },
       { name: 'object_kind', label: 'Вид объекта', type: 'select', options: OBJECT_KINDS },
-      { name: 'tenant_name', label: 'Арендатор', type: 'text', hint: TENANT_NAME_HINT },
+      { name: 'tenant_name', label: 'Арендатор', type: 'text' },
       { name: 'purpose', label: 'Назначение по договору', type: 'text' },
       { name: 'date_signed', label: 'Дата заключения договора', type: 'date' },
       { name: 'date_act', label: 'Дата подписания акта приёма-передачи', type: 'date' },

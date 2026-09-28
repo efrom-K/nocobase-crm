@@ -2622,6 +2622,7 @@ window.openContractModal = openContractModal;
 
 // ---------- тип арендатора: юрлицо / ИП / физлицо — от него зависит набор реквизитов ----------
 // ОГРН бывает только у юрлица; у ИП свой номер — ОГРНИП; у физлица ни того, ни другого, зато паспорт.
+const TENANT_NAME_HINT = 'Введите ИНН арендатора — наименование и реквизиты организации или ИП подтянутся сами';
 const OBJECT_KINDS = ['Помещение', 'Земельный участок', 'Машино-место'];   // вид объекта договора; значения в базе = подписи
 const TENANT_TYPES = ['Юрлицо', 'ИП', 'Самозанятый', 'Физлицо'];   // значения в базе; показываем полными словами (VALUE_LABELS)
 const VALUE_LABELS = {
@@ -2704,7 +2705,7 @@ const STAGE_DEFS = [
   { title: 'Подписание договора / Данные контрагента', role: 'accounting_dept', fields: [
       { name: 'contract_number', label: 'Номер Договора', type: 'text' },
       { name: 'tenant_type', label: 'Тип арендатора', type: 'select', options: TENANT_TYPES },
-      { name: 'tenant_name', label: 'Арендатор', type: 'text' },
+      { name: 'tenant_name', label: 'Арендатор', type: 'text', hint: TENANT_NAME_HINT },
       { name: 'inn', label: 'ИНН', type: 'text' },
       { name: 'kpp', label: 'КПП', type: 'text' },
       { name: 'legal_address', label: 'Юридический адрес', type: 'text' },
@@ -2824,7 +2825,8 @@ function renderEditableField(f, value, rec) {
   }
   const maskAttr = f.mask ? ' data-mask="' + f.mask + '"' : '';
   const maskPlaceholder = f.mask === 'bankaccount' ? ' placeholder="0000 0000 0000 0000 0000"' : (f.mask === 'bik' ? ' placeholder="000000000"' : '');
-  return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '"></div>';
+  return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '">'
+    + (f.hint ? '<div class="cm-derived-hint">' + esc(f.hint) + '</div>' : '') + '</div>';
 }
 
 function readonlyTotalText(r) {
@@ -2940,7 +2942,7 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'object_name', label: 'Объект', type: 'text' },
       { name: 'contract_number', label: 'Номер договора', type: 'text' },
       { name: 'object_kind', label: 'Вид объекта', type: 'select', options: OBJECT_KINDS },
-      { name: 'tenant_name', label: 'Арендатор', type: 'text' },
+      { name: 'tenant_name', label: 'Арендатор', type: 'text', hint: TENANT_NAME_HINT },
       { name: 'purpose', label: 'Назначение по договору', type: 'text' },
       { name: 'date_signed', label: 'Дата заключения договора', type: 'date' },
       { name: 'date_act', label: 'Дата подписания акта приёма-передачи', type: 'date' },
@@ -4221,6 +4223,7 @@ async function openDraftModal(id, isQuickHint) {
         });
       }
       const saveBtn = overlay.querySelector('#cm-quick-save');
+      if (saveBtn) saveBtn.textContent = 'Сохранить → В черновики';   // разметка общая с «Формирующимися» — подпись меняем только в черновике
       if (saveBtn) saveBtn.addEventListener('click', async function(e) {
         const btn = e.target; btn.disabled = true;
         try {
@@ -4238,7 +4241,7 @@ async function openDraftModal(id, isQuickHint) {
       const stageIndex = r.current_stage || 0;
       const isLast = stageIndex === STAGE_DEFS.length - 1;
       const actionsHtml = '<div class="cm-stage-actions">'
-        + '<button class="cm-btn-save cm-btn-primary" id="cm-stage-save">Сохранить</button>'
+        + '<button class="cm-btn-save cm-btn-primary" id="cm-stage-save">Сохранить → В черновики</button>'
         + '<button class="cm-btn-advance' + (isLast ? ' cm-btn-finalize' : '') + '" id="cm-stage-advance">'
         + 'Подтвердить этап → в «Формирующиеся»' + '</button>'
         + '</div>';
@@ -4287,7 +4290,7 @@ async function openDraftModal(id, isQuickHint) {
       if (!placeholder.is_quick) {
         const isLast = false;
         const actionsHtml = '<div class="cm-stage-actions">'
-          + '<button class="cm-btn-save cm-btn-primary" id="cm-stage-save" disabled>Сохранить</button>'
+          + '<button class="cm-btn-save cm-btn-primary" id="cm-stage-save" disabled>Сохранить → В черновики</button>'
           + '<button class="cm-btn-advance" id="cm-stage-advance" disabled>Подтвердить этап → в «Формирующиеся»</button>'
           + '</div>';
         const currentContent = overlay.querySelector('[data-stage-content="0"]');
@@ -4295,6 +4298,7 @@ async function openDraftModal(id, isQuickHint) {
       } else {
         const pubBtn = overlay.querySelector('#cm-quick-publish');
         const saveBtnQ = overlay.querySelector('#cm-quick-save');
+        if (saveBtnQ) saveBtnQ.textContent = 'Сохранить → В черновики';
         if (pubBtn) { pubBtn.disabled = true; pubBtn.textContent = 'Опубликовать → Активные'; }
         const pubFormBtnQ = ensureQuickFormingButton(overlay);
         if (pubFormBtnQ) pubFormBtnQ.disabled = true;

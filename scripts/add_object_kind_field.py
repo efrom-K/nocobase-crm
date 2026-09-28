@@ -24,10 +24,3 @@ for coll in ('draft_contracts', 'forming_contracts', 'rental_contracts', 'comple
     r = call('collections/%s/fields:create' % coll, {'name': 'object_kind', 'type': 'string', 'interface': 'select',
              'uiSchema': {'type': 'string', 'title': 'Вид объекта', 'x-component': 'Select', 'enum': ENUM}})
     print(coll, 'ok' if 'data' in r else r.get('body', r))
-
-# «Площади» на дашборде по видам: у объекта, кроме общей площади помещений (total_area), — площадь участков и число машино-мест
-for name, typ, iface, title in (('land_total_area', 'double', 'number', 'Общая площадь земельных участков, м²'),
-                                ('parking_total', 'integer', 'integer', 'Всего машино-мест')):
-    r = call('collections/contract_objects/fields:create', {'name': name, 'type': typ, 'interface': iface,
-             'uiSchema': {'type': 'number', 'title': title, 'x-component': 'InputNumber'}})
-    print('contract_objects', name, 'ok' if 'data' in r else r.get('body', r))

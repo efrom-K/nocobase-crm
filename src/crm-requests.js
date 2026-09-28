@@ -92,6 +92,9 @@ if (!document.getElementById('crm-req-style')) {
       .rq-box { border-radius:0; min-height:100%; max-width:none; }
       .rq-form, .rq-meta { grid-template-columns:1fr; }
       .rq-btn { flex:1 1 45%; padding:10px; }
+      .rq-comment { flex-wrap:wrap; }
+      .rq-comment textarea { flex:1 1 100%; min-height:60px; }
+      .rq-comment .rq-btn { flex:1 1 auto; }
     }
   `;
   document.head.appendChild(st);
@@ -381,10 +384,8 @@ async function rqRenderCard(m, r) {
   const box = m.querySelector('#rq-card');
   const late = rqLate(r), u = RQ_URG[r.urgency] || RQ_URG.normal;
   let evs = [];
-  try { evs = rqRows(await ctx.api.resource('request_events').list({ filter: { request_id: r.id }, sort: ['createdAt'], paginate: false })); } catch (e) { evs = []; }
-  const fileIds = evs.map(function(x) { return x.file_id; }).filter(Boolean);
-  const files = {};
-  if (fileIds.length) { try { rqRows(await ctx.api.resource('attachments').list({ filter: { id: { $in: fileIds } }, paginate: false })).forEach(function(f) { files[f.id] = f; }); } catch (e) { /* без ссылок */ } }
+  // файл — связь file (belongsTo attachments): отдельный attachments:list в этой версии NocoBase недоступен (404)
+  try { evs = rqRows(await ctx.api.resource('request_events').list({ filter: { request_id: r.id }, sort: ['createdAt'], appends: ['file'], paginate: false })); } catch (e) { evs = []; }
   box.innerHTML = '<div class="rq-box-h"><div class="rq-box-t">№' + r.id + ' · ' + rqEsc(r.title) + '<div style="margin-top:6px;font-size:13px;font-weight:400;">' + rqPill(r.status)
     + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
     + (RQ_URG[r.urgency] && r.urgency !== 'normal' ? ' <span class="rq-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + rqEsc(u.l) + '</span>' : '') + '</div></div><button class="rq-x">✕</button></div>'
@@ -402,7 +403,7 @@ async function rqRenderCard(m, r) {
     + '<div id="rq-actbox"></div>'
     + '<div class="rq-tl"><div style="font-weight:600;margin-bottom:4px;">Переписка и история</div>'
     + evs.map(function(x) {
-        const f = x.file_id && files[x.file_id];
+        const f = x.file;
         return '<div class="rq-ev' + (x.kind === 'comment' ? '' : ' sys') + '"><div class="rq-ev-d">' + rqDateTime(x.createdAt) + '</div><div style="min-width:0;"><b style="color:#434343;">' + rqEsc(rqUser(x.author_id)) + ':</b> ' + rqEsc(x.text)
           + (f ? ' <a data-file="' + rqEsc(f.url) + '" data-fname="' + rqEsc((f.title || 'файл') + (f.extname || '')) + '">📎 ' + rqEsc((f.title || 'файл') + (f.extname || '')) + '</a>' : '') + '</div></div>';
       }).join('')

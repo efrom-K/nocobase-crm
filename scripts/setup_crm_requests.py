@@ -70,6 +70,10 @@ print('collection request_events', ok(call('collections:create', {
         F('file_id', 'bigInt', 'integer', 'Файл', 'InputNumber'),
     ]})))
 
+# файл сообщения — связью (appends: ['file']), attachments:list напрямую недоступен
+print('request_events.file', ok(call('collections/request_events/fields:create', {'name': 'file', 'type': 'belongsTo', 'target': 'attachments', 'foreignKey': 'file_id',
+      'interface': 'm2o', 'uiSchema': {'title': 'Файл', 'x-component': 'AssociationField'}})))
+
 # --- ответственные по объектам
 for name, typ, iface, title in (('manager_user_id', 'bigInt', 'integer', 'Управляющий (учётка)'), ('senior_user_id', 'bigInt', 'integer', 'Старший управляющий (учётка)'),
                                 ('manager_name', 'string', 'input', 'Управляющий (Pyrus)'), ('senior_name', 'string', 'input', 'Старший управляющий (Pyrus)')):

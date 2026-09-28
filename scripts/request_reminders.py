@@ -13,7 +13,7 @@ cron на svc:  0 9 * * 1-5 /usr/bin/python3 /home/ubuntu/nb_bik/request_reminde
 import datetime, json, os, subprocess, sys
 
 DRY = '--dry' in sys.argv
-PAGE = '/admin/crmpage01'
+PAGE = '/admin/j3a32zo1jzo'   # «Тестовая страница»
 PSQL = ['sudo', '-n', 'docker', 'exec', '-i', os.environ.get('NB_PG_CONTAINER', 'nocobase-postgres-1'), 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
 def psql(sql):
@@ -30,7 +30,7 @@ d = lambda v: datetime.date.fromisoformat(str(v)[:10]) if v else None
 fmt = lambda v: v.strftime('%d.%m.%Y')
 
 reqs = rows("select r.*, o.senior_user_id from object_requests r left join contract_objects o on o.name = r.object_name "
-            "where r.status in ('new','in_work','waiting','done')")
+            "where r.status in ('new','in_work','waiting','done') and not coalesce(r.demo, false)")   # демо-заявки не трогаем
 stmts, report = [], []
 
 def notify(uid, r, text):

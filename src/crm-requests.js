@@ -1,4 +1,4 @@
-// Страница «Заявки (тест)» (/admin/crmpage01, блок crmblock001): заявки по объектам — ремонт, эксплуатация, вопросы
+// «Тестовая страница» (/admin/j3a32zo1jzo, блок crmblock001): заявки по объектам — ремонт, эксплуатация, вопросы
 // арендаторов, расторжения, платежи, проверки. Тестовый контур CRM; коллекции — scripts/setup_crm_requests.py.
 // Процесс (решения владельца 28.09): Новая → В работе → Ждёт → Выполнена (на проверке) → Закрыта автором (или сама через 3 дня),
 // + Отменена. Срок по срочности: обычная 5 рабочих дней, срочно 1, авария — сегодня. Ответственный по умолчанию —
@@ -100,7 +100,7 @@ if (!document.getElementById('crm-req-style')) {
   document.head.appendChild(st);
 }
 
-const RQ_PAGE = '/admin/crmpage01';
+const RQ_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
 const RQ_ST = {
   new: { l: 'Новая', c: '#1677ff' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
   done: { l: 'Выполнена — на проверке', c: '#13a8a8' }, closed: { l: 'Закрыта', c: '#389e0d' }, cancelled: { l: 'Отменена', c: '#8c8c8c' }
@@ -255,7 +255,7 @@ function rqRowHtml(r) {
   const due = r.due_date ? (late ? '<span class="rq-late">просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн. (срок ' + rqDate(r.due_date) + ')</span>' : 'срок ' + rqDate(r.due_date)) : '';
   return '<div class="rq-row" data-open="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
     + '<div style="min-width:0;"><div class="rq-row-title">' + ((r.urgency === 'urgent' || r.urgency === 'emergency') && open ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
-    + '<div class="rq-row-sub">№' + r.id + ' · ' + rqEsc([r.object_name, r.tenant_label, r.kind].filter(Boolean).join(' · ')) + '</div></div>'
+    + '<div class="rq-row-sub">' + (r.demo ? '<span class="rq-pill" style="color:#8c8c8c;border-color:#d9d9d9;margin-right:6px;">демо</span>' : '') + '№' + r.id + ' · ' + rqEsc([r.object_name, r.tenant_label, r.kind].filter(Boolean).join(' · ')) + '</div></div>'
     + '<div class="rq-row-side">' + rqPill(r.status) + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
     + '<div style="margin-top:3px;color:#595959;">' + rqEsc(rqUser(r.responsible_id)) + (open && due ? ' · ' + due : '') + '</div></div></div>';
 }

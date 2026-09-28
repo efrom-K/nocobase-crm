@@ -5,7 +5,7 @@
   - коллекции object_requests (заявка), request_events (переписка и история заявки);
   - очередь request_notifications + workflow → колокольчик (канал «Заявки»), как у договоров/почты;
   - у объектов (contract_objects): управляющий и старший управляющий — учётка NocoBase (id) и имя из Pyrus (текстом);
-  - страницу меню «Заявки (тест)» (/admin/crmpage01, JS-блок crmblock001), видна только роли admin.
+  - JS-блок crmblock001 на «Тестовой странице» (/admin/j3a32zo1jzo) — тестовый контур.
 Код блока выкладывается агентом из src/crm-requests.js (deploy/blocks.json). Сроки, напоминания, эскалация и
 автозакрытие — scripts/request_reminders.py (cron на сервере).
 
@@ -59,6 +59,7 @@ print('collection object_requests', ok(call('collections:create', {
         F('closed_at', 'date', 'datetime', 'Закрыта', 'DatePicker'),
         F('reminded_on', 'dateOnly', 'date', 'Напоминание отправлено', 'DatePicker'),
         F('escalated_at', 'date', 'datetime', 'Эскалация', 'DatePicker'),
+        F('demo', 'boolean', 'checkbox', 'Демо-данные', 'Checkbox'),   # тестовое наполнение: сервер не шлёт по ним напоминаний
     ]})))
 print('collection request_events', ok(call('collections:create', {
     'name': 'request_events', 'title': 'Заявки: переписка и история', 'autoGenId': True, 'createdAt': True, 'updatedAt': False,
@@ -96,22 +97,14 @@ assert 'data' in n, n
 call('workflows:update?filterByTk=%s' % wid, {'enabled': True})
 print('workflow', wid, 'enabled')
 
-# --- страница меню «Заявки (тест)»: маршрут через API (кэш ролей), сетка и JS-блок — строками flowModels
-r = call('desktopRoutes:create', {'type': 'flowPage', 'title': 'Заявки (тест)', 'icon': 'ToolOutlined', 'schemaUid': 'crmpage01', 'menuSchemaUid': 'crmmenu01',
-                                  'children': [{'type': 'tabs', 'schemaUid': 'crmtabs01', 'hidden': True}]})
-print('route', ok(r))
-# тест — только администраторам: у ролей отделов включено «новые меню видны», убираем
-routes = [x['id'] for x in call('desktopRoutes:list?paginate=false&filter=' + urllib.request.quote(json.dumps({'schemaUid': {'$in': ['crmpage01', 'crmtabs01']}})))['data']]
-for role in ('member', 'rental_dept', 'legal_dept', 'accounting_dept'):
-    print('hide from', role, ok(call('roles/%s/desktopRoutes:remove' % role, routes)))
+# --- блок на «Тестовой странице» (/admin/j3a32zo1jzo, вкладка yvsy7xrnfii, сетка e8f4d7faa72) — тестовый контур CRM
+TEST_TABS, TEST_GRID = 'yvsy7xrnfii', 'e8f4d7faa72'
+LAYOUT = {"rows": [{"id": "crmrow1", "cells": [{"id": "crmrow1:cell:0", "items": ["crmblock001"]}], "sizes": [24]}], "version": 2}
 psql("""begin;
-insert into "flowModels"(uid,name,options) values ('crmgrid0001','crmgrid0001','{"use":"BlockGridModel","parent":"crmtabs01","parentId":"crmtabs01","subKey":"grid","subType":"object","sortIndex":0,"flowRegistry":{},
- "props":{"rows":{"crmrow1":[["crmblock001"]]},"sizes":{"crmrow1":[24]},"colGap":16,"rowGap":16,"rowOrder":["crmrow1"],"layout":{"rows":[{"id":"crmrow1","cells":[{"id":"crmrow1:cell:0","items":["crmblock001"]}],"sizes":[24]}],"version":2}},
- "stepParams":{"gridSettings":{"grid":{"layout":{"rows":[{"id":"crmrow1","cells":[{"id":"crmrow1:cell:0","items":["crmblock001"]}],"sizes":[24]}],"version":2}}}}}') on conflict do nothing;
-insert into "flowModels"(uid,name,options) values ('crmblock001','crmblock001','{"use":"JSBlockModel","props":{},"subKey":"items","subType":"array","parentId":"crmgrid0001","sortIndex":0,"stepParams":{"jsSettings":{"runJs":{"code":"ctx.render(\\"Загрузка…\\");"}}}}') on conflict do nothing;
+update "flowModels" set options = (options::jsonb || %s::jsonb)::json where uid='%s';
+insert into "flowModels"(uid,name,options) values ('crmblock001','crmblock001','{"use":"JSBlockModel","props":{},"subKey":"items","subType":"array","parentId":"%s","sortIndex":0,"stepParams":{"jsSettings":{"runJs":{"code":"ctx.render(\\"Загрузка…\\");"}}}}') on conflict do nothing;
 insert into "flowModelTreePath"(ancestor,descendant,depth,async,type,sort) values
- ('crmgrid0001','crmgrid0001',0,false,'grid',null),('crmtabs01','crmgrid0001',1,false,null,null),
- ('crmblock001','crmblock001',0,false,'items',null),('crmgrid0001','crmblock001',1,false,null,1),('crmtabs01','crmblock001',2,false,null,1)
- on conflict do nothing;
-commit;""")
-print('page models ok')
+ ('crmblock001','crmblock001',0,false,'items',null),('%s','crmblock001',1,false,null,1),('%s','crmblock001',2,false,null,1) on conflict do nothing;
+commit;""" % ("'" + json.dumps({"props": {"rows": {"crmrow1": [["crmblock001"]]}, "sizes": {"crmrow1": [24]}, "colGap": 16, "rowGap": 16, "rowOrder": ["crmrow1"], "layout": LAYOUT},
+                                "stepParams": {"gridSettings": {"grid": {"layout": LAYOUT}}}}) + "'", TEST_GRID, TEST_GRID, TEST_GRID, TEST_TABS))
+print('block on test page ok')

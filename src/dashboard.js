@@ -78,8 +78,18 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-table .num { text-align:right; }
     #cm-dash-panel .dash-table tbody tr:hover td { background:#f5faff; }
     #cm-dash-panel .dash-edit { color:#1677ff; cursor:pointer; }
+    #cm-dash-panel .dash-tile.dash-wide { grid-column:span 2; }
+    #cm-dash-panel .dash-kinds { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; column-gap:16px; font-size:13px; font-variant-numeric:tabular-nums; }
+    #cm-dash-panel .dash-kinds > div { padding:7px 0; border-top:1px solid #f5f5f5; }
+    #cm-dash-panel .dash-kinds > .kh { padding:0 0 4px; border-top:none; font-size:12px; color:#8c8c8c; }
+    #cm-dash-panel .dash-kinds .num { text-align:right; white-space:nowrap; }
+    #cm-dash-panel .dash-kinds .on { background:#f0f5ff; }
+    #cm-dash-panel .dash-kinds [data-act] { cursor:pointer; }
     @media (max-width: 700px) {
       #cm-dash-panel .dash-grid { grid-template-columns:1fr; }
+      #cm-dash-panel .dash-tile.dash-wide { grid-column:auto; }
+      #cm-dash-panel .dash-kinds { grid-template-columns:minmax(0,1fr) auto; }
+      #cm-dash-panel .dash-kinds .kx { display:none; }
       #cm-dash-panel .dash-steps { flex-direction:column; align-items:stretch; gap:6px; }
       #cm-dash-panel .dash-step { flex-direction:row; gap:10px; }
       #cm-dash-panel .dash-step::after { display:none; }
@@ -259,20 +269,20 @@ function kindsTile(active) {
     if (a !== null) { x.areaKop += a; x.areaN++; }
     if (m !== null) x.monthly += m;
   });
-  // строка вида — в три строки, ничего не обрезается: вид и ссылка / площадь и деньги / пометка о неполных данных
-  const rows = DASH_KINDS.filter(function(k) { return by[k.v]; }).map(function(k) {
+  // таблица: вид (и пометка о неполной площади) | площадь | в месяц | ссылка в реестр; на телефоне — вид и площадь
+  const cells = DASH_KINDS.filter(function(k) { return by[k.v]; }).map(function(k) {
     const x = by[k.v];
     const on = dashState.kind === kindKey(k.v);
-    return '<div data-act="kind" data-kind="' + dEsc(on ? '' : kindKey(k.v)) + '" title="' + (on ? 'Показать все виды' : 'Показать только ' + dEsc(k.many.toLowerCase())) + '" style="cursor:pointer;padding:7px 6px;margin:0 -6px;border-radius:6px;border-top:1px solid #f5f5f5;' + (on ? 'background:' + k.color + '14;' : '') + '">'
-      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;">'
-      + '<span style="color:' + k.color + ';font-weight:600;font-size:13.5px;">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + '</span>'
-      + '<a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1677ff;font-size:12px;white-space:nowrap;">договоры →</a></div>'
-      + '<div style="font-size:13px;color:#262626;font-variant-numeric:tabular-nums;margin-top:2px;">' + (x.areaN ? dFmt2(x.areaKop) + ' м²' : '<span class="dash-warn">площадь не указана</span>') + ' · ' + dMoney(x.monthly) + ' <span class="dash-sub">в месяц</span></div>'
-      + (x.areaN && x.areaN < x.n ? '<div class="dash-sub" style="margin-top:1px;">площадь указана у ' + x.areaN + ' из ' + dOfContracts(x.n) + '</div>' : '')
-      + '</div>';
+    const a = ' data-act="kind" data-kind="' + dEsc(on ? '' : kindKey(k.v)) + '" title="' + (on ? 'Показать все виды' : 'Показать только ' + dEsc(k.many.toLowerCase())) + '"';
+    const cls = on ? ' class="on"' : '';
+    return '<div' + a + cls + '><span style="color:' + k.color + ';font-weight:600;">' + dEsc(k.v ? kindTxt(k, x.n) : k.many + ': ' + dContracts(x.n)) + '</span>'
+        + (x.areaN && x.areaN < x.n ? '<div class="dash-sub">площадь указана у ' + x.areaN + ' из ' + dOfContracts(x.n) + '</div>' : '') + '</div>'
+      + '<div' + a + ' class="num' + (on ? ' on' : '') + '">' + (x.areaN ? dFmt2(x.areaKop) + ' м²' : '<span class="dash-warn">не указана</span>') + '</div>'
+      + '<div' + a + ' class="num kx' + (on ? ' on' : '') + '">' + dMoney(x.monthly) + '</div>'
+      + '<div class="num kx' + (on ? ' on' : '') + '"><a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1677ff;">договоры →</a></div>';
   }).join('');
-  return '<div class="dash-tile"><div class="dash-tile-label">По видам объектов</div>'
-    + (rows || '<div class="dash-empty">Договоров нет</div>') + '</div>';
+  return '<div class="dash-tile dash-wide"><div class="dash-tile-label">По видам объектов</div>'
+    + (cells ? '<div class="dash-kinds"><div class="kh">Вид</div><div class="kh num">Площадь</div><div class="kh num kx">В месяц</div><div class="kh kx"></div>' + cells + '</div>' : '<div class="dash-empty">Договоров нет</div>') + '</div>';
 }
 function attentionTile(s) {
   const bad = DASH_STATUS.filter(function(x) { return x.v && x.v !== '3_ok' && s.status[x.v]; });

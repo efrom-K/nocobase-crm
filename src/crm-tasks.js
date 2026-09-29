@@ -49,6 +49,8 @@ if (!document.getElementById('crm-ui-style')) {
     .crm-ui tr[data-go], .crm-ui tr[data-emp], .rq-modal tr[data-task] { cursor:pointer; }
     .crm-ui tr[data-go]:hover td, .crm-ui tr[data-emp]:hover td, .rq-modal tr[data-task]:hover td { background:#f5faff; }
     .crm-ui .tk-dept { margin-top:14px; }
+    .crm-ui table.tk-staff { table-layout:fixed; }
+    .crm-ui table.tk-staff td { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .crm-ui .tk-dept-h { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; font-weight:600; padding:6px 0; border-bottom:2px solid #f0f0f0; }
     .crm-ui .tk-dept-h span { font-weight:400; color:#8c8c8c; font-size:12.5px; }
     .crm-ui .tk-org { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
@@ -148,6 +150,7 @@ function tkIsAdmin() { return !!(tk.me && tk.me.__isAdmin); }
 function tkIsOpen(t) { return TK_OPEN.indexOf(t.status) !== -1; }
 function tkLate(t) { return tkIsOpen(t) && t.due_date && String(t.due_date).slice(0, 10) < tkToday(); }
 function tkPill(s) { const x = TK_ST[s] || { l: s, c: '#8c8c8c' }; return '<span class="rq-pill" style="color:' + x.c + ';border-color:' + x.c + '55;background:' + x.c + '10;">' + tkEsc(x.l) + '</span>'; }
+function tkNoun(n, a, b, c) { const x = Math.abs(n) % 100, y = x % 10; return (x > 10 && x < 20) ? c : y === 1 ? a : (y >= 2 && y <= 4) ? b : c; }
 function tkMedian(a) { if (!a.length) return null; const s = a.slice().sort(function(x, y) { return x - y; }); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
 function tkMine(t) { const me = tk.me.id; return Number(t.executor_id) === me || Number(t.controller_id) === me || Number(t.author_id) === me; }
 function tkEmp(id) { return (tk.data.emps || []).find(function(e) { return e.id === Number(id); }) || null; }
@@ -639,11 +642,11 @@ function tkRenderStaffList() {
   el.innerHTML = order.length ? order.map(function(n) {
     const dep = tk.data.depts.find(function(d) { return d.name === n; }), head = dep && dep.head_employee_id ? tkEmp(dep.head_employee_id) : null;
     return '<div class="tk-dept"><div class="tk-dept-h">' + tkEsc(n) + '<span>' + groups[n].length + ' чел.' + (head ? ' · руководитель ' + tkEsc(head.full_name) : '') + (dep && dep.parent_name ? ' · входит в ' + tkEsc(dep.parent_name) : '') + '</span></div>'
-      + '<table><tbody>' + groups[n].map(function(e) {
+      + '<table class="tk-staff"><colgroup><col style="width:26%"><col style="width:24%"><col class="tk-hide-m" style="width:18%"><col class="tk-hide-m" style="width:13%"><col style="width:12%"><col class="tk-hide-m" style="width:7%"></colgroup><tbody>' + groups[n].map(function(e) {
           const open = tkEmpTasks(e).filter(tkIsOpen), late = open.filter(tkLate).length;
-          return '<tr data-emp="' + e.id + '"' + (e.status === 'fired' ? ' class="tk-off"' : '') + '><td style="width:28%;"><b>' + tkEsc(e.full_name) + '</b>' + (e.status === 'vacation' ? ' <span class="rq-pill" style="color:#722ed1;border-color:#722ed155;">в отпуске</span>' : '') + (e.status === 'fired' ? ' <span class="rq-hint">уволен</span>' : '') + '</td>'
+          return '<tr data-emp="' + e.id + '"' + (e.status === 'fired' ? ' class="tk-off"' : '') + '><td><b>' + tkEsc(e.full_name) + '</b>' + (e.status === 'vacation' ? ' <span class="rq-pill" style="color:#722ed1;border-color:#722ed155;">в отпуске</span>' : '') + (e.status === 'fired' ? ' <span class="rq-hint">уволен</span>' : '') + '</td>'
             + '<td>' + tkEsc(e.position || '') + '</td><td class="tk-hide-m">' + tkEsc(e.email || '') + '</td><td class="tk-hide-m">' + tkEsc(e.phone || '') + '</td>'
-            + '<td class="n" title="Открытые задачи">' + (open.length ? open.length + ' задач' + (late ? ' · <span class="rq-late">' + late + ' просроч.</span>' : '') : '') + '</td>'
+            + '<td class="n" title="Открытые задачи">' + (open.length ? open.length + ' ' + tkNoun(open.length, 'задача', 'задачи', 'задач') + (late ? ' · <span class="rq-late">' + late + ' просроч.</span>' : '') : '') + '</td>'
             + '<td class="n tk-hide-m">' + (e.user_id ? '<span title="Есть учётка в CRM" style="color:#389e0d;">CRM ✓</span>' : '<span class="rq-hint">нет учётки</span>') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
   }).join('') : '<div class="rq-empty">Никого не нашли</div>';

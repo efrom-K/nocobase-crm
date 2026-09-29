@@ -138,7 +138,11 @@ function tkAddWorkDays(n) {
 }
 function tkUserName(id) { const u = tk.data && tk.data.users[id]; return u ? (u.nickname || u.username) : null; }
 // человек в задаче: учётка NocoBase, иначе имя из Pyrus
-function tkWho(id, name) { return tkUserName(id) || name || (id ? '#' + id : '—'); }
+// единый вид «Фамилия Имя»: для учётки — ФИО из справочника сотрудников, иначе имя из Pyrus, иначе ник учётки
+function tkWho(id, name) {
+  if (id) { const e = tkEmpOfUser(id); if (e && e.full_name) return e.full_name; }
+  return name || tkUserName(id) || (id ? '#' + id : '—');
+}
 function tkExecKey(t) { return t.executor_id ? 'u' + t.executor_id : t.executor_name ? 'n' + t.executor_name : ''; }
 function tkIsAdmin() { return !!(tk.me && tk.me.__isAdmin); }
 function tkIsOpen(t) { return TK_OPEN.indexOf(t.status) !== -1; }
@@ -206,8 +210,8 @@ function tkModal(html) {
   return m;
 }
 function tkUserOptions(sel) {
-  return Object.keys(tk.data.users).map(Number).sort(function(a, b) { return tkUserName(a).localeCompare(tkUserName(b), 'ru'); })
-    .map(function(id) { return '<option value="' + id + '"' + (Number(sel) === id ? ' selected' : '') + '>' + tkEsc(tkUserName(id)) + '</option>'; }).join('');
+  return Object.keys(tk.data.users).map(Number).sort(function(a, b) { return tkWho(a).localeCompare(tkWho(b), 'ru'); })
+    .map(function(id) { return '<option value="' + id + '"' + (Number(sel) === id ? ' selected' : '') + '>' + tkEsc(tkWho(id)) + '</option>'; }).join('');
 }
 // исполнитель — любой работающий сотрудник; у кого есть учётка — value "u<id>", без учётки — "e<id сотрудника>"
 function tkPeopleOptions(selKey) {
@@ -217,13 +221,13 @@ function tkPeopleOptions(selKey) {
     if (e.user_id) seen[e.user_id] = 1;
     out.push([k, (e.full_name || '') + (e.user_id ? '' : ' (без учётки)')]);
   });
-  Object.keys(tk.data.users).forEach(function(id) { if (!seen[id]) out.push(['u' + id, tkUserName(id)]); });
+  Object.keys(tk.data.users).forEach(function(id) { if (!seen[id]) out.push(['u' + id, tkWho(Number(id))]); });
   return out.sort(function(a, b) { return a[1].localeCompare(b[1], 'ru'); })
     .map(function(x) { return '<option value="' + x[0] + '"' + (x[0] === selKey ? ' selected' : '') + '>' + tkEsc(x[1]) + '</option>'; }).join('');
 }
 function tkPersonFromKey(k) {
   if (!k) return { id: null, name: null };
-  if (k[0] === 'u') { const id = Number(k.slice(1)), e = tkEmpOfUser(id); return { id: id, name: e ? e.full_name : tkUserName(id) }; }
+  if (k[0] === 'u') { const id = Number(k.slice(1)); return { id: id, name: tkWho(id) }; }
   const e = tkEmp(Number(k.slice(1)));
   return { id: e && e.user_id ? Number(e.user_id) : null, name: e ? e.full_name : null };
 }
@@ -421,8 +425,8 @@ function tkOpenNew(preset) {
     try {
       const fileId = q('file').files[0] ? await tkUpload(q('file').files[0]) : null;
       const vals = { title: title, description: q('description').value.trim(), kind: q('kind').value, urgency: urg, due_date: due || null, status: 'new', due_moved: 0,
-        executor_id: ex.id, executor_name: ex.name, controller_id: ctl, controller_name: ctl ? tkUserName(ctl) : null,
-        author_id: tk.me.id, author_name: tkUserName(tk.me.id), object_name: q('object_name').value || null,
+        executor_id: ex.id, executor_name: ex.name, controller_id: ctl, controller_name: ctl ? tkWho(ctl) : null,
+        author_id: tk.me.id, author_name: tkWho(tk.me.id), object_name: q('object_name').value || null,
         contract_id: Number(q('contract_id').value) || null, employee_id: q('kind').value === 'Кадры' ? (Number(q('employee_id').value) || null) : null, source: 'crm' };
       const rec = tkRows(await ctx.api.resource('crm_tasks').create({ values: vals }))[0];
       await tkEvent(rec.id, 'create', 'Задача создана' + (fileId ? ', приложен файл' : ''), fileId);
@@ -518,7 +522,7 @@ async function tkRenderCard(m, t) {
       const fid = fin.files[0] ? await tkUpload(fin.files[0]) : null;
       await tkEvent(t.id, 'comment', txt || 'Файл', fid);
       [t.executor_id, t.controller_id, t.author_id].filter(function(v, i, a) { return v && a.indexOf(v) === i; })
-        .forEach(function(uid) { tkNotify(uid, 'Задача №' + t.id, tkUserName(tk.me.id) + ': ' + (txt || 'приложил файл'), t.id); });
+        .forEach(function(uid) { tkNotify(uid, 'Задача №' + t.id, tkWho(tk.me.id) + ': ' + (txt || 'приложил файл'), t.id); });
       await tkRenderCard(m, t);
     } catch (err) { tkToast('Не удалось отправить'); e.target.disabled = false; }
   });

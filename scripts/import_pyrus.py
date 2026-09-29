@@ -142,10 +142,11 @@ for i, head in enumerate(reg):
     elif st and st.startswith('В работе'): status = 'in_work'
     else: status = 'new'
     ex, ctl = fval(t['fields'], 'Исполнитель'), fval(t['fields'], 'Ответственный') or t.get('responsible')
+    ex = ex or ctl   # исполнитель не указан — задачу ведёт ответственный
     comments = t.get('comments') or []
     first = comments[0] if comments else {}
     desc = (first.get('text') or '').strip()
-    if desc == FORM_NAME: desc = ''
+    if desc == FORM_NAME or (len(desc) < 60 and FORM_NAME.split('(')[0].strip().lower() in desc.lower() and '(' in desc): desc = ''   # служебное «Новая Задача (Форма)»
     kind = 'Кадры' if HR.search(title) else 'Финансы и платежи' if FIN.search(title) else 'Объект и арендаторы' if find_object(title) else 'Документы' if DOC.search(title) else 'Общая'
     due_moved = sum(1 for c in comments[1:] for f in c.get('field_updates') or [] if f.get('type') == 'due_date')
     task_rows.append({'pyrus_id': t['id'], 'title': title[:250], 'description': desc or None, 'kind': kind,

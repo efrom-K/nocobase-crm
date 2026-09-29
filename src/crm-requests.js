@@ -544,8 +544,8 @@ function rqRenderStats() {
 function rqRenderObjects() {
   const sel = function(o, f) { return '<select data-objset="' + f + '" data-id="' + o.id + '"><option value="">— нет учётки —</option>' + rqPeopleOptions(o[f]) + '</select>'; };
   document.getElementById('rq-body').innerHTML = '<div class="rq-card"><div class="rq-card-t">Управляющие объектов</div>'
-    + '<div class="rq-hint" style="margin-bottom:8px;">Управляющий получает новые заявки объекта по умолчанию и напоминания о сроках; старший управляющий — аварии, эскалации после 3 дней просрочки и сводку по понедельникам. Имена — из справочника Pyrus; пока у человека нет учётки в CRM, уведомления ему не приходят.</div>'
-    + '<table><thead><tr><th>Объект</th><th>Управляющий (Pyrus)</th><th>Учётка в CRM</th><th>Старший управляющий (Pyrus)</th><th>Учётка в CRM</th></tr></thead><tbody>'
+    + '<div class="rq-hint" style="margin-bottom:8px;">Управляющий получает новые заявки объекта по умолчанию и напоминания о сроках; старший управляющий — аварии, эскалации после 3 дней просрочки и сводку по понедельникам. Пока у человека нет учётки в CRM, уведомления ему не приходят.</div>'
+    + '<table><thead><tr><th>Объект</th><th>Управляющий</th><th>Учётка в CRM</th><th>Старший управляющий</th><th>Учётка в CRM</th></tr></thead><tbody>'
     + rq.data.objects.map(function(o) {
         return '<tr><td>' + rqEsc(o.name) + '</td><td>' + rqEsc(o.manager_name || '—') + '</td><td>' + sel(o, 'manager_user_id') + '</td><td>' + rqEsc(o.senior_name || '—') + '</td><td>' + sel(o, 'senior_user_id') + '</td></tr>';
       }).join('') + '</tbody></table></div>';

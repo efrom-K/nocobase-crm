@@ -2,8 +2,8 @@
 """Перенос из Pyrus в тестовый контур CRM: задачи (с перепиской и историей), отделы и сотрудники.
 
 Можно запускать повторно (синхронизация на время пилота):
-  - сотрудники и отделы — по pyrus_id: обновляются ФИО/отдел/почта/статус; телефон, должность, даты, заметки,
-    заполненные в NocoBase, не затираются;
+  - сотрудники и отделы — по pyrus_id: новые добавляются, у существующих обновляется только статус (уволен);
+    всё, что заполнено или исправлено в NocoBase (ФИО, отдел, должность, контакты, даты, заметки), не затирается;
   - задачи — новые добавляются; уже перенесённые обновляются из Pyrus, ТОЛЬКО пока с ними не работали в NocoBase
     (нет событий от пользователей NocoBase); новые комментарии Pyrus дописываются (по pyrus_comment_id).
 Уведомления при импорте не отправляются.
@@ -71,7 +71,8 @@ print('сотрудников', len(emp_rows), 'отделов', len(dept_rows))
 if not DRY:
     psql("""begin;
 create temp table src as select * from json_populate_recordset(null::crm_employees, %s);
-update crm_employees e set full_name = s.full_name, last_name = s.last_name, first_name = s.first_name, department = s.department, email = s.email,
+update crm_employees e set full_name = coalesce(e.full_name, s.full_name), last_name = coalesce(e.last_name, s.last_name), first_name = coalesce(e.first_name, s.first_name),
+  department = coalesce(e.department, s.department), email = coalesce(e.email, s.email),
   status = case when s.status = 'fired' then 'fired' when e.status = 'fired' then 'active' else coalesce(e.status, s.status) end,
   position = coalesce(e.position, s.position), phone = coalesce(e.phone, s.phone), birthday = coalesce(e.birthday, s.birthday),
   user_id = coalesce(e.user_id, s.user_id), "updatedAt" = now()
@@ -83,8 +84,7 @@ commit;""" % J(emp_rows))
     if dept_rows:
         psql("""begin;
 create temp table d as select * from json_to_recordset(%s) as x(name text, parent_name text, head_pyrus bigint, sort int);
-update crm_departments c set parent_name = d.parent_name, sort = d.sort, head_employee_id = coalesce((select id from crm_employees e where e.pyrus_id = d.head_pyrus), c.head_employee_id), "updatedAt" = now()
-  from d where c.name = d.name;
+
 insert into crm_departments(name, parent_name, head_employee_id, sort, "createdAt", "updatedAt")
   select d.name, d.parent_name, (select id from crm_employees e where e.pyrus_id = d.head_pyrus), d.sort, now(), now() from d
   where not exists (select 1 from crm_departments c where c.name = d.name);
@@ -160,7 +160,7 @@ for i, head in enumerate(reg):
         a = c.get('author') or {}
         base = {'pyrus_id': t['id'], 'pyrus_comment_id': c['id'], 'author_id': uid(a), 'author_name': pname(a), 'at': c['create_date']}
         if n == 0:
-            event_rows.append(dict(base, kind='create', text='Задача создана в Pyrus'))
+            event_rows.append(dict(base, kind='create', text='Задача создана'))
             continue
         text = (c.get('text') or '').strip()
         if text and text != FORM_NAME: event_rows.append(dict(base, kind='comment', text=text))
@@ -168,7 +168,7 @@ for i, head in enumerate(reg):
         if c.get('reassigned_to'): sys_lines.append('Передана: %s' % pname(c['reassigned_to']))
         if c.get('action') == 'finished': sys_lines.append('Задача закрыта')
         if c.get('action') == 'reopened': sys_lines.append('Задача возобновлена')
-        if c.get('attachments'): sys_lines.append('Файлы (в Pyrus): ' + ', '.join(x.get('name', '') for x in c['attachments']))
+        if c.get('attachments'): sys_lines.append('Файлы: ' + ', '.join(x.get('name', '') for x in c['attachments']))
         if sys_lines: event_rows.append(dict(base, kind='edit', text='\n'.join(sys_lines)))
     if (i + 1) % 50 == 0: print('  прочитано', i + 1)
 

@@ -246,7 +246,7 @@ async function tkLoad() {
     ctx.api.resource('crm_departments').list({ paginate: false, sort: ['sort', 'name'] })
   ]);
   const users = {};
-  tkRows(all[1]).forEach(function(u) { if (u.username !== 'mail-service' && u.username !== 'nocobase') users[u.id] = u; });
+  tkRows(all[1]).forEach(function(u) { users[u.id] = u; });   // служебные учётки — только для отображения имени, в выбор не попадают
   tk.data = { tasks: tkRows(all[0]), users: users, objects: tkRows(all[2]), contracts: tkRows(all[3]), emps: tkRows(all[4]), depts: tkRows(all[5]) };
   tk.myEmp = tkEmpOfUser(tk.me.id);
 }
@@ -288,7 +288,10 @@ function tkPeopleOptions(selKey) {
     if (e.user_id) seen[e.user_id] = 1;
     out.push([e.user_id ? 'u' + e.user_id : 'e' + e.id, e.full_name || '', e.position || '']);
   });
-  Object.keys(tk.data.users).forEach(function(id) { if (!seen[id]) out.push(['u' + id, tkWho(Number(id)), '']); });
+  Object.keys(tk.data.users).forEach(function(id) {
+    const u = tk.data.users[id];
+    if (!seen[id] && u.username !== 'mail-service' && u.username !== 'nocobase' && !/^test_/.test(u.username)) out.push(['u' + id, tkWho(Number(id)), '']);
+  });
   return out.sort(function(a, b) { return a[1].localeCompare(b[1], 'ru'); })
     .map(function(x) { return '<option value="' + x[0] + '"' + (x[0] === selKey ? ' selected' : '') + '>' + tkEsc(x[1] + (x[2] ? ' — ' + x[2] : '')) + '</option>'; }).join('');
 }

@@ -1,4 +1,4 @@
-// «Тестовая страница» (/admin/j3a32zo1jzo, блок crmblock002): задачи и кадры — перенос из Pyrus. Тестовый контур CRM;
+// Страница «Задачи и сотрудники (тест)» (/admin/tskpage01, блок crmblock002): задачи и кадры — перенос из Pyrus. Тестовый контур CRM;
 // коллекции — scripts/setup_crm_tasks.py, данные из Pyrus — scripts/import_pyrus.py (перенесённые задачи помечены «Pyrus»,
 // у них ссылка на задачу в Pyrus и вся переписка). Процесс задачи как у заявок: Новая → В работе → Ждёт → Выполнена
 // (на проверке у ответственного/автора) → Закрыта, + Отменена. Уведомления — очередь task_notifications → колокольчик.
@@ -110,7 +110,7 @@ if (!document.getElementById('crm-ui-style')) {
   document.head.appendChild(st);
 }
 
-const TK_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
+const TK_PAGE = '/admin/tskpage01';   // «Задачи и сотрудники (тест)» — тестовый контур CRM
 const TK_ST = {
   new: { l: 'Новая', c: '#1677ff' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
   done: { l: 'Выполнена — на проверке', c: '#13a8a8' }, closed: { l: 'Закрыта', c: '#389e0d' }, cancelled: { l: 'Отменена', c: '#8c8c8c' }

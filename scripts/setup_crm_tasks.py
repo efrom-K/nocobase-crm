@@ -5,7 +5,7 @@
   - crm_tasks (задача), crm_task_events (переписка и история задачи);
   - crm_departments (отделы, руководитель), crm_employees (сотрудники: отдел, должность, контакты, учётка NocoBase);
   - очередь task_notifications + workflow → колокольчик (канал «Задачи»);
-  - JS-блок crmblock002 «Задачи и сотрудники» на «Тестовой странице» под заявками.
+  - отдельную страницу меню «Задачи и сотрудники (тест)» (/admin/tskpage01, JS-блок crmblock002), видна только администраторам.
 Код блока выкладывается агентом из src/crm-tasks.js (deploy/blocks.json).
 Данные из Pyrus — scripts/import_pyrus.py.
 
@@ -95,20 +95,26 @@ assert 'data' in n, n
 call('workflows:update?filterByTk=%s' % wid, {'enabled': True})
 print('workflow', wid, 'enabled')
 
-# --- блок на «Тестовой странице» (вкладка yvsy7xrnfii, сетка e8f4d7faa72) под заявками (crmblock001)
-TEST_TABS, TEST_GRID = 'yvsy7xrnfii', 'e8f4d7faa72'
-BLOCKS = ['crmblock001', 'crmblock002']
-rows = {'crmrow%d' % (i + 1): [[b]] for i, b in enumerate(BLOCKS)}
-LAYOUT = {'rows': [{'id': r, 'cells': [{'id': r + ':cell:0', 'items': rows[r][0]}], 'sizes': [24]} for r in rows], 'version': 2}
-opts = {'props': {'rows': rows, 'sizes': {r: [24] for r in rows}, 'colGap': 16, 'rowGap': 16, 'rowOrder': list(rows), 'layout': LAYOUT},
+# --- отдельная страница меню «Задачи и сотрудники (тест)» (/admin/tskpage01), видна только администраторам:
+# маршрут через API (кэш ролей), сетка и JS-блок crmblock002 — строками flowModels. Заявки остаются на «Тестовой странице».
+r = call('desktopRoutes:create', {'type': 'flowPage', 'title': 'Задачи и сотрудники (тест)', 'icon': 'TeamOutlined', 'schemaUid': 'tskpage01', 'menuSchemaUid': 'tskmenu01',
+                                  'children': [{'type': 'tabs', 'schemaUid': 'tsktabs01', 'hidden': True}]})
+print('route', ok(r))
+routes = [x['id'] for x in call('desktopRoutes:list?paginate=false&filter=' + urllib.request.quote(json.dumps({'schemaUid': {'$in': ['tskpage01', 'tsktabs01']}})))['data']]
+for role in ('member', 'rental_dept', 'legal_dept', 'accounting_dept'):
+    print('hide from', role, ok(call('roles/%s/desktopRoutes:remove' % role, routes)))
+LAYOUT = {'rows': [{'id': 'tskrow1', 'cells': [{'id': 'tskrow1:cell:0', 'items': ['crmblock002']}], 'sizes': [24]}], 'version': 2}
+grid = {'use': 'BlockGridModel', 'parent': 'tsktabs01', 'parentId': 'tsktabs01', 'subKey': 'grid', 'subType': 'object', 'sortIndex': 0, 'flowRegistry': {},
+        'props': {'rows': {'tskrow1': [['crmblock002']]}, 'sizes': {'tskrow1': [24]}, 'colGap': 16, 'rowGap': 16, 'rowOrder': ['tskrow1'], 'layout': LAYOUT},
         'stepParams': {'gridSettings': {'grid': {'layout': LAYOUT}}}}
-sql = ["begin;", "update \"flowModels\" set options = (options::jsonb || '%s'::jsonb)::json where uid='%s';" % (json.dumps(opts), TEST_GRID)]
-for i, uid in enumerate(BLOCKS[1:], 1):
-    model = {'use': 'JSBlockModel', 'props': {}, 'subKey': 'items', 'subType': 'array', 'parentId': TEST_GRID, 'sortIndex': i,
-             'stepParams': {'jsSettings': {'runJs': {'code': 'ctx.render("Загрузка…");'}}}}
-    sql.append("insert into \"flowModels\"(uid,name,options) values ('%s','%s','%s') on conflict do nothing;" % (uid, uid, json.dumps(model, ensure_ascii=False)))
-    sql.append("insert into \"flowModelTreePath\"(ancestor,descendant,depth,async,type,sort) values ('%s','%s',0,false,'items',null),('%s','%s',1,false,null,%d),('%s','%s',2,false,null,%d) on conflict do nothing;"
-               % (uid, uid, TEST_GRID, uid, i + 1, TEST_TABS, uid, i + 1))
-sql.append("commit;")
-psql('\n'.join(sql))
-print('blocks on test page ok')
+block = {'use': 'JSBlockModel', 'props': {}, 'subKey': 'items', 'subType': 'array', 'parentId': 'tskgrid001', 'sortIndex': 0,
+         'stepParams': {'jsSettings': {'runJs': {'code': 'ctx.render("Загрузка…");'}}}}
+psql("""begin;
+insert into "flowModels"(uid,name,options) values ('tskgrid001','tskgrid001','%s') on conflict do nothing;
+insert into "flowModels"(uid,name,options) values ('crmblock002','crmblock002','%s') on conflict do nothing;
+insert into "flowModelTreePath"(ancestor,descendant,depth,async,type,sort) values
+ ('tskgrid001','tskgrid001',0,false,'grid',null),('tsktabs01','tskgrid001',1,false,null,null),
+ ('crmblock002','crmblock002',0,false,'items',null),('tskgrid001','crmblock002',1,false,null,1),('tsktabs01','crmblock002',2,false,null,1)
+ on conflict do nothing;
+commit;""" % (json.dumps(grid, ensure_ascii=False), json.dumps(block, ensure_ascii=False)))
+print('page models ok')

@@ -76,15 +76,30 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-badge { font-size:11.5px; padding:1px 7px; border-radius:10px; background:#fff7e6; color:#d46b08; white-space:nowrap; }
     .tk-badge.red { background:#fff1f0; color:#cf1322; }
     .tk-badge.lead { background:#e6f4ff; color:#0958d9; }
-    /* структура */
-    .tk-org-node { border-left:2px solid #e6f4ff; margin-left:10px; padding-left:14px; }
-    .tk-org-dept { border:1px solid #f0f0f0; border-radius:10px; background:#fff; padding:10px 14px; margin:8px 0; }
-    .tk-org-top { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
-    .tk-org-name { font-weight:600; font-size:14.5px; }
-    .tk-org-head { display:flex; gap:8px; align-items:center; font-size:13px; color:#434343; flex-wrap:wrap; }
-    .tk-org-people { font-size:12.5px; color:#595959; margin-top:6px; }
-    .tk-org-people a { color:#595959; cursor:pointer; }
-    .tk-org-people a:hover { color:#1677ff; }
+    /* структура: оргсхема — руководитель компании сверху, под ним колонки подразделений */
+    .tk-org-bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .tk-org-ceo { display:flex; justify-content:center; margin-bottom:6px; }
+    .tk-org-line { width:2px; height:16px; background:#d6e4ff; margin:0 auto 6px; }
+    .tk-org-cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px; align-items:start; }
+    .tk-org-col { border:1px solid #f0f0f0; border-radius:12px; background:#fafcff; padding:12px; }
+    .tk-org-col-h { font-weight:700; font-size:15px; margin-bottom:8px; }
+    .tk-org-face { display:flex; gap:10px; align-items:center; background:#fff; border:1px solid #d6e4ff; border-radius:10px; padding:8px 12px; cursor:pointer; min-width:0; }
+    .tk-org-face:hover { border-color:#1677ff; }
+    .tk-org-face.big { padding:10px 18px; }
+    .tk-org-face b { display:block; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tk-org-face span.p { display:block; font-size:12px; color:#8c8c8c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tk-org-face .tk-ava { width:34px; height:34px; font-size:12.5px; }
+    .tk-org-sub { background:#fff; border:1px solid #f0f0f0; border-radius:10px; padding:8px 12px; margin-top:8px; }
+    .tk-org-sub-h { display:flex; align-items:baseline; gap:8px; font-weight:600; font-size:13.5px; }
+    .tk-org-sub-h span { font-weight:400; color:#8c8c8c; font-size:12px; margin-left:auto; }
+    .tk-org-lead { font-size:13px; margin-top:3px; }
+    .tk-org-lead a { color:#262626; cursor:pointer; font-weight:500; }
+    .tk-org-lead small { color:#8c8c8c; }
+    .tk-org-names { font-size:12.5px; color:#595959; margin-top:3px; line-height:1.6; }
+    .tk-org-names a { color:#595959; cursor:pointer; white-space:nowrap; }
+    .tk-org-names a:hover, .tk-org-lead a:hover { color:#1677ff; }
+    .tk-org-empty { margin-top:14px; font-size:12.5px; color:#8c8c8c; }
+    .tk-org select { width:100%; margin-top:6px; font-size:12.5px; padding:4px 8px; }
     /* окна */
     .tk-modal { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.45); display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; }
     .tk-box { background:#fff; border-radius:12px; width:100%; max-width:760px; box-shadow:0 6px 16px rgba(0,0,0,.12); font-size:14px; color:#1f1f1f; }
@@ -173,7 +188,7 @@ const TK_EMP_ST = { active: 'Работает', vacation: 'В отпуске', f
 const TK_HR_TPL = ['Отпуск', 'Больничный', 'Приём на работу', 'Увольнение', 'Перевод / смена должности', 'Командировка', 'Отгул'];
 const TK_HR_DEPT = 'HR служба персонала';
 const TK_AVA = ['#1677ff', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f54eb', '#08979c'];
-const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, dept: '', sq: '', fired: false };
+const tk = { data: null, me: null, myEmp: null, orgEdit: false, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, dept: '', sq: '', fired: false };
 
 function tkEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function tkToken() { try { return localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return null; } }
@@ -431,6 +446,7 @@ function tkOnClick(e) {
   if (tab) { tk.tab = tab.getAttribute('data-tab'); tkRender(); return; }
   if (c('[data-act="new"]')) { tkOpenNew({}); return; }
   if (c('[data-act="more"]')) { tk.limit += 100; tkRenderList(); return; }
+  if (c('[data-act="orgedit"]')) { tk.orgEdit = !tk.orgEdit; tkRenderOrg(); return; }
   if (c('[data-act="reset"]')) { tk.q = ''; tk.exec = ''; tk.kind = ''; tk.obj = ''; tkRenderListShell(); return; }
   const vw = c('[data-view]');
   if (vw) { tk.view = vw.getAttribute('data-view'); tk.limit = 50; tkRenderList(); return; }
@@ -817,31 +833,54 @@ function tkRenderEmp(m, e) {
   });
 }
 
-// ---------- структура: дерево отделов от руководства вниз ----------
+// ---------- структура: оргсхема ----------
+// Руководитель компании сверху; под ним колонки — подразделения первого уровня (руководитель + их отделы).
+// Отделы без людей — одной строкой внизу. Смена руководителей — только в режиме «Изменить структуру» (админ, HR).
 function tkRenderOrg() {
-  const d = tk.data, can = tkCanStaff();
+  const d = tk.data, can = tkCanStaff(), edit = can && tk.orgEdit;
   const kids = function(n) { return d.depts.filter(function(x) { return x.parent_name === n; }); };
-  const people = function(n) { return d.emps.filter(function(e) { return e.department === n && e.status !== 'fired'; }); };
-  const headHtml = function(dep) {
-    const h = dep.head_employee_id ? tkEmp(dep.head_employee_id) : null;
-    const face = h ? tkAva(h.full_name) + '<span><a data-emp="' + h.id + '" style="cursor:pointer;color:#262626;font-weight:600;">' + tkEsc(h.full_name) + '</a>' + (h.position ? '<br><span class="tk-hint">' + tkEsc(h.position) + '</span>' : '') + '</span>' : '<span class="tk-hint" style="margin:0;">руководитель не назначен</span>';
-    if (!can) return '<div class="tk-org-head">' + face + '</div>';
-    return '<div class="tk-org-head">' + face + '<select data-head="' + dep.id + '" style="margin-left:auto;max-width:230px;font-size:12.5px;padding:4px 8px;" title="Сменить руководителя"><option value="">' + (h ? 'сменить руководителя…' : 'назначить руководителя…') + '</option>'
-      + d.emps.filter(function(e) { return e.status !== 'fired' && (!h || e.id !== h.id); }).map(function(e) { return '<option value="' + e.id + '">' + tkEsc(e.full_name) + '</option>'; }).join('') + '</select></div>';
+  const staffOf = function(n) { return d.emps.filter(function(e) { return e.department === n && e.status !== 'fired'; }); };
+  const size = function(dep) { return staffOf(dep.name).length + kids(dep.name).reduce(function(a, k) { return a + size(k); }, 0); };
+  const head = function(dep) { return dep.head_employee_id ? tkEmp(dep.head_employee_id) : null; };
+  const headSel = function(dep) {
+    if (!edit) return '';
+    const h = head(dep);
+    return '<select data-head="' + dep.id + '"><option value="">' + (h ? 'Сменить руководителя…' : 'Назначить руководителя…') + '</option>'
+      + d.emps.filter(function(e) { return e.status !== 'fired' && (!h || e.id !== h.id); }).map(function(e) { return '<option value="' + e.id + '">' + tkEsc(e.full_name) + '</option>'; }).join('') + '</select>';
   };
-  const node = function(dep, depth) {
-    if (depth > 6) return '';
-    const p = people(dep.name).filter(function(e) { return e.id !== Number(dep.head_employee_id); });
-    const total = people(dep.name).length;
-    return '<div class="tk-org-dept"><div class="tk-org-top"><span class="tk-org-name">' + tkEsc(dep.name) + '</span><span class="tk-hint" style="margin:0;">' + total + ' чел.</span></div>'
-      + headHtml(dep)
-      + (p.length ? '<div class="tk-org-people">' + p.map(function(e) { return '<a data-emp="' + e.id + '">' + tkEsc(e.full_name) + '</a>'; }).join(', ') + '</div>' : '')
-      + '</div>' + (kids(dep.name).length ? '<div class="tk-org-node">' + kids(dep.name).map(function(k) { return node(k, depth + 1); }).join('') + '</div>' : '');
+  const face = function(e, cls) {
+    return '<div class="tk-org-face' + (cls ? ' ' + cls : '') + '" data-emp="' + e.id + '">' + tkAva(e.full_name) + '<div style="min-width:0;"><b>' + tkEsc(e.full_name) + '</b><span class="p">' + tkEsc(e.position || '') + '</span></div></div>';
+  };
+  const names = function(list) { return list.map(function(e) { return '<a data-emp="' + e.id + '">' + tkEsc(e.full_name) + '</a>'; }).join(', '); };
+  const sub = function(dep) {   // отдел внутри колонки: название, руководитель, сотрудники (вложенные отделы — следом, плоско)
+    const h = head(dep), p = staffOf(dep.name).filter(function(e) { return !h || e.id !== h.id; });
+    return '<div class="tk-org-sub"><div class="tk-org-sub-h">' + tkEsc(dep.name) + '<span>' + size(dep) + ' чел.</span></div>'
+      + (h ? '<div class="tk-org-lead"><a data-emp="' + h.id + '">' + tkEsc(h.full_name) + '</a> <small>— руководитель</small></div>' : (edit ? '' : '<div class="tk-org-lead"><small>руководитель не назначен</small></div>'))
+      + (p.length ? '<div class="tk-org-names">' + names(p) + '</div>' : '') + headSel(dep) + '</div>'
+      + kids(dep.name).filter(function(k) { return size(k) || edit; }).map(sub).join('');
   };
   const roots = d.depts.filter(function(x) { return !x.parent_name || !d.depts.some(function(y) { return y.name === x.parent_name; }); });
-  tkBody().innerHTML = roots.length ? roots.map(function(r) { return node(r, 0); }).join('')
-    + (can ? '<div class="tk-hint" style="margin-top:12px;">Руководителя отдела можно сменить прямо здесь. Перевести сотрудника в другой отдел — в его карточке.</div>' : '')
-    : '<div class="tk-empty"><b>Структура пока не заполнена</b></div>';
+  const top = roots[0];
+  if (!top) { tkBody().innerHTML = '<div class="tk-empty"><b>Структура пока не заполнена</b></div>'; return; }
+  const ceo = head(top), cols = kids(top.name).filter(function(c) { return size(c) || edit; });
+  const empty = d.depts.filter(function(x) { return !size(x) && !head(x); });
+  const topStaff = staffOf(top.name).filter(function(e) { return !ceo || e.id !== ceo.id; });
+  tkBody().innerHTML = '<div class="tk-org">'
+    + (can ? '<div class="tk-org-bar"><span class="tk-hint" style="margin:0;">' + (edit ? 'Выберите нового руководителя в списке под отделом — сохраняется сразу. Перевести сотрудника в другой отдел — в его карточке.' : '') + '</span>'
+      + '<button class="tk-btn' + (edit ? ' pri' : '') + '" data-act="orgedit" style="margin-left:auto;">' + (edit ? 'Готово' : 'Изменить структуру') + '</button></div>' : '')
+    + '<div class="tk-org-ceo">' + (ceo ? face(ceo, 'big') : '<div class="tk-hint">' + tkEsc(top.name) + ': руководитель не назначен</div>') + '</div>'
+    + (edit ? '<div style="max-width:320px;margin:0 auto 6px;">' + headSel(top) + '</div>' : '')
+    + (topStaff.length ? '<div class="tk-org-names" style="text-align:center;margin-bottom:6px;">' + names(topStaff) + '</div>' : '')
+    + '<div class="tk-org-line"></div>'
+    + '<div class="tk-org-cols">' + cols.map(function(c) {
+        const h = head(c), p = staffOf(c.name).filter(function(e) { return !h || e.id !== h.id; });
+        return '<div class="tk-org-col"><div class="tk-org-col-h">' + tkEsc(c.name) + ' <span class="tk-hint" style="font-weight:400;">' + size(c) + ' чел.</span></div>'
+          + (h ? face(h) : '<div class="tk-hint">руководитель не назначен</div>') + headSel(c)
+          + (p.length ? '<div class="tk-org-names" style="margin-top:6px;">' + names(p) + '</div>' : '')
+          + kids(c.name).filter(function(k) { return size(k) || edit; }).map(sub).join('') + '</div>';
+      }).join('') + '</div>'
+    + (!edit && empty.length ? '<div class="tk-org-empty">Отделы без сотрудников: ' + tkEsc(empty.map(function(x) { return x.name; }).join(', ')) + '</div>' : '')
+    + '</div>';
 }
 async function tkSaveHead(depId, empId) {
   if (!empId) return;
@@ -849,7 +888,7 @@ async function tkSaveHead(depId, empId) {
     await ctx.api.resource('crm_departments').update({ filterByTk: depId, values: { head_employee_id: Number(empId) } });
     const dep = tk.data.depts.find(function(x) { return x.id === depId; }); if (dep) dep.head_employee_id = Number(empId);
     tkRenderOrg();
-    tkToast('Руководитель назначен');
+    tkToast('Руководитель назначен');   // режим правки остаётся открытым
   } catch (e) { tkToast('Не удалось сохранить'); }
 }
 

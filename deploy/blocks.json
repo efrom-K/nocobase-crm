@@ -6,5 +6,6 @@
   "3a5tmdx7for": "src/global-search.js",
   "mailblock001": "src/mail.js",
   "dashblock001": "src/dashboard.js",
-  "crmblock001": "src/crm-requests.js"
+  "crmblock001": "src/crm-requests.js",
+  "crmblock002": "src/crm-tasks.js"
 }

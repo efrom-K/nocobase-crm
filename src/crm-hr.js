@@ -69,6 +69,18 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-people { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px; }
     .hr-person { display:flex; gap:10px; align-items:flex-start; border:1px solid #f0f0f0; border-radius:10px; padding:10px 12px; background:#fff; cursor:pointer; min-width:0; }
     .hr-person:hover { border-color:#91caff; }
+    .hr-list { padding:4px 8px; }
+    .hr-list td { vertical-align:middle; }
+    .hr-list td.nm { white-space:nowrap; }
+    .hr-list td.nm .hr-ava { width:28px; height:28px; font-size:11px; display:inline-flex; vertical-align:middle; margin-right:10px; }
+    .hr-list td.nm b { font-weight:600; margin-right:8px; }
+    .hr-list td.nm .hr-chip { margin-right:4px; }
+    .hr-list td.ph { white-space:nowrap; }
+    .hr-list a { color:#1677ff; text-decoration:none; }
+    .hr-list tr.hr-dept td { background:#fafafa; font-weight:600; padding-top:10px; border-bottom:1px solid #f0f0f0; }
+    .hr-list tr.hr-dept td span { color:#8c8c8c; font-weight:400; margin-left:6px; }
+    .hr-list tr[data-emp] { cursor:pointer; }
+    .hr-list tr[data-emp]:hover td { background:#f5faff; }
     .hr-person.off { opacity:.55; }
     .hr-ava { flex:none; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13.5px; color:#fff; }
     .hr-person-b { min-width:0; flex:1; }
@@ -165,6 +177,14 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-pick { max-height:260px; overflow:auto; border:1px solid #f0f0f0; border-radius:8px; padding:6px 10px; columns:2; }
     .hr-pick label { display:block; font-size:13px; padding:2px 0; break-inside:avoid; cursor:pointer; }
     .hr-lock { font-size:12.5px; color:#8c8c8c; }
+    .hr-files { margin-top:14px; border-top:1px dashed #e8e8e8; padding-top:10px; }
+    .hr-files-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
+    .hr-files-h b { font-size:13.5px; margin-right:auto; }
+    .hr-files-h select { font-size:12.5px; padding:4px 8px; }
+    .hr-flink { color:#1677ff; text-decoration:none; font-size:13px; cursor:pointer; }
+    .hr-fcell { display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    .hr-fdel { border:none; background:none; color:#bfbfbf; cursor:pointer; font-size:12px; padding:0 2px; }
+    .hr-fdel:hover { color:#cf1322; }
     @media (max-width: 800px) {
       .hr-cols, .hr-secs, .hr-form { grid-template-columns:1fr; }
       .hr-new { margin-left:0; width:100%; }
@@ -250,9 +270,9 @@ async function hUpload(file) {
   const head = '--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + file.name.replace(/"/g, '') + '"\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n';
   const res = await fetch('/api/attachments:upload', { method: 'POST', headers: { Authorization: 'Bearer ' + hToken(), 'Content-Type': 'multipart/form-data; boundary=' + boundary },
     body: new Blob([head, file, '\r\n--' + boundary + '--\r\n']) });
-  const id = (((await res.json()) || {}).data || {}).id;
-  if (!id) throw new Error('upload');
-  return id;
+  const data = ((await res.json()) || {}).data || {};
+  if (!data.id) throw new Error('upload');
+  return data;   // { id, url, title, filename, … }
 }
 
 // ---------- данные ----------
@@ -326,10 +346,11 @@ async function hLoad() {
     L('crm_vacations', { sort: ['start_date'] }), L('crm_safety', { sort: ['done_on'] }), L('crm_sout', { sort: ['workplace'] }),
     L('crm_lna', { sort: ['title'], appends: ['file'] }), L('crm_hr_programs', { sort: ['title'] }), L('crm_hr_events', { sort: ['-event_date'] }),
     L('crm_hr_private').catch(function() { return null; }),
+    L('crm_hr_files', { appends: ['file'], sort: ['-id'] }).catch(function() { return []; }),
     L('contract_objects', { sort: ['name'], fields: ['id', 'name'] }).catch(function() { return []; }),
     L('crm_tasks', { filter: { status: { $in: ['new', 'in_work', 'waiting', 'done'] } }, fields: ['id', 'title', 'status', 'due_date', 'executor_id', 'executor_name', 'employee_id', 'kind'] }).catch(function() { return []; })
   ]);
-  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], objects: r[10], tasks: r[11] };
+  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], files: r[10], objects: r[11], tasks: r[12] };
   hr.myEmp = hr.d.emps.find(function(e) { return hr.me && Number(e.user_id) === Number(hr.me.id); }) || null;
 }
 
@@ -375,14 +396,95 @@ function hShow(f, v) {
 }
 function hKv(spec, rec) { return '<div class="hr-kv">' + spec.map(function(f) { return '<div class="k">' + hEsc(f[1]) + '</div><div class="v">' + hShow(f, rec && rec[f[0]]) + '</div>'; }).join('') + '</div>'; }
 
+// ---------- документы к записям (crm_hr_files → attachments; сервер отдаёт их только admin и hr) ----------
+const HR_DOC_KINDS = {
+  vac: ['Заявление на отпуск', 'Приказ', 'Уведомление о начале отпуска', 'Другое'],
+  safety: ['Удостоверение', 'Протокол', 'Выписка из журнала', 'Договор / счёт', 'Другое'],
+  sout: ['Карта СОУТ', 'Отчёт СОУТ', 'Декларация', 'Другое'],
+  le: ['Приказ об организации ВУ', 'План ВУ', 'Карточка организации (форма 18)', 'Сверка с военкоматом', 'Анкета СОУТ', 'Приказ о проведении СОУТ', 'Уставные документы', 'Другое'],
+  event: ['Смета / затраты', 'Список гостей', 'Договор', 'Счёт', 'Фото', 'Другое'],
+  prog: ['Положение', 'Приказ', 'Расчёт', 'Другое'],
+  lna: ['Лист ознакомления (подписанный)', 'Приказ об утверждении', 'Другое'],
+  emp: ['Заявление', 'Приказ', 'Дополнительное соглашение', 'Диплом / удостоверение', 'Справка', 'Другое']
+};
+function hFilesOf(entity, id, doc) {
+  return (hr.d.files || []).filter(function(f) { return f.entity === entity && Number(f.record_id) === Number(id) && (doc === undefined || f.doc === doc); });
+}
+// файлы отдаются только с токеном — открываем через fetch (как в задачах), обработчик на document: окна живут вне блока
+function hFileA(a, label, title) { return '<a class="hr-flink" data-hrfile="' + hEsc(a.url || '') + '" data-hrname="' + hEsc((a.title || 'файл') + (a.extname || '')) + '"' + (title ? ' title="' + hEsc(title) + '"' : '') + '>' + label + '</a>'; }
+function hFileLink(f) { const a = f.file || {}; return hFileA(a, '📄 ' + hEsc(a.title || a.filename || 'файл')); }
+if (!window.__hrFileOpen) {
+  window.__hrFileOpen = true;
+  document.addEventListener('click', async function(e) {
+    const a = e.target.closest && e.target.closest('a[data-hrfile]'); if (!a) return;
+    e.preventDefault();
+    try {
+      const res = await fetch(a.getAttribute('data-hrfile'), { headers: { Authorization: 'Bearer ' + hToken() } });
+      if (!res.ok) throw new Error(res.status);
+      const blob = await res.blob(), url = URL.createObjectURL(blob), l = document.createElement('a');
+      l.href = url; l.target = '_blank';
+      if (!/^(application\/pdf|image\/)/.test(blob.type)) l.download = a.getAttribute('data-hrname');   // docx/xlsx — скачать с именем
+      document.body.appendChild(l); l.click(); l.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+    } catch (err) { hToast('Не удалось открыть файл'); }
+  });
+}
+function hFileRow(f) {
+  return '<div><span>' + hFileLink(f) + '</span><span class="hr-hint" style="margin:0;">' + hEsc(f.doc || '') + (f.createdAt ? ' · ' + hDate(f.createdAt) : '') + '</span>'
+    + (f.id ? '<button type="button" class="hr-fdel" data-fdel="' + f.id + '" title="Открепить">✕</button>' : '') + '</div>';
+}
+async function hLoadFiles() { try { hr.d.files = hRows(await ctx.api.resource('crm_hr_files').list({ paginate: false, appends: ['file'], sort: ['-id'] })); } catch (e) { /* нет доступа */ } }
+// skip — виды документов, которые показываются отдельно (пункты личного дела)
+function hFilesBox(entity, id, skip) {
+  const list = id ? hFilesOf(entity, id).filter(function(f) { return !skip || skip.indexOf(f.doc) === -1; }) : [];
+  return '<div class="hr-files" data-files="' + entity + '"><div class="hr-files-h"><b>' + (skip ? 'Другие документы' : 'Документы') + '</b>'
+    + '<select data-fkind>' + HR_DOC_KINDS[entity].map(function(k) { return '<option>' + hEsc(k) + '</option>'; }).join('') + '</select>'
+    + '<label class="hr-btn sm" style="cursor:pointer;">📎 Прикрепить<input type="file" multiple data-fup style="display:none;"></label></div>'
+    + '<div class="hr-lines" data-flist>' + (list.length ? list.map(hFileRow).join('') : '<div class="hr-hint" style="margin:0;">Файлов нет' + (id ? '' : ' — прикреплённые сейчас сохранятся вместе с записью') + '</div>') + '</div></div>';
+}
+// загрузить файлы и привязать к записи; у новой записи — отложить до сохранения (m.__pending)
+async function hAttach(files, entity, id, doc, m) {
+  let n = 0;
+  for (const f of files) {
+    try {
+      const a = await hUpload(f);
+      if (id) await ctx.api.resource('crm_hr_files').create({ values: { entity: entity, record_id: id, doc: doc, file_id: a.id } });
+      else { m.__pending = m.__pending || []; m.__pending.push({ entity: entity, doc: doc, file_id: a.id, file: a }); }
+      n++;
+    } catch (e) { hToast('Не удалось загрузить: ' + f.name); }
+  }
+  if (id) await hLoadFiles();
+  return n;
+}
+function hWireFiles(m, entity, getId, onChange) {
+  const box = m.querySelector('[data-files="' + entity + '"]'); if (!box) return;
+  const redraw = function() {
+    const id = getId(), list = box.querySelector('[data-flist]');
+    const rows = (id ? hFilesOf(entity, id) : []).concat((m.__pending || []).filter(function(x) { return x.entity === entity; }));
+    list.innerHTML = rows.length ? rows.map(hFileRow).join('') : '<div class="hr-hint" style="margin:0;">Файлов нет</div>';
+  };
+  box.querySelector('[data-fup]').addEventListener('change', async function(ev) {
+    const files = Array.prototype.slice.call(ev.target.files || []); ev.target.value = '';
+    if (!files.length) return;
+    const n = await hAttach(files, entity, getId(), box.querySelector('[data-fkind]').value, m);
+    redraw(); if (n) hToast('Прикреплено: ' + n); if (onChange) onChange();
+  });
+  box.addEventListener('click', async function(ev) {
+    const b = ev.target.closest && ev.target.closest('[data-fdel]'); if (!b) return;
+    if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Открепить?'; return; }
+    try { await ctx.api.resource('crm_hr_files').destroy({ filterByTk: Number(b.getAttribute('data-fdel')) }); await hLoadFiles(); redraw(); if (onChange) onChange(); } catch (e) { hToast('Не удалось открепить'); }
+  });
+}
+
 // окно создания/правки записи. o: { coll, rec, spec, title, extra(rec) → html, wire(m, rec), prepare(vals, m, rec) → vals | 'ошибка', after(saved) }
 function hEdit(o) {
   const rec = o.rec || null;
   const m = hModal('<div class="hr-box-h"><div class="hr-box-t">' + hEsc(o.title) + '</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
-    + hForm(o.spec, rec || o.preset) + (o.extra ? o.extra(rec) : '')
+    + hForm(o.spec, rec || o.preset) + (o.extra ? o.extra(rec) : '') + (o.files && hCan() ? hFilesBox(o.files, rec && rec.id) : '')
     + '<div class="hr-actions"><button class="hr-btn pri" data-save>Сохранить</button><button class="hr-btn hr-x">Отмена</button>'
     + (rec && rec.id ? '<button class="hr-btn warn" data-del>Удалить</button>' : '') + '</div></div>', o.wide);
   if (o.wire) o.wire(m, rec);
+  if (o.files && hCan()) hWireFiles(m, o.files, function() { return rec && rec.id; });
   const sv = m.querySelector('[data-save]');
   sv.addEventListener('click', async function() {
     let vals = hRead(m, o.spec);
@@ -391,6 +493,10 @@ function hEdit(o) {
     sv.disabled = true;
     try {
       const res = rec && rec.id ? await ctx.api.resource(o.coll).update({ filterByTk: rec.id, values: vals }) : await ctx.api.resource(o.coll).create({ values: vals });
+      const saved = hRows(res)[0] || rec;
+      for (const pf of (m.__pending || [])) {   // файлы, прикреплённые до первого сохранения
+        await ctx.api.resource('crm_hr_files').create({ values: { entity: pf.entity, record_id: saved.id, doc: pf.doc, file_id: pf.file_id } }).catch(function() { hToast('Файл не привязался'); });
+      }
       m.remove();
       await hReload();
       hToast('Сохранено');
@@ -627,6 +733,12 @@ function hOnChange(e) {
   if (f === 'le' || f === 'type' || f === 'dept') { hr[f] = e.target.value; hRenderStaffList(); }
   if (f === 'fired') { hr.fired = e.target.checked; hRenderStaffList(); }
   if (f === 'mxLe') { hr.mxLe = e.target.value; hRenderSafety(); }
+  const au = e.target.getAttribute('data-act-up');
+  if (au) {   // загруженный акт = акт подписан
+    const p = au.split('|'), files = Array.prototype.slice.call(e.target.files || []); e.target.value = '';
+    if (files.length) hAttach(files, 'act', Number(p[0]), p[1], null).then(function(n) { if (n) hSaveAct(Number(p[0]), p[1], true); });
+    return;
+  }
   const am = e.target.getAttribute('data-act-m');
   if (am) { const p = am.split('|'); hSaveAct(Number(p[0]), p[1], e.target.checked); return; }
   const hd = e.target.getAttribute('data-head');
@@ -634,7 +746,7 @@ function hOnChange(e) {
 }
 function hOnClick(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
-  if (c('a[href^="tel:"], a[href^="mailto:"], a[target]')) return;
+  if (c('a[href^="tel:"], a[href^="mailto:"], a[target], a[data-hrfile]')) return;
   const tab = c('[data-tab]');
   if (tab) { hr.tab = tab.getAttribute('data-tab'); hr.only = null; hRender(); try { window.scrollTo(0, 0); } catch (err) { /* песочница */ } return; }
   const act = c('[data-act]'), a = act && act.getAttribute('data-act');
@@ -728,7 +840,12 @@ function hActsCard() {
   const pm = hPrevMonth(), cm = hToday().slice(0, 7);
   return '<div class="hr-card"><div class="hr-card-t">Акты самозанятых</div><table><thead><tr><th></th><th class="n">' + hMonthName(pm) + '</th><th class="n">' + hMonthName(cm) + '</th></tr></thead><tbody>'
     + self.map(function(e) {
-        const a = e.acts || {}, c = function(m) { return '<td class="n"><label style="cursor:pointer;"><input type="checkbox" data-act-m="' + e.id + '|' + m + '"' + (a[m] ? ' checked' : '') + '>' + (a[m] ? ' <span class="hr-hint">' + hDate(a[m]).slice(0, 5) + '</span>' : '') + '</label></td>'; };
+        const a = e.acts || {}, c = function(m) {
+          const fs = hFilesOf('act', e.id, m);
+          return '<td class="n" style="white-space:nowrap;"><label style="cursor:pointer;"><input type="checkbox" data-act-m="' + e.id + '|' + m + '"' + (a[m] ? ' checked' : '') + '>' + (a[m] && hDate(a[m]) ? ' <span class="hr-hint">' + hDate(a[m]).slice(0, 5) + '</span>' : '') + '</label>'
+            + fs.map(function(f) { return ' ' + hFileA(f.file || {}, '📄', (f.file || {}).title); }).join('')
+            + ' <label class="hr-btn sm" style="cursor:pointer;padding:0 6px;" title="Загрузить подписанный акт">📎<input type="file" data-act-up="' + e.id + '|' + m + '" style="display:none;"></label></td>';
+        };
         return '<tr><td><a data-emp="' + e.id + '" style="cursor:pointer;">' + hEsc(e.full_name) + '</a>' + (e.object_name ? '<div class="hr-hint">' + hEsc(e.object_name) + '</div>' : '') + '</td>' + c(pm) + c(cm) + '</tr>';
       }).join('') + '</tbody></table></div>';
 }
@@ -835,14 +952,22 @@ function hRenderStaffList() {
   list.forEach(function(e) { const k = e.department || 'Без отдела'; (groups[k] = groups[k] || []).push(e); });
   const heads = {};
   hr.d.depts.forEach(function(d) { if (d.head_employee_id) heads[d.head_employee_id] = 1; });
-  box.innerHTML = order.filter(function(n) { return groups[n]; }).map(function(n) {
+  // одна таблица на всех: заголовок отдела — строкой, столбцы выровнены по всей странице
+  const tel = function(p) { return p ? '<a href="tel:' + hEsc(String(p).replace(/[^\d+]/g, '')) + '">' + hEsc(String(p).replace(/^\+7(\d{3})(\d{3})(\d{2})(\d{2})$/, '+7 $1 $2-$3-$4')) + '</a>' : '<span class="hr-none">—</span>'; };
+  const body = order.filter(function(n) { return groups[n]; }).map(function(n) {
     const people = groups[n].sort(function(a, b) { return (heads[b.id] ? 1 : 0) - (heads[a.id] ? 1 : 0) || String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
-    return '<div class="hr-grp">' + hEsc(n) + '<span>' + people.length + ' чел.</span></div><div class="hr-people">' + people.map(function(e) {
-      return '<div class="hr-person' + (e.status === 'fired' ? ' off' : '') + '" data-emp="' + e.id + '">' + hAva(e.full_name) + '<div class="hr-person-b">'
-        + '<div class="hr-person-n">' + hEsc(e.full_name) + '</div><div class="hr-person-p">' + hEsc(e.position || 'должность не указана') +  + '</div>'
-        + '<div class="hr-chips">' + hEmpChips(e) + '</div></div></div>';
-    }).join('') + '</div>';
-  }).join('') || '<div class="hr-empty"><b>Никого не нашли</b>Измените поиск или фильтры.</div>';
+    return '<tr class="hr-dept"><td colspan="5">' + hEsc(n) + ' <span>' + people.length + '</span></td></tr>' + people.map(function(e) {
+      const v = hVacNow(e), t = e.employment_type || 'staff';
+      const tags = (heads[e.id] ? '<span class="hr-chip blue">руководитель</span>' : '') + (v ? '<span class="hr-chip green">в отпуске до ' + hDate(v.end_date).slice(0, 5) + '</span>' : '')
+        + (t !== 'staff' ? '<span class="hr-chip purple">' + (t === 'self' ? 'самозанятый' : 'ГПХ') + '</span>' : '') + (e.status === 'fired' ? '<span class="hr-chip">уволен</span>' : '');
+      return '<tr data-emp="' + e.id + '"' + (e.status === 'fired' ? ' style="opacity:.55;"' : '') + '><td class="nm">' + hAva(e.full_name) + '<b>' + hEsc(e.full_name) + '</b>' + tags + '</td>'
+        + '<td>' + (hEsc(e.position) || '<span class="hr-none">—</span>') + '</td>'
+        + '<td>' + (hEsc(hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', ')) || '<span class="hr-none">—</span>') + '</td>'
+        + '<td class="ph">' + tel(e.phone) + '</td><td>' + (e.email ? '<a href="mailto:' + hEsc(e.email) + '">' + hEsc(e.email) + '</a>' : '<span class="hr-none">—</span>') + '</td></tr>';
+    }).join('');
+  }).join('');
+  box.innerHTML = body ? '<div class="hr-card hr-list"><table><thead><tr><th>Сотрудник</th><th>Должность</th><th>Юрлицо</th><th>Телефон</th><th>Почта</th></tr></thead><tbody>' + body + '</tbody></table></div>'
+    : '<div class="hr-empty"><b>Никого не нашли</b>Измените поиск или фильтры.</div>';
 }
 // оргсхема: юрлица сверху, руководитель компании, колонки подразделений первого уровня
 function hRenderOrg() {
@@ -897,7 +1022,7 @@ async function hSaveHead(depId, empId) {
     hRenderOrg(); hToast('Руководитель назначен');
   } catch (e) { hToast('Не удалось сохранить'); }
 }
-function hOpenLe(l) { hEdit({ coll: 'crm_legal_entities', rec: l, spec: H_LE, title: l ? l.name : 'Новое юрлицо' }); }
+function hOpenLe(l) { hEdit({ coll: 'crm_legal_entities', rec: l, spec: H_LE, title: l ? l.name : 'Новое юрлицо', files: 'le', wide: true }); }
 function hEmpVals(v) {
   v.full_name = v.last_name + (v.first_name ? ' ' + v.first_name : '');
   if (v.status === 'fired' && !v.fired_on) v.fired_on = hToday();
@@ -908,6 +1033,18 @@ function hEmpVals(v) {
 function hOpenNewEmp() {
   hEdit({ coll: 'crm_employees', spec: H_MAIN, title: 'Новый сотрудник', preset: { employment_type: 'staff', status: 'active', vacation_days: 28, hired_on: hToday() },
     prepare: function(v) { return hEmpVals(v); }, after: function(r) { if (r && r.id) hOpenEmp(r.id); } });
+}
+
+// личное дело: пункт — есть ли документ (отметка или загруженный файл), файлы пункта, загрузка прямо в пункт; ниже — прочие документы
+function hFileDocsView(e, p, list) {
+  const have = p.file_docs || [];
+  return '<div class="hr-lines">' + list.map(function(k) {
+      const fs = hFilesOf('emp', e.id, k), ok = have.indexOf(k) !== -1 || fs.length;
+      return '<div><span><span class="' + (ok ? 'hr-ok' : 'hr-none') + '" style="display:inline-block;width:18px;">' + (ok ? '✓' : '○') + '</span>' + hEsc(k) + '</span>'
+        + '<span class="hr-fcell">' + fs.map(function(f) { return hFileLink(f) + '<button type="button" class="hr-fdel" data-fdel-emp="' + f.id + '" title="Открепить">✕</button>'; }).join(' ')
+        + '<label class="hr-btn sm" style="cursor:pointer;" title="Загрузить скан">📎<input type="file" multiple data-fdoc="' + hEsc(k) + '" style="display:none;"></label></span></div>';
+    }).join('') + '</div><div class="hr-hint" style="margin-top:6px;">' + list.filter(function(k) { return have.indexOf(k) !== -1 || hFilesOf('emp', e.id, k).length; }).length + ' из ' + list.length
+    + ' · отметка без файла — «Изменить», файл — 📎 у пункта</div>' + hFilesBox('emp', e.id, list);
 }
 
 // ---------- карточка сотрудника: всё о человеке в одном окне ----------
@@ -983,7 +1120,7 @@ function hRenderEmp(m, id) {
     + (HR_MODE === 'hr' ? sec('ot', 'Охрана труда и СОУТ', null, null, false, otView) : '')
     + (can ? sec('mil', 'Воинский учёт', H_MIL, p, false, milView) : '')
     + (can ? sec('pers', 'Личные данные <span class="hr-lock">🔒 видят HR и администратор</span>', H_PERSONAL, p) : '')
-    + (can ? sec('file', 'Личное дело', H_FILE, p, false, hKv(H_FILE, p) + '<div class="hr-hint" style="margin-top:4px;">' + (p.file_docs || []).length + ' из ' + fileList.length + ' документов</div>') : '')
+    + (can ? sec('file', 'Личное дело', H_FILE, p, true, hFileDocsView(e, p, fileList)) : '')
     + (HR_MODE === 'hr' ? sec('lna', 'Ознакомление с документами', null, null, false, lnaView) + sec('ev', 'Мероприятия', null, null, false, evView) : '')
     + sec('tasks', 'Задачи', null, null, true, taskView)
     + '</div></div>';
@@ -1022,6 +1159,26 @@ function hRenderEmp(m, id) {
     });
   });
   box.querySelectorAll('[data-task]').forEach(function(r) { r.addEventListener('click', function() { location.href = HR_TASKS_PAGE + '?open=task:' + r.getAttribute('data-task'); }); });
+  box.querySelectorAll('[data-fdoc]').forEach(function(inp) {
+    inp.addEventListener('change', async function(ev) {
+      const files = Array.prototype.slice.call(ev.target.files || []), doc = inp.getAttribute('data-fdoc'); ev.target.value = '';
+      if (!files.length) return;
+      const n = await hAttach(files, 'emp', id, doc, m);
+      const pr = hPriv(id), docs = ((pr && pr.file_docs) || []).slice();
+      if (n && docs.indexOf(doc) === -1) {   // загруженный документ — отмечен в личном деле
+        docs.push(doc);
+        try { if (pr) await ctx.api.resource('crm_hr_private').update({ filterByTk: pr.id, values: { file_docs: docs } }); else await ctx.api.resource('crm_hr_private').create({ values: { employee_id: id, file_docs: docs } }); } catch (err) { /* файл уже загружен */ }
+      }
+      await hReload(); hRenderEmp(m, id); if (n) hToast('Загружено: ' + doc);
+    });
+  });
+  box.querySelectorAll('[data-fdel-emp]').forEach(function(b) {
+    b.addEventListener('click', async function() {
+      if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Открепить?'; return; }
+      try { await ctx.api.resource('crm_hr_files').destroy({ filterByTk: Number(b.getAttribute('data-fdel-emp')) }); await hLoadFiles(); hRenderEmp(m, id); } catch (err) { hToast('Не удалось открепить'); }
+    });
+  });
+  if (can) hWireFiles(m, 'emp', function() { return id; });
   const nv = box.querySelector('[data-newvac]');
   if (nv) nv.addEventListener('click', function() { hOpenVac(null, { employee_id: id }, function() { hRenderEmp(m, id); }); });
 }
@@ -1030,7 +1187,7 @@ function hRenderEmp(m, id) {
 function hVacDays(v) { return hDays(v.start_date, v.end_date) + 1; }
 function hOpenVac(v, preset, after) {
   if (!hCan()) { if (v) hOpenEmp(v.employee_id); return; }
-  hEdit({ coll: 'crm_vacations', rec: v, preset: Object.assign({ kind: HR_VAC_KINDS[0], status: 'plan' }, preset || {}), spec: H_VAC,
+  hEdit({ coll: 'crm_vacations', rec: v, files: 'vac', preset: Object.assign({ kind: HR_VAC_KINDS[0], status: 'plan' }, preset || {}), spec: H_VAC,
     title: v ? 'Отпуск: ' + ((hEmp(v.employee_id) || {}).full_name || '') : 'Новый отпуск',
     extra: function() { return '<div class="hr-hint" data-vd style="margin-top:8px;"></div>'; },
     wire: function(m) {
@@ -1090,7 +1247,7 @@ function hOpenSafetyCell(empId, kind, after) {
     }).join('') + '</div></div>' : '');
 }
 function hOpenSafety(s, preset, after, title, extraHtml) {
-  const m = hEdit({ coll: 'crm_safety', rec: s, preset: preset, spec: H_SAFETY, title: title || (s ? s.kind : 'Новая запись'),
+  const m = hEdit({ coll: 'crm_safety', rec: s, files: 'safety', preset: preset, spec: H_SAFETY, title: title || (s ? s.kind : 'Новая запись'),
     extra: function() { return extraHtml || ''; },
     prepare: function(v) {
       const k = HR_SAFETY.find(function(x) { return x[0] === v.kind; }) || HR_PB_COMMON.find(function(x) { return x[0] === v.kind; });
@@ -1102,7 +1259,7 @@ function hOpenSafety(s, preset, after, title, extraHtml) {
   m.querySelectorAll('[data-srec]').forEach(function(r) { r.addEventListener('click', function() { m.remove(); hOpenSafety(hr.d.safety.find(function(x) { return x.id === Number(r.getAttribute('data-srec')); }), null, after); }); });
 }
 function hOpenSout(s) {
-  hEdit({ coll: 'crm_sout', rec: s, spec: H_SOUT, title: s ? 'СОУТ: ' + s.workplace : 'Новое рабочее место (СОУТ)',
+  hEdit({ coll: 'crm_sout', rec: s, files: 'sout', spec: H_SOUT, title: s ? 'СОУТ: ' + s.workplace : 'Новое рабочее место (СОУТ)',
     extra: function(r) {
       const who = r ? hActive().filter(function(e) { return Number(e.sout_id) === r.id; }) : [];
       return r ? '<div class="hr-hint" style="margin-top:10px;">На этом рабочем месте: ' + (who.length ? hEsc(who.map(function(e) { return e.full_name; }).join(', ')) : 'никто не указан') + '. Привязка — в карточке сотрудника.</div>' : '';
@@ -1144,10 +1301,10 @@ function hRenderSafety() {
 // ---------- документы и программы: ЛНА, мотивационные программы, мероприятия ----------
 function hOpenLna(l) {
   let fileId = l ? l.file_id : null;
-  hEdit({ coll: 'crm_lna', rec: l ? Object.assign({}, l, { need_ack: l.need_ack ? '1' : '0' }) : null, preset: { need_ack: '1' }, spec: H_LNA, title: l ? l.title : 'Новый документ (ЛНА)', wide: true,
+  hEdit({ coll: 'crm_lna', files: 'lna', rec: l ? Object.assign({}, l, { need_ack: l.need_ack ? '1' : '0' }) : null, preset: { need_ack: '1' }, spec: H_LNA, title: l ? l.title : 'Новый документ (ЛНА)', wide: true,
     extra: function() {
       const who = l ? hLnaFor(l) : hStaff();
-      return '<div class="hr-actions" style="margin-top:12px;"><span class="hr-hint" style="margin:0;" data-fname>' + (l && l.file ? 'Файл: <a target="_blank" href="' + hEsc(l.file.url) + '" style="color:#1677ff;">' + hEsc(l.file.title || l.file.filename || 'открыть') + '</a>' : 'Файл не прикреплён') + '</span>'
+      return '<div class="hr-actions" style="margin-top:12px;"><span class="hr-hint" style="margin:0;" data-fname>' + (l && l.file ? 'Файл: ' + hFileA(l.file, hEsc(l.file.title || l.file.filename || 'открыть')) : 'Файл не прикреплён') + '</span>'
         + '<label class="hr-btn sm" style="cursor:pointer;">Прикрепить файл<input type="file" data-file style="display:none;"></label></div>'
         + hPicker(who, function(e) { return ((l && l.acks) || {})[e.id] || false; }, true);
     },
@@ -1156,7 +1313,7 @@ function hOpenLna(l) {
       m.querySelector('[data-file]').addEventListener('change', async function(ev) {
         const f = ev.target.files[0]; if (!f) return;
         m.querySelector('[data-fname]').textContent = 'Загружаю…';
-        try { fileId = await hUpload(f); m.querySelector('[data-fname]').textContent = 'Файл: ' + f.name; } catch (err) { m.querySelector('[data-fname]').textContent = 'Не удалось загрузить файл'; }
+        try { fileId = (await hUpload(f)).id; m.querySelector('[data-fname]').textContent = 'Файл: ' + f.name; } catch (err) { m.querySelector('[data-fname]').textContent = 'Не удалось загрузить файл'; }
       });
     },
     prepare: function(v, m) {
@@ -1169,7 +1326,7 @@ function hOpenLna(l) {
     } });
 }
 function hOpenProg(p) {
-  hEdit({ coll: 'crm_hr_programs', rec: p, spec: H_PROG, title: p ? p.title : 'Новая мотивационная программа',
+  hEdit({ coll: 'crm_hr_programs', rec: p, files: 'prog', spec: H_PROG, title: p ? p.title : 'Новая мотивационная программа',
     extra: function(r) {
       if (!r) return '';
       const who = (hr.d.priv || []).filter(function(x) { return Number(x.program_id) === r.id; }).map(function(x) { return hEmp(x.employee_id); }).filter(Boolean);
@@ -1177,7 +1334,7 @@ function hOpenProg(p) {
     } });
 }
 function hOpenEvent(x, after) {
-  hEdit({ coll: 'crm_hr_events', rec: x, spec: H_EVENT, title: x ? x.title : 'Новое мероприятие', wide: true,
+  hEdit({ coll: 'crm_hr_events', rec: x, files: 'event', spec: H_EVENT, title: x ? x.title : 'Новое мероприятие', wide: true,
     extra: function() { return hPicker(hActive(), function(e) { return ((x && x.participants) || []).indexOf(e.id) !== -1; }); },
     wire: hWirePicker,
     prepare: function(v, m) { v.participants = hPicked(m); return v; }, after: after });
@@ -1190,7 +1347,7 @@ function hRenderDocs() {
       + '<td>' + hEsc([l.number ? '№ ' + l.number : '', l.approved_on ? 'от ' + hDate(l.approved_on) : ''].filter(Boolean).join(' ')) + '</td>'
       + '<td class="' + (l.review_on && hD(l.review_on) < t ? 'hr-late' : '') + '">' + (hDate(l.review_on) || '—') + '</td>'
       + '<td class="n ' + (miss ? 'hr-soon' : 'hr-ok') + '">' + (l.need_ack ? (all - miss) + ' из ' + all : 'не нужно') + '</td>'
-      + '<td>' + (l.file ? '<a target="_blank" href="' + hEsc(l.file.url) + '" style="color:#1677ff;">файл</a>' : '') + '</td></tr>';
+      + '<td>' + (l.file ? hFileA(l.file, '📄 файл') : '') + '</td></tr>';
   }).join('');
   const progCount = function(p) { return (d.priv || []).filter(function(x) { return Number(x.program_id) === p.id && hEmp(x.employee_id) && hEmp(x.employee_id).status !== 'fired'; }).length; };
   const up = d.events.filter(function(x) { return hD(x.event_date) >= t; }).reverse(), past = d.events.filter(function(x) { return hD(x.event_date) < t; });

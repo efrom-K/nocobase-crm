@@ -143,4 +143,12 @@ insert into "flowModelTreePath"(ancestor,descendant,depth,async,type,sort) value
 commit;""" % (json.dumps(grid, ensure_ascii=False), json.dumps(block, ensure_ascii=False)))
 print('dash models ok')
 
+# --- 30.09: документы к кадровым записям (сканы личного дела, удостоверения, карты СОУТ, приказы, акты) — только admin и hr
+collection('crm_hr_files', 'Кадры: документы', [S('entity', 'К чему'),   # emp | safety | sout | vac | event | prog | le | act
+                                               I('record_id', 'Запись'), S('doc', 'Какой документ'), I('file_id', 'Файл'), T('note', 'Заметки')])
+print('crm_hr_files.file', ok(call('collections/crm_hr_files/fields:create', {'name': 'file', 'type': 'belongsTo', 'target': 'attachments', 'foreignKey': 'file_id',
+      'interface': 'm2o', 'uiSchema': {'title': 'Файл', 'x-component': 'AssociationField'}})))
+for role in ('crm_test', 'member', 'rental_dept', 'legal_dept', 'accounting_dept'):
+    print('deny files for', role, ok(call('roles/%s/resources:create' % role, {'name': 'crm_hr_files', 'usingActionsConfig': True, 'actions': []})))
+
 # Юрлица и привязка сотрудников к ним заводятся в интерфейсе (разовое начальное заполнение 30.09.2026 по папкам HR — вне репозитория: данные компаний и людей).

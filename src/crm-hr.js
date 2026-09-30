@@ -283,10 +283,19 @@ function hVacUsed(e, year) {
 }
 // ponytail: остаток = норма за год − запланированное в этом году; перенос с прошлых лет и начисление пропорционально стажу не считаются
 function hVacLeft(e, year) { return (Number(e.vacation_days) || 28) - hVacUsed(e, year); }
+// последняя запись по каждой компании (обучение ответственного идёт отдельно по юрлицу; компания — начало поля «Документ»)
+function hSafetyRecs(empId, kind) {
+  const by = {};
+  hr.d.safety.forEach(function(s) {
+    if (Number(s.employee_id || 0) !== Number(empId || 0) || s.kind !== kind) return;
+    const c = String(s.doc || '').split(' · ')[0];
+    if (!by[c] || hD(s.done_on) >= hD(by[c].done_on)) by[c] = s;
+  });
+  return Object.keys(by).map(function(c) { return by[c]; });
+}
+// для статуса — самая срочная из них
 function hSafetyLast(empId, kind) {
-  let r = null;
-  hr.d.safety.forEach(function(s) { if (Number(s.employee_id || 0) === Number(empId || 0) && s.kind === kind && (!r || hD(s.done_on) >= hD(r.done_on))) r = s; });
-  return r;
+  return hSafetyRecs(empId, kind).sort(function(a, b) { return String(a.next_on || '9').localeCompare(String(b.next_on || '9')) || hD(b.done_on).localeCompare(hD(a.done_on)); })[0] || null;
 }
 // состояние записи: none | ok | soon (≤30 дней) | late
 function hDue(next) {
@@ -422,7 +431,7 @@ const H_MAIN = [
   ['object_name', 'Объект', 'list', function() { return (hr.d.objects || []).map(function(o) { return o.name; }); }], ['contract_until', 'Договор ГПХ / с самозанятым до', 'date'],
   ['hired_on', 'Принят', 'date'], ['fired_on', 'Уволен', 'date'], ['status', 'Статус', 'select', HR_EMP_ST],
   ['vacation_days', 'Дней отпуска в год', 'num'], ['sout_id', 'Рабочее место (СОУТ)', 'select', function() { return hr.d.sout.map(function(s) { return [s.id, s.workplace + (s.work_class ? ' — класс ' + s.work_class : '')]; }); }],
-  ['phone', 'Телефон', 'text'], ['email', 'Почта', 'text'], ['birthday', 'День рождения', 'date'],
+  ['phone', 'Телефон', 'text'], ['email', 'Почта', 'text'], ['work_schedule', 'График работы', 'text'], ['birthday', 'День рождения', 'date'],
   ['extra_le_ids', 'Также оформлен в юрлицах (совместительство, директор)', 'multi', hLeOpts], ['note', 'Заметки', 'textarea']
 ];
 const H_PERSONAL = [['passport', 'Паспорт (серия, номер, кем и когда выдан)', 'text'], ['snils', 'СНИЛС', 'text'], ['inn', 'ИНН', 'text'],
@@ -458,11 +467,12 @@ function hAlerts() {
   // охрана труда: последние записи с датой следующего
   staff.forEach(function(e) {
     HR_SAFETY.forEach(function(k) {
-      const r = hSafetyLast(e.id, k[0]);
-      if (!r || !r.next_on) return;
-      const s = hDue(r.next_on);
-      if (s === 'late') add(0, k[3] + ': просрочено — ' + e.full_name, 'нужно было до ' + hDate(r.next_on), { emp: e.id }, r.next_on);
-      else if (s === 'soon') add(1, k[3] + ': ' + e.full_name + ' до ' + hDate(r.next_on), '', { emp: e.id }, r.next_on);
+      hSafetyRecs(e.id, k[0]).forEach(function(r) {
+        if (!r.next_on) return;
+        const s = hDue(r.next_on), comp = String(r.doc || '').split(' · ')[0];
+        if (s === 'late') add(0, k[3] + ': просрочено — ' + e.full_name + (comp ? ' (' + comp + ')' : ''), 'нужно было до ' + hDate(r.next_on), { emp: e.id }, r.next_on);
+        else if (s === 'soon') add(1, k[3] + ': ' + e.full_name + (comp ? ' (' + comp + ')' : '') + ' до ' + hDate(r.next_on), '', { emp: e.id }, r.next_on);
+      });
     });
   });
   HR_SAFETY.slice(0, 2).forEach(function(k) {
@@ -505,9 +515,10 @@ function hAlerts() {
   else { const ns = staff.filter(function(e) { return !e.sout_id; }); if (ns.length) add(2, 'СОУТ: рабочее место не указано у ' + hPeople(ns.length), '', { ids: ns.map(function(e) { return e.id; }), title: 'Не указано рабочее место СОУТ' }); }
   sec = 'docs';
   // ЛНА
+  const lnaMiss = d.lna.filter(function(l) { return hLnaMissing(l).length; });
+  if (lnaMiss.length) add(2, 'ЛНА: нет отметок об ознакомлении — ' + lnaMiss.length + ' ' + hNoun(lnaMiss.length, 'документ', 'документа', 'документов'),
+    'отметьте, кто подписал лист ознакомления («Документы и мероприятия»)', { tab: 'docs' });
   d.lna.forEach(function(l) {
-    const miss = hLnaMissing(l);
-    if (miss.length) add(1, '«' + l.title + '»: не ознакомлены ' + miss.length, '', { lna: l.id });
     if (l.review_on && hDays(t, l.review_on) <= 30) add(hDays(t, l.review_on) < 0 ? 0 : 1, '«' + l.title + '»: пересмотреть', 'до ' + hDate(l.review_on), { lna: l.id }, l.review_on);
   });
   sec = 'mil';
@@ -521,7 +532,8 @@ function hAlerts() {
   // воинский учёт организаций: ежегодная сверка, план на следующий год (забирают в военкомате)
   const noCheck = [];
   d.les.forEach(function(l) {
-    if (!hActive().some(function(e) { return hInLe(e, l.id); })) return;
+    const hasLiable = hActive().some(function(e) { const p = hPriv(e.id); return hInLe(e, l.id) && p && p.mil_status === 'liable'; });
+    if (!hasLiable) return;   // сверка и план нужны, только если в организации есть военнообязанные
     if (!l.mil_check_on) noCheck.push(l.name);
     else if (hDays(l.mil_check_on, t) > 365) add(0, 'Воинский учёт «' + l.name + '»: ежегодная сверка просрочена', 'последняя ' + hDate(l.mil_check_on), { tab: 'mil' });
     if (md >= '10-01' && Number(l.mil_plan_year || 0) < y + 1) add(1, 'Воинский учёт «' + l.name + '»: план на ' + (y + 1) + ' год', 'подготовить приказ, план ВУ и карточку организации (форма 18)', { tab: 'mil' });
@@ -567,6 +579,8 @@ async function hStart() {
     hr.tab = HR_MODE === 'hr' ? 'home' : 'staff';
     if (HR_MODE === 'hr') hr.staffView = 'table';
     hRender();
+    const sc = location.search.match(/[?&]sec=(\w+)/);
+    if (sc && HR_MODE === 'hr' && HR_SECTIONS[sc[1]]) { hr.tab = sc[1]; hRender(); try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
     const m = location.search.match(/[?&]open=emp:(\d+)/);
     if (m) {
       hOpenEmp(Number(m[1]));
@@ -918,7 +932,7 @@ function hRenderEmp(m, id) {
   };
   const lines = function(arr, empty) { return arr.length ? '<div class="hr-lines">' + arr.join('') + '</div>' : '<div class="hr-hint">' + empty + '</div>'; };
   // основное: только заполненное + главное
-  const PUBLIC = ['position', 'department', 'legal_entity_id', 'extra_le_ids', 'object_name', 'phone', 'email', 'birthday'];   // справочник для всех
+  const PUBLIC = ['position', 'department', 'legal_entity_id', 'extra_le_ids', 'object_name', 'phone', 'email', 'work_schedule', 'birthday'];   // справочник для всех
   const mainView = hKv(H_MAIN.filter(function(f) {
       if (HR_MODE !== 'hr') return PUBLIC.indexOf(f[0]) !== -1 && (e[f[0]] || f[0] === 'phone') && !(Array.isArray(e[f[0]]) && !e[f[0]].length);
       return f[0] !== 'note' && f[0] !== 'last_name' && f[0] !== 'first_name' && (e[f[0]] || ['position', 'department', 'legal_entity_id', 'phone', 'hired_on'].indexOf(f[0]) !== -1) && !(f[0] === 'contract_until' && staff);

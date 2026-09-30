@@ -1,4 +1,7 @@
-// Страница «Персонал (тест)» (/admin/hrpage01, блок crmblock003) — кадры: дашборд HR, сотрудники и структура, отпуска,
+// Один код — две страницы (режим по адресу):
+//  • «Сотрудники (тест)» (/admin/hrpage01, блок crmblock003) — общий раздел для всех: справочник, структура, отпуска; только просмотр.
+//  • «Дашборд HR (тест)» (/admin/hrdash01, блок crmblock004) — рабочее место HR-службы: без вкладок, главный экран = плитки разделов
+//    + лента «Требует внимания»; клик по плитке открывает раздел, «← Дашборд HR» возвращает. Разделы: сотрудники (сводная таблица и структура), отпуска,
 // охрана труда (обучение, инструктажи, пожарная безопасность, СОУТ), воинский учёт (по организациям и людям), документы и мероприятия
 // (ЛНА, мотивация, корпоративы). Разделы повторяют рабочие папки HR: всё ведётся по юрлицам (их больше десятка, человек может быть в нескольких).
 // Коллекции — scripts/setup_crm_hr.py. Закрытые данные (паспорт, воинский учёт, мотивация) — crm_hr_private: сервер отдаёт их
@@ -30,7 +33,11 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-only { display:flex; gap:10px; align-items:center; background:#e6f4ff; border:1px solid #91caff; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:13.5px; }
     .hr-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
     .hr-tile { border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px; background:#fff; }
-    .hr-tile[data-go] { cursor:pointer; }
+    .hr-tile[data-go], .hr-sect { cursor:pointer; }
+    .hr-sect { display:flex; flex-direction:column; }
+    .hr-sect:hover { border-color:#1677ff; box-shadow:0 2px 8px rgba(22,119,255,.08); }
+    .hr-tile-go { margin-top:auto; padding-top:6px; font-size:12.5px; color:#1677ff; }
+    .hr-sect .hr-tile-l { color:#262626; font-weight:600; font-size:13.5px; }
     .hr-tile[data-go]:hover { border-color:#91caff; }
     .hr-tile-l { font-size:12.5px; color:#8c8c8c; }
     .hr-tile-v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
@@ -51,6 +58,7 @@ if (!document.getElementById('crm-hr-style')) {
     .hr th, .hr-modal th { text-align:left; font-weight:600; color:#595959; padding:6px 8px; border-bottom:1px solid #f0f0f0; white-space:nowrap; }
     .hr td, .hr-modal td { padding:6px 8px; border-bottom:1px solid #f5f5f5; font-variant-numeric:tabular-nums; }
     .hr th.n, .hr td.n { text-align:right; }
+    .hr td .hr-none, .hr td .hr-ok, .hr td .hr-soon, .hr td .hr-late { white-space:nowrap; }
     .hr tr[data-emp], .hr tr[data-rec], .hr-modal tr[data-task] { cursor:pointer; }
     .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr-modal tr[data-task]:hover td { background:#f5faff; }
     .hr-empty { color:#8c8c8c; padding:28px 12px; text-align:center; background:#fafafa; border-radius:8px; }
@@ -171,6 +179,8 @@ if (!document.getElementById('crm-hr-style')) {
 }
 
 const HR_TASKS_PAGE = '/admin/tskpage01';
+const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/hrdash01';
+const HR_MODE = location.pathname.indexOf(HR_DASH_PAGE) !== -1 ? 'hr' : 'staff';
 const HR_DEPT = 'HR служба персонала';
 const HR_EMP_TYPE = { staff: 'Штатный', external: 'Внештатный (ГПХ)', self: 'Самозанятый' };
 const HR_EMP_ST = { active: 'Работает', fired: 'Уволен' };
@@ -199,7 +209,7 @@ const HR_EVENT_KINDS = ['Корпоратив', 'Тимбилдинг', 'Пра�
 const HR_RANKS = ['рядовой', 'ефрейтор', 'младший сержант', 'сержант', 'старший сержант', 'старшина', 'прапорщик', 'старший прапорщик', 'лейтенант', 'старший лейтенант', 'капитан', 'майор', 'подполковник', 'полковник'];
 const HR_AVA = ['#1677ff', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f54eb', '#08979c'];
 const HR_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-const hr = { d: null, me: null, myEmp: null, tab: '', staffView: 'list', group: 'dept', le: '', type: '', dept: '', q: '', fired: false, only: null,
+const hr = { d: null, me: null, myEmp: null, tab: '', staffView: 'list', le: '', type: '', dept: '', q: '', fired: false, only: null,
   year: new Date().getFullYear(), orgEdit: false, mxLe: '' };
 
 // ---------- мелочи ----------
@@ -246,7 +256,8 @@ async function hUpload(file) {
 }
 
 // ---------- данные ----------
-function hCan() { return hr.d && hr.d.priv !== null; }   // сервер отдал закрытые данные → admin или hr
+function hHasHr() { return !!(hr.d && hr.d.priv !== null); }   // сервер отдал закрытые данные → admin или hr
+function hCan() { return HR_MODE === 'hr' && hHasHr(); }       // править можно только в дашборде HR
 function hEmp(id) { return hr.d.emps.find(function(e) { return e.id === Number(id); }) || null; }
 function hActive() { return hr.d.emps.filter(function(e) { return e.status !== 'fired'; }); }
 function hStaff() { return hActive().filter(function(e) { return (e.employment_type || 'staff') === 'staff'; }); }
@@ -442,7 +453,8 @@ const H_EVENT = [['title', 'Название', 'text', null, 1], ['kind', 'Ви�
 // lvl: 0 — просрочено/срочно, 1 — скоро, 2 — к сведению. go: { emp } | { tab, ... } | { ids, title } (список сотрудников)
 function hAlerts() {
   const d = hr.d, t = hToday(), out = [], staff = hStaff();
-  const add = function(lvl, text, sub, go, date) { out.push({ lvl: lvl, text: text, sub: sub || '', go: go, date: date || '' }); };
+  let sec = 'safety';   // раздел дашборда, к которому относится пункт (счётчик на плитке)
+  const add = function(lvl, text, sub, go, date) { out.push({ lvl: lvl, text: text, sub: sub || '', go: go, date: date || '', sec: sec }); };
   // охрана труда: последние записи с датой следующего
   staff.forEach(function(e) {
     HR_SAFETY.forEach(function(k) {
@@ -463,6 +475,7 @@ function hAlerts() {
     const s = hDue(common[k].next_on);
     if (s !== 'ok') add(s === 'late' ? 0 : 1, 'Пожарная безопасность: ' + k, (s === 'late' ? 'просрочено, ' : '') + 'до ' + hDate(common[k].next_on), { tab: 'safety' }, common[k].next_on);
   });
+  sec = 'vac';
   // отпуска: уведомить сотрудника не позднее чем за 2 недели (ст. 123 ТК РФ) → напоминаем за 3 недели
   d.vacs.forEach(function(v) {
     const e = hEmp(v.employee_id); if (!e || e.status === 'fired') return;
@@ -474,12 +487,14 @@ function hAlerts() {
     const noPlan = staff.filter(function(e) { return !d.vacs.some(function(v) { return Number(v.employee_id) === e.id && hD(v.start_date).slice(0, 4) === String(y + 1); }); });
     if (noPlan.length) add(md >= '12-10' ? 0 : 1, 'График отпусков на ' + (y + 1) + ': не запланировано у ' + hPeople(noPlan.length), 'график утверждается не позднее 17 декабря', { tab: 'vac', year: y + 1 });
   }
+  sec = 'staff';
   // договоры ГПХ и самозанятых
   hActive().forEach(function(e) {
     if (!e.contract_until || (e.employment_type || 'staff') === 'staff') return;
     const n = hDays(t, e.contract_until);
     if (n <= 30) add(n < 0 ? 0 : 1, 'Договор ' + (HR_EMP_TYPE[e.employment_type] || '').toLowerCase() + ': ' + e.full_name, (n < 0 ? 'закончился ' : 'заканчивается ') + hDate(e.contract_until), { emp: e.id }, e.contract_until);
   });
+  sec = 'safety';
   // СОУТ
   d.sout.forEach(function(s) {
     if (!s.next_on) return;
@@ -488,12 +503,14 @@ function hAlerts() {
   });
   if (!d.sout.length) add(2, 'СОУТ: рабочие места не заведены', 'добавьте в «Охране труда» → СОУТ', { tab: 'safety' });
   else { const ns = staff.filter(function(e) { return !e.sout_id; }); if (ns.length) add(2, 'СОУТ: рабочее место не указано у ' + hPeople(ns.length), '', { ids: ns.map(function(e) { return e.id; }), title: 'Не указано рабочее место СОУТ' }); }
+  sec = 'docs';
   // ЛНА
   d.lna.forEach(function(l) {
     const miss = hLnaMissing(l);
     if (miss.length) add(1, '«' + l.title + '»: не ознакомлены ' + miss.length, '', { lna: l.id });
     if (l.review_on && hDays(t, l.review_on) <= 30) add(hDays(t, l.review_on) < 0 ? 0 : 1, '«' + l.title + '»: пересмотреть', 'до ' + hDate(l.review_on), { lna: l.id }, l.review_on);
   });
+  sec = 'mil';
   // воинский учёт (только те, кому сервер отдал закрытые данные)
   if (d.priv) {
     const unknown = staff.filter(function(e) { const p = hPriv(e.id); return !p || !p.mil_status; });
@@ -516,6 +533,7 @@ function hAlerts() {
     const n = hDays(ev, t);
     if (n >= 0 && n <= 60 && !(p.mil_sent_on && hD(p.mil_sent_on) >= hD(ev))) add(n > 10 ? 0 : 1, 'Военкомат: сообщить об ' + (e.status === 'fired' ? 'увольнении' : 'приёме') + ' — ' + e.full_name, 'в течение 2 недель с ' + hDate(ev), { emp: e.id }, ev);
   });
+  sec = 'staff';
   // самозанятые: ежемесячные акты за прошлый месяц
   const pm = hPrevMonth(), noAct = hActive().filter(function(e) { return e.employment_type === 'self' && !(e.acts || {})[pm]; });
   if (noAct.length && t.slice(8) >= '03') add(t.slice(8) >= '10' ? 0 : 1, 'Акты самозанятых за ' + hMonthName(pm) + ': не подписано ' + noAct.length, 'отметьте на «Обзоре» → «Акты самозанятых»', { ids: noAct.map(function(e) { return e.id; }), title: 'Нет акта за ' + hMonthName(pm) });
@@ -525,6 +543,7 @@ function hAlerts() {
   }
   const noLe = hActive().filter(function(e) { return !hLes(e).length; });
   if (noLe.length) add(2, 'Юрлицо не указано у ' + hPeople(noLe.length), d.les.length ? '' : 'сначала добавьте юрлица в «Сотрудники» → «Структура»', { ids: noLe.map(function(e) { return e.id; }), title: 'Без юрлица' });
+  sec = 'docs';
   // приятное: дни рождения и мероприятия
   hActive().forEach(function(e) {
     if (!e.birthday) return;
@@ -544,7 +563,9 @@ async function hStart() {
   try {
     hr.me = await hMe();
     await hLoad();
-    hr.tab = hCan() ? 'home' : 'staff';
+    if (HR_MODE === 'hr' && !hHasHr()) { hRoot().innerHTML = '<div class="hr-empty"><b>Дашборд HR доступен HR-службе и администратору</b>Справочник сотрудников — в разделе «Сотрудники».</div>'; return; }
+    hr.tab = HR_MODE === 'hr' ? 'home' : 'staff';
+    if (HR_MODE === 'hr') hr.staffView = 'table';
     hRender();
     const m = location.search.match(/[?&]open=emp:(\d+)/);
     if (m) {
@@ -561,30 +582,35 @@ hRoot().addEventListener('change', hOnChange);
 hRoot().addEventListener('input', function(e) { if (e.target.getAttribute('data-f') === 'q') { hr.q = e.target.value; hRenderStaffList(); } });
 hStart();
 
-function hTabs() {
-  const al = hCan() ? hAlerts().filter(function(a) { return a.lvl === 0; }).length : 0;
-  const t = [['home', 'Обзор', al ? '<b class="red">' + al + '</b>' : ''], ['staff', 'Сотрудники', '<b>' + hActive().length + '</b>'], ['vac', 'Отпуска', ''],
-    ['safety', 'Охрана труда и СОУТ', ''], ['mil', 'Воинский учёт', ''], ['docs', 'Документы и мероприятия', '']];
-  return hCan() ? t : t.filter(function(x) { return x[0] === 'staff' || x[0] === 'vac'; });
-}
+const HR_SECTIONS = { staff: 'Сотрудники', vac: 'Отпуска', safety: 'Охрана труда и СОУТ', mil: 'Воинский учёт', docs: 'Документы и мероприятия' };
 function hRender() {
-  hRoot().innerHTML = '<div class="hr-head"><div class="hr-title">Персонал</div>' + (hCan() ? '<button class="hr-new" data-act="newemp">+ Сотрудник</button>' : '') + '</div>'
-    + '<div class="hr-tabs">' + hTabs().map(function(t) { return '<button class="hr-tab' + (hr.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + t[2] + '</button>'; }).join('') + '</div>'
-    + '<div data-hr-body></div>';
-  ({ home: hRenderHome, staff: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs })[hr.tab]();
+  let head;
+  if (HR_MODE === 'staff') {   // общий раздел: три вкладки
+    const t = [['staff', 'Список', '<b>' + hActive().length + '</b>'], ['org', 'Структура', ''], ['vac', 'Отпуска', '']];
+    head = '<div class="hr-head"><div class="hr-title">Сотрудники</div>' + (hHasHr() ? '<a class="hr-btn" href="' + HR_DASH_PAGE + '" style="margin-left:auto;">Дашборд HR →</a>' : '') + '</div>'
+      + '<div class="hr-tabs">' + t.map(function(x) { return '<button class="hr-tab' + (hr.tab === x[0] ? ' on' : '') + '" data-tab="' + x[0] + '">' + x[1] + x[2] + '</button>'; }).join('') + '</div>';
+    hr.staffView = hr.tab === 'org' ? 'org' : 'list';
+  } else {                     // дашборд HR: без вкладок, раздел открывается с главного экрана
+    head = hr.tab === 'home'
+      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div><button class="hr-new" data-act="newemp">+ Сотрудник</button></div>'
+      : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд HR</button><div class="hr-title">' + HR_SECTIONS[hr.tab] + '</div>'
+        + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp">+ Сотрудник</button>' : '') + '</div>';
+  }
+  hRoot().innerHTML = head + '<div data-hr-body></div>';
+  ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs })[hr.tab]();
 }
 function hGo(go) {
   if (go.emp) return hOpenEmp(go.emp);
   if (go.vac) return hOpenVac(hr.d.vacs.find(function(v) { return v.id === go.vac; }));
   if (go.lna) return hOpenLna(hr.d.lna.find(function(l) { return l.id === go.lna; }));
   if (go.ev) return hOpenEvent(hr.d.events.find(function(x) { return x.id === go.ev; }));
-  if (go.ids) { hr.only = { ids: go.ids, title: go.title }; hr.staffView = 'list'; hr.tab = 'staff'; }
-  else { hr.tab = go.tab; if (go.year) hr.year = go.year; if (go.le !== undefined) hr.le = go.le; if (go.type !== undefined) hr.type = go.type; }
+  if (go.ids) { hr.only = { ids: go.ids, title: go.title }; hr.staffView = 'table'; hr.tab = 'staff'; }
+  else { hr.tab = go.tab; if (go.tab === 'staff') hr.staffView = 'table'; if (go.year) hr.year = go.year; if (go.le !== undefined) hr.le = go.le; if (go.type !== undefined) hr.type = go.type; }
   hRender();
 }
 function hOnChange(e) {
   const f = e.target.getAttribute('data-f');
-  if (f === 'le' || f === 'type' || f === 'dept' || f === 'group') { hr[f] = e.target.value; hRenderStaffList(); }
+  if (f === 'le' || f === 'type' || f === 'dept') { hr[f] = e.target.value; hRenderStaffList(); }
   if (f === 'fired') { hr.fired = e.target.checked; hRenderStaffList(); }
   if (f === 'mxLe') { hr.mxLe = e.target.value; hRenderSafety(); }
   const am = e.target.getAttribute('data-act-m');
@@ -596,11 +622,11 @@ function hOnClick(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
   if (c('a[href^="tel:"], a[href^="mailto:"], a[target]')) return;
   const tab = c('[data-tab]');
-  if (tab) { hr.tab = tab.getAttribute('data-tab'); hr.only = null; hRender(); return; }
+  if (tab) { hr.tab = tab.getAttribute('data-tab'); hr.only = null; hRender(); try { window.scrollTo(0, 0); } catch (err) { /* песочница */ } return; }
   const act = c('[data-act]'), a = act && act.getAttribute('data-act');
   if (a === 'newemp') return hOpenNewEmp();
-  if (a === 'sv') { hr.staffView = act.getAttribute('data-v'); hRenderStaff(); return; }
   if (a === 'unonly') { hr.only = null; hRenderStaff(); return; }
+  if (a === 'sv') { hr.staffView = act.getAttribute('data-v'); hRenderStaff(); return; }
   if (a === 'orgedit') { hr.orgEdit = !hr.orgEdit; hRenderStaff(); return; }
   if (a === 'newle') return hOpenLe(null);
   if (a === 'year') { hr.year += Number(act.getAttribute('data-d')); hRenderVac(); return; }
@@ -639,36 +665,41 @@ function hOnClick(e) {
   if (emp && !c('select')) hOpenEmp(Number(emp.getAttribute('data-emp')));
 }
 
-// ---------- обзор (дашборд HR) ----------
+// ---------- главный экран дашборда HR: плитки разделов + лента «Требует внимания» ----------
 function hRenderHome() {
   const d = hr.d, act = hActive(), t = hToday(), al = hAlerts();
   const byType = function(k) { return act.filter(function(e) { return (e.employment_type || 'staff') === k; }).length; };
   const onVac = act.filter(hVacNow), soon = d.vacs.filter(function(v) { const n = hDays(t, v.start_date); return n > 0 && n <= 30 && hEmp(v.employee_id); });
-  const safetyLate = al.filter(function(a) { return a.lvl === 0 && /просрочено/.test(a.text); }).length;
   const liable = (d.priv || []).filter(function(p) { const e = hEmp(p.employee_id); return p.mil_status === 'liable' && e && e.status !== 'fired'; }).length;
   const nextEv = d.events.filter(function(x) { return hD(x.event_date) >= t; }).sort(function(a, b) { return hD(a.event_date).localeCompare(hD(b.event_date)); })[0];
-  const tile = function(l, v, n, go, red) { return '<div class="hr-tile"' + (go ? ' data-go="' + hEsc(JSON.stringify(go)) + '"' : '') + '><div class="hr-tile-l">' + l + '</div><div class="hr-tile-v' + (red ? ' red' : '') + '">' + v + '</div><div class="hr-tile-n">' + n + '</div></div>'; };
+  const lateSafety = hStaff().reduce(function(n, e) { return n + HR_SAFETY.filter(function(k) { const r = hSafetyLast(e.id, k[0]); return r && r.next_on && hDue(r.next_on) === 'late'; }).length; }, 0);
+  const noAck = d.lna.reduce(function(n, l) { return n + hLnaMissing(l).length; }, 0);
+  // плитка = раздел: название, главная цифра, пояснение, сколько там пунктов «требует внимания»
+  const tile = function(sec, v, n) {
+    const a = al.filter(function(x) { return x.sec === sec && x.lvl < 2; }), red = a.some(function(x) { return x.lvl === 0; });
+    return '<div class="hr-tile hr-sect" data-tab="' + sec + '"><div class="hr-tile-l">' + HR_SECTIONS[sec] + (a.length ? ' <span class="hr-chip ' + (red ? 'red' : 'orange') + '">' + a.length + '</span>' : '') + '</div>'
+      + '<div class="hr-tile-v">' + v + '</div><div class="hr-tile-n">' + n + '</div><div class="hr-tile-go">открыть →</div></div>';
+  };
   const lvlC = ['#cf1322', '#fa8c16', '#1677ff'];
   const leRows = d.les.map(function(l) { return [l.id, l.name]; }).concat([['', 'Юрлицо не указано']]).map(function(x) {
     const l = act.filter(function(e) { return x[0] === '' ? !hLes(e).length : hInLe(e, x[0]); });
-    if (!l.length && x[0] === '') return '';
+    if (!l.length) return '';
     const n = function(k) { return l.filter(function(e) { return (e.employment_type || 'staff') === k; }).length; };
     return '<tr data-go="' + hEsc(JSON.stringify({ tab: 'staff', le: x[0] === '' ? '-' : String(x[0]), type: '' })) + '" style="cursor:pointer;"><td>' + hEsc(x[1]) + '</td><td class="n">' + n('staff') + '</td><td class="n">' + n('external') + '</td><td class="n">' + n('self') + '</td><td class="n"><b>' + l.length + '</b></td></tr>';
   }).join('');
   hBody().innerHTML = '<div class="hr-tiles">'
-    + tile('Сотрудников', act.length, 'штат ' + byType('staff') + ' · ГПХ ' + byType('external') + ' · самозанятые ' + byType('self'), { tab: 'staff' })
-    + tile('Сейчас в отпуске', onVac.length, hEsc(onVac.map(function(e) { return e.last_name; }).join(', ') || 'никого') + (soon.length ? ' · за месяц уходят ' + soon.length : ''), { tab: 'vac' })
-    + tile('Требует внимания', al.filter(function(a) { return a.lvl < 2; }).length, 'срочно: ' + al.filter(function(a) { return a.lvl === 0; }).length, null, al.some(function(a) { return a.lvl === 0; }))
-    + tile('Охрана труда', safetyLate ? safetyLate : '✓', safetyLate ? 'просрочено' : 'просрочек нет', { tab: 'safety' }, safetyLate)
-    + tile('Воинский учёт', liable, 'состоят на учёте', { tab: 'mil' })
-    + tile('Ближайшее мероприятие', nextEv ? hDate(nextEv.event_date).slice(0, 5) : '—', nextEv ? hEsc(nextEv.title) : 'не запланировано', { tab: 'docs' })
+    + tile('staff', act.length, 'штат ' + byType('staff') + ' · ГПХ ' + byType('external') + ' · самозанятые ' + byType('self'))
+    + tile('vac', onVac.length + ' <small style="font-size:13px;font-weight:400;">в отпуске</small>', soon.length ? 'в ближайший месяц уходят ' + soon.length : 'в ближайший месяц никто не уходит')
+    + tile('safety', lateSafety ? '<span style="color:#cf1322;">' + lateSafety + '</span> <small style="font-size:13px;font-weight:400;">просрочено</small>' : '✓', 'обучение, инструктажи, пожарная безопасность, СОУТ · ' + d.sout.length + ' раб. мест')
+    + tile('mil', liable + ' <small style="font-size:13px;font-weight:400;">на учёте</small>', 'организации: сверки и планы; военнообязанные')
+    + tile('docs', d.lna.length + ' <small style="font-size:13px;font-weight:400;">ЛНА</small>', (noAck ? 'не ознакомлены: ' + noAck + ' · ' : '') + (nextEv ? 'ближайшее мероприятие ' + hDate(nextEv.event_date).slice(0, 5) : 'мероприятий не запланировано'))
     + '</div><div class="hr-cols"><div>'
     + '<div class="hr-card"><div class="hr-card-t">Требует внимания <small>' + al.length + '</small></div>'
     + (al.length ? al.map(function(x) {
         return '<div class="hr-al" data-go="' + hEsc(JSON.stringify(x.go)) + '"><span class="hr-dot" style="background:' + lvlC[x.lvl] + ';"></span><div class="hr-al-t">' + hEsc(x.text) + (x.sub ? '<div class="hr-al-s">' + hEsc(x.sub) + '</div>' : '') + '</div></div>';
       }).join('') : '<div class="hr-hint">Всё в порядке</div>') + '</div></div><div>'
     + '<div class="hr-card"><div class="hr-card-t">По юрлицам</div><table><thead><tr><th></th><th class="n">Штат</th><th class="n">ГПХ</th><th class="n">Самоз.</th><th class="n">Всего</th></tr></thead><tbody>' + leRows + '</tbody></table>'
-    + (d.les.length ? '' : '<div class="hr-hint">Юрлица пока не заведены: «Сотрудники» → «Структура» → «+ Юрлицо».</div>') + '</div>'
+    + (d.les.length ? '' : '<div class="hr-hint">Юрлица пока не заведены: «Воинский учёт» → «+ Юрлицо».</div>') + '</div>'
     + '<div class="hr-card"><div class="hr-card-t">Отпуска в ближайший месяц</div>' + (soon.length || onVac.length ? '<div class="hr-lines">'
       + onVac.map(function(e) { const v = hVacNow(e); return '<div data-go="' + hEsc(JSON.stringify({ vac: v.id })) + '" style="cursor:pointer;"><span>' + hEsc(e.full_name) + '</span><span class="hr-chip green">в отпуске до ' + hDate(v.end_date).slice(0, 5) + '</span></div>'; }).join('')
       + soon.map(function(v) { return '<div data-go="' + hEsc(JSON.stringify({ vac: v.id })) + '" style="cursor:pointer;"><span>' + hEsc(hEmp(v.employee_id).full_name) + '</span><span class="hr-hint">' + hDate(v.start_date).slice(0, 5) + '–' + hDate(v.end_date).slice(0, 5) + '</span></div>'; }).join('')
@@ -721,58 +752,80 @@ function hRenderMil() {
 
 // ---------- сотрудники: список и структура ----------
 function hRenderStaff() {
-  const can = hCan();
-  hBody().innerHTML = '<div class="hr-bar"><span class="hr-seg"><button data-act="sv" data-v="list" class="' + (hr.staffView === 'list' ? 'on' : '') + '">Списком</button><button data-act="sv" data-v="org" class="' + (hr.staffView === 'org' ? 'on' : '') + '">Структура</button></span>'
-    + (hr.staffView === 'list' ? '<input type="text" data-f="q" placeholder="Найти: фамилия, должность, телефон" value="' + hEsc(hr.q) + '">'
-      + '<select data-f="le"><option value="">Все юрлица</option>' + hr.d.les.map(function(l) { return '<option value="' + l.id + '"' + (String(hr.le) === String(l.id) ? ' selected' : '') + '>' + hEsc(l.name) + '</option>'; }).join('') + '<option value="-"' + (hr.le === '-' ? ' selected' : '') + '>— юрлицо не указано —</option></select>'
-      + '<select data-f="type"><option value="">Любой тип занятости</option>' + Object.keys(HR_EMP_TYPE).map(function(k) { return '<option value="' + k + '"' + (hr.type === k ? ' selected' : '') + '>' + HR_EMP_TYPE[k] + '</option>'; }).join('') + '</select>'
-      + '<select data-f="dept"><option value="">Все отделы</option>' + hDeptNames().map(function(n) { return '<option' + (hr.dept === n ? ' selected' : '') + '>' + hEsc(n) + '</option>'; }).join('') + '</select>'
-      + '<select data-f="group"><option value="dept"' + (hr.group === 'dept' ? ' selected' : '') + '>По отделам</option><option value="le"' + (hr.group === 'le' ? ' selected' : '') + '>По юрлицам</option><option value="type"' + (hr.group === 'type' ? ' selected' : '') + '>По типу занятости</option></select>'
+  const hrm = HR_MODE === 'hr', view = hr.staffView, org = view === 'org';
+  const leSel = '<select data-f="le"><option value="">Все юрлица</option>' + hr.d.les.map(function(l) { return '<option value="' + l.id + '"' + (String(hr.le) === String(l.id) ? ' selected' : '') + '>' + hEsc(l.name) + '</option>'; }).join('') + '<option value="-"' + (hr.le === '-' ? ' selected' : '') + '>— юрлицо не указано —</option></select>';
+  const deptSel = '<select data-f="dept"><option value="">Все отделы</option>' + hDeptNames().map(function(n) { return '<option' + (hr.dept === n ? ' selected' : '') + '>' + hEsc(n) + '</option>'; }).join('') + '</select>';
+  const typeSel = '<select data-f="type"><option value="">Любой тип занятости</option>' + Object.keys(HR_EMP_TYPE).map(function(k) { return '<option value="' + k + '"' + (hr.type === k ? ' selected' : '') + '>' + HR_EMP_TYPE[k] + '</option>'; }).join('') + '</select>';
+  hBody().innerHTML = '<div class="hr-bar">'
+    + (hrm ? '<span class="hr-seg"><button data-act="sv" data-v="table" class="' + (!org ? 'on' : '') + '">Таблица</button><button data-act="sv" data-v="org" class="' + (org ? 'on' : '') + '">Структура</button></span>' : '')
+    + (!org ? '<input type="text" data-f="q" placeholder="Найти: фамилия, должность, телефон" value="' + hEsc(hr.q) + '">' + leSel + deptSel + (hrm ? typeSel : '')
       + '<label class="hr-hint" style="margin:0;cursor:pointer;"><input type="checkbox" data-f="fired"' + (hr.fired ? ' checked' : '') + '> уволенные</label>'
-      : (can ? '<button class="hr-btn' + (hr.orgEdit ? ' pri' : '') + '" data-act="orgedit" style="margin-left:auto;">' + (hr.orgEdit ? 'Готово' : 'Изменить руководителей') + '</button>' : ''))
-    + '</div>' + (hr.only && hr.staffView === 'list' ? '<div class="hr-only">Показаны: <b>' + hEsc(hr.only.title) + '</b> (' + hr.only.ids.length + ')<button class="hr-btn sm" data-act="unonly" style="margin-left:auto;">Показать всех</button></div>' : '')
+      : (hCan() ? '<button class="hr-btn sm" data-act="newle">+ Юрлицо</button><button class="hr-btn' + (hr.orgEdit ? ' pri' : '') + '" data-act="orgedit" style="margin-left:auto;">' + (hr.orgEdit ? 'Готово' : 'Изменить руководителей') + '</button>' : ''))
+    + '</div>' + (hr.only && !org ? '<div class="hr-only">Показаны: <b>' + hEsc(hr.only.title) + '</b> (' + hr.only.ids.length + ')<button class="hr-btn sm" data-act="unonly" style="margin-left:auto;">Показать всех</button></div>' : '')
     + '<div data-staff-list></div>';
-  if (hr.staffView === 'list') hRenderStaffList(); else hRenderOrg();
+  if (org) hRenderOrg(); else hRenderStaffList();
+}
+// отбор сотрудников по фильтрам раздела
+function hStaffFiltered() {
+  const q = hr.q.trim().toLowerCase();
+  return hr.d.emps.filter(function(e) {
+    if (hr.only) return hr.only.ids.indexOf(e.id) !== -1;
+    if (!hr.fired && e.status === 'fired') return false;
+    if (hr.le === '-' ? hLes(e).length : (hr.le && !hInLe(e, hr.le))) return false;
+    if (HR_MODE === 'hr' && hr.type && (e.employment_type || 'staff') !== hr.type) return false;
+    if (hr.dept && e.department !== hr.dept) return false;
+    if (q && [e.full_name, e.middle_name, e.position, e.email, e.phone, e.department, e.object_name].join(' ').toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
+}
+// дашборд HR: сводная таблица — по строке на человека, всё кадровое в столбцах
+function hRenderHrTable(box) {
+  const y = new Date().getFullYear(), list = hStaffFiltered().sort(function(a, b) { return String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
+  const cellOt = function(e) {
+    if ((e.employment_type || 'staff') !== 'staff') return '<span class="hr-none">не нужно</span>';
+    const recs = HR_SAFETY.map(function(k) { const r = hSafetyLast(e.id, k[0]); return r ? hDue(r.next_on) : 'none'; });
+    const late = recs.filter(function(x) { return x === 'late'; }).length, soon = recs.filter(function(x) { return x === 'soon'; }).length, has = recs.filter(function(x) { return x !== 'none'; }).length;
+    return late ? '<span class="hr-late">просрочено ' + late + '</span>' : soon ? '<span class="hr-soon">скоро ' + soon + '</span>' : has ? '<span class="hr-ok">✓ ' + has + ' из ' + HR_SAFETY.length + '</span>' : '<span class="hr-none">нет данных</span>';
+  };
+  const cellMil = function(e) { const p = hPriv(e.id); return !p || !p.mil_status ? '<span class="hr-none">?</span>' : p.mil_status === 'liable' ? (p.mil_rank ? hEsc(p.mil_rank) : 'на учёте') : '<span class="hr-hint">нет</span>'; };
+  const cellFile = function(e) {
+    const need = e.employment_type === 'self' ? HR_FILE_DOCS_SELF.length : (e.employment_type || 'staff') === 'staff' ? HR_FILE_DOCS.length : 4, n = ((hPriv(e.id) || {}).file_docs || []).length;
+    return '<span class="' + (n >= need ? 'hr-ok' : n ? 'hr-soon' : 'hr-none') + '">' + n + ' / ' + need + '</span>';
+  };
+  box.innerHTML = list.length ? '<div class="hr-card"><table><thead><tr><th>Сотрудник</th><th>Юрлицо</th><th>Тип</th><th class="n">Отпуск, осталось</th><th>ОТ и ПБ</th><th>Воинский учёт</th><th>Личное дело</th><th>СОУТ</th></tr></thead><tbody>'
+    + list.map(function(e) {
+        const so = hSout(e.sout_id), v = hVacNow(e), st = e.employment_type || 'staff';
+        return '<tr data-emp="' + e.id + '"' + (e.status === 'fired' ? ' style="opacity:.55;"' : '') + '><td><b style="font-weight:600;">' + hEsc(e.full_name) + '</b><div class="hr-hint" style="margin:0;">' + hEsc([e.position, e.department].filter(Boolean).join(' · ')) + '</div></td>'
+          + '<td>' + (hEsc(hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', ')) || '<span class="hr-none">—</span>') + '</td>'
+          + '<td>' + (st === 'staff' ? 'штат' + (e.rate && e.rate !== '1' ? ', ' + hEsc(e.rate) : '') : st === 'self' ? 'самозанятый' : 'ГПХ') + '</td>'
+          + '<td class="n">' + (st === 'staff' ? (v ? '<span class="hr-chip green">в отпуске</span> ' : '') + hVacLeft(e, y) + ' дн.' : '') + '</td>'
+          + '<td>' + cellOt(e) + '</td><td>' + cellMil(e) + '</td><td>' + cellFile(e) + '</td>'
+          + '<td>' + (so ? hEsc(so.work_class || '—') : '<span class="hr-none">—</span>') + '</td></tr>';
+      }).join('') + '</tbody></table><div class="hr-hint">' + hPeople(list.length) + '. Нажмите на строку — откроется карточка со всеми данными.</div></div>'
+    : '<div class="hr-empty"><b>Никого не нашли</b>Измените поиск или фильтры.</div>';
 }
 function hEmpChips(e) {
   const out = [], v = hVacNow(e), t = e.employment_type || 'staff';
   if (e.status === 'fired') out.push('<span class="hr-chip">уволен</span>');
   if (t !== 'staff') out.push('<span class="hr-chip purple">' + (t === 'self' ? 'самозанятый' : 'ГПХ') + (e.contract_until ? ' до ' + hDate(e.contract_until) : '') + '</span>');
   if (v) out.push('<span class="hr-chip green">в отпуске до ' + hDate(v.end_date).slice(0, 5) + '</span>');
-  if (hr.group !== 'le' || hr.tab !== 'staff') hLes(e).map(hLe).filter(Boolean).forEach(function(l) { out.push('<span class="hr-chip blue">' + hEsc(l.name) + '</span>'); });
+  hLes(e).map(hLe).filter(Boolean).forEach(function(l) { out.push('<span class="hr-chip blue">' + hEsc(l.name) + '</span>'); });
   if (e.object_name) out.push('<span class="hr-chip">' + hEsc(e.object_name) + '</span>');
-  const late = HR_SAFETY.filter(function(k) { const r = hSafetyLast(e.id, k[0]); return r && r.next_on && hDue(r.next_on) === 'late'; }).length;
-  if (late && t === 'staff') out.push('<span class="hr-chip red">охрана труда: просрочено ' + late + '</span>');
   return out.join('');
 }
 function hRenderStaffList() {
-  const box = hRoot().querySelector('[data-staff-list]'); if (!box || hr.staffView !== 'list') return;
-  const q = hr.q.trim().toLowerCase();
-  const list = hr.d.emps.filter(function(e) {
-    if (hr.only) return hr.only.ids.indexOf(e.id) !== -1;
-    if (!hr.fired && e.status === 'fired') return false;
-    if (hr.le === '-' ? hLes(e).length : (hr.le && !hInLe(e, hr.le))) return false;
-    if (hr.type && (e.employment_type || 'staff') !== hr.type) return false;
-    if (hr.dept && e.department !== hr.dept) return false;
-    if (q && [e.full_name, e.middle_name, e.position, e.email, e.phone, e.department].join(' ').toLowerCase().indexOf(q) === -1) return false;
-    return true;
-  });
-  const keys = function(e) {   // по юрлицам человек попадает в каждую свою группу
-    if (hr.group === 'le') { const l = hLes(e).map(hLe).filter(Boolean); return l.length ? l.map(function(x) { return x.name; }) : ['Юрлицо не указано']; }
-    if (hr.group === 'type') return [HR_EMP_TYPE[e.employment_type || 'staff']];
-    return [e.department || 'Без отдела'];
-  };
-  const order = hr.group === 'le' ? hr.d.les.map(function(l) { return l.name; }).concat(['Юрлицо не указано'])
-    : hr.group === 'type' ? Object.keys(HR_EMP_TYPE).map(function(k) { return HR_EMP_TYPE[k]; }) : hDeptNames().concat(['Без отдела']);
-  const groups = {};
-  list.forEach(function(e) { keys(e).forEach(function(k) { (groups[k] = groups[k] || []).push(e); }); });
+  const box = hRoot().querySelector('[data-staff-list]'); if (!box || hr.staffView === 'org') return;
+  if (HR_MODE === 'hr') return hRenderHrTable(box);
+  const list = hStaffFiltered();
+  const groups = {}, order = hDeptNames().concat(['Без отдела']);
+  list.forEach(function(e) { const k = e.department || 'Без отдела'; (groups[k] = groups[k] || []).push(e); });
   const heads = {};
   hr.d.depts.forEach(function(d) { if (d.head_employee_id) heads[d.head_employee_id] = 1; });
   box.innerHTML = order.filter(function(n) { return groups[n]; }).map(function(n) {
     const people = groups[n].sort(function(a, b) { return (heads[b.id] ? 1 : 0) - (heads[a.id] ? 1 : 0) || String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
     return '<div class="hr-grp">' + hEsc(n) + '<span>' + people.length + ' чел.</span></div><div class="hr-people">' + people.map(function(e) {
       return '<div class="hr-person' + (e.status === 'fired' ? ' off' : '') + '" data-emp="' + e.id + '">' + hAva(e.full_name) + '<div class="hr-person-b">'
-        + '<div class="hr-person-n">' + hEsc(e.full_name) + '</div><div class="hr-person-p">' + hEsc(e.position || 'должность не указана') + (hr.group !== 'dept' && e.department ? ' · ' + hEsc(e.department) : '') + '</div>'
+        + '<div class="hr-person-n">' + hEsc(e.full_name) + '</div><div class="hr-person-p">' + hEsc(e.position || 'должность не указана') +  + '</div>'
         + '<div class="hr-chips">' + hEmpChips(e) + '</div></div></div>';
     }).join('') + '</div>';
   }).join('') || '<div class="hr-empty"><b>Никого не нашли</b>Измените поиск или фильтры.</div>';
@@ -865,11 +918,15 @@ function hRenderEmp(m, id) {
   };
   const lines = function(arr, empty) { return arr.length ? '<div class="hr-lines">' + arr.join('') + '</div>' : '<div class="hr-hint">' + empty + '</div>'; };
   // основное: только заполненное + главное
-  const mainView = hKv(H_MAIN.filter(function(f) { return f[0] !== 'note' && f[0] !== 'last_name' && f[0] !== 'first_name' && (e[f[0]] || ['position', 'department', 'legal_entity_id', 'phone', 'hired_on'].indexOf(f[0]) !== -1) && !(f[0] === 'contract_until' && staff); }), e)
-    + (e.note ? '<div class="hr-hint" style="white-space:pre-wrap;margin-top:8px;">' + hEsc(e.note) + '</div>' : '');
+  const PUBLIC = ['position', 'department', 'legal_entity_id', 'extra_le_ids', 'object_name', 'phone', 'email', 'birthday'];   // справочник для всех
+  const mainView = hKv(H_MAIN.filter(function(f) {
+      if (HR_MODE !== 'hr') return PUBLIC.indexOf(f[0]) !== -1 && (e[f[0]] || f[0] === 'phone') && !(Array.isArray(e[f[0]]) && !e[f[0]].length);
+      return f[0] !== 'note' && f[0] !== 'last_name' && f[0] !== 'first_name' && (e[f[0]] || ['position', 'department', 'legal_entity_id', 'phone', 'hired_on'].indexOf(f[0]) !== -1) && !(f[0] === 'contract_until' && staff);
+    }), e)
+    + (e.note && HR_MODE === 'hr' ? '<div class="hr-hint" style="white-space:pre-wrap;margin-top:8px;">' + hEsc(e.note) + '</div>' : '');
   // отпуска
   const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.end_date).slice(0, 4) >= String(y); });
-  const vacView = (staff ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + '</div>' : '')
+  const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + '</div>' : '')
     + lines(vacs.map(function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (v.kind !== HR_VAC_KINDS[0] ? ' · ' + hEsc(v.kind) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; }), 'Отпусков не запланировано')
     + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac>+ Отпуск</button></div>' : '');
   // охрана труда
@@ -905,15 +962,15 @@ function hRenderEmp(m, id) {
     + (e.phone ? '<a class="hr-chip" style="text-decoration:none;" href="tel:' + hEsc(String(e.phone).replace(/[^\d+]/g, '')) + '">' + hEsc(e.phone) + '</a>' : '')
     + (e.email ? '<a class="hr-chip" style="text-decoration:none;" href="mailto:' + hEsc(e.email) + '">' + hEsc(e.email) + '</a>' : '') + '</div></div><button class="hr-x">✕</button></div>'
     + '<div class="hr-box-b"><div class="hr-secs">'
-    + sec('main', 'Основное', H_MAIN, e, false, mainView)
+    + (HR_MODE !== 'hr' && hHasHr() ? '<div class="hr-sec full" style="background:#f0f5ff;border-color:#d6e4ff;">Кадровые данные (отпуска, охрана труда, воинский учёт, личное дело) — <a href="' + HR_DASH_PAGE + '?open=emp:' + e.id + '" style="color:#1677ff;">открыть в дашборде HR →</a></div>' : '')
+    + sec('main', HR_MODE === 'hr' ? 'Основное' : 'Контакты и работа', H_MAIN, e, false, mainView)
     + sec('vac', 'Отпуска', null, null, false, vacView)
     + (can ? sec('mot', 'Мотивация', H_MOT, p, false, motView) : '')
-    + sec('ot', 'Охрана труда и СОУТ', null, null, false, otView)
+    + (HR_MODE === 'hr' ? sec('ot', 'Охрана труда и СОУТ', null, null, false, otView) : '')
     + (can ? sec('mil', 'Воинский учёт', H_MIL, p, false, milView) : '')
     + (can ? sec('pers', 'Личные данные <span class="hr-lock">🔒 видят HR и администратор</span>', H_PERSONAL, p) : '')
     + (can ? sec('file', 'Личное дело', H_FILE, p, false, hKv(H_FILE, p) + '<div class="hr-hint" style="margin-top:4px;">' + (p.file_docs || []).length + ' из ' + fileList.length + ' документов</div>') : '')
-    + sec('lna', 'Ознакомление с документами', null, null, false, lnaView)
-    + sec('ev', 'Мероприятия', null, null, false, evView)
+    + (HR_MODE === 'hr' ? sec('lna', 'Ознакомление с документами', null, null, false, lnaView) + sec('ev', 'Мероприятия', null, null, false, evView) : '')
     + sec('tasks', 'Задачи', null, null, true, taskView)
     + '</div></div>';
   // события карточки

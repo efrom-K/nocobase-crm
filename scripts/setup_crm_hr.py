@@ -119,4 +119,28 @@ update crm_employees set status = 'active' where status = 'vacation';   -- «в 
 commit;""" % (json.dumps(grid, ensure_ascii=False), json.dumps(block, ensure_ascii=False)))
 print('page models ok')
 
+# --- 30.09: «Персонал» → общий раздел «Сотрудники (тест)»; кадровые данные — отдельная страница «Дашборд HR (тест)» (/admin/hrdash01,
+# блок crmblock004 ← тот же src/crm-hr.js, режим по адресу), видна только admin и hr
+print('rename staff page', ok(call('desktopRoutes:update?filterByTk=%s' % route_ids(['hrpage01'])[0], {'title': 'Сотрудники (тест)', 'icon': 'TeamOutlined'})))
+print('route dash', ok(call('desktopRoutes:create', {'type': 'flowPage', 'title': 'Дашборд HR (тест)', 'icon': 'DashboardOutlined', 'schemaUid': 'hrdash01', 'menuSchemaUid': 'hrdmenu01',
+                                                     'children': [{'type': 'tabs', 'schemaUid': 'hrdtabs01', 'hidden': True}]})))
+dash_routes = route_ids(['hrdash01', 'hrdtabs01'])
+for role in ('member', 'rental_dept', 'legal_dept', 'accounting_dept', 'crm_test'):
+    print('hide dash from', role, ok(call('roles/%s/desktopRoutes:remove' % role, dash_routes)))
+print('dash menu hr', ok(call('roles/hr/desktopRoutes:add', dash_routes)))
+LAYOUT = {'rows': [{'id': 'hrdrow1', 'cells': [{'id': 'hrdrow1:cell:0', 'items': ['crmblock004']}], 'sizes': [24]}], 'version': 2}
+grid = {'use': 'BlockGridModel', 'parent': 'hrdtabs01', 'parentId': 'hrdtabs01', 'subKey': 'grid', 'subType': 'object', 'sortIndex': 0, 'flowRegistry': {},
+        'props': {'rows': {'hrdrow1': [['crmblock004']]}, 'sizes': {'hrdrow1': [24]}, 'colGap': 16, 'rowGap': 16, 'rowOrder': ['hrdrow1'], 'layout': LAYOUT},
+        'stepParams': {'gridSettings': {'grid': {'layout': LAYOUT}}}}
+block = dict(block, parentId='hrdgrid001')
+psql("""begin;
+insert into "flowModels"(uid,name,options) values ('hrdgrid001','hrdgrid001','%s') on conflict do nothing;
+insert into "flowModels"(uid,name,options) values ('crmblock004','crmblock004','%s') on conflict do nothing;
+insert into "flowModelTreePath"(ancestor,descendant,depth,async,type,sort) values
+ ('hrdgrid001','hrdgrid001',0,false,'grid',null),('hrdtabs01','hrdgrid001',1,false,null,null),
+ ('crmblock004','crmblock004',0,false,'items',null),('hrdgrid001','crmblock004',1,false,null,1),('hrdtabs01','crmblock004',2,false,null,1)
+ on conflict do nothing;
+commit;""" % (json.dumps(grid, ensure_ascii=False), json.dumps(block, ensure_ascii=False)))
+print('dash models ok')
+
 # Юрлица и привязка сотрудников к ним заводятся в интерфейсе (разовое начальное заполнение 30.09.2026 по папкам HR — вне репозитория: данные компаний и людей).

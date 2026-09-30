@@ -8,5 +8,6 @@
   "dashblock001": "src/dashboard.js",
   "crmblock001": "src/crm-requests.js",
   "crmblock002": "src/crm-tasks.js",
-  "crmblock003": "src/crm-hr.js"
+  "crmblock003": "src/crm-hr.js",
+  "crmblock004": "src/crm-hr.js"
 }

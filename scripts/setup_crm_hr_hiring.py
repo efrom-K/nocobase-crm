@@ -34,7 +34,8 @@ def D(name, title): return F(name, 'dateOnly', 'date', title, 'DatePicker')
 def collection(name, title, fields):
     print('collection', name, call('collections:create', {'name': name, 'title': title, 'autoGenId': True, 'createdAt': True, 'updatedAt': True, 'fields': fields}))
 
-if os.environ.get('STEP') != 'profile':   # STEP=profile — только поля рабочего профиля (01.10.2026)
+STEP = os.environ.get('STEP')   # пусто — всё; profile — только рабочий профиль; vac — только признак графика у отпусков
+if STEP is None:
     collection('crm_staff_positions', 'Штатное расписание', [I('legal_entity_id', 'Юрлицо'), S('department', 'Подразделение'), S('position', 'Должность'),
                                                              N('units', 'Ставок'), N('salary', 'Оклад'), T('note', 'Заметки')])
     collection('crm_vacancies', 'Вакансии', [S('title', 'Должность'), I('legal_entity_id', 'Юрлицо'), S('department', 'Подразделение'), S('object_name', 'Объект'),
@@ -55,9 +56,14 @@ if os.environ.get('STEP') != 'profile':   # STEP=profile — только пол
 
 # --- 01.10.2026: рабочий профиль сотрудника (только факты о работе; результат формальной оценки — только с письменным согласием)
 # и оценка кандидата по компетенциям на собеседовании
-J = lambda name, title: {'name': name, 'type': 'json', 'interface': 'json', 'uiSchema': {'type': 'object', 'title': title, 'x-component': 'Input.JSON'}}
-for f in [T('wp_strengths', 'Сильные стороны в работе'), T('wp_growth', 'Зоны развития'), T('wp_tasks', 'Как ставить задачи и давать обратную связь'),
-          S('wp_comm', 'Удобный канал связи'), S('wp_assessment', 'Формальная оценка: методика'), D('wp_assessed_on', 'Дата оценки'),
-          T('wp_assessment_result', 'Результат оценки'), D('wp_consent_on', 'Письменное согласие на оценку'), D('wp_reviewed_on', 'Профиль обновлён')]:
-    print('crm_hr_private.' + f['name'], call('collections/crm_hr_private/fields:create', f))
-print('crm_candidates.comp_scores', call('collections/crm_candidates/fields:create', J('comp_scores', 'Оценка по компетенциям: {компетенция: 1–5}')))
+if STEP in (None, 'profile'):
+    J = lambda name, title: {'name': name, 'type': 'json', 'interface': 'json', 'uiSchema': {'type': 'object', 'title': title, 'x-component': 'Input.JSON'}}
+    for f in [T('wp_strengths', 'Сильные стороны в работе'), T('wp_growth', 'Зоны развития'), T('wp_tasks', 'Как ставить задачи и давать обратную связь'),
+              S('wp_comm', 'Удобный канал связи'), S('wp_assessment', 'Формальная оценка: методика'), D('wp_assessed_on', 'Дата оценки'),
+              T('wp_assessment_result', 'Результат оценки'), D('wp_consent_on', 'Письменное согласие на оценку'), D('wp_reviewed_on', 'Профиль обновлён')]:
+        print('crm_hr_private.' + f['name'], call('collections/crm_hr_private/fields:create', f))
+    print('crm_candidates.comp_scores', call('collections/crm_candidates/fields:create', J('comp_scores', 'Оценка по компетенциям: {компетенция: 1–5}')))
+
+# --- 01.10.2026: отпуск по графику или вне графика (внеплановый); пусто = по графику (так загружен утверждённый график)
+if STEP in (None, 'vac'):
+    print('crm_vacations.in_schedule', call('collections/crm_vacations/fields:create', S('in_schedule', 'По графику отпусков')))   # yes | no

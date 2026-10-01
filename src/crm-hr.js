@@ -125,9 +125,11 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-track > i { display:block; height:100%; border-left:1px solid #f0f0f0; box-sizing:border-box; }
     .hr-track > i.odd { background:#fafafa; }
     .hr-vb { position:absolute; top:3px; height:16px; border-radius:4px; cursor:pointer; font-size:10.5px; color:#fff; overflow:hidden; white-space:nowrap; padding:0 3px; box-sizing:border-box; line-height:16px; }
-    .hr-vb.plan { background:#91caff; color:#003eb3; }
-    .hr-vb.ordered { background:#1677ff; }
-    .hr-vb.other { background:#b37feb; }
+    .hr-vb.sched { background:#1677ff; }
+    .hr-vb.unsched { background:#faad14; color:#613400; }
+    .hr-vb.unpaid { background:#8c8c8c; }
+    .hr-vb.other { background:#9254de; }
+    .hr-vb.draft { opacity:.45; }
     .hr-now { position:absolute; top:0; bottom:0; width:2px; background:#cf1322; opacity:.6; pointer-events:none; }
     .hr-months { display:flex; font-size:11.5px; color:#8c8c8c; }
     .hr-months > i { font-style:normal; text-align:center; }
@@ -214,7 +216,11 @@ const HR_DEPT = 'HR служба персонала';
 const HR_EMP_TYPE = { staff: 'Штатный', external: 'Внештатный (ГПХ)', self: 'Самозанятый' };
 const HR_EMP_ST = { active: 'Работает', fired: 'Уволен' };
 const HR_VAC_KINDS = ['Ежегодный оплачиваемый', 'Без сохранения зарплаты', 'Учебный', 'По беременности и родам', 'По уходу за ребёнком'];
-const HR_VAC_ST = { plan: 'По графику', ordered: 'Оформлен приказом' };
+const HR_VAC_ST = { plan: 'Приказа ещё нет', ordered: 'Оформлен приказом' };
+const HR_VAC_SCHED = { yes: 'По графику отпусков', no: 'Вне графика (внеплановый)' };
+// цвет полосы: ежегодный по графику / вне графика, за свой счёт, прочие; пусто в in_schedule = по графику (так загружен утверждённый график)
+function hVacCls(v) { return v.kind === HR_VAC_KINDS[0] ? (v.in_schedule === 'no' ? 'unsched' : 'sched') : v.kind === HR_VAC_KINDS[1] ? 'unpaid' : 'other'; }
+const HR_VAC_CLS = { sched: 'ежегодный по графику', unsched: 'ежегодный вне графика', unpaid: 'за свой счёт', other: 'учебный, декретный, по уходу' };
 // вид, раздел, период в месяцах (0 — однократно), подпись столбца. Периоды — типовые, дата «следующее» правится вручную.
 // виды — как в таблице HR «Сроки прохождения обучения по ОТ и ПБ» + журналы инструктажей (повторный — раз в полгода)
 const HR_SAFETY = [
@@ -578,7 +584,7 @@ const H_WP = [['wp_strengths', 'Сильные стороны в работе', 
 const H_LE_MIL = [['mil_office', 'Военкомат организации', 'text'], ['mil_check_on', 'Последняя ежегодная сверка', 'date'], ['mil_plan_year', 'План воинского учёта получен на год', 'num']];
 const H_LE = [['name', 'Название', 'text', null, 1], ['inn', 'ИНН', 'text'], ['kpp', 'КПП', 'text'], ['ogrn', 'ОГРН', 'text'], ['director', 'Руководитель', 'text']].concat(H_LE_MIL, [['address', 'Адрес', 'textarea'], ['note', 'Заметки', 'textarea']]);
 const H_VAC = [['employee_id', 'Сотрудник', 'select', hEmpOpts, 1], ['kind', 'Вид отпуска', 'select', HR_VAC_KINDS, 1], ['start_date', 'С', 'date', null, 1], ['end_date', 'По (включительно)', 'date', null, 1],
-  ['status', 'Статус', 'select', HR_VAC_ST, 1], ['note', 'Заметки', 'textarea']];
+  ['in_schedule', 'По графику? (для ежегодного; пусто — определится по дате)', 'select', HR_VAC_SCHED], ['status', 'Оформление', 'select', HR_VAC_ST, 1], ['note', 'Заметки', 'textarea']];
 const H_SAFETY = [['employee_id', 'Сотрудник (пусто — общее мероприятие)', 'select', hEmpOpts], ['kind', 'Что', 'list', HR_SAFETY.map(function(x) { return x[0]; }).concat(HR_PB_COMMON.map(function(x) { return x[0]; })), 1],
   ['done_on', 'Проведено', 'date', null, 1], ['next_on', 'Следующее (пусто — посчитается само)', 'date'], ['doc', 'Документ / протокол / журнал', 'text'], ['note', 'Заметки', 'textarea']];
 const H_SOUT = [['workplace', 'Рабочее место (должность)', 'text', null, 1], ['legal_entity_id', 'Юрлицо', 'select', hLeOpts], ['work_class', 'Класс условий труда', 'select', Object.keys(HR_SOUT_CLS)],
@@ -632,7 +638,8 @@ function hAlerts() {
   d.vacs.forEach(function(v) {
     const e = hEmp(v.employee_id); if (!e || e.status === 'fired') return;
     const n = hDays(t, v.start_date);
-    if (v.status === 'plan' && n >= 0 && n <= 21) add(n <= 14 ? 0 : 1, 'Отпуск ' + e.full_name + ' с ' + hDate(v.start_date) + ' — уведомить и оформить приказ', 'уведомление — не позднее чем за 2 недели до начала', { vac: v.id }, v.start_date);
+    if (v.status === 'plan' && hVacCls(v) !== 'sched' && n >= -3 && n <= 3) { add(0, 'Отпуск ' + e.full_name + ' (' + HR_VAC_CLS[hVacCls(v)] + ') с ' + hDate(v.start_date) + ' — оформить приказ', '', { vac: v.id }, v.start_date); return; }
+    if (v.status === 'plan' && hVacCls(v) === 'sched' && n >= 0 && n <= 21) add(n <= 14 ? 0 : 1, 'Отпуск ' + e.full_name + ' с ' + hDate(v.start_date) + ' — уведомить и оформить приказ', 'уведомление — не позднее чем за 2 недели до начала', { vac: v.id }, v.start_date);
   });
   const y = new Date().getFullYear(), md = t.slice(5);
   if (md >= '11-01') {
@@ -1147,7 +1154,7 @@ function hRenderEmp(m, id) {
   // отпуска
   const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.end_date).slice(0, 4) >= String(y); });
   const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + '</div>' : '')
-    + lines(vacs.map(function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (v.kind !== HR_VAC_KINDS[0] ? ' · ' + hEsc(v.kind) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; }), 'Отпусков не запланировано')
+    + lines(vacs.map(function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; }), 'Отпусков не запланировано')
     + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac>+ Отпуск</button></div>' : '');
   // охрана труда
   const so = hSout(e.sout_id);
@@ -1276,12 +1283,16 @@ function hOpenVac(v, preset, after) {
         const n = s && en ? hDays(s, en) + 1 : 0;
         m.querySelector('[data-vd]').innerHTML = n > 0 ? n + ' ' + hNoun(n, 'календарный день', 'календарных дня', 'календарных дней') + (e ? ' · осталось у сотрудника в ' + s.slice(0, 4) + ': ' + hVacLeft(e, s.slice(0, 4)) + ' дн. (без учёта этого отпуска' + (v ? ' и с его прежней длиной' : '') + ')' : '') : '';
       };
-      m.querySelectorAll('[data-v]').forEach(function(x) { x.addEventListener('change', upd); });
-      upd();
+      const sch = function() { m.querySelector('[data-fk="in_schedule"]').style.display = m.querySelector('[data-v="kind"]').value === HR_VAC_KINDS[0] ? '' : 'none'; };
+      m.querySelectorAll('[data-v]').forEach(function(x) { x.addEventListener('change', upd); x.addEventListener('change', sch); });
+      upd(); sch();
     },
     prepare: function(vals) {
       if (vals.end_date < vals.start_date) return 'Окончание раньше начала';
       vals.days = hVacDays(vals);
+      // график на год утверждается до 17 декабря: отпуск текущего года, добавленный сейчас, — скорее всего внеплановый
+      if (vals.kind !== HR_VAC_KINDS[0]) vals.in_schedule = null;
+      else if (!vals.in_schedule) vals.in_schedule = Number(vals.start_date.slice(0, 4)) > new Date().getFullYear() ? 'yes' : 'no';
       const clash = hr.d.vacs.find(function(x) { return Number(x.employee_id) === Number(vals.employee_id) && (!v || x.id !== v.id) && hD(x.start_date) <= vals.end_date && hD(x.end_date) >= vals.start_date; });
       if (clash) return 'Пересекается с отпуском ' + hDate(clash.start_date) + ' – ' + hDate(clash.end_date);
       return vals;
@@ -1297,8 +1308,8 @@ function hRenderVac() {
   const rows = people.map(function(e) {
     const bars = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.start_date) <= ye && hD(v.end_date) >= ys; }).map(function(v) {
       const s = Math.max(0, hDays(ys, v.start_date)), en = Math.min(diy - 1, hDays(ys, v.end_date));
-      const cls = v.kind !== HR_VAC_KINDS[0] ? 'other' : v.status;
-      return '<span class="hr-vb ' + cls + '" data-vac="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + v.days + ' дн. · ' + v.kind + ' · ' + (HR_VAC_ST[v.status] || '')) + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? v.days : '') + '</span>';
+      const cls = hVacCls(v) + (v.status === 'plan' ? ' draft' : '');
+      return '<span class="hr-vb ' + cls + '" data-vac="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + v.days + ' дн. · ' + HR_VAC_CLS[hVacCls(v)] + (hVacCls(v) === 'other' ? ' (' + v.kind + ')' : '') + ' · ' + (HR_VAC_ST[v.status] || '')) + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? v.days : '') + '</span>';
     }).join('');
     const now = t.slice(0, 4) === String(y) ? '<span class="hr-now" style="left:' + (hDays(ys, t) / diy * 100) + '%;"></span>' : '';
     const left = hVacLeft(e, y);
@@ -1308,9 +1319,18 @@ function hRenderVac() {
       + '<td class="rest' + (left < 0 ? ' hr-late' : left > 0 && y <= new Date().getFullYear() ? '' : ' hr-ok') + '" title="осталось из ' + (e.vacation_days || 28) + '">' + left + ' дн.</td></tr>';
   }).join('');
   hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1">‹</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">›</button>'
-    + '<div class="hr-legend" style="margin-left:12px;"><span><i style="background:#91caff;"></i>по графику</span><span><i style="background:#1677ff;"></i>оформлен приказом</span><span><i style="background:#b37feb;"></i>другой вид отпуска</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
+    + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
+      + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — приказа ещё нет</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
     + (can ? '<button class="hr-new" data-act="newvac">+ Отпуск</button>' : '') + '</div>'
     + (can ? '<div class="hr-hint" style="margin-bottom:8px;">Нажмите на пустое место в строке сотрудника — откроется новый отпуск с этой даты. Нажмите на отпуск — изменить. Справа — сколько дней ежегодного отпуска осталось запланировать.</div>' : '')
+    + (function() {   // итог года по видам: сколько дней и у скольких людей
+        const yv = hr.d.vacs.filter(function(v) { const e = hEmp(v.employee_id); return e && e.status !== 'fired' && hD(v.start_date).slice(0, 4) === String(y); });
+        return '<div class="hr-tiles">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) {
+          const l = yv.filter(function(v) { return hVacCls(v) === k; }), dd = l.reduce(function(n, v) { return n + (Number(v.days) || 0); }, 0);
+          const ppl = l.map(function(v) { return v.employee_id; }).filter(function(x, i, a) { return a.indexOf(x) === i; }).length;
+          return '<div class="hr-tile"><div class="hr-tile-l"><i class="hr-vb ' + k + '" style="position:static;display:inline-block;width:10px;height:10px;margin-right:6px;"></i>' + HR_VAC_CLS[k] + '</div><div class="hr-tile-v">' + dd + ' <small style="font-size:13px;font-weight:400;">дн.</small></div><div class="hr-tile-n">' + (ppl ? hPeople(ppl) + ', ' + l.length + ' ' + hNoun(l.length, 'отпуск', 'отпуска', 'отпусков') : 'нет') + '</div></div>';
+        }).join('') + '</div>';
+      })()
     + '<div class="hr-card"><table class="hr-tl"><thead><tr><td class="nm"></td><td><div class="hr-months">' + HR_MONTHS.map(function(x, i) { return '<i style="width:' + mw[i] + '%;">' + x + '</i>'; }).join('') + '</div></td><td class="rest hr-hint">осталось</td></tr></thead><tbody>'
     + (rows || '<tr><td colspan="3" class="hr-hint">Нет штатных сотрудников</td></tr>') + '</tbody></table></div>'
     + '<div class="hr-hint">В графике — только штатные сотрудники. Праздничные дни в длительность отпуска не пересчитываются.</div>';

@@ -238,6 +238,7 @@ const HR_EVENT_KINDS = ['Корпоратив', 'Тимбилдинг', 'Пра�
 const HR_STAGES = { new: 'Новый', interview: 'Собеседование', offer: 'Оффер', hired: 'Вышел на работу', rejected: 'Отказали', declined: 'Отказался сам' };
 const HR_STAGE_C = { new: '', interview: 'blue', offer: 'orange', hired: 'green', rejected: '', declined: '' };
 const HR_VACANCY_ST = { open: 'Открыта', paused: 'На паузе', closed: 'Закрыта — нашли', cancelled: 'Отменена' };
+const HR_COMPS = ['Профессиональные знания', 'Опыт в похожей роли', 'Коммуникация', 'Ответственность и самостоятельность', 'Мотивация работать у нас'];
 const HR_SOURCES = ['hh.ru', 'Авито Работа', 'SuperJob', 'Рекомендация', 'Telegram', 'Сайт компании', 'Другое'];
 const HR_RANKS = ['рядовой', 'ефрейтор', 'младший сержант', 'сержант', 'старший сержант', 'старшина', 'прапорщик', 'старший прапорщик', 'лейтенант', 'старший лейтенант', 'капитан', 'майор', 'подполковник', 'полковник'];
 const HR_AVA = ['#1677ff', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f54eb', '#08979c'];
@@ -423,7 +424,7 @@ const HR_DOC_KINDS = {
   lna: ['Лист ознакомления (подписанный)', 'Приказ об утверждении', 'Другое'],
   cand: ['Резюме', 'Анкета', 'Тестовое задание', 'Оффер', 'Другое'],
   vacancy: ['Текст вакансии', 'Заявка руководителя', 'Другое'],
-  emp: ['Заявление', 'Приказ', 'Дополнительное соглашение', 'Диплом / удостоверение', 'Справка', 'Другое']
+  emp: ['Согласие на оценку', 'Результат оценки', 'Заявление', 'Приказ', 'Дополнительное соглашение', 'Диплом / удостоверение', 'Справка', 'Другое']
 };
 function hFilesOf(entity, id, doc) {
   return (hr.d.files || []).filter(function(f) { return f.entity === entity && Number(f.record_id) === Number(id) && (doc === undefined || f.doc === doc); });
@@ -569,6 +570,11 @@ const H_MIL = [['mil_status', 'Воинский учёт', 'select', { liable: '
   ['mil_sent_on', 'Сведения о приёме / увольнении отправлены в военкомат', 'date'], ['mil_note', 'Заметки', 'textarea']];
 const H_MOT = [['program_id', 'Мотивационная программа', 'select', function() { return hr.d.progs.map(function(p) { return [p.id, p.title]; }); }],
   ['motivation', 'Мотивация: что важно сотруднику, чем мотивирован', 'textarea']];
+// рабочий профиль: только то, что помогает работать с человеком; без здоровья, личной жизни и оценок личности — сотрудник вправе увидеть запись (ст. 89 ТК)
+const H_WP = [['wp_strengths', 'Сильные стороны в работе', 'textarea'], ['wp_growth', 'Зоны развития', 'textarea'], ['wp_tasks', 'Как лучше ставить задачи и давать обратную связь', 'textarea'],
+  ['wp_comm', 'Удобный канал связи', 'select', ['Лично', 'Мессенджер', 'Почта', 'Звонок']],
+  ['wp_assessment', 'Формальная оценка: методика (если проводилась)', 'list', ['DISC', 'Оценка 360°', 'Тест профессиональных знаний', 'Ассессмент-центр']], ['wp_assessed_on', 'Дата оценки', 'date'],
+  ['wp_consent_on', 'Письменное согласие на оценку получено', 'date'], ['wp_assessment_result', 'Результат оценки (кратко)', 'textarea']];
 const H_LE_MIL = [['mil_office', 'Военкомат организации', 'text'], ['mil_check_on', 'Последняя ежегодная сверка', 'date'], ['mil_plan_year', 'План воинского учёта получен на год', 'num']];
 const H_LE = [['name', 'Название', 'text', null, 1], ['inn', 'ИНН', 'text'], ['kpp', 'КПП', 'text'], ['ogrn', 'ОГРН', 'text'], ['director', 'Руководитель', 'text']].concat(H_LE_MIL, [['address', 'Адрес', 'textarea'], ['note', 'Заметки', 'textarea']]);
 const H_VAC = [['employee_id', 'Сотрудник', 'select', hEmpOpts, 1], ['kind', 'Вид отпуска', 'select', HR_VAC_KINDS, 1], ['start_date', 'С', 'date', null, 1], ['end_date', 'По (включительно)', 'date', null, 1],
@@ -590,7 +596,7 @@ const H_VACANCY = [['title', 'Должность', 'text', null, 1], ['status', 
   ['place', 'Место работы (адрес)', 'text'], ['sources', 'Где размещена', 'text'], ['duties', 'Обязанности (пойдут в оффер)', 'textarea'], ['requirements', 'Требования', 'textarea'], ['note', 'Заметки', 'textarea']];
 const H_CAND = [['full_name', 'ФИО', 'text', null, 1], ['vacancy_id', 'Вакансия', 'select', hVacancyOpts, 1], ['stage', 'Этап', 'select', HR_STAGES, 1], ['source', 'Откуда', 'list', HR_SOURCES],
   ['phone', 'Телефон', 'text'], ['email', 'Почта', 'text'], ['interview_on', 'Собеседование', 'date'], ['interview_time', 'Время собеседования', 'text'],
-  ['rating', 'Оценка после собеседования (1–5)', 'select', ['1', '2', '3', '4', '5']], ['offer_on', 'Оффер отправлен', 'date'],
+  ['rating', 'Общее впечатление (1–5)', 'select', ['1', '2', '3', '4', '5']], ['offer_on', 'Оффер отправлен', 'date'],
   ['offer_salary', 'Оклад на испытательный срок, ₽ на руки', 'text'], ['offer_salary_after', 'Оклад после испытательного срока', 'text'],
   ['probation', 'Испытательный срок, мес.', 'num'], ['start_on', 'Выход на работу', 'date'], ['reject_reason', 'Причина отказа', 'text'], ['note', 'Заметки', 'textarea']];
 
@@ -1166,6 +1172,12 @@ function hRenderEmp(m, id) {
   const prog = hr.d.progs.find(function(x) { return x.id === Number(p.program_id); });
   const motView = '<div class="hr-kv"><div class="k">Программа</div><div class="v">' + (prog ? '<a class="hr-link" data-rec="prog:' + prog.id + '" style="color:#1677ff;cursor:pointer;">' + hEsc(prog.title) + '</a>' : '<span class="hr-none">—</span>') + '</div>'
     + '<div class="k">Мотивация</div><div class="v">' + (p.motivation ? hEsc(p.motivation) : '<span class="hr-none">—</span>') + '</div></div>';
+  const cand = hr.d.cands.find(function(c) { return Number(c.employee_id) === e.id; });
+  const wpFilled = H_WP.filter(function(f) { return p[f[0]]; });
+  const wpView = (wpFilled.length ? hKv(wpFilled, p) + (p.wp_reviewed_on ? '<div class="hr-hint">обновлён ' + hDate(p.wp_reviewed_on) + '</div>' : '') : '<div class="hr-hint">Не заполнен.</div>')
+    + (cand && cand.comp_scores && Object.keys(cand.comp_scores).length ? '<div class="hr-hint" style="margin-top:8px;"><b style="color:#595959;">На собеседовании' + (cand.interview_on ? ' ' + hDate(cand.interview_on) : '') + ':</b> '
+      + HR_COMPS.filter(function(k) { return cand.comp_scores[k]; }).map(function(k) { return hEsc(k) + ' ' + cand.comp_scores[k]; }).join(' · ') + (cand.note ? '<div style="white-space:pre-wrap;">' + hEsc(cand.note) + '</div>' : '') + '</div>' : '')
+    + '<div class="hr-hint" style="margin-top:8px;">Только факты о работе: без здоровья, личной жизни и оценок характера. Сотрудник вправе запросить и прочитать эту запись.</div>';
   const v = hVacNow(e), sen = hSeniority(e);
   box.innerHTML = '<div class="hr-box-h">' + hAva(e.full_name) + '<div class="hr-box-t">' + hEsc([e.last_name, e.first_name, e.middle_name].filter(Boolean).join(' ') || e.full_name)
     + '<small>' + hEsc([e.position, e.department].filter(Boolean).join(' · ') || '—') + '</small>'
@@ -1180,6 +1192,7 @@ function hRenderEmp(m, id) {
     + sec('main', HR_MODE === 'hr' ? 'Основное' : 'Контакты и работа', H_MAIN, e, false, mainView)
     + sec('vac', 'Отпуска', null, null, false, vacView)
     + (can ? sec('mot', 'Мотивация', H_MOT, p, false, motView) : '')
+    + (can ? sec('wp', 'Рабочий профиль <span class="hr-lock">🔒 видят HR и администратор</span>', H_WP, p, true, wpView) : '')
     + (HR_MODE === 'hr' ? sec('ot', 'Охрана труда и СОУТ', null, null, false, otView) : '')
     + (can ? sec('mil', 'Воинский учёт', H_MIL, p, false, milView) : '')
     + (can ? sec('pers', 'Личные данные <span class="hr-lock">🔒 видят HR и администратор</span>', H_PERSONAL, p) : '')
@@ -1191,9 +1204,13 @@ function hRenderEmp(m, id) {
   box.querySelectorAll('[data-edit]').forEach(function(b) { b.addEventListener('click', function() { m.__edit = b.getAttribute('data-edit'); hRenderEmp(m, id); }); });
   box.querySelectorAll('[data-secsave]').forEach(function(b) {
     b.addEventListener('click', async function() {
-      const key = b.getAttribute('data-secsave'), spec = { main: H_MAIN, mot: H_MOT, mil: H_MIL, pers: H_PERSONAL, file: H_FILE }[key];
+      const key = b.getAttribute('data-secsave'), spec = { main: H_MAIN, mot: H_MOT, wp: H_WP, mil: H_MIL, pers: H_PERSONAL, file: H_FILE }[key];
       let vals = hRead(box.querySelector('[data-sec="' + key + '"]'), spec);
       if (typeof vals === 'string') { hToast(vals); return; }
+      if (key === 'wp') {
+        if ((vals.wp_assessment || vals.wp_assessment_result) && !vals.wp_consent_on) { hToast('Результат формальной оценки — только с письменным согласием сотрудника: укажите дату согласия'); return; }
+        vals.wp_reviewed_on = hToday();
+      }
       b.disabled = true;
       try {
         if (key === 'main') await ctx.api.resource('crm_employees').update({ filterByTk: id, values: hEmpVals(vals) });
@@ -1443,7 +1460,8 @@ function hCandLine(c) {
   return '<b>' + hEsc(c.full_name) + '</b>' + (v ? '<div class="hr-hint" style="margin:0;">' + hEsc(v.title) + '</div>' : '')
     + (c.stage === 'interview' && c.interview_on ? '<div class="hr-hint" style="margin:0;">📅 ' + hDate(c.interview_on).slice(0, 5) + (c.interview_time ? ' ' + hEsc(c.interview_time) : '') + '</div>' : '')
     + (c.stage === 'offer' && c.offer_on ? '<div class="hr-hint" style="margin:0;">оффер ' + hDate(c.offer_on).slice(0, 5) + (c.start_on ? ' · выход ' + hDate(c.start_on).slice(0, 5) : '') + '</div>' : '')
-    + (c.rating ? '<div class="hr-hint" style="margin:0;">' + '★'.repeat(Number(c.rating)) + '</div>' : '');
+    + (c.rating ? '<div class="hr-hint" style="margin:0;">' + '★'.repeat(Number(c.rating)) + '</div>' : '')
+    + (function() { const x = Object.values(c.comp_scores || {}); return x.length ? '<div class="hr-hint" style="margin:0;">компетенции ' + (x.reduce(function(a, b) { return a + b; }, 0) / x.length).toFixed(1) + ' из 5</div>' : ''; })();
 }
 function hRenderHire() {
   const d = hr.d, t = hToday(), v = hr.hireView;
@@ -1544,9 +1562,12 @@ function hOpenCand(c, preset) {
   hEdit({ coll: 'crm_candidates', rec: c, files: 'cand', spec: H_CAND, wide: true, preset: Object.assign({ stage: 'new', probation: 3 }, preset || {}),
     title: c ? c.full_name : 'Новый кандидат',
     extra: function(r) {
-      if (!r) return '<div class="hr-hint" style="margin-top:8px;">Резюме прикрепите ниже — сохранится вместе с кандидатом.</div>';
+      const sc = (r && r.comp_scores) || {};
+      const comps = '<div class="hr-f full" data-fk="comps" style="margin-top:12px;"><label>Оценка по компетенциям после собеседования (1 — слабо, 5 — отлично)</label><div class="hr-form">'
+        + HR_COMPS.map(function(k) { return '<div class="hr-f"><label>' + hEsc(k) + '</label><select data-comp="' + hEsc(k) + '"><option value="">—</option>' + [1, 2, 3, 4, 5].map(function(n) { return '<option' + (Number(sc[k]) === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>'; }).join('') + '</div></div>';
+      if (!r) return comps + '<div class="hr-hint" style="margin-top:8px;">Резюме прикрепите ниже — сохранится вместе с кандидатом.</div>';
       const e = r.employee_id ? hEmp(r.employee_id) : null;
-      return '<div class="hr-actions" style="margin-top:12px;"><button type="button" class="hr-btn" data-offer>📄 Скачать оффер (Word)</button>'
+      return comps + '<div class="hr-actions" style="margin-top:12px;"><button type="button" class="hr-btn" data-offer>📄 Скачать оффер (Word)</button>'
         + (e ? '<button type="button" class="hr-btn" data-toemp>Карточка сотрудника →</button>' : '<button type="button" class="hr-btn" data-hire>Оформить сотрудником</button>')
         + '<span class="hr-hint" style="margin:0;">Оффер собирается из условий вакансии и этой карточки (оклад, выход, испытательный срок); в Word его можно поправить.</span></div>';
     },
@@ -1558,6 +1579,7 @@ function hOpenCand(c, preset) {
         const st = m.querySelector('[data-v="stage"]').value, lvl = ord.indexOf(st), out = lvl === -1;
         Object.keys(show).forEach(function(k) { const el = m.querySelector('[data-fk="' + k + '"]'); if (el) el.style.display = (out ? 1 : lvl) >= show[k] ? '' : 'none'; });
         m.querySelector('[data-fk="reject_reason"]').style.display = out ? '' : 'none';
+        m.querySelector('[data-fk="comps"]').style.display = lvl >= 1 || out ? '' : 'none';
         const o = m.querySelector('[data-offer]'), h = m.querySelector('[data-hire]');
         if (o) o.style.display = lvl >= 1 || out ? '' : 'none';
         if (h) h.style.display = lvl >= 2 ? '' : 'none';
@@ -1569,10 +1591,12 @@ function hOpenCand(c, preset) {
       const h = m.querySelector('[data-hire]'); if (h) h.addEventListener('click', function() { m.remove(); hHireCand(r); });
       const g = m.querySelector('[data-toemp]'); if (g) g.addEventListener('click', function() { m.remove(); hOpenEmp(r.employee_id); });
     },
-    prepare: function(v) {
+    prepare: function(v, m) {
       if (v.stage === 'offer' && !v.offer_on) v.offer_on = hToday();
       if (v.interview_time && !/^\d{1,2}[:.]\d{2}$/.test(v.interview_time)) return 'Время собеседования — в виде 14:00';
       if (v.interview_time) v.interview_time = v.interview_time.replace('.', ':');
+      v.comp_scores = {};
+      m.querySelectorAll('[data-comp]').forEach(function(x) { if (x.value) v.comp_scores[x.getAttribute('data-comp')] = Number(x.value); });
       return v;
     },
     after: function(saved) { if (saved && saved.stage === 'hired' && !saved.employee_id && (!c || c.stage !== 'hired')) hHireCand(saved); } });

@@ -185,7 +185,16 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-fcell { display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
     .hr-fdel { border:none; background:none; color:#bfbfbf; cursor:pointer; font-size:12px; padding:0 2px; }
     .hr-fdel:hover { color:#cf1322; }
+    /* подбор: воронка */
+    .hr-kb { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; align-items:start; }
+    .hr-kb-col { background:#fafafa; border-radius:10px; padding:8px; min-width:0; }
+    .hr-kb-h { font-weight:600; font-size:13px; padding:2px 4px 8px; display:flex; gap:6px; }
+    .hr-kb-h span { color:#8c8c8c; font-weight:400; }
+    .hr-kb-c { background:#fff; border:1px solid #f0f0f0; border-radius:8px; padding:8px 10px; margin-bottom:6px; cursor:pointer; font-size:13px; }
+    .hr-kb-c:hover { border-color:#91caff; }
+    .hr-kb-c b { display:block; font-size:13.5px; }
     @media (max-width: 800px) {
+      .hr-kb { grid-template-columns:1fr; }
       .hr-cols, .hr-secs, .hr-form { grid-template-columns:1fr; }
       .hr-new { margin-left:0; width:100%; }
       .hr-bar select, .hr-bar input[type=text] { flex:1 1 100%; min-width:0; }
@@ -226,11 +235,15 @@ const HR_LNA_KINDS = ['Правила внутреннего трудового 
   'Положение о системе управления охраной труда', 'Инструкция по охране труда', 'Инструкция о мерах пожарной безопасности', 'Должностная инструкция', 'Другое'];
 const HR_PROG_KINDS = ['Премия по результатам', 'KPI', 'Обучение и развитие', 'ДМС', 'Нематериальная', 'Другое'];
 const HR_EVENT_KINDS = ['Корпоратив', 'Тимбилдинг', 'Праздник', 'Обучение', 'Другое'];
+const HR_STAGES = { new: 'Новый', interview: 'Собеседование', offer: 'Оффер', hired: 'Вышел на работу', rejected: 'Отказали', declined: 'Отказался сам' };
+const HR_STAGE_C = { new: '', interview: 'blue', offer: 'orange', hired: 'green', rejected: '', declined: '' };
+const HR_VACANCY_ST = { open: 'Открыта', paused: 'На паузе', closed: 'Закрыта — нашли', cancelled: 'Отменена' };
+const HR_SOURCES = ['hh.ru', 'Авито Работа', 'SuperJob', 'Рекомендация', 'Telegram', 'Сайт компании', 'Другое'];
 const HR_RANKS = ['рядовой', 'ефрейтор', 'младший сержант', 'сержант', 'старший сержант', 'старшина', 'прапорщик', 'старший прапорщик', 'лейтенант', 'старший лейтенант', 'капитан', 'майор', 'подполковник', 'полковник'];
 const HR_AVA = ['#1677ff', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f54eb', '#08979c'];
 const HR_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const hr = { d: null, me: null, myEmp: null, tab: '', staffView: 'list', le: '', type: '', dept: '', q: '', fired: false, only: null,
-  year: new Date().getFullYear(), orgEdit: false, mxLe: '' };
+  year: new Date().getFullYear(), orgEdit: false, mxLe: '', hireView: 'funnel', hireVac: '' };
 
 // ---------- мелочи ----------
 function hEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -348,9 +361,12 @@ async function hLoad() {
     L('crm_hr_private').catch(function() { return null; }),
     L('crm_hr_files', { appends: ['file'], sort: ['-id'] }).catch(function() { return []; }),
     L('contract_objects', { sort: ['name'], fields: ['id', 'name'] }).catch(function() { return []; }),
-    L('crm_tasks', { filter: { status: { $in: ['new', 'in_work', 'waiting', 'done'] } }, fields: ['id', 'title', 'status', 'due_date', 'executor_id', 'executor_name', 'employee_id', 'kind'] }).catch(function() { return []; })
+    L('crm_tasks', { filter: { status: { $in: ['new', 'in_work', 'waiting', 'done'] } }, fields: ['id', 'title', 'status', 'due_date', 'executor_id', 'executor_name', 'employee_id', 'kind'] }).catch(function() { return []; }),
+    L('crm_staff_positions', { sort: ['department', 'position'] }).catch(function() { return []; }),   // подбор и штат — только admin и hr
+    L('crm_vacancies', { sort: ['-opened_on'] }).catch(function() { return []; }),
+    L('crm_candidates', { sort: ['interview_on', 'interview_time'] }).catch(function() { return []; })
   ]);
-  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], files: r[10], objects: r[11], tasks: r[12] };
+  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], files: r[10], objects: r[11], tasks: r[12], pos: r[13], vacancies: r[14], cands: r[15] };
   hr.myEmp = hr.d.emps.find(function(e) { return hr.me && Number(e.user_id) === Number(hr.me.id); }) || null;
 }
 
@@ -401,10 +417,12 @@ const HR_DOC_KINDS = {
   vac: ['Заявление на отпуск', 'Приказ', 'Уведомление о начале отпуска', 'Другое'],
   safety: ['Удостоверение', 'Протокол', 'Выписка из журнала', 'Договор / счёт', 'Другое'],
   sout: ['Карта СОУТ', 'Отчёт СОУТ', 'Декларация', 'Другое'],
-  le: ['Приказ об организации ВУ', 'План ВУ', 'Карточка организации (форма 18)', 'Сверка с военкоматом', 'Анкета СОУТ', 'Приказ о проведении СОУТ', 'Уставные документы', 'Другое'],
+  le: ['Приказ об организации ВУ', 'План ВУ', 'Карточка организации (форма 18)', 'Сверка с военкоматом', 'Анкета СОУТ', 'Приказ о проведении СОУТ', 'Штатное расписание', 'Уставные документы', 'Другое'],
   event: ['Смета / затраты', 'Список гостей', 'Договор', 'Счёт', 'Фото', 'Другое'],
   prog: ['Положение', 'Приказ', 'Расчёт', 'Другое'],
   lna: ['Лист ознакомления (подписанный)', 'Приказ об утверждении', 'Другое'],
+  cand: ['Резюме', 'Анкета', 'Тестовое задание', 'Оффер', 'Другое'],
+  vacancy: ['Текст вакансии', 'Заявка руководителя', 'Другое'],
   emp: ['Заявление', 'Приказ', 'Дополнительное соглашение', 'Диплом / удостоверение', 'Справка', 'Другое']
 };
 function hFilesOf(entity, id, doc) {
@@ -563,6 +581,18 @@ const H_LNA = [['title', 'Название', 'text', null, 1], ['kind', 'Вид'
   ['approved_on', 'Утверждён', 'date'], ['review_on', 'Пересмотреть до', 'date'], ['need_ack', 'Ознакомление под подпись', 'select', [['1', 'нужно'], ['0', 'не нужно']]], ['note', 'Заметки', 'textarea']];
 const H_PROG = [['title', 'Название', 'text', null, 1], ['kind', 'Вид', 'select', HR_PROG_KINDS], ['start_on', 'С', 'date'], ['end_on', 'По', 'date'], ['description', 'Условия: за что, сколько, как считается', 'textarea'], ['note', 'Заметки', 'textarea']];
 const H_EVENT = [['title', 'Название', 'text', null, 1], ['kind', 'Вид', 'select', HR_EVENT_KINDS], ['event_date', 'Дата', 'date', null, 1], ['place', 'Место', 'text'], ['budget', 'Бюджет, ₽', 'num'], ['note', 'Заметки', 'textarea']];
+const hVacancyOpts = function() { return hr.d.vacancies.map(function(v) { return [v.id, v.title + (hLe(v.legal_entity_id) ? ' — ' + hLe(v.legal_entity_id).name : '') + (v.status === 'open' ? '' : ' (' + (HR_VACANCY_ST[v.status] || '').toLowerCase() + ')')]; }); };
+const H_POS = [['legal_entity_id', 'Юрлицо', 'select', hLeOpts, 1], ['department', 'Подразделение', 'list', function() { return hDeptNames(); }], ['position', 'Должность', 'text', null, 1],
+  ['units', 'Ставок', 'num', null, 1], ['salary', 'Оклад, ₽', 'num'], ['note', 'Заметки', 'textarea']];
+const H_VACANCY = [['title', 'Должность', 'text', null, 1], ['status', 'Статус', 'select', HR_VACANCY_ST, 1], ['legal_entity_id', 'Юрлицо', 'select', hLeOpts], ['department', 'Подразделение', 'list', function() { return hDeptNames(); }],
+  ['object_name', 'Объект', 'list', function() { return (hr.d.objects || []).map(function(o) { return o.name; }); }], ['manager', 'Непосредственный руководитель', 'text'],
+  ['opened_on', 'Открыта', 'date'], ['due_on', 'Закрыть до', 'date'], ['salary', 'Зарплата (вилка)', 'text'], ['schedule', 'График', 'text'],
+  ['place', 'Место работы (адрес)', 'text'], ['sources', 'Где размещена', 'text'], ['duties', 'Обязанности (пойдут в оффер)', 'textarea'], ['requirements', 'Требования', 'textarea'], ['note', 'Заметки', 'textarea']];
+const H_CAND = [['full_name', 'ФИО', 'text', null, 1], ['vacancy_id', 'Вакансия', 'select', hVacancyOpts, 1], ['stage', 'Этап', 'select', HR_STAGES, 1], ['source', 'Откуда', 'list', HR_SOURCES],
+  ['phone', 'Телефон', 'text'], ['email', 'Почта', 'text'], ['interview_on', 'Собеседование', 'date'], ['interview_time', 'Время собеседования', 'text'],
+  ['rating', 'Оценка после собеседования (1–5)', 'select', ['1', '2', '3', '4', '5']], ['offer_on', 'Оффер отправлен', 'date'],
+  ['offer_salary', 'Оклад на испытательный срок, ₽ на руки', 'text'], ['offer_salary_after', 'Оклад после испытательного срока', 'text'],
+  ['probation', 'Испытательный срок, мес.', 'num'], ['start_on', 'Выход на работу', 'date'], ['reject_reason', 'Причина отказа', 'text'], ['note', 'Заметки', 'textarea']];
 
 // ---------- «требует внимания»: единая лента для дашборда ----------
 // lvl: 0 — просрочено/срочно, 1 — скоро, 2 — к сведению. go: { emp } | { tab, ... } | { ids, title } (список сотрудников)
@@ -661,6 +691,21 @@ function hAlerts() {
   }
   const noLe = hActive().filter(function(e) { return !hLes(e).length; });
   if (noLe.length) add(2, 'Юрлицо не указано у ' + hPeople(noLe.length), d.les.length ? '' : 'сначала добавьте юрлица в «Сотрудники» → «Структура»', { ids: noLe.map(function(e) { return e.id; }), title: 'Без юрлица' });
+  sec = 'hire';
+  const vacName = function(c) { const v = hVacancy(c.vacancy_id); return v ? v.title : ''; };
+  d.cands.forEach(function(c) {
+    if (c.stage === 'interview' && c.interview_on) {
+      const n = hDays(t, c.interview_on);
+      if (n === 0 || n === 1) add(1, 'Собеседование ' + (n ? 'завтра' : 'сегодня') + (c.interview_time ? ' в ' + c.interview_time : '') + ' — ' + c.full_name, vacName(c), { cand: c.id }, c.interview_on);
+    }
+    if (c.stage === 'offer' && c.offer_on && hDays(c.offer_on, t) >= 3) add(1, 'Оффер без ответа ' + hDays(c.offer_on, t) + ' дн. — ' + c.full_name, vacName(c), { cand: c.id }, c.offer_on);
+    if ((c.stage === 'offer' || c.stage === 'hired') && !c.employee_id && c.start_on && hDays(t, c.start_on) <= 7) add(hDays(t, c.start_on) <= 0 ? 0 : 1, 'Выход на работу ' + hDate(c.start_on) + ' — ' + c.full_name + ': оформить', vacName(c), { cand: c.id }, c.start_on);
+  });
+  const stale = d.cands.filter(function(c) { return c.stage === 'new' && c.createdAt && hDays(c.createdAt, t) > 3; });
+  if (stale.length) add(1, 'Новые кандидаты без движения больше 3 дней: ' + stale.length, stale.map(function(c) { return c.full_name; }).join(', '), { tab: 'hire' });
+  d.vacancies.forEach(function(v) { if (v.status === 'open' && v.due_on && hD(v.due_on) < t) add(0, 'Вакансия «' + v.title + '» не закрыта в срок', 'нужно было до ' + hDate(v.due_on), { vacancy: v.id }, v.due_on); });
+  const free = d.pos.filter(function(p) { return hPosFree(p) > 0 && !d.vacancies.some(function(v) { return v.status === 'open' && Number(v.position_id) === p.id; }); });
+  if (free.length) add(2, 'Свободные ставки без открытой вакансии: ' + free.length, free.map(function(p) { return p.position + (hLe(p.legal_entity_id) ? ' (' + hLe(p.legal_entity_id).name + ')' : ''); }).join(', '), { tab: 'hire', hire: 'pos' });
   sec = 'docs';
   // приятное: дни рождения и мероприятия
   hActive().forEach(function(e) {
@@ -702,7 +747,7 @@ hRoot().addEventListener('change', hOnChange);
 hRoot().addEventListener('input', function(e) { if (e.target.getAttribute('data-f') === 'q') { hr.q = e.target.value; hRenderStaffList(); } });
 hStart();
 
-const HR_SECTIONS = { staff: 'Сотрудники', vac: 'Отпуска', safety: 'Охрана труда и СОУТ', mil: 'Воинский учёт', docs: 'Документы и мероприятия' };
+const HR_SECTIONS = { staff: 'Сотрудники', hire: 'Подбор и штат', vac: 'Отпуска', safety: 'Охрана труда и СОУТ', mil: 'Воинский учёт', docs: 'Документы и мероприятия' };
 function hRender() {
   let head;
   if (HR_MODE === 'staff') {   // общий раздел: три вкладки
@@ -717,13 +762,16 @@ function hRender() {
         + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp">+ Сотрудник</button>' : '') + '</div>';
   }
   hRoot().innerHTML = head + '<div data-hr-body></div>';
-  ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs })[hr.tab]();
+  ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs, hire: hRenderHire })[hr.tab]();
 }
 function hGo(go) {
   if (go.emp) return hOpenEmp(go.emp);
   if (go.vac) return hOpenVac(hr.d.vacs.find(function(v) { return v.id === go.vac; }));
   if (go.lna) return hOpenLna(hr.d.lna.find(function(l) { return l.id === go.lna; }));
   if (go.ev) return hOpenEvent(hr.d.events.find(function(x) { return x.id === go.ev; }));
+  if (go.cand) return hOpenCand(hr.d.cands.find(function(x) { return x.id === go.cand; }));
+  if (go.vacancy) return hOpenVacancy(hr.d.vacancies.find(function(x) { return x.id === go.vacancy; }));
+  if (go.hire) hr.hireView = go.hire;
   if (go.ids) { hr.only = { ids: go.ids, title: go.title }; hr.staffView = 'table'; hr.tab = 'staff'; }
   else { hr.tab = go.tab; if (go.tab === 'staff') hr.staffView = 'table'; if (go.year) hr.year = go.year; if (go.le !== undefined) hr.le = go.le; if (go.type !== undefined) hr.type = go.type; }
   hRender();
@@ -733,6 +781,7 @@ function hOnChange(e) {
   if (f === 'le' || f === 'type' || f === 'dept') { hr[f] = e.target.value; hRenderStaffList(); }
   if (f === 'fired') { hr.fired = e.target.checked; hRenderStaffList(); }
   if (f === 'mxLe') { hr.mxLe = e.target.value; hRenderSafety(); }
+  if (f === 'hireVac') { hr.hireVac = e.target.value; hRenderHire(); }
   const au = e.target.getAttribute('data-act-up');
   if (au) {   // загруженный акт = акт подписан
     const p = au.split('|'), files = Array.prototype.slice.call(e.target.files || []); e.target.value = '';
@@ -755,13 +804,18 @@ function hOnClick(e) {
   if (a === 'sv') { hr.staffView = act.getAttribute('data-v'); hRenderStaff(); return; }
   if (a === 'orgedit') { hr.orgEdit = !hr.orgEdit; hRenderStaff(); return; }
   if (a === 'newle') return hOpenLe(null);
-  if (a === 'year') { hr.year += Number(act.getAttribute('data-d')); hRenderVac(); return; }
+  if (a === 'year') { hr.year += Number(act.getAttribute('data-d')); (hr.tab === 'hire' ? hRenderHire : hRenderVac)(); return; }
   if (a === 'newvac') return hOpenVac(null, {});
   if (a === 'newpb') return hOpenSafety(null, { kind: HR_PB_COMMON[0][0] });
   if (a === 'newsout') return hOpenSout(null);
   if (a === 'newlna') return hOpenLna(null);
   if (a === 'newprog') return hOpenProg(null);
   if (a === 'newev') return hOpenEvent(null);
+  if (a === 'hv') { hr.hireView = act.getAttribute('data-v'); hRenderHire(); return; }
+  if (a === 'newcand') return hOpenCand(null, hr.hireVac ? { vacancy_id: Number(hr.hireVac) } : {});
+  if (a === 'newvacancy') return hOpenVacancy(null);
+  if (a === 'newpos') return hOpenPos(null);
+  if (a === 'pos2vac') { const p = hr.d.pos.find(function(x) { return x.id === Number(act.getAttribute('data-id')); }); return hOpenVacancy(null, { title: p.position, legal_entity_id: p.legal_entity_id, department: p.department, position_id: p.id, salary: p.salary ? String(p.salary) : '' }); }
   const go = c('[data-go]');
   if (go) return hGo(JSON.parse(go.getAttribute('data-go')));
   const le = c('[data-le]');
@@ -777,6 +831,8 @@ function hOnClick(e) {
   }
   const cell = c('[data-cell]');
   if (cell) { const p = cell.getAttribute('data-cell').split('|'); return hOpenSafetyCell(Number(p[0]), p[1]); }
+  const empA = c('a[data-emp]');   // ссылка на человека внутри строки записи (штатное расписание) — открыть человека, а не строку
+  if (empA) return hOpenEmp(Number(empA.getAttribute('data-emp')));
   const rec = c('[data-rec]');
   if (rec) {
     const p = rec.getAttribute('data-rec').split(':'), id = Number(p[1]);
@@ -786,6 +842,9 @@ function hOnClick(e) {
     if (p[0] === 'lna') return hOpenLna(find(hr.d.lna));
     if (p[0] === 'prog') return hOpenProg(find(hr.d.progs));
     if (p[0] === 'ev') return hOpenEvent(find(hr.d.events));
+    if (p[0] === 'cand') return hOpenCand(find(hr.d.cands));
+    if (p[0] === 'vacancy') return hOpenVacancy(find(hr.d.vacancies));
+    if (p[0] === 'pos') return hOpenPos(find(hr.d.pos));
   }
   const emp = c('[data-emp]');
   if (emp && !c('select')) hOpenEmp(Number(emp.getAttribute('data-emp')));
@@ -815,6 +874,10 @@ function hRenderHome() {
   }).join('');
   hBody().innerHTML = '<div class="hr-tiles">'
     + tile('staff', act.length, 'штат ' + byType('staff') + ' · ГПХ ' + byType('external') + ' · самозанятые ' + byType('self'))
+    + tile('hire', d.vacancies.filter(function(v) { return v.status === 'open'; }).length + ' <small style="font-size:13px;font-weight:400;">вакансий</small>',
+        'кандидатов в работе ' + d.cands.filter(function(c) { return ['new', 'interview', 'offer'].indexOf(c.stage) !== -1; }).length
+        + ' · собеседований на неделе ' + d.cands.filter(function(c) { return c.stage === 'interview' && c.interview_on && hDays(t, c.interview_on) >= 0 && hDays(t, c.interview_on) <= 7; }).length
+        + ' · свободно ставок ' + d.pos.reduce(function(n, p) { return n + Math.max(0, hPosFree(p)); }, 0))
     + tile('vac', onVac.length + ' <small style="font-size:13px;font-weight:400;">в отпуске</small>', soon.length ? 'в ближайший месяц уходят ' + soon.length : 'в ближайший месяц никто не уходит')
     + tile('safety', lateSafety ? '<span style="color:#cf1322;">' + lateSafety + '</span> <small style="font-size:13px;font-weight:400;">просрочено</small>' : '✓', 'обучение, инструктажи, пожарная безопасность, СОУТ · ' + d.sout.length + ' раб. мест')
     + tile('mil', liable + ' <small style="font-size:13px;font-weight:400;">на учёте</small>', 'организации: сверки и планы; военнообязанные')
@@ -1366,4 +1429,197 @@ function hRenderDocs() {
         return '<div data-rec="prog:' + p.id + '" style="cursor:pointer;"><span><b>' + hEsc(p.title) + '</b><div class="hr-hint">' + hEsc([p.kind, p.start_on || p.end_on ? (hDate(p.start_on) || '…') + ' – ' + (hDate(p.end_on) || 'бессрочно') : ''].filter(Boolean).join(' · ')) + '</div></span>'
           + '<span class="hr-chip' + (on ? ' green' : '') + '">' + progCount(p) + ' чел.</span></div>';
       }).join('') + '</div>' : '<div class="hr-hint">Программ пока нет. У каждого сотрудника в карточке → «Мотивация» указывается его программа и что его мотивирует.</div>') + '</div></div>';
+}
+
+// ---------- подбор и штат: воронка кандидатов, вакансии, штатное расписание ----------
+function hVacancy(id) { return hr.d.vacancies.find(function(v) { return v.id === Number(id); }) || null; }
+function hNorm(x) { return String(x || '').toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim(); }
+// занятые ставки позиции = работающие штатные сотрудники того же юрлица с той же должностью (совпадение текста без учёта регистра)
+function hPosPeople(p) { return hStaff().filter(function(e) { return hInLe(e, p.legal_entity_id) && hNorm(e.position) === hNorm(p.position); }); }
+function hPosFree(p) { return (Number(p.units) || 0) - hPosPeople(p).reduce(function(n, e) { return n + (Number(e.rate) || 1); }, 0); }
+function hRub(v) { return v ? Number(v).toLocaleString('ru-RU') + ' ₽' : ''; }
+function hCandLine(c) {
+  const v = hVacancy(c.vacancy_id);
+  return '<b>' + hEsc(c.full_name) + '</b>' + (v ? '<div class="hr-hint" style="margin:0;">' + hEsc(v.title) + '</div>' : '')
+    + (c.stage === 'interview' && c.interview_on ? '<div class="hr-hint" style="margin:0;">📅 ' + hDate(c.interview_on).slice(0, 5) + (c.interview_time ? ' ' + hEsc(c.interview_time) : '') + '</div>' : '')
+    + (c.stage === 'offer' && c.offer_on ? '<div class="hr-hint" style="margin:0;">оффер ' + hDate(c.offer_on).slice(0, 5) + (c.start_on ? ' · выход ' + hDate(c.start_on).slice(0, 5) : '') + '</div>' : '')
+    + (c.rating ? '<div class="hr-hint" style="margin:0;">' + '★'.repeat(Number(c.rating)) + '</div>' : '');
+}
+function hRenderHire() {
+  const d = hr.d, t = hToday(), v = hr.hireView;
+  const seg = '<span class="hr-seg">' + [['funnel', 'Кандидаты'], ['vac', 'Вакансии'], ['pos', 'Штатное расписание']].map(function(x) { return '<button data-act="hv" data-v="' + x[0] + '" class="' + (v === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</span>';
+  const btn = { funnel: ['newcand', '+ Кандидат'], vac: ['newvacancy', '+ Вакансия'], pos: ['newpos', '+ Должность'] }[v];
+  let body = '';
+  if (v === 'funnel') {
+    const vsel = '<select data-f="hireVac"><option value="">Все вакансии</option>' + d.vacancies.filter(function(x) { return x.status === 'open' || x.status === 'paused' || String(x.id) === hr.hireVac; })
+      .map(function(x) { return '<option value="' + x.id + '"' + (String(x.id) === hr.hireVac ? ' selected' : '') + '>' + hEsc(x.title) + '</option>'; }).join('') + '</select>';
+    const list = d.cands.filter(function(c) { return !hr.hireVac || String(c.vacancy_id) === hr.hireVac; });
+    const week = list.filter(function(c) { return c.stage === 'interview' && c.interview_on && hDays(t, c.interview_on) >= 0 && hDays(t, c.interview_on) <= 7; });
+    const col = function(st, items) {
+      return '<div class="hr-kb-col"><div class="hr-kb-h">' + HR_STAGES[st] + ' <span>' + items.length + '</span></div>'
+        + items.map(function(c) { return '<div class="hr-kb-c" data-rec="cand:' + c.id + '">' + hCandLine(c) + '</div>'; }).join('') + '</div>';
+    };
+    const recent = function(c) { return hDays(c.updatedAt || c.createdAt || t, t) <= 30; };   // вышедшие и отказы — за последний месяц
+    const by = function(st) { return list.filter(function(c) { return c.stage === st; }); };
+    const closed = list.filter(function(c) { return (c.stage === 'rejected' || c.stage === 'declined'); });
+    body = '<div class="hr-bar">' + vsel + '</div>'
+      + (week.length ? '<div class="hr-card"><div class="hr-card-t">Собеседования на неделе <small>' + week.length + '</small></div><div class="hr-lines">'
+        + week.map(function(c) { return '<div data-rec="cand:' + c.id + '"><span>' + hEsc(c.full_name) + ' <span class="hr-hint">' + hEsc((hVacancy(c.vacancy_id) || {}).title || '') + '</span></span><span>' + hDate(c.interview_on).slice(0, 5) + (c.interview_time ? ' ' + hEsc(c.interview_time) : '') + '</span></div>'; }).join('') + '</div></div>' : '')
+      + '<div class="hr-kb">' + col('new', by('new')) + col('interview', by('interview')) + col('offer', by('offer')) + col('hired', by('hired').filter(recent)) + '</div>'
+      + (closed.length ? '<div class="hr-card" style="margin-top:12px;"><div class="hr-card-t">Отказы <small>' + closed.length + '</small></div><div class="hr-lines">'
+        + closed.map(function(c) { return '<div data-rec="cand:' + c.id + '"><span>' + hEsc(c.full_name) + ' <span class="hr-hint">' + hEsc((hVacancy(c.vacancy_id) || {}).title || '') + '</span></span><span class="hr-hint">' + HR_STAGES[c.stage] + (c.reject_reason ? ': ' + hEsc(c.reject_reason) : '') + '</span></div>'; }).join('') + '</div></div>' : '')
+      + (d.cands.length ? '' : '<div class="hr-hint" style="margin-top:8px;">Кандидатов пока нет. Добавьте вакансию, затем кандидатов с резюме — резюме прикрепляется в карточке кандидата.</div>');
+  } else if (v === 'vac') {
+    const row = function(x) {
+      const cs = d.cands.filter(function(c) { return c.vacancy_id === x.id; }), n = function(st) { return cs.filter(function(c) { return c.stage === st; }).length; };
+      const age = x.opened_on ? hDays(x.opened_on, x.closed_on || t) : null, late = x.status === 'open' && x.due_on && hD(x.due_on) < t;
+      return '<tr data-rec="vacancy:' + x.id + '"><td><b>' + hEsc(x.title) + '</b><div class="hr-hint">' + hEsc([hLe(x.legal_entity_id) ? hLe(x.legal_entity_id).name : '', x.department, x.object_name].filter(Boolean).join(' · ')) + '</div></td>'
+        + '<td>' + (hDate(x.opened_on) || '—') + (age !== null ? '<div class="hr-hint">' + age + ' дн.</div>' : '') + '</td><td class="' + (late ? 'hr-late' : '') + '">' + (hDate(x.due_on) || '—') + '</td>'
+        + '<td class="n">' + cs.length + '</td><td class="n">' + n('interview') + '</td><td class="n">' + n('offer') + '</td>'
+        + '<td><span class="hr-chip ' + ({ open: 'blue', paused: 'orange', closed: 'green' }[x.status] || '') + '">' + hEsc(HR_VACANCY_ST[x.status] || x.status || '') + '</span></td></tr>';
+    };
+    const act = d.vacancies.filter(function(x) { return x.status === 'open' || x.status === 'paused'; }), done = d.vacancies.filter(function(x) { return x.status !== 'open' && x.status !== 'paused'; });
+    const head = '<table><thead><tr><th>Вакансия</th><th>Открыта</th><th>Закрыть до</th><th class="n">Кандидатов</th><th class="n">На собес.</th><th class="n">Оффер</th><th></th></tr></thead><tbody>';
+    body = '<div class="hr-card">' + (act.length ? head + act.map(row).join('') + '</tbody></table>' : '<div class="hr-hint">Открытых вакансий нет.</div>') + '</div>'
+      + (done.length ? '<div class="hr-card"><div class="hr-card-t">Закрытые и отменённые <small>' + done.length + '</small></div>' + head + done.map(row).join('') + '</tbody></table></div>' : '');
+  } else {
+    const y = hr.year;
+    const groups = d.les.map(function(l) { return [l, d.pos.filter(function(p) { return Number(p.legal_entity_id) === l.id; })]; }).filter(function(g) { return g[1].length; });
+    const tbl = groups.map(function(g) {
+      const l = g[0], ps = g[1], units = ps.reduce(function(n, p) { return n + (Number(p.units) || 0); }, 0), fund = ps.reduce(function(n, p) { return n + (Number(p.units) || 0) * (Number(p.salary) || 0); }, 0);
+      const known = ps.map(function(p) { return hNorm(p.position); });
+      const extra = hStaff().filter(function(e) { return hInLe(e, l.id) && known.indexOf(hNorm(e.position)) === -1; });
+      return '<div class="hr-card"><div class="hr-card-t">' + hEsc(l.name) + ' <small>' + units + ' ' + hNoun(units, 'ставка', 'ставки', 'ставок') + (fund ? ' · ФОТ по окладам ' + hRub(fund) + ' в мес.' : '') + '</small></div>'
+        + '<table><thead><tr><th>Подразделение</th><th>Должность</th><th class="n">Ставок</th><th class="n">Оклад</th><th>Занято</th><th class="n">Свободно</th><th></th></tr></thead><tbody>'
+        + ps.map(function(p) {
+            const ppl = hPosPeople(p), free = hPosFree(p), vac = d.vacancies.find(function(v) { return v.status === 'open' && Number(v.position_id) === p.id; });
+            return '<tr data-rec="pos:' + p.id + '"><td>' + hEsc(p.department || '') + '</td><td>' + hEsc(p.position) + '</td><td class="n">' + (p.units || 0) + '</td><td class="n">' + hRub(p.salary) + '</td>'
+              + '<td>' + ppl.map(function(e) { return '<a data-emp="' + e.id + '" style="color:#1677ff;cursor:pointer;">' + hEsc(e.full_name) + '</a>' + (Number(e.rate) && Number(e.rate) !== 1 ? ' (' + e.rate + ')' : ''); }).join(', ') + '</td>'
+              + '<td class="n ' + (free > 0 ? 'hr-soon' : free < 0 ? 'hr-late' : 'hr-ok') + '">' + (free > 0 ? free : free < 0 ? 'сверх ' + (-free) : '—') + '</td>'
+              + '<td>' + (free > 0 ? (vac ? '<a data-go="' + hEsc(JSON.stringify({ vacancy: vac.id })) + '" class="hr-chip blue" style="cursor:pointer;">вакансия открыта</a>' : '<button class="hr-btn sm" data-act="pos2vac" data-id="' + p.id + '">Открыть вакансию</button>') : '') + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        + (extra.length ? '<div class="hr-hint" style="margin-top:6px;">Работают, но должности нет в штатном расписании: ' + extra.map(function(e) { return '<a data-emp="' + e.id + '" style="color:#1677ff;cursor:pointer;">' + hEsc(e.full_name) + '</a> (' + hEsc(e.position || 'должность не указана') + ')'; }).join(', ') + '</div>' : '') + '</div>';
+    }).join('');
+    const moves = d.les.map(function(l) {
+      const inY = function(v) { return v && hD(v).slice(0, 4) === String(y); };
+      const all = d.emps.filter(function(e) { return hInLe(e, l.id) && (e.employment_type || 'staff') === 'staff'; });
+      const hi = all.filter(function(e) { return inY(e.hired_on); }).length, fi = all.filter(function(e) { return inY(e.fired_on); }).length;
+      return hi || fi ? '<tr><td>' + hEsc(l.name) + '</td><td class="n">' + hi + '</td><td class="n">' + fi + '</td></tr>' : '';
+    }).join('');
+    body = (tbl || '<div class="hr-card"><div class="hr-hint">Штатное расписание пока не заведено. Добавьте должности по каждому юрлицу («+ Должность») — занятость посчитается по сотрудникам с той же должностью в этом юрлице, свободные ставки появятся в ленте «Требует внимания». PDF штатного расписания можно прикрепить к юрлицу (документ «Штатное расписание»).</div></div>')
+      + '<div class="hr-card"><div class="hr-card-t">Принято и уволено (штат)<span style="margin-left:auto;display:flex;gap:6px;align-items:center;font-weight:400;"><button class="hr-btn sm" data-act="year" data-d="-1">‹</button><b>' + y + '</b><button class="hr-btn sm" data-act="year" data-d="1">›</button></span></div>'
+      + (moves ? '<table><thead><tr><th>Юрлицо</th><th class="n">Принято</th><th class="n">Уволено</th></tr></thead><tbody>' + moves + '</tbody></table>' : '<div class="hr-hint">За ' + y + ' год движений нет.</div>') + '</div>';
+  }
+  hBody().innerHTML = '<div class="hr-bar">' + seg + '<button class="hr-new" data-act="' + btn[0] + '">' + btn[1] + '</button></div>' + body;
+}
+function hOpenPos(p) {
+  hEdit({ coll: 'crm_staff_positions', rec: p, spec: H_POS, preset: { units: 1 }, title: p ? p.position : 'Новая должность в штатном расписании',
+    extra: function(r) { return r ? '<div class="hr-hint" style="margin-top:10px;">Занято: ' + (hPosPeople(r).map(function(e) { return hEsc(e.full_name); }).join(', ') || 'никем') + '. Совпадение по юрлицу и тексту должности в карточке сотрудника.</div>' : ''; },
+    prepare: function(v) { if (v.units <= 0) return 'Ставок должно быть больше нуля'; return v; } });
+}
+function hOpenVacancy(x, preset) {
+  const m = hEdit({ coll: 'crm_vacancies', rec: x, files: 'vacancy', spec: H_VACANCY, wide: true, preset: Object.assign({ status: 'open', opened_on: hToday() }, preset || {}),
+    title: x ? 'Вакансия: ' + x.title : 'Новая вакансия',
+    extra: function(r) {
+      if (!r) return '';
+      const cs = hr.d.cands.filter(function(c) { return c.vacancy_id === r.id; });
+      return '<div class="hr-actions" style="margin:14px 0 6px;"><b style="font-size:13.5px;">Кандидаты (' + cs.length + ')</b><button type="button" class="hr-btn sm" data-newcand>+ Кандидат</button></div>'
+        + (cs.length ? '<div class="hr-lines">' + cs.map(function(c) { return '<div data-cand="' + c.id + '" style="cursor:pointer;"><span>' + hEsc(c.full_name) + '</span><span class="hr-chip ' + HR_STAGE_C[c.stage] + '">' + hEsc(HR_STAGES[c.stage] || '') + '</span></div>'; }).join('') + '</div>' : '<div class="hr-hint">Пока нет</div>');
+    },
+    wire: function(mm, r) {
+      if (!r) return;
+      mm.querySelector('[data-newcand]').addEventListener('click', function() { mm.remove(); hOpenCand(null, { vacancy_id: r.id }); });
+      mm.querySelectorAll('[data-cand]').forEach(function(el) { el.addEventListener('click', function() { mm.remove(); hOpenCand(hr.d.cands.find(function(c) { return c.id === Number(el.getAttribute('data-cand')); })); }); });
+    },
+    prepare: function(v) {
+      if (!v.opened_on) v.opened_on = hToday();
+      if (preset && preset.position_id && !x) v.position_id = preset.position_id;
+      if ((v.status === 'closed' || v.status === 'cancelled') && !(x && x.closed_on)) v.closed_on = hToday();
+      if (v.status === 'open' || v.status === 'paused') v.closed_on = null;
+      return v;
+    } });
+  return m;
+}
+function hOpenCand(c, preset) {
+  hEdit({ coll: 'crm_candidates', rec: c, files: 'cand', spec: H_CAND, wide: true, preset: Object.assign({ stage: 'new', probation: 3 }, preset || {}),
+    title: c ? c.full_name : 'Новый кандидат',
+    extra: function(r) {
+      if (!r) return '<div class="hr-hint" style="margin-top:8px;">Резюме прикрепите ниже — сохранится вместе с кандидатом.</div>';
+      const e = r.employee_id ? hEmp(r.employee_id) : null;
+      return '<div class="hr-actions" style="margin-top:12px;"><button type="button" class="hr-btn" data-offer>📄 Скачать оффер (Word)</button>'
+        + (e ? '<button type="button" class="hr-btn" data-toemp>Карточка сотрудника →</button>' : '<button type="button" class="hr-btn" data-hire>Оформить сотрудником</button>')
+        + '<span class="hr-hint" style="margin:0;">Оффер собирается из условий вакансии и этой карточки (оклад, выход, испытательный срок); в Word его можно поправить.</span></div>';
+    },
+    wire: function(m, r) {
+      // поля по этапу: собеседование — с этапа «Собеседование», оффер и выход — с «Оффера», причина — только у отказов
+      const ord = ['new', 'interview', 'offer', 'hired'], show = {
+        interview_on: 1, interview_time: 1, rating: 1, offer_on: 2, offer_salary: 2, offer_salary_after: 2, probation: 2, start_on: 2 };
+      const upd = function() {
+        const st = m.querySelector('[data-v="stage"]').value, lvl = ord.indexOf(st), out = lvl === -1;
+        Object.keys(show).forEach(function(k) { const el = m.querySelector('[data-fk="' + k + '"]'); if (el) el.style.display = (out ? 1 : lvl) >= show[k] ? '' : 'none'; });
+        m.querySelector('[data-fk="reject_reason"]').style.display = out ? '' : 'none';
+        const o = m.querySelector('[data-offer]'), h = m.querySelector('[data-hire]');
+        if (o) o.style.display = lvl >= 1 || out ? '' : 'none';
+        if (h) h.style.display = lvl >= 2 ? '' : 'none';
+      };
+      m.querySelector('[data-v="stage"]').addEventListener('change', upd);
+      upd();
+      if (!r) return;
+      m.querySelector('[data-offer]').addEventListener('click', function() { hOfferDoc(r); });
+      const h = m.querySelector('[data-hire]'); if (h) h.addEventListener('click', function() { m.remove(); hHireCand(r); });
+      const g = m.querySelector('[data-toemp]'); if (g) g.addEventListener('click', function() { m.remove(); hOpenEmp(r.employee_id); });
+    },
+    prepare: function(v) {
+      if (v.stage === 'offer' && !v.offer_on) v.offer_on = hToday();
+      if (v.interview_time && !/^\d{1,2}[:.]\d{2}$/.test(v.interview_time)) return 'Время собеседования — в виде 14:00';
+      if (v.interview_time) v.interview_time = v.interview_time.replace('.', ':');
+      return v;
+    },
+    after: function(saved) { if (saved && saved.stage === 'hired' && !saved.employee_id && (!c || c.stage !== 'hired')) hHireCand(saved); } });
+}
+// вышел на работу → карточка сотрудника, заполненная из кандидата и вакансии; вакансия закрывается
+function hHireCand(c) {
+  const v = hVacancy(c.vacancy_id) || {}, n = String(c.full_name || '').trim().split(/\s+/);
+  const pos = v.position_id ? hr.d.pos.find(function(p) { return p.id === Number(v.position_id); }) : null;
+  hEdit({ coll: 'crm_employees', spec: H_MAIN, title: 'Оформить сотрудником: ' + c.full_name,
+    preset: { last_name: n[0], first_name: n[1] || '', middle_name: n.slice(2).join(' '), position: pos ? pos.position : v.title, department: v.department, legal_entity_id: v.legal_entity_id,
+      object_name: v.object_name, phone: c.phone, email: c.email, employment_type: 'staff', status: 'active', vacation_days: 28, hired_on: c.start_on || hToday() },
+    prepare: function(x) { return hEmpVals(x); },
+    after: async function(r) {
+      if (!r || !r.id) return;
+      try {
+        await ctx.api.resource('crm_candidates').update({ filterByTk: c.id, values: { employee_id: r.id, stage: 'hired', start_on: r.hired_on || c.start_on } });
+        if (v.id && v.status === 'open') await ctx.api.resource('crm_vacancies').update({ filterByTk: v.id, values: { status: 'closed', closed_on: hToday() } });
+        await hReload();
+      } catch (e) { hToast('Сотрудник создан, но кандидат не обновился'); }
+      hOpenEmp(r.id);
+    } });
+}
+// оффер — по шаблону HR (исх. письмо: должность, обязанности, место, выход, испытательный срок, оклад, режим, руководитель); .doc = HTML, Word открывает
+function hOfferDoc(c) {
+  const v = hVacancy(c.vacancy_id) || {}, le = hLe(v.legal_entity_id), n = String(c.full_name || '').trim().split(/\s+/);
+  const io = n.slice(1).join(' ') || c.full_name, mid = n[2] || '';
+  const dear = /(вна|чна|кызы)$/i.test(mid) ? 'Уважаемая' : /(вич|ич|оглы)$/i.test(mid) ? 'Уважаемый' : 'Уважаемый(ая)';
+  const p = function(x) { return '<p>' + x + '</p>'; }, gap = '____________';
+  const dl = function(iso) { const m = hD(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? '«' + Number(m[3]) + '» ' + ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'][Number(m[2]) - 1] + ' ' + m[1] + ' г.' : gap; };
+  const prob = Number(c.probation) || 3;
+  const html = '<html><head><meta charset="utf-8"><style>body{font-family:"Times New Roman";font-size:12pt;} p{margin:0 0 8pt;} h3{font-size:12pt;margin:12pt 0 6pt;}</style></head><body>'
+    + p('Исх. № ' + gap + ' от ' + hDate(hToday()) + ' г.') + '<p style="text-align:center;"><b>' + dear + ' ' + hEsc(io) + '!</b></p>'
+    + p('Компания «' + hEsc(le ? le.name : gap) + '», ознакомившись с Вашим профессиональным опытом, выражает Вам свое уважение и высокую оценку Ваших компетенций.')
+    + p('Рады предложить Вам занять позицию <b>' + hEsc(v.title || gap) + '</b>.')
+    + '<h3>1. Основные условия трудового договора</h3>'
+    + p('Должностные обязанности: ' + hEsc(v.duties || gap).replace(/\n/g, '<br>'))
+    + p('Место работы: ' + hEsc(v.place || gap)) + p('Дата выхода на работу: ' + dl(c.start_on))
+    + p('Испытательный срок: ' + prob + ' ' + hNoun(prob, 'календарный месяц', 'календарных месяца', 'календарных месяцев') + '. В течение испытательного срока условия договора, включая размер оплаты труда, действуют в полном объеме.')
+    + '<h3>2. Компенсационный пакет</h3>'
+    + p('Официальный оклад NET (после вычета налогов): ' + hEsc(c.offer_salary || gap) + ' рублей ежемесячно на испытательный срок' + (c.offer_salary_after ? ', после прохождения испытательного срока — ' + hEsc(c.offer_salary_after) + ' рублей на руки' : '') + '.')
+    + p('Годовая премия (бонус): по итогам года по результатам выполнения согласованных ключевых показателей эффективности.')
+    + '<h3>3. Социальный пакет и льготы</h3>' + p('Полное соблюдение ТК РФ (официальное оформление, оплачиваемый отпуск — 28 календарных дней, больничные).')
+    + '<h3>4. Регламент работы и подчиненность</h3>' + p('Режим работы: ' + hEsc(v.schedule || 'пятидневная рабочая неделя (пн–пт)')) + p('Непосредственный руководитель: ' + hEsc(v.manager || gap))
+    + p('&nbsp;') + p('Предложение действительно в течение 5 рабочих дней с даты письма.') + p('&nbsp;') + p('С уважением,') + p((le && le.director ? hEsc(le.director) : gap))
+    + '</body></html>';
+  const url = URL.createObjectURL(new Blob(['﻿' + html], { type: 'application/msword' })), a = document.createElement('a');
+  a.href = url; a.download = 'Оффер ' + c.full_name + '.doc';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
 }

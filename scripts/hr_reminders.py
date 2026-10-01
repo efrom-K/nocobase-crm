@@ -10,6 +10,7 @@
     ежегодная сверка организации старше года, с 1 октября — нет плана ВУ на следующий год;
   - самозанятые: с 3-го числа — нет акта за прошлый месяц (раз в месяц);
   - дни рождения — за день; мероприятия — за неделю и накануне;
+  - подбор: собеседование накануне и в день, оффер без ответа 3 дня, выход на работу без оформления, вакансия не закрыта в срок;
   - 1 ноября и 10 декабря — у кого не запланирован отпуск на следующий год (график утверждается до 17 декабря).
 
 cron на svc:  0 9 * * * /usr/bin/python3 /home/ubuntu/nb_bik/hr_reminders.py >> /home/ubuntu/nb_bik/hr.log 2>&1
@@ -123,6 +124,23 @@ for x in rows("select * from crm_hr_events where event_date is not null"):
     n = days(x['event_date'])
     if n == 7: add('ev:%s:7' % x['id'], 'Через неделю: %s' % x['title'], fmt(d(x['event_date'])) + (' · ' + x['place'] if x['place'] else ''), PAGE + '?sec=docs')
     if n == 1: add('ev:%s:1' % x['id'], 'Завтра: %s' % x['title'], fmt(d(x['event_date'])) + (' · ' + x['place'] if x['place'] else ''), PAGE + '?sec=docs')
+
+# подбор: собеседования (накануне и в день), оффер без ответа 3 дня, выход на работу без оформления, вакансия не закрыта в срок
+vac = {v['id']: v for v in rows("select * from crm_vacancies")}
+for c in rows("select * from crm_candidates where stage in ('interview', 'offer', 'hired')"):
+    vt = (vac.get(c['vacancy_id']) or {}).get('title') or ''
+    url = PAGE + '?sec=hire'
+    if c['stage'] == 'interview' and c['interview_on'] and days(c['interview_on']) in (0, 1):
+        n = days(c['interview_on'])
+        add('cand:%s:int:%s:%s' % (c['id'], c['interview_on'], n), 'Собеседование %s' % ('сегодня' if n == 0 else 'завтра'),
+            '%s%s — %s' % (c['interview_time'] + ', ' if c['interview_time'] else '', c['full_name'], vt), url)
+    if c['stage'] == 'offer' and c['offer_on'] and (today - d(c['offer_on'])).days >= 3:
+        add('cand:%s:offer:%s' % (c['id'], c['offer_on']), 'Оффер без ответа', '%s — %s, отправлен %s' % (c['full_name'], vt, fmt(d(c['offer_on']))), url)
+    if not c['employee_id'] and c['start_on'] and 0 <= days(c['start_on']) <= 1:
+        add('cand:%s:start:%s' % (c['id'], c['start_on']), 'Выход на работу %s' % fmt(d(c['start_on'])), '%s — %s: оформить сотрудника' % (c['full_name'], vt), url)
+for v in vac.values():
+    if v['status'] == 'open' and v['due_on'] and days(v['due_on']) < 0:
+        add('vacancy:%s:%s:late' % (v['id'], v['due_on']), 'Вакансия не закрыта в срок', '«%s» — нужно было до %s' % (v['title'], fmt(d(v['due_on']))), PAGE + '?sec=hire')
 
 # график отпусков на следующий год
 if (today.month, today.day) in ((11, 1), (12, 10)):

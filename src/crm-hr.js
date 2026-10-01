@@ -130,6 +130,7 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-vb.unpaid { background:#8c8c8c; }
     .hr-vb.other { background:#9254de; }
     .hr-vb.draft { opacity:.45; }
+    .hr-vb.demo { outline:1px dashed #262626; outline-offset:-1px; }
     .hr-now { position:absolute; top:0; bottom:0; width:2px; background:#cf1322; opacity:.6; pointer-events:none; }
     .hr-months { display:flex; font-size:11.5px; color:#8c8c8c; }
     .hr-months > i { font-style:normal; text-align:center; }
@@ -1308,8 +1309,8 @@ function hRenderVac() {
   const rows = people.map(function(e) {
     const bars = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.start_date) <= ye && hD(v.end_date) >= ys; }).map(function(v) {
       const s = Math.max(0, hDays(ys, v.start_date)), en = Math.min(diy - 1, hDays(ys, v.end_date));
-      const cls = hVacCls(v) + (v.status === 'plan' ? ' draft' : '');
-      return '<span class="hr-vb ' + cls + '" data-vac="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + v.days + ' дн. · ' + HR_VAC_CLS[hVacCls(v)] + (hVacCls(v) === 'other' ? ' (' + v.kind + ')' : '') + ' · ' + (HR_VAC_ST[v.status] || '')) + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? v.days : '') + '</span>';
+      const demo = String(v.note || '').indexOf('ДЕМО') === 0, cls = hVacCls(v) + (v.status === 'plan' ? ' draft' : '') + (demo ? ' demo' : '');
+      return '<span class="hr-vb ' + cls + '" data-vac="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + v.days + ' дн. · ' + HR_VAC_CLS[hVacCls(v)] + (hVacCls(v) === 'other' ? ' (' + v.kind + ')' : '') + ' · ' + (HR_VAC_ST[v.status] || '') + (demo ? ' · ДЕМО' : '')) + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? v.days : '') + '</span>';
     }).join('');
     const now = t.slice(0, 4) === String(y) ? '<span class="hr-now" style="left:' + (hDays(ys, t) / diy * 100) + '%;"></span>' : '';
     const left = hVacLeft(e, y);

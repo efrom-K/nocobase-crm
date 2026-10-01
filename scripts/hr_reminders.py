@@ -64,7 +64,7 @@ for (eid, kind, comp), s in last.items():
 
 for v in rows("select * from crm_vacations"):
     e = emps.get(v['employee_id'])
-    if not e or e['status'] == 'fired': continue
+    if not e or e['status'] == 'fired' or (v['note'] or '').startswith('ДЕМО'): continue   # демо-отпуска для показа графика — без уведомлений
     n = days(v['start_date'])
     period = '%s – %s' % (fmt(d(v['start_date'])), fmt(d(v['end_date'])))
     sched = v['kind'] == 'Ежегодный оплачиваемый' and v.get('in_schedule') != 'no'   # пусто = по утверждённому графику

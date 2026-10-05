@@ -277,8 +277,8 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-quick-flow > .cm-stage-form > .cm-section { margin-bottom: 14px !important; }
     .cm-quick-flow > #cm-forming-prices-section { order: 3; }
     .cm-quick-flow > #cm-forming-contacts-section { order: 5; }
-    .cm-quick-flow > #cm-forming-addendums-section { order: 6; }
-    .cm-quick-flow > #cm-forming-files-section { order: 7; }
+    .cm-quick-flow > #cm-forming-addendums-section { order: 7; }
+    .cm-quick-flow > #cm-forming-files-section { order: 6; }
     .cm-stage-form > .cm-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
     .cm-stage-form > .cm-section > :not(.cm-field-row), .cm-stage-form > .cm-section > .cm-field-row:has(textarea) { grid-column: 1 / -1; }
     .cm-field-row { margin-bottom: 12px; display: flex; flex-direction: column; min-width: 0; }

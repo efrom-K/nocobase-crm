@@ -147,7 +147,7 @@ if (!document.getElementById('crm-aho-style')) {
 // ---------- справочники ----------
 const AHO_PAGE = '/admin/ahodash01', AHO_MAIL_PAGE = '/admin/mailpage01';
 const A_PERIOD = { daily: 'Каждый рабочий день', weekly: 'Раз в неделю', monthly: 'Раз в месяц', quarterly: 'Раз в квартал', yearly: 'Раз в год' };
-const A_WEEKDAYS = ['', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+const A_WEEKDAYS = ['', 'по понедельникам', 'по вторникам', 'по средам', 'по четвергам', 'по пятницам', 'по субботам', 'по воскресеньям'];
 const A_EXP_ST = { new: 'Новый', approval: 'На согласовании', approved: 'Согласован', rejected: 'Отклонён', paid: 'Оплачен', docs: 'Закрывающие получены', handed: 'Передан в бухгалтерию' };
 const A_EXP_C = { new: '', approval: 'orange', approved: 'blue', rejected: 'red', paid: 'purple', docs: 'green', handed: 'grey' };
 const A_FLOW = ['new', 'approval', 'approved', 'paid', 'docs', 'handed'];
@@ -425,9 +425,7 @@ function aAlerts() {
   let sec = 'routines';
   const add = function(lvl, text, sub, go, date) { out.push({ lvl: lvl, text: text, sub: sub || '', go: go, date: date || '', sec: sec }); };
   d.routines.filter(function(r) { return r.active !== false && r.next_on; }).forEach(function(r) {
-    const s = aDue(r.next_on, 1);
-    if (s === 'late') add(0, r.title, 'просрочено с ' + hDate(r.next_on), { routine: r.id }, r.next_on);
-    else if (s === 'today') add(1, r.title, 'сегодня', { routine: r.id }, r.next_on);
+    if (aDue(r.next_on, 1) === 'late') add(0, r.title, 'просрочено с ' + hDate(r.next_on), { routine: r.id }, r.next_on);   // сегодняшние — в «Сегодня по регламенту»
   });
   sec = 'money';
   if (aIsApprover()) d.exps.filter(function(x) { return x.status === 'approval'; }).forEach(function(x) { add(0, 'Ждёт вашего согласования: ' + x.title + ' — ' + hMoney(x.amount), x.supplier || '', { exp: x.id }, x.due_on); });
@@ -553,13 +551,13 @@ function aRoutineLine(r) {
 // ---------- регулярные дела ----------
 function aRoutineWhen(r) {
   const day = Number(r.day) || 0;
-  if (r.period === 'weekly') return 'по ' + (A_WEEKDAYS[day] || 'понедельник') + 'м';
+  if (r.period === 'weekly') return A_WEEKDAYS[day] || A_WEEKDAYS[1];
   if (r.period === 'daily') return 'каждый рабочий день';
   return (A_PERIOD[r.period] || '').toLowerCase() + (day ? ', ' + day + '-го' : '');
 }
 function aRenderRoutines() {
   const list = ah.d.routines.slice().sort(function(a, b) { return (a.active === false) - (b.active === false) || String(a.next_on || '9').localeCompare(String(b.next_on || '9')); });
-  aBody().innerHTML = '<div class="hr-bar"><span class="hr-hint" style="margin:0;">Нажмите «✓ Сделано» — следующий срок посчитается сам по периоду. Просроченные и сегодняшние — в ленте дашборда и в колокольчике.</span>'
+  aBody().innerHTML = '<div class="hr-bar"><span class="hr-hint" style="margin:0;">Нажмите «✓ Сделано» — следующий срок посчитается сам по периоду. Сегодняшние — в «Сегодня по регламенту» на дашборде, просроченные — в ленте «Требует внимания», и те и другие — в колокольчике.</span>'
     + '<button class="hr-new" data-act="newroutine">+ Дело</button></div>'
     + (list.length ? '<div class="hr-card"><table><thead><tr><th>Что</th><th>Как часто</th><th>Следующий срок</th><th>Последний раз</th><th></th></tr></thead><tbody>'
       + list.map(function(r) {

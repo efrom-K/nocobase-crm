@@ -271,6 +271,14 @@ if (!document.getElementById('contract-modal-style')) {
     /* формы редактирования: везде одна сетка в две равные колонки, поля одной высоты и ширины, строки выровнены по полю ввода */
     .cm-stage-form:not([style*="none"]) { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: stretch; }
     .cm-stage-form > :not(.cm-field-row), .cm-stage-form > .cm-field-row:has(textarea), .cm-field-row.full { grid-column: 1 / -1; }
+    .cm-quick-flow { display: flex; flex-direction: column; }
+    .cm-quick-flow > * { order: 20; }
+    .cm-quick-flow > .cm-stage-form { display: contents !important; }
+    .cm-quick-flow > .cm-stage-form > .cm-section { margin-bottom: 14px !important; }
+    .cm-quick-flow > #cm-forming-prices-section { order: 3; }
+    .cm-quick-flow > #cm-forming-contacts-section { order: 5; }
+    .cm-quick-flow > #cm-forming-addendums-section { order: 6; }
+    .cm-quick-flow > #cm-forming-files-section { order: 7; }
     .cm-stage-form > .cm-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
     .cm-stage-form > .cm-section > :not(.cm-field-row), .cm-stage-form > .cm-section > .cm-field-row:has(textarea) { grid-column: 1 / -1; }
     .cm-field-row { margin-bottom: 12px; display: flex; flex-direction: column; min-width: 0; }
@@ -3294,17 +3302,19 @@ function renderFormingSideSections(r, currentUser, beforeHistory) {
 const QUICK_FIELD_MAP = { base_rent_per_sqm: 'rent_per_sqm', base_rent_amount: 'rent_amount', base_utility_per_sqm: 'utility_per_sqm',
   base_utility_amount: 'utility_amount', base_deposit_amount: 'deposit_amount', calc_comment: 'comment_stage4' };
 const QUICK_BLOCK_DEFS = ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(b) {
-  return { title: b.title, fields: b.fields.filter(function(f) { return f.name !== 'termination_date'; }).map(function(f) {
+  return { key: b.key, title: b.title, fields: b.fields.filter(function(f) { return f.name !== 'termination_date'; }).map(function(f) {
     if (f.name === 'object_name') return Object.assign({}, f, { type: 'combo' });   // объект — выбор из справочника, как в «Создать договор»
     return QUICK_FIELD_MAP[f.name] ? Object.assign({}, f, { name: QUICK_FIELD_MAP[f.name] }) : f;
   }) };
 });
 // «Срочный договор»: одна форма без этапов и ролевого гейтинга.
+// порядок блоков срочного договора задаётся CSS order в .cm-quick-flow (DOM не трогаем — форма "quick" должна остаться одной обёрткой)
+const QUICK_BLOCK_ORDER = { data: 1, pay: 2, counterparty: 4, notes: 8 };
 function renderQuickFormingBody(r, currentUser) {
-  let html = '<div style="background:#fff7e6;border:1px solid #ffd591;color:#ad6800;border-radius:6px;'
+  let html = '<div style="order:0;background:#fff7e6;border:1px solid #ffd591;color:#ad6800;border-radius:6px;'
     + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — сразу вся карточка договора, без этапов оформления</div>';
   html += '<div class="cm-stage-form" data-stage="quick">' + QUICK_BLOCK_DEFS.map(function(block) {
-    return '<div class="cm-section"><div class="cm-section-title">' + esc(block.title) + '</div>'
+    return '<div class="cm-section" style="order:' + (QUICK_BLOCK_ORDER[block.key] || 9) + '"><div class="cm-section-title">' + esc(block.title) + '</div>'
       + block.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>';
   }).join('') + '</div>';
   const actions = '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>'
@@ -3313,7 +3323,7 @@ function renderQuickFormingBody(r, currentUser) {
     + '<button class="cm-btn-advance cm-btn-finalize" id="cm-quick-publish">Опубликовать → Активные</button>'
     + '</div>';
   html += renderFormingSideSections(r, currentUser, actions);
-  return html;
+  return '<div class="cm-quick-flow">' + html + '</div>';
 }
 
 function wireAutoSave(root, id, stageIndex, statusElId, collectionName) {

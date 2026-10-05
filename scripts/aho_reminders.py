@@ -3,7 +3,7 @@
 
 Получатели — пользователи с ролью aho; согласующему (app_settings aho_approver_user_id) — счета, которые ждут его решения дольше суток.
 Каждое напоминание уходит один раз (журнал aho_notify_log, ключ = что + запись + дата/порог).
-  - регулярные дела: в день срока и на следующий день просрочки;
+  - регулярные дела: в день срока (ежедневные — нет, они и так в «Сегодня по регламенту») и на следующий день просрочки;
   - счета: оплатить — за 3 дня и в день срока; оплачен 7 дней назад, а закрывающих нет; на согласовании больше суток — согласующему;
   - регулярные платежи: за 3 дня и в день оплаты;
   - доверенности: за 30 дней, за 7 дней и в день окончания;
@@ -46,7 +46,7 @@ def add(key, title, text, url=PAGE, to=None):
 
 for r in rows("select * from crm_aho_routines where coalesce(active, true) and next_on is not null"):
     n = days(r['next_on'])
-    if n in (0, -1): add('routine:%s:%s:%s' % (r['id'], r['next_on'], n), 'Сегодня по регламенту' if n == 0 else 'Просрочено со вчера', r['title'], PAGE + '?open=routine:%s' % r['id'])
+    if n == -1 or (n == 0 and r['period'] != 'daily'): add('routine:%s:%s:%s' % (r['id'], r['next_on'], n), 'Сегодня по регламенту' if n == 0 else 'Просрочено со вчера', r['title'], PAGE + '?open=routine:%s' % r['id'])
 
 for x in rows("select * from crm_aho_expenses"):
     url, what = PAGE + '?open=exp:%s' % x['id'], '%s — %s' % (x['title'], money(x['amount']))

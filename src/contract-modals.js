@@ -499,7 +499,12 @@ function cmChoice(msg, options) {
     });
   });
 }
-const SCAN_CHOICES = [{ value: 'contract_scan_url', label: 'Скан подписанного договора' }, { value: 'act_scan_url', label: 'Скан подписанного акта' }, { value: '', label: 'Другой документ' }];
+// документы как в форме Pyrus «Новый Договор Аренды/Субаренды»: сканы пишутся в поле договора, остальные — меткой в начале имени файла
+const SCAN_CHOICES = [{ value: 'contract_scan_url', label: 'Скан подписанного договора' }, { value: 'act_scan_url', label: 'Скан подписанного акта' },
+  { value: 'doc:Таблица комнат', label: 'Таблица комнат' }, { value: 'doc:Контур помещения', label: 'Контур помещения' },
+  { value: 'doc:Реквизиты арендатора', label: 'Реквизиты арендатора' }, { value: 'doc:Финальный договор', label: 'Финальный договор (DOC / PDF)' },
+  { value: 'doc:Финальный акт', label: 'Финальный акт (DOC / PDF)' }, { value: 'doc:Счёт', label: 'Выставленный счёт' },
+  { value: '', label: 'Другой документ' }];
 
 async function createNotification(userId, contractId, title, text, source, channel) {
   try {
@@ -2784,7 +2789,7 @@ const STAGE_DEFS = [
       { name: 'utility_amount', label: 'Эксплуатационный сбор в месяц', type: 'money' },
       { name: 'total_amount', label: 'Сумма договора', type: 'calc', hint: 'Арендная плата + эксплуатационный сбор, считается сама' },
       { name: 'deposit_amount', label: 'Обеспечительный платёж', type: 'money' },
-      { name: 'comment_stage4', label: 'Комментарий', type: 'textarea' }
+      { name: 'comment_stage4', label: 'Комментарий по счетам или изменяющейся АП', type: 'textarea' }
   ]},
   { title: 'Финал (Акт и Скан)', role: 'legal_dept', fields: [
       { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
@@ -3679,10 +3684,10 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   });
 }
 
-async function uploadContractFile(file, contractId, collectionName) {
+async function uploadContractFile(file, contractId, collectionName, fileName) {
   const boundary = '----cmBoundary' + Math.random().toString(16).slice(2);
   const parts = [];
-  parts.push('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + file.name + '"\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n');
+  parts.push('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + (fileName || file.name) + '"\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n');
   const tail = '\r\n--' + boundary + '--\r\n';
   const blob = new Blob([parts.join(''), file, tail]);
   const res = await fetch('/api/attachments:upload', {
@@ -3720,11 +3725,14 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone, rec) {
       if (kind === null) { input.value = ''; return; }
       scanField = kind;
     }
+    const docKind = scanField && scanField.indexOf('doc:') === 0 ? scanField.slice(4) : '';
+    if (docKind) scanField = '';
+    const fileName = docKind && file.name.indexOf(docKind + ' — ') !== 0 ? docKind + ' — ' + file.name : file.name;
     btn.disabled = true;
     status.textContent = 'Загрузка…';
     try {
-      await uploadContractFile(file, contractId, collectionName);
-      logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Загружен файл: ' + file.name }]);
+      await uploadContractFile(file, contractId, collectionName, fileName);
+      logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Загружен файл: ' + fileName }]);
       status.textContent = 'Готово';
       if (scanField) {
         await setScanField(root, collectionName, contractId, rec, scanField, file.name);

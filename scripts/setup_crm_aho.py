@@ -91,7 +91,11 @@ def route_ids(uids):
 dash, tsk = route_ids(['ahodash01', 'ahotabs01']), route_ids(['tskpage01', 'tsktabs01', 'hrpage01', 'hrtabs01'])
 for role in ('member', 'rental_dept', 'legal_dept', 'accounting_dept', 'crm_test', 'hr'):
     print('hide from', role, ok(call('roles/%s/desktopRoutes:remove' % role, dash)))
-print('menu aho', ok(call('roles/aho/desktopRoutes:add', dash + tsk)))   # + задачи и справочник сотрудников, как у hr
+mail = [x['id'] for x in call('desktopRoutes:list?paginate=false&filter=' + urllib.parse.quote(json.dumps({'$or': [{'title': {'$in': ['Почта', 'Сообщения']}}, {'parent.title': {'$in': ['Почта', 'Сообщения']}}]})))['data']]
+print('menu aho', ok(call('roles/aho/desktopRoutes:add', dash + tsk + mail)))   # + задачи, справочник сотрудников, почта и сообщения, как у hr
+# закрытые кадровые данные и подбор — только admin и hr (у aho глобальная стратегия «видеть всё», поэтому явный запрет)
+for c in ('crm_hr_private', 'crm_hr_files', 'crm_candidates', 'crm_vacancies', 'crm_staff_positions'):
+    print('deny', c, ok(call('roles/aho/resources:create', {'name': c, 'usingActionsConfig': True, 'actions': []})))
 
 LAYOUT = {'rows': [{'id': 'ahorow1', 'cells': [{'id': 'ahorow1:cell:0', 'items': ['crmblock005']}], 'sizes': [24]}], 'version': 2}
 grid = {'use': 'BlockGridModel', 'parent': 'ahotabs01', 'parentId': 'ahotabs01', 'subKey': 'grid', 'subType': 'object', 'sortIndex': 0, 'flowRegistry': {},

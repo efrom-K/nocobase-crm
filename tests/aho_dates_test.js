@@ -11,5 +11,17 @@ const cases = [
 ];
 let bad = 0;
 for (const [r, from, want] of cases) { const got = aNext(r, from); if (got !== want) { bad++; console.log('FAIL', JSON.stringify(r), from, got, '!=', want); } }
-console.log(bad ? 'ОШИБОК: ' + bad : 'aNext: всё сходится');
+// «График работы» сотрудника → начало дня, удалённые и рабочие дни (aSched из раздела «Приходы»)
+const ah = { d: { skud: { skud_work_start: '09:00' } } };
+eval(pick('const A_WD', 'function aEmp'));
+const sc = [
+  ['9:30-18:30', { start: '09:30', remoteAll: false, remoteDays: [], workDays: [1, 2, 3, 4, 5] }],
+  ['9:00-18:00 · Удаленно: вт-пт', { start: '09:00', remoteAll: false, remoteDays: [2, 3, 4, 5], workDays: [1, 2, 3, 4, 5] }],
+  ['12:30-20:30 · Удаленно: пн,вт,чт', { start: '12:30', remoteAll: false, remoteDays: [1, 2, 4], workDays: [1, 2, 3, 4, 5] }],
+  ['12:00-20:00 · Удаленно', { start: '12:00', remoteAll: true, remoteDays: [], workDays: [1, 2, 3, 4, 5] }],
+  ['пн-чт', { start: '09:00', remoteAll: false, remoteDays: [], workDays: [1, 2, 3, 4] }],
+  ['', { start: '09:00', remoteAll: false, remoteDays: [], workDays: [1, 2, 3, 4, 5] }],
+];
+for (const [s, want] of sc) { const got = aSched({ work_schedule: s }); if (JSON.stringify(got) !== JSON.stringify(want)) { bad++; console.log('FAIL', s, JSON.stringify(got)); } }
+console.log(bad ? 'ОШИБОК: ' + bad : 'aNext и aSched: всё сходится');
 process.exit(bad ? 1 : 0);

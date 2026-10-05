@@ -507,8 +507,10 @@ function cmChoice(msg, options) {
     });
   });
 }
-// документы как в форме Pyrus «Новый Договор Аренды/Субаренды»: сканы пишутся в поле договора, остальные — меткой в начале имени файла
-const SCAN_CHOICES = [{ value: 'contract_scan_url', label: 'Скан подписанного договора' }, { value: 'act_scan_url', label: 'Скан подписанного акта' },
+const SCAN_CHOICES = [{ value: 'contract_scan_url', label: 'Скан подписанного договора' }, { value: 'act_scan_url', label: 'Скан подписанного акта' }, { value: '', label: 'Другой документ' }];
+// обычный договор в оформлении (черновик/формирующийся, не срочный) — документы как в форме Pyrus «Новый Договор Аренды/Субаренды»:
+// сканы пишутся в поле договора, остальные — меткой в начале имени файла
+const PYRUS_DOC_CHOICES = [SCAN_CHOICES[0], SCAN_CHOICES[1],
   { value: 'doc:Таблица комнат', label: 'Таблица комнат' }, { value: 'doc:Контур помещения', label: 'Контур помещения' },
   { value: 'doc:Реквизиты арендатора', label: 'Реквизиты арендатора' }, { value: 'doc:Финальный договор', label: 'Финальный договор (DOC / PDF)' },
   { value: 'doc:Финальный акт', label: 'Финальный акт (DOC / PDF)' }, { value: 'doc:Счёт', label: 'Выставленный счёт' },
@@ -3731,7 +3733,8 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone, rec) {
     let scanField = root.__cmScanField; root.__cmScanField = null;
     // «+ Прикрепить файл»: спрашиваем, что это за документ — сканы договора и акта нужны для статуса «Не хватает документов»
     if (!scanField) {
-      const kind = await cmChoice('Что это за файл «' + file.name + '»?', SCAN_CHOICES);
+      const regularForming = collectionName !== 'rental_contracts' && !(rec && rec.is_quick);
+      const kind = await cmChoice('Что это за файл «' + file.name + '»?', regularForming ? PYRUS_DOC_CHOICES : SCAN_CHOICES);
       if (kind === null) { input.value = ''; return; }
       scanField = kind;
     }

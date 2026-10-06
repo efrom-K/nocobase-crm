@@ -3531,7 +3531,6 @@ function renderAddendumsList(items, canEdit) {
     return '<div class="cm-contact-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
       + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#595959;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
       + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
-      + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + '</div>'
       // файлы ДС — как в разделе «Файлы»: имя, размер, «Открыть», «Скачать» (удаление — через ✎)
       + ((a.files || []).length ? '<div style="margin-top:4px;font-size:12.5px;">' + renderFilesList(a.files, null) + '</div>' : '')
       + '</div>' + (canEdit ? '<div class="cm-contact-actions"><a data-addendum-edit="' + a.id + '" title="Изменить">✎</a><a data-addendum-del="' + a.id + '" title="Удалить">✕</a></div>' : '')
@@ -3550,7 +3549,7 @@ function nbFmtDateTimeLocal(iso) {
 
 async function loadAddendums(contractType, contractId) {
   const res = await ctx.api.resource('contract_addendums').list({
-    filter: { contract_type: contractType, contract_ref_id: contractId }, appends: ['files', 'author'], sort: ['created_at']
+    filter: { contract_type: contractType, contract_ref_id: contractId }, appends: ['files'], sort: ['created_at']
   });
   const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
   return Array.isArray(payload) ? payload : [];

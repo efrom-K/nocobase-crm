@@ -76,6 +76,9 @@ users = {u['id']: u['nickname'] or u['username'] for u in rows('select id, nickn
 side = lambda table, extra='': rows("select * from %s %s" % (table, extra))
 contacts, addendums, periods = side('contract_contacts', 'order by id'), side('contract_addendums', 'order by id'), side('contract_price_periods', 'order by date_from')
 files = {a['id']: (a['title'] or '') + (a['extname'] or '') for a in rows('select id, title, extname from attachments')}
+add_files = {}
+for x in rows('select addendum_id, attachment_id from contract_addendum_files order by attachment_id'):
+    add_files.setdefault(x['addendum_id'], []).append(files.get(x['attachment_id'], '#%s' % x['attachment_id']))
 
 def by_ref(items, t, i): return [x for x in items if x['contract_type'] == t and x['contract_ref_id'] == i]
 def fmt_period(p):
@@ -102,7 +105,7 @@ for coll, t, kind, mem, att in KINDS:
         r['_contacts'] = '; '.join(', '.join(x for x in (c.get('name'), c.get('position'), c.get('phone'), c.get('email')) if x) for c in by_ref(contacts, t, i)) or None
         r['_members'] = ', '.join(sorted(members.get(i, []))) or None
         r['_addendums'] = '; '.join((a.get('title') or 'Доп. соглашение') + (' от ' + '.'.join(reversed(str(a['date_signed'])[:10].split('-'))) if a.get('date_signed') else '') + (' — ' + a['description'] if a.get('description') else '')
-                                    + (' [скан: %s]' % files.get(a['file_id'], '#%s' % a['file_id']) if a.get('file_id') else ' [без скана]') for a in by_ref(addendums, t, i)) or None
+                                    + (' [файлы: %s]' % ', '.join(add_files[a['id']]) if add_files.get(a['id']) else ' [без скана]') for a in by_ref(addendums, t, i)) or None
         r['_periods'] = '; '.join(fmt_period(p) for p in by_ref(periods, t, i)) or None
         r['_files'] = ', '.join(fl.get(i, [])) or None
         data.append(r)

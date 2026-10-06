@@ -3513,10 +3513,10 @@ function renderAddendumsSection(prefix) {
     + '<div class="cm-field-row"><div class="cm-label">Дата заключения</div><input type="date" class="cm-field-input"' + DATE_ATTRS + ' id="' + prefix + '-addendum-date"></div>'
     + '<div class="cm-field-row full"><div class="cm-label">Описание и условия</div><textarea class="cm-field-input" id="' + prefix + '-addendum-desc" rows="2"></textarea></div>'
     + '</div>'
-    + '<div style="display:flex;align-items:center;gap:8px;">'
-    + '<input type="file" id="' + prefix + '-addendum-file" style="display:none;">'
-    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;">Выбрать файл</button>'
-    + '<span id="' + prefix + '-addendum-filename" style="font-size:12px;color:#999;">Файл не выбран</span>'
+    + '<div style="display:flex;align-items:flex-start;gap:8px;">'
+    + '<input type="file" multiple id="' + prefix + '-addendum-file" style="display:none;">'
+    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;white-space:nowrap;">+ Файлы</button>'
+    + '<div id="' + prefix + '-addendum-filename" style="font-size:12px;color:#999;align-self:center;">Файлы не выбраны</div>'
     + '</div>'
     + '<div class="cm-stage-edit-actions">'
     + '<button class="cm-btn-save cm-btn-primary" id="' + prefix + '-addendum-save-btn">Сохранить</button>'
@@ -3528,9 +3528,9 @@ function renderAddendumsSection(prefix) {
 function renderAddendumsList(items, canEdit) {
   if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет дополнительных соглашений</div>';
   return items.map(function(a) {
-    const fileHtml = a.file
-      ? '<span class="cm-addendum-file" data-att-url="' + esc(a.file.url) + '" data-att-name="' + esc((a.file.title || 'file') + (a.file.extname || '')) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc((a.file.title || 'file') + (a.file.extname || '')) + '</span>'
-      : '';
+    const fileHtml = (a.files || []).map(function(f) {
+      return '<span class="cm-addendum-file" data-att-url="' + esc(f.url) + '" data-att-name="' + esc(attName(f)) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc(attName(f)) + '</span>';
+    }).join(', ');
     return '<div class="cm-contact-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
       + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#595959;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
       + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
@@ -3539,6 +3539,8 @@ function renderAddendumsList(items, canEdit) {
       + '</div>';
   }).join('');
 }
+
+function attName(f) { return (f.title || 'file') + (f.extname || ''); }
 
 function nbFmtDateTimeLocal(iso) {
   if (!iso) return '';
@@ -3549,7 +3551,7 @@ function nbFmtDateTimeLocal(iso) {
 
 async function loadAddendums(contractType, contractId) {
   const res = await ctx.api.resource('contract_addendums').list({
-    filter: { contract_type: contractType, contract_ref_id: contractId }, appends: ['file', 'author'], sort: ['created_at']
+    filter: { contract_type: contractType, contract_ref_id: contractId }, appends: ['files', 'author'], sort: ['created_at']
   });
   const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
   return Array.isArray(payload) ? payload : [];
@@ -3590,10 +3592,25 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   // изменять и удалять — те же, кто работает с карточкой (в архиве — только просмотр)
   const canEdit = contractType !== 'completed' && (contractType === 'draft' || canEditActiveBlocks(currentUser));
   let items = [], editId = null;
+  let keepFiles = [], newFiles = [];   // уже прикреплённые (при изменении) и выбранные сейчас
+  function renderChosen() {
+    const rows = keepFiles.map(function(f, i) { return { name: attName(f), k: 'keep', i: i }; })
+      .concat(newFiles.map(function(f, i) { return { name: f.name, k: 'new', i: i }; }));
+    filenameSpan.innerHTML = rows.length ? rows.map(function(r) {
+      return '<div style="color:#595959;">' + esc(r.name) + ' <a data-chosen-del="' + r.k + ':' + r.i + '" title="Убрать" style="color:#999;cursor:pointer;">✕</a></div>';
+    }).join('') : 'Файлы не выбраны';
+    filenameSpan.querySelectorAll('[data-chosen-del]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        const kv = el.getAttribute('data-chosen-del').split(':');
+        (kv[0] === 'keep' ? keepFiles : newFiles).splice(+kv[1], 1);
+        renderChosen();
+      });
+    });
+  }
   function resetForm() {
     editId = null;
     titleInput.value = ''; descInput.value = ''; dateInput.value = ''; fileInput.value = '';
-    filenameSpan.textContent = 'Файл не выбран';
+    keepFiles = []; newFiles = []; renderChosen();
     saveBtn.textContent = 'Сохранить';
   }
   async function refresh() {
@@ -3608,7 +3625,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
         if (!a) return;
         editId = a.id;
         titleInput.value = a.title || ''; descInput.value = a.description || ''; dateInput.value = toISODate(a.date_signed) || ''; fileInput.value = '';
-        filenameSpan.textContent = a.file ? 'Сейчас: ' + (a.file.title || 'файл') + (a.file.extname || '') + ' — можно выбрать другой' : 'Файл не выбран';
+        keepFiles = (a.files || []).slice(); newFiles = []; renderChosen();
         saveBtn.textContent = 'Сохранить изменения';
         formEl.style.display = 'block';
         titleInput.focus();
@@ -3617,10 +3634,10 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
     listEl.querySelectorAll('[data-addendum-del]').forEach(function(el) {
       el.addEventListener('click', async function() {
         const a = items.find(function(x) { return String(x.id) === el.getAttribute('data-addendum-del'); });
-        if (!a || !(await cmConfirm('Удалить дополнительное соглашение «' + (a.title || 'без названия') + '»?' + (a.file ? ' Прикреплённый файл тоже будет удалён.' : '')))) return;
+        if (!a || !(await cmConfirm('Удалить дополнительное соглашение «' + (a.title || 'без названия') + '»?' + ((a.files || []).length ? ' Прикреплённые файлы тоже будут удалены.' : '')))) return;
         try {
           await ctx.api.resource('contract_addendums').destroy({ filterByTk: a.id });
-          if (a.file && a.file.id) { try { await ctx.api.resource('attachments').destroy({ filterByTk: a.file.id }); } catch (e) { /* файл мог быть удалён раньше */ } }
+          for (const f of (a.files || [])) { try { await ctx.api.resource('attachments').destroy({ filterByTk: f.id }); } catch (e) { /* файл мог быть удалён раньше */ } }
           logHistory(contractType, contractId, [{ action: 'addendum', text: 'Удалено дополнительное соглашение: ' + (a.title || 'без названия') }]);
           if (editId === a.id) { resetForm(); formEl.style.display = 'none'; }
           await refresh();
@@ -3642,7 +3659,9 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   });
   pickBtn.addEventListener('click', function() { fileInput.click(); });
   fileInput.addEventListener('change', function() {
-    filenameSpan.textContent = fileInput.files[0] ? fileInput.files[0].name : 'Файл не выбран';
+    newFiles = newFiles.concat(Array.from(fileInput.files));
+    fileInput.value = '';   // тот же файл можно выбрать снова, выбор добавляется к уже выбранным
+    renderChosen();
   });
   saveBtn.addEventListener('click', async function() {
     const title = titleInput.value.trim();
@@ -3650,35 +3669,35 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
     const dp = dateProblem(dateInput.value);
     if (dp) { cmToast('Дата заключения: ' + dp); dateInput.focus(); return; }
     // без скана ДС договор получит статус «Не хватает документов» — предупреждаем, а не молча сохраняем
-    const hadFile = editId && (items.find(function(x) { return x.id === editId; }) || {}).file;
-    if (!fileInput.files[0] && !hadFile && !(await cmConfirm('Скан дополнительного соглашения не выбран — договор получит статус «Не хватает документов», пока скан не загрузят. Сохранить без файла?'))) return;
+    if (!keepFiles.length && !newFiles.length && !(await cmConfirm('Скан дополнительного соглашения не выбран — договор получит статус «Не хватает документов», пока скан не загрузят. Сохранить без файла?'))) return;
     saveBtn.disabled = true;
     statusSpan.textContent = 'Сохранение…';
     try {
-      let fileId = null;
-      if (fileInput.files[0]) {
-        statusSpan.textContent = 'Загрузка файла…';
-        fileId = await uploadFileGetId(fileInput.files[0]);
+      const fileIds = keepFiles.map(function(f) { return f.id; });
+      for (let i = 0; i < newFiles.length; i++) {
+        statusSpan.textContent = 'Загрузка файлов… ' + (i + 1) + ' из ' + newFiles.length;
+        fileIds.push(await uploadFileGetId(newFiles[i]));
       }
       if (editId) {
         const old = items.find(function(x) { return x.id === editId; }) || {};
-        const upd = { title: title, description: descInput.value.trim(), date_signed: dateInput.value || null };
-        if (fileId) upd.file_id = fileId;
+        const upd = { title: title, description: descInput.value.trim(), date_signed: dateInput.value || null, files: fileIds };
         await ctx.api.resource('contract_addendums').update({ filterByTk: editId, values: upd });
-        // новый файл заменил старый — старый удаляем
-        if (fileId && old.file && old.file.id) { try { await ctx.api.resource('attachments').destroy({ filterByTk: old.file.id }); } catch (e) { /* ignore */ } }
+        // убранные из списка файлы удаляем совсем
+        const removed = (old.files || []).filter(function(f) { return fileIds.indexOf(f.id) < 0; });
+        for (const f of removed) { try { await ctx.api.resource('attachments').destroy({ filterByTk: f.id }); } catch (e) { /* ignore */ } }
         const what = [];
         if ((old.title || '') !== title) what.push('название «' + (old.title || '') + '» → «' + title + '»');
         if ((old.description || '') !== upd.description) what.push('описание');
         if ((toISODate(old.date_signed) || '') !== (upd.date_signed || '')) what.push('дата заключения ' + (upd.date_signed ? fmtDate(upd.date_signed) : '— удалена'));
-        if (fileId) what.push('файл');
+        if (newFiles.length) what.push('добавлено файлов: ' + newFiles.length);
+        if (removed.length) what.push('удалено файлов: ' + removed.length);
         logHistory(contractType, contractId, [{ action: 'addendum', text: 'Изменено дополнительное соглашение «' + title + '»' + (what.length ? ': ' + what.join(', ') : '') }]);
       } else {
         await ctx.api.resource('contract_addendums').create({
           values: {
             contract_type: contractType, contract_ref_id: contractId,
             title: title, description: descInput.value.trim(), date_signed: dateInput.value || null,
-            file_id: fileId, author_id: currentUser.id, created_at: new Date().toISOString()
+            files: fileIds, author_id: currentUser.id, created_at: new Date().toISOString()
           }
         });
         logHistory(contractType, contractId, [{ action: 'addendum', text: 'Добавлено дополнительное соглашение: ' + title + (dateInput.value ? ' от ' + fmtDate(dateInput.value) : '') }]);

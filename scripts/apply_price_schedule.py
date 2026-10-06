@@ -57,17 +57,19 @@ def lines_totals(lines):
         if r > 0: rent += round(mul_money(r, a) * 100)
     return area / 100, rent / 100
 def effective_area(c, rent_period):
+    # (площадь, задана строками?) или None — как effectiveArea в карточке
     pl = lines_of(rent_period.get('rent_lines')) if rent_period else None
-    if pl: return lines_totals(pl)[0]
+    if pl: return lines_totals(pl)[0], True
     bl = lines_of(c.get('area_lines'))
-    return lines_totals(bl)[0] if bl else None
+    if bl: return lines_totals(bl)[0], True
+    return (float(c['base_area_sqm']), False) if c.get('base_area_sqm') is not None else None
 def num(v): return ('%.2f' % v).rstrip('0').rstrip('.')                     # 1200.0 → «1200», 1200.5 → «1200.5» (как в истории карточек)
 def fmt(v): return '{:,.2f}'.format(v).replace(',', ' ').replace('.', ',')   # всегда до сотых: 65,00
 def dmy(iso): y, m, d = iso.split('-'); return '%s.%s.%s' % (d, m, y)
 
 psql("create table if not exists contract_price_applied(contract_id bigint primary key, sig text not null, applied_at timestamptz default now())")
 T = TODAY.isoformat()
-contracts = jrows("select id, contract_number, object_name, area_sqm, area_lines, rent_per_sqm, rent_amount, base_rent_per_sqm, base_rent_amount, "
+contracts = jrows("select id, contract_number, object_name, area_sqm, base_area_sqm, area_lines, rent_per_sqm, rent_amount, base_rent_per_sqm, base_rent_amount, "
                   "utility_per_sqm, utility_amount, base_utility_per_sqm, base_utility_amount, deposit_amount, base_deposit_amount, total_amount from rental_contracts "
                   "where (termination_date is null or termination_date >= current_date) and (id in (select contract_ref_id from contract_price_periods where contract_type='active') "
                   "or id in (select contract_id from contract_price_applied))")
@@ -116,7 +118,8 @@ def target(c, iso):
         eff = [p for p in periods.get(c['id'], []) if p['date_from'] <= iso <= p['date_to'] and (p['unit'] or 'month') == 'month' and comp[6](p)]
         return eff[-1] if eff else None
     # несколько площадей: площадь на дату — по периоду аренды или основным площадям (её берут ставки «за 1 квадратный метр»)
-    eff_area = effective_area(c, period_for(COMPONENTS[0]))
+    ea = effective_area(c, period_for(COMPONENTS[0]))
+    eff_area = ea[0] if ea else None
     area = eff_area if eff_area is not None else (c['area_sqm'] or 0)
     new, sig, texts, warn = {}, [], [], []
     for comp in COMPONENTS:
@@ -138,7 +141,7 @@ def target(c, iso):
                 if per_f: new[per_f] = c[base_per]
                 new[amt_f] = c[base_amt]
                 # основная цена за метр при нескольких площадях — от площади на эту дату
-                if eff_area is not None and base_per and c[base_per] is not None and area > 0: new[amt_f] = mul_money(c[base_per], area)
+                if ea and ea[1] and base_per and c[base_per] is not None and area > 0: new[amt_f] = mul_money(c[base_per], area)
             sig.append('%s:base|%s|%s' % (key, c[base_per] if base_per else '', c[base_amt]))
             texts.append('%s: основное значение %s' % (title.capitalize(), base_text(comp, c)))
             warn.append('%s вернётся к основному значению %s' % (title, base_text(comp, c)))

@@ -102,6 +102,14 @@ case('площади: добавили 20 м² × 70 по периоду, сбо
 case('площади: копейки по строкам 10,05 × 33,33 + 0,1 × 26,75', dict(ML, area_lines=[{'area': 10.05, 'rate': 33.33}, {'area': 0.1, 'rate': 26.75}]), [], '2026-10-02',
      {'area_sqm': 10.15, 'utility_amount': 304.5})
 case('площади: период «за метр» на всю площадь', ML, [P(1, '2026-10-01', None, rent=90)], '2026-10-02', {'area_sqm': 145, 'rent_per_sqm': 90, 'rent_amount': 13050})
+# простая основная ставка + период по площадям (режимы независимы): основная площадь — base_area_sqm
+SL = dict(BASE, area_sqm=145, base_area_sqm=145, base_rent_per_sqm=100, base_rent_amount=14500, base_utility_per_sqm=30, base_utility_amount=4350)
+case('простой договор: без периодов — площадь основная', SL, [], '2026-10-02', {'area_sqm': 145, 'rent_amount': 14500, 'utility_amount': 4350})
+case('простой договор + период по площадям: 100 × 100', SL, [P(1, '2026-10-01', '2026-10-31', lines=[{'area': 100, 'rate': 100}])], '2026-10-02',
+     {'area_sqm': 100, 'rent_per_sqm': None, 'rent_amount': 10000, 'utility_amount': 3000})
+case('простой договор: период по площадям кончился — снова 145 м²', SL, [P(1, '2026-10-01', '2026-10-31', lines=[{'area': 100, 'rate': 100}])], '2026-11-01',
+     {'area_sqm': 145, 'rent_per_sqm': 100, 'rent_amount': 14500, 'utility_amount': 4350})
+case('простой договор, сбор суммой вручную — не пересчитываем от площади', dict(SL, base_utility_amount=4000), [], '2026-10-02', {'utility_amount': 4000})
 
 cases = [{'rec': rec, 'periods': periods, 'iso': iso} for (_, rec, periods, iso, _) in S]
 js = js_values(cases)
@@ -151,6 +159,7 @@ for n in range(400):
         ln = random.choice([None, None, [{'area': 100, 'rate': 100}], [{'area': 10.05, 'rate': 33.33}, {'area': 0.1, 'rate': 26.75}]])
         ps.append(P(k + 1, a.isoformat(), b, rent=random.choice([None, 90, 950.5, 1.005]), rent_basis=random.choice(['per_sqm', 'fixed']),
                     util=random.choice([None, 25, 300]), util_basis=random.choice(['per_sqm', 'fixed']), dep=random.choice([None, 1500]), lines=ln))
+    if random.random() < 0.3: rec['base_area_sqm'] = random.choice([None, 145, 0.5])
     if random.random() < 0.4: rec['area_lines'] = random.choice([[{'area': 100, 'rate': 100}, {'area': 45, 'rate': 50}], [{'area': 317.9, 'rate': 408.94}], []])
     iso = (date(2026, 9, 25) + timedelta(days=random.randint(0, 110))).isoformat()
     rc.append((rec, ps, iso))

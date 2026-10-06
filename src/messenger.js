@@ -265,6 +265,9 @@ function injectStyle() {
     .msgr-info-body { flex:1; min-height:0; overflow-y:auto; padding:8px 10px 14px; }
     .msgr-add-member-btn { display:block; width:100%; text-align:left; background:#eef5ff; color:#1c2d58; border:none; border-radius:9px; padding:9px 10px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:8px; }
     .msgr-add-member-btn:hover { background:#e2edff; }
+    .msgr-del-chat-btn { display:block; width:100%; margin-top:14px; background:#fff1f0; color:#cf1322; border:none; border-radius:9px; padding:9px 10px; font-size:13px; font-weight:600; cursor:pointer; }
+    .msgr-del-chat-btn:hover { background:#ffe2df; }
+    .msgr-del-chat-btn:disabled { opacity:.6; cursor:default; }
     .msgr-member-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; }
     .msgr-member-row:hover { background:#f2f5fa; }
     .msgr-member-meta { flex:1; min-width:0; }
@@ -1005,6 +1008,29 @@ function toggleInfoPanel(win, convId) {
   renderInfoPanel(win, convId, 'members');
 }
 
+// Только для админа: чат удаляется у всех участников вместе с перепиской (файлы-вложения остаются в хранилище).
+async function deleteConversation(conv, btn) {
+  const title = conv.is_group ? (conv.name || 'групповой чат') : 'этот чат';
+  if (!confirm('Удалить ' + title + ' у всех участников вместе со всей перепиской? Отменить нельзя.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Удаляю…';
+  try {
+    const byConv = { filter: { conversation_id: conv.id } };
+    for (const r of ['chat_messages', 'chat_folder_items', 'chat_notifications', 'chat_conversation_members']) {
+      await ctx.api.resource(r).destroy(byConv);
+    }
+    await ctx.api.resource('chat_conversations').destroy({ filterByTk: conv.id });
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Не удалось удалить — ещё раз';
+    btn.title = (err && err.message) || String(err);
+    return;
+  }
+  closeChatWindow();
+  await loadMyConversations();
+  renderConvList(root, currentSearchValue(root));
+}
+
 async function renderInfoPanel(win, convId, tab) {
   const conv = state.conversations.find(function (c) { return c.id === convId; });
   if (!conv) return;
@@ -1043,10 +1069,16 @@ async function renderInfoPanel(win, convId, tab) {
         '<div class="msgr-member-status"><span class="msgr-status-dot' + (online ? ' online' : '') + '"></span>' +
         '<span class="' + (online ? 'online-text' : 'offline-text') + '">' + esc(label) + '</span></div></div>' +
       '</div>';
-    }).join('');
+    }).join('') +
+      (state.currentUser.__isAdmin ? '<button class="msgr-del-chat-btn" id="msgr-del-chat-btn">Удалить чат</button>' : '');
     body.querySelector('#msgr-add-member-btn').addEventListener('click', function (e) {
       e.stopPropagation();
       openAddMemberModal(convId);
+    });
+    const delBtn = body.querySelector('#msgr-del-chat-btn');
+    if (delBtn) delBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      deleteConversation(conv, delBtn);
     });
   } else {
     body.innerHTML =
@@ -1134,6 +1166,7 @@ try {
   const res = await fetch('/api/auth:check', { headers: { Authorization: 'Bearer ' + authToken() } });
   const data = await res.json();
   state.currentUser = data && data.data;
+  if (state.currentUser) { const rn = (state.currentUser.roles || []).map(function (r) { return r.name; }); state.currentUser.__isAdmin = rn.indexOf('admin') !== -1 || rn.indexOf('root') !== -1; }
 } catch (e) {}
 if (!state.currentUser) {
   root.querySelector('#msgr-conv-list').innerHTML = '<div class="msgr-empty">Не удалось определить пользователя</div>';

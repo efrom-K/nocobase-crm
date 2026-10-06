@@ -10,7 +10,7 @@ function nbSessionAlive() {
   try { return !!localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return false; }
 }
 
-const API = location.protocol + '//' + location.hostname + ':8096/api';
+const API = (location.port ? location.protocol + '//' + location.hostname + ':8096' : location.origin + '/mailsvc') + '/api';
 function authToken() { try { return localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return null; } }
 function esc(v) { return String(v === null || v === undefined ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function qs(o) { return Object.keys(o).filter(function(k) { return o[k] !== undefined && o[k] !== null && o[k] !== ''; }).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(o[k]); }).join('&'); }
@@ -251,7 +251,7 @@ if (!document.getElementById('cm-hide-ai-chat')) {
 if (!window.__mlBadgeTimer) {
   window.__mlBadgeTimer = true;
   (function() {
-    const MAIL_API = location.protocol + '//' + location.hostname + ':8096/api';
+    const MAIL_API = (location.port ? location.protocol + '//' + location.hostname + ':8096' : location.origin + '/mailsvc') + '/api';
     let off = false;
     function menuItem() {
       const els = document.querySelectorAll('.ant-menu-item, .ant-menu-submenu-title');

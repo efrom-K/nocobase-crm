@@ -81,7 +81,7 @@ function avatarColor(id) {
 if (!window.__mlBadgeTimer) {
   window.__mlBadgeTimer = true;
   (function() {
-    const MAIL_API = location.protocol + '//' + location.hostname + ':8096/api';
+    const MAIL_API = (location.port ? location.protocol + '//' + location.hostname + ':8096' : location.origin + '/mailsvc') + '/api';
     let off = false;
     function menuItem() {
       const els = document.querySelectorAll('.ant-menu-item, .ant-menu-submenu-title');

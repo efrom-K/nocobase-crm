@@ -152,6 +152,11 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-value { color: #262626; font-size: 14px; }
     .cm-file-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f0f0f0; }
     .cm-file-row:last-child { border-bottom: none; }
+    .cm-al { grid-column: 1 / -1; }
+    .cm-al-row { display:flex; align-items:center; gap:8px; margin-top:6px; }
+    .cm-al-row input { width:120px; }
+    .cm-al-sum { color:#595959; font-size:12.5px; min-width:120px; }
+    .cm-al-total { margin-top:8px; font-size:12.5px; color:#262626; }
     #contract-modal-root .ant-modal-mask { opacity: 0; transition: opacity .22s cubic-bezier(0.36,0.66,0.04,1); }
     #contract-modal-root .ant-modal { transform: scale(0.82) translateY(-8px); opacity: 0; transition: transform .25s cubic-bezier(0.34,1.56,0.64,1), opacity .2s ease; }
     #contract-modal-root.cm-open .ant-modal-mask { opacity: 1; }
@@ -1056,6 +1061,7 @@ function normalizeValue(name, raw) {
 
 // значение для API: числовые поля — Number/null, остальные без изменений
 function toApiValue(name, v) {
+  if (name === 'area_lines') { const l = areaLinesOf(v); return l && l.length ? l : null; }   // в форме — JSON строкой, в базе — массив
   const rule = FIELD_RULES[name];
   if (rule && (rule.kind === 'decimal' || rule.kind === 'money')) {
     if (v === '' || v === null || v === undefined) return null;
@@ -1209,8 +1215,94 @@ function tidyFieldRows(scope) {
     }
   });
 }
+// таблица строк «площадь × ставка» (форма договора и период «Дополнительных расчётов»):
+// body — контейнер, initial — строки, onChange(строки) — после каждого изменения. В расчёт идут только правильно введённые числа (до сотых)
+function mountAreaLinesEditor(body, initial, onChange) {
+  let lines = (initial || []).map(function(l) { return { area: fixed2Input(l.area), rate: fixed2Input(l.rate) }; });
+  if (!lines.length) lines = [{ area: '', rate: '' }];
+  const okNum = function(v) { return /^\d{1,9}(,\d{1,2})?$/.test(String(v)); };
+  function valid() { return lines.filter(function(l) { return okNum(l.area) && numOf(l.area) > 0 && (!l.rate || okNum(l.rate)); }).map(function(l) { return { area: numOf(l.area), rate: numOf(l.rate) || 0 }; }); }
+  function sum(l) { return okNum(l.area) && okNum(l.rate) && numOf(l.area) > 0 && numOf(l.rate) > 0 ? '= ' + formatNum(mulMoney(numOf(l.rate), numOf(l.area))) + ' ₽' : ''; }
+  function commit() {
+    const v = valid(), t = areaLinesTotals(v), tot = body.querySelector('.cm-al-total');
+    if (tot) tot.textContent = v.length ? 'Итого: ' + formatNum(t.area) + ' м², арендная плата ' + formatNum(t.rent) + ' ₽ в месяц' : '';
+    if (onChange) onChange(v);
+  }
+  function render() {
+    body.innerHTML = lines.map(function(l, i) {
+      return '<div class="cm-al-row"><input type="text" class="cm-field-input" inputmode="decimal" data-al-area="' + i + '" placeholder="Площадь, м²" value="' + escAttr(l.area) + '">'
+        + '<span>×</span><input type="text" class="cm-field-input" inputmode="decimal" data-al-rate="' + i + '" placeholder="Ставка за 1 м², ₽" value="' + escAttr(l.rate) + '">'
+        + '<span class="cm-al-sum" data-al-sum="' + i + '">' + esc(sum(l)) + '</span>'
+        + (lines.length > 1 ? '<a href="#" data-al-del="' + i + '" title="Убрать площадь" style="color:#999;">✕</a>' : '') + '</div>';
+    }).join('') + '<a href="#" data-al-add style="display:inline-block;margin-top:6px;font-size:12.5px;">+ Площадь</a><div class="cm-al-total"></div>';
+    body.querySelectorAll('[data-al-area],[data-al-rate]').forEach(function(inp) {
+      const i = Number(inp.getAttribute('data-al-area') || inp.getAttribute('data-al-rate')), k = inp.hasAttribute('data-al-area') ? 'area' : 'rate';
+      inp.addEventListener('input', function() {
+        lines[i][k] = inp.value.replace(/[\s ]/g, '').replace(/\./g, ',');
+        inp.style.borderColor = lines[i][k] && !okNum(lines[i][k]) ? '#ff4d4f' : '';
+        body.querySelector('[data-al-sum="' + i + '"]').textContent = sum(lines[i]);
+        commit();
+      });
+      inp.addEventListener('blur', function() { if (okNum(lines[i][k])) { lines[i][k] = fixed2Input(lines[i][k]); inp.value = lines[i][k]; } });
+    });
+    body.querySelectorAll('[data-al-del]').forEach(function(a) { a.addEventListener('click', function(e) { e.preventDefault(); lines.splice(Number(a.getAttribute('data-al-del')), 1); render(); }); });
+    body.querySelector('[data-al-add]').addEventListener('click', function(e) { e.preventDefault(); lines.push({ area: '', rate: '' }); render(); });
+    commit();
+  }
+  render();
+  return { valid: valid };
+}
+// «Несколько площадей» в форме договора: галочка заменяет поля площади и ставки таблицей строк.
+// Итог (площадь, арендная плата) пишется при сохранении (areaLinesUpdates); здесь — ввод и показ итога.
+function wireAreaLines(scope) {
+  scope.querySelectorAll('[data-al]').forEach(function(box) {
+    if (box.__cmAl) return;
+    box.__cmAl = true;
+    const hidden = box.querySelector('[data-field="area_lines"]'), on = box.querySelector('[data-al-on]'), body = box.querySelector('[data-al-body]');
+    const form = box.closest('.cm-stage-form') || box.parentNode;
+    const modal = box.closest('#contract-modal-root') || box.closest('#forming-modal-root') || form;
+    function rowOf(name, scopeEl) { const el = scopeEl.querySelector('[data-field="' + name + '"]'); return el ? { el: el, row: el.closest('.cm-field-row') } : null; }
+    function setMode(multi) {
+      // площадь и ставка за метр — заменяются таблицей; арендная плата в месяц — только чтение (считается по площадям)
+      ['area_sqm', 'rent_per_sqm', 'base_rent_per_sqm'].forEach(function(n) { const x = rowOf(n, form); if (x && x.row) x.row.style.display = multi ? 'none' : ''; });
+      ['rent_amount', 'base_rent_amount'].forEach(function(n) {
+        modal.querySelectorAll('[data-field="' + n + '"]').forEach(function(el) {
+          el.readOnly = multi; el.classList.toggle('cm-field-calc', multi);
+          const row = el.closest('.cm-field-row'); if (!row) return;
+          let h = row.querySelector('.cm-al-hint');
+          if (multi && !h) { h = document.createElement('div'); h.className = 'cm-derived-hint cm-al-hint'; h.textContent = 'Считается по площадям'; row.appendChild(h); }
+          if (!multi && h) h.remove();
+        });
+      });
+      body.style.display = multi ? '' : 'none';
+    }
+    function changed(v) {
+      hidden.value = on.checked && v.length ? JSON.stringify(v) : '';
+      fireInput(hidden); fireChange(hidden);
+      if (!on.checked || !v.length) return;
+      // сразу показать итог в полях договора (сохраняется он всё равно из площадей)
+      const t = areaLinesTotals(v), a = rowOf('area_sqm', form);
+      if (a) a.el.value = fixed2Input(t.area);
+      ['rent_amount', 'base_rent_amount'].forEach(function(n) { modal.querySelectorAll('[data-field="' + n + '"]').forEach(function(el) { el.value = fixed2Input(t.rent); }); });
+      ['rent_per_sqm', 'base_rent_per_sqm'].forEach(function(n) { const x = rowOf(n, form); if (x) x.el.value = ''; });
+    }
+    on.addEventListener('change', function() {
+      let init = areaLinesOf(hidden.value) || [];
+      if (on.checked && !init.length) {
+        // первая строка — из текущих площади и ставки
+        const a = rowOf('area_sqm', form), p = rowOf('rent_per_sqm', form) || rowOf('base_rent_per_sqm', form);
+        init = [{ area: a && a.el.value ? a.el.value : '', rate: p && p.el.value ? p.el.value : '' }, { area: '', rate: '' }];
+      }
+      setMode(on.checked);
+      if (on.checked) mountAreaLinesEditor(body, init, changed); else changed([]);
+    });
+    setMode(on.checked);
+    if (on.checked) mountAreaLinesEditor(body, areaLinesOf(hidden.value) || [], changed);
+  });
+}
 function wireFieldRules(formEl) {
   if (!formEl) return;
+  wireAreaLines(formEl);
   formEl.querySelectorAll('[data-field]').forEach(function(el) {
     const name = el.getAttribute('data-field');
     const rule = FIELD_RULES[name];
@@ -1279,6 +1371,7 @@ function histVal(v) {
   if (v === null || v === undefined) return '';
   if (v === true) return 'Да';
   if (v === false) return 'Нет';
+  if (Array.isArray(v)) return areaLinesText(v);   // площади и ставки
   return String(v);
 }
 function userNameById(users, uid) {
@@ -1334,10 +1427,11 @@ async function logFieldChanges(type, id, oldRec, values) {
 async function updateWithHistory(collection, id, values, opts) {
   let old = null;
   try { old = histPayload(await ctx.api.resource(collection).get({ filterByTk: id })); } catch (e) { old = null; }
-  let derived = {};
+  let derived = areaLinesUpdates(values, collection);
+  if (Object.keys(derived).length) values = Object.assign({}, values, derived);
   if (old && DERIVED_COLLECTIONS[collection]) {
-    derived = derivedUpdates(old, values);
-    if (Object.keys(derived).length) values = Object.assign({}, values, derived);
+    const d = derivedUpdates(old, values);
+    if (Object.keys(d).length) { values = Object.assign({}, values, d); derived = Object.assign({}, derived, d); }
   }
   // ручная правка текущей цены активного договора = правка основного значения, если сегодня для этой цены не действует период
   if (collection === 'rental_contracts' && !(opts && opts.schedule)) {
@@ -1461,6 +1555,35 @@ function mulMoney(rate, area) {
   const a = Math.round(Number(rate) * 100), b = Math.round(Number(area) * 100);
   return Math.floor((a * b + 50) / 100) / 100;
 }
+// «Несколько площадей с разными ставками»: area_lines договора / rent_lines периода = [{ area, rate }]; null — обычный режим.
+// Площадь договора = сумма площадей, арендная плата = сумма «площадь × ставка» (каждая строка до копейки), ставки за метр нет.
+// Та же логика — lines_* в scripts/apply_price_schedule.py
+function areaLinesOf(v) {
+  if (typeof v === 'string') { if (!v.trim()) return null; try { v = JSON.parse(v); } catch (e) { return null; } }
+  return Array.isArray(v) ? v : null;
+}
+function areaLinesTotals(lines) {
+  let area = 0, rent = 0;
+  (lines || []).forEach(function(l) {
+    const a = numOf(l.area), r = numOf(l.rate);
+    if (!(a > 0)) return;
+    area += Math.round(a * 100);
+    if (r > 0) rent += Math.round(mulMoney(r, a) * 100);
+  });
+  return { area: area / 100, rent: rent / 100 };
+}
+function areaLinesText(lines) {
+  return (lines || []).filter(function(l) { return numOf(l.area) > 0; }).map(function(l) {
+    return formatNum(l.area) + ' м² × ' + formatNum(l.rate) + ' ₽ = ' + formatNum(mulMoney(numOf(l.rate) || 0, numOf(l.area))) + ' ₽';
+  }).join('; ');
+}
+// площадь договора на дату: по площадям периода аренды, иначе по основным площадям; null — обычный режим (площадь договора как есть)
+function effectiveArea(rec, rentPeriod) {
+  const pl = rentPeriod && areaLinesOf(rentPeriod.rent_lines);
+  if (pl && pl.length) return areaLinesTotals(pl).area;
+  const bl = areaLinesOf(rec.area_lines);
+  return bl && bl.length ? areaLinesTotals(bl).area : null;
+}
 const DERIVED_COLLECTIONS = { rental_contracts: true, forming_contracts: true };
 const DERIVED_SOURCES = ['area_sqm', 'rent_per_sqm', 'utility_per_sqm', 'rent_amount', 'utility_amount', 'base_rent_per_sqm', 'base_utility_per_sqm'];
 const DERIVED_PAIRS = [{ target: 'rent_amount', per: 'rent_per_sqm' }, { target: 'utility_amount', per: 'utility_per_sqm' }, { target: 'base_rent_amount', per: 'base_rent_per_sqm' }, { target: 'base_utility_amount', per: 'base_utility_per_sqm' }];
@@ -1469,10 +1592,22 @@ function hasKey(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
 
 // Мягкий пересчёт: что изменится в БД вместе с сохранением. Сумма пересчитывается только если она пустая
 // или совпадала с прежним расчётом (то есть не правилась вручную); ставка — только если пустая.
-function derivedUpdates(oldRec, values) {
-  if (!DERIVED_SOURCES.some(function(k) { return hasKey(values, k); })) return {};
-  const nr = Object.assign({}, oldRec, values);
+// несколько площадей: площадь = сумма площадей, арендная плата = сумма «площадь × ставка», ставки за метр нет.
+// У активного это основная цена (base_*), текущую затем выставляет «Дополнительные расчёты аренды»
+function areaLinesUpdates(values, collection) {
   const upd = {};
+  const lines = hasKey(values, 'area_lines') ? areaLinesOf(values.area_lines) : null;
+  if (!lines || !lines.length) return upd;
+  const t = areaLinesTotals(lines), act = collection === 'rental_contracts';
+  upd.area_sqm = t.area;
+  upd[act ? 'base_rent_amount' : 'rent_amount'] = t.rent;
+  upd[act ? 'base_rent_per_sqm' : 'rent_per_sqm'] = null;
+  return upd;
+}
+function derivedUpdates(oldRec, values) {
+  const upd = {};
+  if (!DERIVED_SOURCES.some(function(k) { return hasKey(values, k); })) return upd;
+  const nr = Object.assign({}, oldRec, values);
   const areaOld = numOf(oldRec.area_sqm), areaNew = numOf(nr.area_sqm);
   DERIVED_PAIRS.forEach(function(p) {
     const perOld = numOf(oldRec[p.per]), perNew = numOf(nr[p.per]);
@@ -1638,11 +1773,22 @@ function compValues(comp, p, rec) {
 // текущие цены договора на дату: { values: {поле: значение}, active: {rent|utility|deposit: период|null} }
 function scheduleTarget(periods, rec, iso) {
   const values = {}, active = {};
-  PRICE_COMPONENTS.forEach(function(c) { const p = periodFor(periods, iso, c); active[c.key] = p; Object.assign(values, compValues(c, p, rec)); });
+  // несколько площадей: площадь на дату (её берут ставки «за 1 квадратный метр», например сбор) — по периоду аренды или основным площадям
+  const area = effectiveArea(rec, periodFor(periods, iso, PRICE_COMPONENTS[0]));
+  const r = area === null ? rec : Object.assign({}, rec, { area_sqm: area });
+  PRICE_COMPONENTS.forEach(function(c) {
+    const p = periodFor(periods, iso, c), v = compValues(c, p, r), per = c.basePer ? numOf(rec[c.basePer]) : null;
+    // основная цена «за 1 квадратный метр» при нескольких площадях — от площади на эту дату (площадь могла смениться периодом)
+    if (!p && area !== null && per !== null && area > 0) v[c.amtField] = mulMoney(per, area);
+    active[c.key] = p; Object.assign(values, v);
+  });
+  if (area !== null) values.area_sqm = area;
   return { values: values, active: active };
 }
 function compLabel(comp, p) {
   const v = formatNum(comp.value(p)) + ' ₽';
+  const pl = comp.key === 'rent' ? areaLinesOf(p.rent_lines) : null;
+  if (pl && pl.length) return v + ' в месяц (' + areaLinesText(pl) + ')';
   return comp.basis(p) === 'per_sqm' && comp.perField ? v + ' за 1 квадратный метр в месяц' : (comp.key === 'deposit' ? v : v + ' в месяц');
 }
 function priceLabel(p) {
@@ -1683,7 +1829,8 @@ function renderPricesSection(prefix) {
       + (c.perField ? '<div class="cm-price-comp-field"><div class="cm-label">Способ расчёта</div><select class="cm-field-input" data-comp-basis="' + c.key + '"><option value="per_sqm">За 1 квадратный метр в месяц</option><option value="fixed">Фиксированная сумма в месяц</option></select></div>' : '')
       + '<div class="cm-price-comp-field"><div class="cm-label" data-comp-label="' + c.key + '">' + (c.perField ? 'Новая ставка, ₽' : 'Новая сумма, ₽') + '</div>'
       + '<input type="text" class="cm-field-input" data-comp-value="' + c.key + '" inputmode="decimal" placeholder="0,00"></div>'
-      + '<div class="cm-price-comp-calc" data-comp-calc="' + c.key + '"></div></div></div>';
+      + '<div class="cm-price-comp-calc" data-comp-calc="' + c.key + '"></div>'
+      + (c.key === 'rent' ? '<div data-comp-lines="rent" style="display:none;width:100%;"></div>' : '') + '</div></div>';
   };
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные расчёты аренды</div>'
@@ -1733,7 +1880,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   function today() { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
   // для формирующихся основной цены нет — «основное» значение = текущее поле договора
   function baseRec() {
-    const b = Object.assign({}, r || {}, { area_sqm: recVal('area_sqm') });
+    const b = Object.assign({}, r || {}, { area_sqm: recVal('area_sqm'), area_lines: recVal('area_lines') });
     if (type !== 'active') PRICE_COMPONENTS.forEach(function(c) { if (c.basePer) b[c.basePer] = recVal(c.perField); b[c.baseAmt] = recVal(c.amtField); });
     return b;
   }
@@ -1827,7 +1974,15 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     compEl(c.key, 'on').checked = on;
     formEl.querySelector('[data-comp="' + c.key + '"] .cm-price-comp-fields').style.display = on ? 'flex' : 'none';
     formEl.querySelector('[data-comp="' + c.key + '"]').classList.toggle('on', on);
+    if (c.key !== 'rent') return;
+    // несколько площадей: аренда периода — такой же таблицей «площадь × ставка» вместо одной ставки
+    const m = multiArea();
+    formEl.querySelectorAll('[data-comp="rent"] .cm-price-comp-field, [data-comp="rent"] .cm-price-comp-calc').forEach(function(el) { el.style.display = m ? 'none' : ''; });
+    compEl('rent', 'lines').style.display = on && m ? '' : 'none';
   }
+  function multiArea() { return (areaLinesOf(recVal('area_lines')) || []).length > 0; }
+  let rentLinesEd = null;
+  function mountRentLines(init) { rentLinesEd = mountAreaLinesEditor(compEl('rent', 'lines'), init, null); }
   // значение по умолчанию — основное значение договора
   function prefill(c) {
     const b = baseRec();
@@ -1841,6 +1996,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   PRICE_COMPONENTS.forEach(function(c) {
     compEl(c.key, 'on').addEventListener('change', function(e) {
       setComp(c, e.target.checked);
+      if (c.key === 'rent' && multiArea()) { if (e.target.checked && !rentLinesEd) mountRentLines(areaLinesOf(recVal('area_lines')) || []); return; }   // по умолчанию — основные площади
       if (e.target.checked && !compEl(c.key, 'value').value) prefill(c);
       if (e.target.checked) compEl(c.key, 'value').focus();
     });
@@ -1852,6 +2008,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   });
   function openForm(p) {
     editId = p ? p.id : null;
+    rentLinesEd = null; compEl('rent', 'lines').innerHTML = '';
     PRICE_COMPONENTS.forEach(function(c) { setComp(c, false); compEl(c.key, 'value').value = ''; compCalc(c); });
     if (p) {
       fromEl.value = p.date_from || ''; toEl.value = isOpenEnd(p.date_to) ? '' : p.date_to; noteEl.value = p.note || '';
@@ -1861,6 +2018,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
         const basis = compEl(c.key, 'basis'); if (basis) basis.value = c.basis(p);
         compEl(c.key, 'value').value = fixed2Input(c.value(p));
         compCalc(c);
+        if (c.key === 'rent' && multiArea()) mountRentLines(areaLinesOf(p.rent_lines) || areaLinesOf(recVal('area_lines')) || []);
       });
     } else { fromEl.value = dateToIso(today()); toEl.value = ''; noteEl.value = ''; }
     formEl.style.display = 'block';
@@ -1879,15 +2037,19 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     if (clash) { cmToast('Период пересекается с уже добавленным: ' + periodRange(clash) + '. Измените даты или сначала поправьте тот период'); fromEl.focus(); return; }
     const chosen = PRICE_COMPONENTS.filter(function(c) { return compEl(c.key, 'on').checked; });
     if (!chosen.length) { cmToast('Отметьте хотя бы одну цену, которая меняется в этом периоде'); return; }
-    for (const c of chosen) { if (!(numOf(compEl(c.key, 'value').value) > 0)) { cmToast(c.title + ': укажите новое значение больше нуля'); compEl(c.key, 'value').focus(); return; } }
+    const rentLines = multiArea() && chosen.some(function(c) { return c.key === 'rent'; }) ? (rentLinesEd ? rentLinesEd.valid() : []) : null;
+    if (rentLines && !(areaLinesTotals(rentLines).rent > 0)) { cmToast('Арендная плата: укажите площади и ставки'); return; }
+    for (const c of chosen) { if (c.key === 'rent' && rentLines) continue; if (!(numOf(compEl(c.key, 'value').value) > 0)) { cmToast(c.title + ': укажите новое значение больше нуля'); compEl(c.key, 'value').focus(); return; } }
     const on = function(key) { return chosen.some(function(c) { return c.key === key; }); };
     const val = function(key) { return on(key) ? numOf(compEl(key, 'value').value) : null; };
     const bas = function(key) { const b = compEl(key, 'basis'); return on(key) && b ? b.value : null; };
     // «по» не указана — период без даты окончания
     const values = { contract_type: type, contract_ref_id: id, date_from: fromEl.value, date_to: newTo, unit: 'month', note: noteEl.value.trim(),
-      rent_on: on('rent'), basis: bas('rent') || 'per_sqm', amount: val('rent'),
+      rent_on: on('rent'), basis: bas('rent') || 'per_sqm', amount: val('rent'), rent_lines: null,
       utility_on: on('utility'), utility_basis: bas('utility'), utility_value: val('utility'),
       deposit_on: on('deposit'), deposit_value: val('deposit') };
+    // аренда по площадям: в периоде — строки и итог суммой в месяц (ставки за метр на всю площадь нет)
+    if (rentLines) Object.assign(values, { rent_lines: rentLines, basis: 'fixed', amount: areaLinesTotals(rentLines).rent });
     saveBtn.disabled = true; statusEl.textContent = 'Сохранение…';
     try {
       if (editId) await ctx.api.resource('contract_price_periods').update({ filterByTk: editId, values: values });
@@ -1912,8 +2074,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   // При смене — запись в историю и уведомление прикреплённой бухгалтерии (кроме того, кто сменил).
   async function applySchedule() {
     if (type !== 'active' || !r) return;
-    const tgt = scheduleTarget(items, Object.assign({}, r, { area_sqm: recVal('area_sqm') }), todayIsoLocal());
+    const tgt = scheduleTarget(items, Object.assign({}, r, { area_sqm: recVal('area_sqm'), area_lines: recVal('area_lines') }), todayIsoLocal());
     const upd = {}, changed = [];
+    // несколько площадей: площадь договора — на сегодня (по периоду аренды или основным площадям)
+    if (hasKey(tgt.values, 'area_sqm') && Math.abs((numOf(r.area_sqm) || 0) - tgt.values.area_sqm) >= 0.005) upd.area_sqm = tgt.values.area_sqm;
     PRICE_COMPONENTS.forEach(function(c) {
       let touched = false;
       [c.perField, c.amtField].forEach(function(k) {
@@ -1925,7 +2089,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       });
       if (touched) changed.push(c);
     });
-    if (!changed.length) return;
+    if (!changed.length) {   // сменилась только площадь (цены те же) — тихо, без уведомлений
+      if (hasKey(upd, 'area_sqm')) { try { await applyToContract(upd, { schedule: true }); } catch (e) { /* ignore */ } }
+      return;
+    }
     const text = changed.map(function(c) { const p = tgt.active[c.key]; return p ? c.title + ' по периоду ' + periodRange(p) + ': ' + compLabel(c, p) : c.title + ': основное значение ' + baseLabel(c, r); }).join('; ');
     try {
       await applyToContract(upd, { schedule: true });
@@ -2727,7 +2894,12 @@ function tenantFieldLabel(f, type) {
 // поля блока для режима просмотра: без лишних для этого типа, с подписями под тип
 function partyFields(fields, r) {
   const type = r && r.tenant_type;
-  return fields.filter(function(f) { return tenantFieldVisible(f.name, type); })
+  const multi = !!(r && (areaLinesOf(r.area_lines) || []).length);
+  return fields.filter(function(f) {
+    if (f.type === 'arealines') return multi;
+    if (multi && (f.name === 'rent_per_sqm' || f.name === 'base_rent_per_sqm')) return false;
+    return tenantFieldVisible(f.name, type);
+  })
     .map(function(f) { const l = tenantFieldLabel(f, type); return l === f.label ? f : Object.assign({}, f, { label: l }); });
 }
 // форма: прячем/подписываем строки по выбранному в ней типу (или по типу из договора, если выбора в форме нет)
@@ -2759,6 +2931,7 @@ const STAGE_DEFS = [
   { title: 'Заявка на аренду', role: 'rental_dept', fields: [
       { name: 'object_name', label: 'Объект', type: 'combo', listId: 'cm-object-datalist' },
       { name: 'object_kind', label: 'Вид объекта', type: 'select', options: OBJECT_KINDS },
+      { name: 'area_lines', label: 'Площади и ставки', type: 'arealines' },
       { name: 'area_sqm', label: 'Площадь, квадратных метров', type: 'decimal' },
       { name: 'rent_per_sqm', label: 'Арендная плата за 1 квадратный метр в месяц', type: 'money' },
       { name: 'utility_per_sqm', label: 'Эксплуатационный сбор за 1 квадратный метр в месяц', type: 'money' },
@@ -2817,6 +2990,12 @@ function hasRole(user, roleName) {
 }
 
 function readonlyFieldValue(f, r) {
+  if (f.type === 'arealines') {
+    const l = areaLinesOf(r.area_lines) || [], t = areaLinesTotals(l);
+    return l.filter(function(x) { return numOf(x.area) > 0; }).map(function(x) {
+      return esc(formatNum(x.area)) + ' м² × ' + esc(formatNum(x.rate)) + ' ₽ = ' + esc(formatNum(mulMoney(numOf(x.rate) || 0, numOf(x.area)))) + ' ₽';
+    }).join('<br>') + '<div style="color:#595959;margin-top:2px;">Итого ' + esc(formatNum(t.area)) + ' м², ' + esc(formatNum(t.rent)) + ' ₽ в месяц</div>';
+  }
   let v = r[f.name];
   // в архиве нет отдельных «основных» значений — показываем текущие
   if (v === undefined && COMPONENT_BY_FIELD[f.name] && /^base_/.test(f.name)) v = r[f.name.replace('base_', '')];
@@ -2851,6 +3030,14 @@ function readonlyFieldValue(f, r) {
 }
 
 function renderEditableField(f, value, rec) {
+  if (f.type === 'arealines') {
+    // галочка + таблица «площадь × ставка» прямо в форме; при галочке поля площади и ставки заменяются таблицей (wireAreaLines)
+    const lines = areaLinesOf(value) || [];
+    return '<div class="cm-field-row cm-al" data-al>'
+      + '<label class="cm-field-checkbox" style="margin:0;"><input type="checkbox" data-al-on' + (lines.length ? ' checked' : '') + '> Несколько площадей с разными ставками</label>'
+      + '<input type="hidden" data-field="area_lines" value="' + escAttr(lines.length ? JSON.stringify(lines) : '') + '">'
+      + '<div data-al-body></div></div>';
+  }
   if (f.type === 'scan') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><div style="display:flex;align-items:center;gap:8px;">'
       + '<input type="hidden" data-field="' + f.name + '" value="' + escAttr(value) + '">'
@@ -3023,6 +3210,7 @@ const ACTIVE_BLOCK_DEFS = [
   ]},
   // основная цена (на весь срок) — base_*; текущая цена договора (rent_*) считается по «Графику цены аренды»
   { key: 'pay', title: 'Характеристики и расчёты', fields: [
+      { name: 'area_lines', label: 'Площади и ставки', type: 'arealines' },
       { name: 'area_sqm', label: 'Площадь, квадратных метров', type: 'decimal' },
       { name: 'base_rent_per_sqm', label: 'Арендная плата за 1 квадратный метр в месяц', type: 'money' },
       { name: 'base_rent_amount', label: 'Арендная плата в месяц', type: 'money' },
@@ -3183,6 +3371,7 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
         if (isEmpty(nv) && isEmpty(ov)) delete values[k];
         else if (typeof nv === 'number' && numOf(ov) !== null && Math.abs(nv - numOf(ov)) < 0.005) delete values[k];
         else if (fieldTypes[k] === 'date' && !isEmpty(nv) && toISODate(ov) === nv) delete values[k];
+        else if (fieldTypes[k] === 'arealines') { if (JSON.stringify(nv || null) === JSON.stringify(areaLinesOf(ov) || null)) delete values[k]; }
         else if (!isEmpty(nv) && !isEmpty(ov) && String(nv) === String(ov)) delete values[k];
       });
       btn.disabled = true;
@@ -3822,7 +4011,7 @@ async function completeContract(id, members, contractNumber) {
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
-    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm, area_lines: f.area_lines || null,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
     end_date: f.end_date, termination_date: f.termination_date, purpose: f.purpose,
     rooms_list: f.rooms_list, room_ids: f.room_ids,
@@ -3907,7 +4096,7 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
-    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm, area_lines: f.area_lines || null,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
     end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount,
@@ -4080,7 +4269,7 @@ function wireAutoSaveDraftLazy(root, stageOrQuick, statusElId, isQuick, currentU
     if (!hasAny) { if (statusEl) statusEl.textContent = ''; return Promise.resolve(); }
     creating = true;
     if (statusEl) statusEl.textContent = 'Сохранение…';
-    return ctx.api.resource('draft_contracts').create({ values: Object.assign({}, values, { is_quick: !!isQuick, created_by_id: currentUserId, last_activity_at: new Date().toISOString() }) })
+    return ctx.api.resource('draft_contracts').create({ values: Object.assign({}, values, areaLinesUpdates(values, 'draft_contracts'), { is_quick: !!isQuick, created_by_id: currentUserId, last_activity_at: new Date().toISOString() }) })
       .then(function(res) {
         const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
         if (statusEl) {
@@ -4191,7 +4380,7 @@ async function publishDraftContract(id, root, nextStage, doneStageTitle) {
   const contractNumber = f.contract_number || f.object_name || ('#' + id);
   const payload = {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
-    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm,
+    object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm, area_lines: f.area_lines || null,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio, current_stage: nextStage || 0,
     avito_url: f.avito_url, cian_url: f.cian_url, other_url: f.other_url, purpose: f.purpose,
     comment_stage0: f.comment_stage0, comment_stage2: f.comment_stage2, comment_stage4: f.comment_stage4,

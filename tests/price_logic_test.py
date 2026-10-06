@@ -8,10 +8,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.environ.get('PY', os.path.join(HERE, '..', 'scripts', 'apply_price_schedule.py'))
 src = open(SCRIPT, encoding='utf-8').read()
 tree = ast.parse(src)
-keep = {'r2', 'mul_money', 'fmt', 'dmy', 'prange', 'comp_label', 'base_text', 'target'}
+keep = {'r2', 'mul_money', 'fmt', 'dmy', 'prange', 'comp_label', 'base_text', 'target', 'lines_of', 'lines_totals', 'effective_area'}
 nodes = [n for n in tree.body if (isinstance(n, ast.FunctionDef) and n.name in keep) or
          (isinstance(n, ast.Assign) and any(getattr(t, 'id', None) == 'COMPONENTS' for t in n.targets))]
-ns = {'periods': {}}
+ns = {'periods': {}, 'json': json}
 exec(compile(ast.Module(body=nodes, type_ignores=[]), 'py', 'exec'), ns)
 
 def py_values(contract, plist, iso):
@@ -37,14 +37,17 @@ process.stdout.write(JSON.stringify(out));
     if r.returncode: sys.exit(r.stderr.decode())
     return json.loads(r.stdout)
 
-FIELDS = ['rent_per_sqm', 'rent_amount', 'utility_per_sqm', 'utility_amount', 'deposit_amount']
-def P(pid, a, b, rent=None, rent_basis='per_sqm', util=None, util_basis='per_sqm', dep=None, legacy=False):
+FIELDS = ['rent_per_sqm', 'rent_amount', 'utility_per_sqm', 'utility_amount', 'deposit_amount', 'area_sqm']
+def P(pid, a, b, rent=None, rent_basis='per_sqm', util=None, util_basis='per_sqm', dep=None, legacy=False, lines=None):
     """период: rent/util/dep = None — эта цена не меняется"""
     p = {'id': pid, 'date_from': a, 'date_to': b or '2099-12-31', 'unit': 'month',
          'rent_on': None if legacy else (rent is not None), 'basis': rent_basis if rent is not None else ('per_sqm' if not legacy else rent_basis),
          'amount': rent, 'utility_on': util is not None, 'utility_basis': util_basis if util is not None else None, 'utility_value': util,
-         'deposit_on': dep is not None, 'deposit_value': dep}
+         'deposit_on': dep is not None, 'deposit_value': dep, 'rent_lines': lines}
+    if lines:   # аренда по нескольким площадям: в периоде хранится итог суммой (как сохраняет карточка)
+        p.update(rent_on=True, basis='fixed', amount=sum(round(mul_tot(l) * 100) for l in lines) / 100)
     return p
+def mul_tot(l): return ns['mul_money'](l['rate'], l['area'])
 BASE = {'id': 1, 'area_sqm': 10, 'base_rent_per_sqm': 100, 'base_rent_amount': 1000, 'base_utility_per_sqm': 20, 'base_utility_amount': 200,
         'base_deposit_amount': 1000, 'rent_per_sqm': 100, 'rent_amount': 1000, 'utility_per_sqm': 20, 'utility_amount': 200, 'deposit_amount': 1000, 'total_amount': 1200}
 
@@ -85,6 +88,20 @@ case('копейки: 26,75 × 0,1 = 2,675 → 2,68', dict(BASE, area_sqm=0.1), 
 case('копейки: 0,15 × 0,1 = 0,015 → 0,02', dict(BASE, area_sqm=0.1), [P(1, '2026-10-01', None, rent=0.15)], '2026-10-02', {'rent_amount': 0.02})
 case('копейки: 408,94 × 317,9 = 130002,026 → 130002,03', dict(BASE, area_sqm=317.9), [P(1, '2026-10-01', None, util=408.94)], '2026-10-02', {'utility_amount': 130002.03})
 case('копейки: 99,99 × 1234,56 = 123443,6544 → 123443,65', dict(BASE, area_sqm=1234.56), [P(1, '2026-10-01', None, rent=99.99)], '2026-10-02', {'rent_amount': 123443.65})
+
+# несколько площадей: 100 м² × 100 + 45 м² × 50 = 12 250, сбор 30 за метр на всю площадь
+ML = dict(BASE, area_sqm=145, area_lines=[{'area': 100, 'rate': 100}, {'area': 45, 'rate': 50}], base_rent_per_sqm=None, base_rent_amount=12250,
+          base_utility_per_sqm=30, base_utility_amount=4350, rent_per_sqm=None, rent_amount=12250, utility_per_sqm=30, utility_amount=4350)
+case('площади: без периодов', ML, [], '2026-10-02', {'area_sqm': 145, 'rent_per_sqm': None, 'rent_amount': 12250, 'utility_amount': 4350})
+case('площади: период вернул 45 м² — аренда и сбор от 100 м²', ML, [P(1, '2026-10-01', None, lines=[{'area': 100, 'rate': 100}])], '2026-10-02',
+     {'area_sqm': 100, 'rent_amount': 10000, 'utility_amount': 3000})
+case('площади: период кончился — снова 145 м²', ML, [P(1, '2026-10-01', '2026-10-31', lines=[{'area': 100, 'rate': 100}])], '2026-11-01',
+     {'area_sqm': 145, 'rent_amount': 12250, 'utility_amount': 4350})
+case('площади: добавили 20 м² × 70 по периоду, сбор периодом суммой', ML, [P(1, '2026-10-01', None, lines=[{'area': 100, 'rate': 100}, {'area': 45, 'rate': 50}, {'area': 20, 'rate': 70}], util=5000, util_basis='fixed')],
+     '2026-10-02', {'area_sqm': 165, 'rent_amount': 13650, 'utility_per_sqm': None, 'utility_amount': 5000})
+case('площади: копейки по строкам 10,05 × 33,33 + 0,1 × 26,75', dict(ML, area_lines=[{'area': 10.05, 'rate': 33.33}, {'area': 0.1, 'rate': 26.75}]), [], '2026-10-02',
+     {'area_sqm': 10.15, 'utility_amount': 304.5})
+case('площади: период «за метр» на всю площадь', ML, [P(1, '2026-10-01', None, rent=90)], '2026-10-02', {'area_sqm': 145, 'rent_per_sqm': 90, 'rent_amount': 13050})
 
 cases = [{'rec': rec, 'periods': periods, 'iso': iso} for (_, rec, periods, iso, _) in S]
 js = js_values(cases)
@@ -131,8 +148,10 @@ for n in range(400):
     for k in range(random.randint(0, 4)):
         a = date(2026, 10, 1) + timedelta(days=random.randint(0, 60))
         b = None if random.random() < 0.4 else (a + timedelta(days=random.randint(0, 40))).isoformat()
+        ln = random.choice([None, None, [{'area': 100, 'rate': 100}], [{'area': 10.05, 'rate': 33.33}, {'area': 0.1, 'rate': 26.75}]])
         ps.append(P(k + 1, a.isoformat(), b, rent=random.choice([None, 90, 950.5, 1.005]), rent_basis=random.choice(['per_sqm', 'fixed']),
-                    util=random.choice([None, 25, 300]), util_basis=random.choice(['per_sqm', 'fixed']), dep=random.choice([None, 1500])))
+                    util=random.choice([None, 25, 300]), util_basis=random.choice(['per_sqm', 'fixed']), dep=random.choice([None, 1500]), lines=ln))
+    if random.random() < 0.4: rec['area_lines'] = random.choice([[{'area': 100, 'rate': 100}, {'area': 45, 'rate': 50}], [{'area': 317.9, 'rate': 408.94}], []])
     iso = (date(2026, 9, 25) + timedelta(days=random.randint(0, 110))).isoformat()
     rc.append((rec, ps, iso))
 jsr = js_values([{'rec': r, 'periods': p, 'iso': i} for r, p, i in rc])

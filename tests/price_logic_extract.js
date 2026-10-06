@@ -14,7 +14,7 @@ function grab(startRe) {
   throw new Error('unterminated ' + startRe);
 }
 const names = [
-  /function formatNum\(v\) \{/, /function esc\(v\) \{/, /function escRaw\(v\) \{/, /function numOf\(v\) \{/, /function round2\(n\) \{/, /function mulMoney\(rate, area\) \{/, /function hasKey\(o, k\) \{/,
+  /function formatNum\(v\) \{/, /function esc\(v\) \{/, /function escRaw\(v\) \{/, /function numOf\(v\) \{/, /function round2\(n\) \{/, /function mulMoney\(rate, area\) \{/, /function areaLinesOf\(v\) \{/, /function areaLinesTotals\(lines\) \{/, /function areaLinesText\(lines\) \{/, /function effectiveArea\(rec, rentPeriod\) \{/, /function hasKey\(o, k\) \{/,
   /function fromISODateDisplay\(v\) \{/, /function isoToDate\(s\) \{/, /function dateToIso\(d\) \{/, /function addDays\(d, n\) \{/,
   /function fmtDate\(iso\) \{/, /const OPEN_END = /, /function isOpenEnd\(iso\) \{/, /function periodRange\(p\) \{/,
   /const PRICE_COMPONENTS = \[/, /const COMPONENT_BY_FIELD = \{\};/, /PRICE_COMPONENTS\.forEach\(function\(c\) \{ \[c\.perField/,
@@ -24,4 +24,4 @@ const names = [
 ];
 let code = names.map(grab).join('\n');
 code = code.replace('const COMPONENT_BY_FIELD = {};', 'const COMPONENT_BY_FIELD = {};\n');
-module.exports = new Function(code + '\nreturn { formatNum, numOf, round2, isoToDate, dateToIso, addDays, OPEN_END, isOpenEnd, PRICE_COMPONENTS, COMPONENT_BY_FIELD, periodFor, compValues, scheduleTarget, compLabel, priceLabel, baseLabel, nextFieldChange, calcTotal, totalUpdate };')();
+module.exports = new Function(code + '\nreturn { formatNum, numOf, areaLinesOf, areaLinesTotals, effectiveArea, round2, isoToDate, dateToIso, addDays, OPEN_END, isOpenEnd, PRICE_COMPONENTS, COMPONENT_BY_FIELD, periodFor, compValues, scheduleTarget, compLabel, priceLabel, baseLabel, nextFieldChange, calcTotal, totalUpdate };')();

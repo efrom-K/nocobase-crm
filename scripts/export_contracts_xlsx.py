@@ -33,6 +33,12 @@ LABELS = {'tenant_type': {'Юрлицо': 'Юридическое лицо', 'И
 
 # (заголовок, ключ или функция) — порядок столбцов в таблице
 def g(k): return lambda r: r.get(k)
+def lines_text(lines):   # несколько площадей: «100 м² × 100 = 10000; 45 м² × 50 = 2250»
+    if isinstance(lines, str):
+        try: lines = json.loads(lines) if lines.strip() else None
+        except ValueError: return None
+    if not isinstance(lines, list) or not lines: return None
+    return '; '.join('%s м² × %s = %s' % (num(l.get('area') or 0), num(l.get('rate') or 0), num(((round(float(l.get('area') or 0) * 100) * round(float(l.get('rate') or 0) * 100) + 50) // 100) / 100)) for l in lines)
 COLS = [
     ('Раздел', lambda r: r['_kind']),
     ('Этап оформления', lambda r: ('Срочный (одной формой)' if r.get('is_quick') else STAGES[min(r.get('current_stage') or 0, 5)]) if r['_type'] in ('forming', 'draft') else None),
@@ -42,7 +48,7 @@ COLS = [
     ('Статус', lambda r: STATUS.get(r.get('contract_status'), r.get('contract_status'))), ('Причина статуса', g('status_reason')),
     ('Дата заключения', g('date_signed')), ('Дата акта приёма-передачи', g('date_act')), ('Дата расторжения', g('termination_date')),
     ('Дата фактического начала аренды', g('actual_start_date')), ('Назначение', g('purpose')),
-    ('Площадь, м²', g('area_sqm')),
+    ('Площадь, м²', g('area_sqm')), ('Площади и ставки', lambda r: lines_text(r.get('area_lines'))),
     ('Арендная плата за 1 м² в месяц', g('rent_per_sqm')), ('Арендная плата в месяц', g('rent_amount')),
     ('Эксплуатационный сбор за 1 м² в месяц', g('utility_per_sqm')), ('Эксплуатационный сбор в месяц', g('utility_amount')),
     ('Сумма в месяц', lambda r: r.get('total_amount') if r.get('total_amount') is not None else (None if r.get('rent_amount') is None and r.get('utility_amount') is None else (r.get('rent_amount') or 0) + (r.get('utility_amount') or 0))), ('Обеспечительный платёж', g('deposit_amount')),
@@ -84,7 +90,7 @@ def by_ref(items, t, i): return [x for x in items if x['contract_type'] == t and
 def fmt_period(p):
     parts = []
     if p.get('rent_on') is not False and p.get('amount') is not None:
-        parts.append('аренда %s %s' % (num(p['amount']), 'за 1 м²' if (p.get('basis') or 'per_sqm') == 'per_sqm' else 'в месяц'))
+        parts.append('аренда %s %s' % (num(p['amount']), 'за 1 м²' if (p.get('basis') or 'per_sqm') == 'per_sqm' else 'в месяц') + (' (%s)' % lines_text(p['rent_lines']) if lines_text(p.get('rent_lines')) else ''))
     if p.get('utility_on') and p.get('utility_value') is not None:
         parts.append('сбор %s %s' % (num(p['utility_value']), 'за 1 м²' if (p.get('utility_basis') or 'per_sqm') == 'per_sqm' else 'в месяц'))
     if p.get('deposit_on') and p.get('deposit_value') is not None:

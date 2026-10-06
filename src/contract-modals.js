@@ -5021,9 +5021,21 @@ injectCreateContractButton();
 // таблицы реестра — по uid блока (раньше искали столбец «Номер договора»: скрыли или переставили его — карточки не открывались)
 const REGISTRY_TABLE_KIND = { ozazmpm4o4v: 'active', formtbl000001: 'forming', ipb7gfluldk: 'completed' };
 function registryKind(table) { const b = table && table.closest('[data-uid]'); return b ? REGISTRY_TABLE_KIND[b.getAttribute('data-uid')] || null : null; }
+// числа в таблицах реестра — как в карточке: тысячи пробелом (формат NocoBase «100.000,00» другого не умеет:
+// вариант с пробелом ставит точку в дробной части). Меняем только текст ячеек-чисел вида 12.584,97 / 12.584,97 ₽
+const DOT_THOUSANDS = /^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?(?:\s?₽)?$/;
+function spaceThousands(table) {
+  table.querySelectorAll('tbody td *').forEach(function(el) {
+    const n = el.firstChild;
+    if (el.childNodes.length !== 1 || !n || n.nodeType !== 3) return;
+    const t = n.data.trim();
+    if (DOT_THOUSANDS.test(t)) n.data = n.data.replace(/\.(?=\d{3})/g, '\u00a0');
+  });
+}
 function markTables() {
   document.querySelectorAll('table').forEach(table => {
     const isMain = !!registryKind(table);
+    if (isMain) spaceThousands(table);
     const card = table.closest('.ant-card');
     if (card) {
       card.classList.toggle('main-registry-clickable-rows', isMain);

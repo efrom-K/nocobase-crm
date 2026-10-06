@@ -267,7 +267,12 @@ function injectStyle() {
     .msgr-add-member-btn:hover { background:#e2edff; }
     .msgr-del-chat-btn { display:block; width:100%; margin-top:14px; background:#fff1f0; color:#cf1322; border:none; border-radius:9px; padding:9px 10px; font-size:13px; font-weight:600; cursor:pointer; }
     .msgr-del-chat-btn:hover { background:#ffe2df; }
-    .msgr-del-chat-btn:disabled { opacity:.6; cursor:default; }
+    .msgr-del-confirm { margin-top:14px; background:#fff1f0; border-radius:9px; padding:10px; font-size:13px; color:#5c0011; line-height:1.4; }
+    .msgr-del-actions { display:flex; gap:8px; margin-top:8px; }
+    .msgr-del-actions button { flex:1; border:none; border-radius:7px; padding:7px 0; font-size:13px; font-weight:600; cursor:pointer; }
+    .msgr-del-yes { background:#cf1322; color:#fff; }
+    .msgr-del-yes:disabled { opacity:.6; cursor:default; }
+    .msgr-del-no { background:#fff; color:#1a1d24; box-shadow:inset 0 0 0 1px #e6e9ee; }
     .msgr-member-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; }
     .msgr-member-row:hover { background:#f2f5fa; }
     .msgr-member-meta { flex:1; min-width:0; }
@@ -1009,11 +1014,23 @@ function toggleInfoPanel(win, convId) {
 }
 
 // Только для админа: чат удаляется у всех участников вместе с перепиской (файлы-вложения остаются в хранилище).
-async function deleteConversation(conv, btn) {
-  const title = conv.is_group ? (conv.name || 'групповой чат') : 'этот чат';
-  if (!confirm('Удалить ' + title + ' у всех участников вместе со всей перепиской? Отменить нельзя.')) return;
-  btn.disabled = true;
-  btn.textContent = 'Удаляю…';
+// Подтверждение — прямо в панели: confirm() в блоках NocoBase не работает.
+function askDeleteConversation(conv, btn) {
+  const box = document.createElement('div');
+  box.className = 'msgr-del-confirm';
+  box.innerHTML = '<div>Удалить ' + esc(conv.is_group ? '«' + (conv.name || 'групповой чат') + '»' : 'этот чат') +
+    ' у всех участников вместе с перепиской? Отменить нельзя.</div>' +
+    '<div class="msgr-del-actions"><button class="msgr-del-yes">Удалить</button><button class="msgr-del-no">Отмена</button></div>';
+  btn.replaceWith(box);
+  box.addEventListener('click', function (e) { e.stopPropagation(); });
+  box.querySelector('.msgr-del-no').addEventListener('click', function () { box.replaceWith(btn); });
+  box.querySelector('.msgr-del-yes').addEventListener('click', function () { deleteConversation(conv, box); });
+}
+
+async function deleteConversation(conv, box) {
+  const yes = box.querySelector('.msgr-del-yes');
+  yes.disabled = true;
+  yes.textContent = 'Удаляю…';
   try {
     const byConv = { filter: { conversation_id: conv.id } };
     for (const r of ['chat_messages', 'chat_folder_items', 'chat_notifications', 'chat_conversation_members']) {
@@ -1021,9 +1038,9 @@ async function deleteConversation(conv, btn) {
     }
     await ctx.api.resource('chat_conversations').destroy({ filterByTk: conv.id });
   } catch (err) {
-    btn.disabled = false;
-    btn.textContent = 'Не удалось удалить — ещё раз';
-    btn.title = (err && err.message) || String(err);
+    yes.disabled = false;
+    yes.textContent = 'Ещё раз';
+    yes.title = (err && err.message) || String(err);
     return;
   }
   closeChatWindow();
@@ -1078,7 +1095,7 @@ async function renderInfoPanel(win, convId, tab) {
     const delBtn = body.querySelector('#msgr-del-chat-btn');
     if (delBtn) delBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      deleteConversation(conv, delBtn);
+      askDeleteConversation(conv, delBtn);
     });
   } else {
     body.innerHTML =

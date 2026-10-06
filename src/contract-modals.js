@@ -153,14 +153,15 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-file-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f0f0f0; }
     .cm-file-row:last-child { border-bottom: none; }
     .cm-al { grid-column: 1 / -1; }
-    .cm-al-table { display:grid; grid-template-columns: 150px 170px minmax(130px, 1fr) 24px; gap:6px 12px; align-items:center; max-width:600px; margin-top:8px; }
-    .cm-al-table .cm-field-input { text-align:right; }
+    .cm-al-table { display:grid; grid-template-columns: 140px 170px 150px 24px; gap:6px 12px; align-items:center; margin-top:8px; }
+    .cm-al-table input.cm-field-input { text-align:right; width:100% !important; min-width:0; max-width:none; box-sizing:border-box; margin:0; }   /* в периоде поля иначе 200px */
+    .cm-al-line { grid-column: 1 / -1; border-top:1px solid #e8e8e8; height:0; margin-top:2px; }
     .cm-al-head { font-size:12px; color:#8c8c8c; }
     .cm-al-head.num, .cm-al-sum { text-align:right; }
     .cm-al-sum { font-size:13px; color:#262626; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .cm-al-del { color:#bfbfbf; cursor:pointer; text-align:center; font-size:15px; line-height:1; text-decoration:none; }
     .cm-al-del:hover { color:#ff4d4f; }
-    .cm-al-foot { border-top:1px solid #f0f0f0; padding-top:8px; font-size:13px; font-weight:600; color:#262626; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .cm-al-foot { font-size:13px; font-weight:600; color:#262626; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .cm-al-foot.num { text-align:right; }
     #contract-modal-root .ant-modal-mask { opacity: 0; transition: opacity .22s cubic-bezier(0.36,0.66,0.04,1); }
     #contract-modal-root .ant-modal { transform: scale(0.82) translateY(-8px); opacity: 0; transition: transform .25s cubic-bezier(0.34,1.56,0.64,1), opacity .2s ease; }
@@ -1245,6 +1246,7 @@ function mountAreaLinesEditor(body, initial, onChange) {
           + '<div class="cm-al-sum" data-al-sum="' + i + '">' + esc(sum(l)) + '</div>'
           + (lines.length > 1 ? '<a href="#" class="cm-al-del" data-al-del="' + i + '" title="Убрать площадь">✕</a>' : '<div></div>');
       }).join('')
+      + '<div class="cm-al-line"></div>'
       + '<div class="cm-al-foot" data-al-foot="area"></div><div class="cm-al-foot"></div><div class="cm-al-foot num" data-al-foot="rent"></div><div class="cm-al-foot"></div>'
       + '</div><button type="button" class="cm-upload-btn" data-al-add style="margin-top:8px;font-size:12px;">+ Площадь</button>';
     body.querySelectorAll('[data-al-area],[data-al-rate]').forEach(function(inp) {
@@ -1827,7 +1829,8 @@ function nextFieldChange(periods, rec, iso, field) {
   const cur = hasKey(curT, field) ? curT[field] : numOf(rec[field]);
   const dates = [];
   (periods || []).forEach(function(p) {
-    if (!comp.on(p)) return;
+    // период аренды со своими площадями меняет площадь — а с ней цены «за 1 квадратный метр»
+    if (!comp.on(p) && !(areaLinesOf(p.rent_lines) || []).length) return;
     if (p.date_from && p.date_from > iso) dates.push(String(p.date_from).slice(0, 10));
     if (p.date_to && !isOpenEnd(p.date_to)) { const d = addDays(isoToDate(p.date_to), 1); if (d) { const di = dateToIso(d); if (di > iso) dates.push(di); } }
   });

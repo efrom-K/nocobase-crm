@@ -23,7 +23,7 @@ def call(path, body=None):
 
 FIELDS = [('kpp', 'КПП'), ('ogrn', 'ОГРН / ОГРНИП'), ('legal_address', 'Юридический адрес'), ('director', 'Руководитель: ФИО'), ('director_post', 'Руководитель: должность'),
           ('tenant_type', 'Тип арендатора'),              # Юрлицо / ИП / Физлицо — от него зависит набор реквизитов
-          ('passport', 'Паспорт: серия и номер'), ('passport_issued', 'Паспорт: кем и когда выдан')]
+          ('passport', 'Паспорт: серия и номер'), ('passport_issued', 'Паспорт: когда и кем выдан')]
 for coll in ('draft_contracts', 'forming_contracts', 'rental_contracts', 'completed_contracts'):
     for name, title in FIELDS:
         r = call('collections/%s/fields:create' % coll, {'name': name, 'type': 'string', 'interface': 'input',

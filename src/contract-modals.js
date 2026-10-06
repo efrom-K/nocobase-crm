@@ -1036,6 +1036,7 @@ const FIELD_RULES = {
   deposit_amount: { kind: 'money' }, rent_amount: { kind: 'money' }, utility_amount: { kind: 'money' }, total_amount: { kind: 'money' },
   inn: { kind: 'inn' }, bank_account: { kind: 'account' }, corr_account: { kind: 'account' }, bik: { kind: 'bik' },
   phone: { kind: 'phone' }, email: { kind: 'email' },
+  passport: { kind: 'passport' }, passport_issued: { kind: 'passport_issued' },
   tenant_fio: { kind: 'fio' }, contact_person: { kind: 'fio' },
   avito_url: { kind: 'url' }, cian_url: { kind: 'url' }, other_url: { kind: 'url' }
 };
@@ -1061,6 +1062,8 @@ function normalizeValue(name, raw) {
     case 'email': return v.trim().toLowerCase();
     case 'url': { v = v.trim(); return (v && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) ? 'https://' + v : v; }
     case 'fio': return v.trim().replace(/\s+/g, ' ');
+    case 'passport': { const d = digitsOnly(v); return d.length === 10 ? d.slice(0, 4) + ' ' + d.slice(4) : v.trim(); }
+    case 'passport_issued': return v.trim().replace(/\s+/g, ' ');
   }
   return v;
 }
@@ -1132,6 +1135,15 @@ function validateValue(name, val, el) {
     }
     case 'fio':
       return /^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё .'’-]*$/.test(val) ? '' : 'только буквы, без цифр и символов';
+    case 'passport': return /^\d{4} \d{6}$/.test(val) ? '' : 'серия и номер — 10 цифр: 0000 000000';
+    case 'passport_issued': {
+      const m = /^(\d{2})\.(\d{2})\.(\d{4}), (.+)$/.exec(val);
+      if (!m) return 'сначала дата выдачи дд.мм.гггг, затем через запятую — кем выдан';
+      const d = new Date(+m[3], +m[2] - 1, +m[1]);
+      if (d.getDate() !== +m[1] || d.getMonth() !== +m[2] - 1 || +m[3] < 1900) return 'некорректная дата выдачи';
+      if (d > new Date()) return 'дата выдачи в будущем';
+      return m[4].trim().length < 3 ? 'укажите, кем выдан' : '';
+    }
   }
   return '';
 }
@@ -1314,6 +1326,24 @@ function wireAreaLines(scope) {
     if (on.checked) mountAreaLinesEditor(body, areaLinesOf(hidden.value) || [], changed);
   });
 }
+// паспорт: «0000 000000»; «когда и кем выдан»: «дд.мм.гггг, кем выдан» — точки и запятая после года ставятся сами
+// (при стирании запятую не возвращаем, иначе её не удалить); правим значение, только пока вводится дата, — курсор в тексте не прыгает
+function formatPassportInput(el, kind, inserting) {
+  let nv;
+  if (kind === 'passport') {
+    const d = el.value.replace(/\D/g, '').slice(0, 10);
+    nv = d.length > 4 ? d.slice(0, 4) + ' ' + d.slice(4) : d;
+  } else {
+    const m = /^([\d.\s,]*)([\s\S]*)$/.exec(el.value);
+    const d = m[1].replace(/\D/g, '').slice(0, 8), rest = m[2].replace(/^\s+/, '');
+    if (!d) return;
+    let date = d.slice(0, 2) + (d.length > 2 ? '.' + d.slice(2, 4) : '') + (d.length > 4 ? '.' + d.slice(4) : '');
+    if (d.length === 2 && inserting && !rest) date += '.';
+    if (d.length === 4 && inserting && !rest) date += '.';
+    nv = d.length === 8 && (rest || inserting) ? date + ', ' + rest : date + (rest ? ' ' + rest : '');
+  }
+  if (nv !== el.value) el.value = nv;
+}
 function wireFieldRules(formEl) {
   if (!formEl) return;
   wireAreaLines(formEl);
@@ -1332,6 +1362,11 @@ function wireFieldRules(formEl) {
     else if (kind === 'phone') el.setAttribute('inputmode', 'tel');
     if (kind === 'phone' && el.value) el.value = formatPhoneDisplay(el.value);
     if (el.getAttribute('data-mask') === 'bankaccount' && el.value) formatBankAccountInput(el);
+    if (kind === 'passport' || kind === 'passport_issued') {
+      el.setAttribute('inputmode', kind === 'passport' ? 'numeric' : 'text');
+      if (el.value) formatPassportInput(el, kind, true);
+      el.addEventListener('input', function(e) { formatPassportInput(el, kind, !e.inputType || e.inputType.indexOf('insert') === 0); });
+    }
     const msg = document.createElement('div');
     msg.className = 'cm-field-msg';
     el.parentNode.appendChild(msg);
@@ -2999,8 +3034,8 @@ const STAGE_DEFS = [
       { name: 'ogrn', label: 'ОГРН', type: 'text' },
       { name: 'director_post', label: 'Должность руководителя', type: 'text' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
-      { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
-      { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
+      { name: 'passport', label: 'Паспорт: серия и номер', type: 'text', placeholder: '0000 000000' },
+      { name: 'passport_issued', label: 'Паспорт: когда и кем выдан', type: 'text', placeholder: 'дд.мм.гггг, кем выдан' },
       { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bank_name', label: 'Банк', type: 'text' },
@@ -3125,7 +3160,7 @@ function renderEditableField(f, value, rec) {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="url" class="cm-field-input" data-field="' + f.name + '" placeholder="https://…" value="' + escAttr(value) + '"></div>';
   }
   const maskAttr = f.mask ? ' data-mask="' + f.mask + '"' : '';
-  const maskPlaceholder = f.mask === 'bankaccount' ? ' placeholder="0000 0000 0000 0000 0000"' : (f.mask === 'bik' ? ' placeholder="000000000"' : '');
+  const maskPlaceholder = f.placeholder ? ' placeholder="' + escAttr(f.placeholder) + '"' : f.mask === 'bankaccount' ? ' placeholder="0000 0000 0000 0000 0000"' : (f.mask === 'bik' ? ' placeholder="000000000"' : '');
   return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input" data-field="' + f.name + '"' + maskAttr + maskPlaceholder + ' value="' + escAttr(value) + '"></div>';
 }
 
@@ -3269,8 +3304,8 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'ogrn', label: 'ОГРН', type: 'text' },
       { name: 'director_post', label: 'Должность руководителя', type: 'text' },
       { name: 'bik', label: 'БИК', type: 'text', mask: 'bik' },
-      { name: 'passport', label: 'Паспорт: серия и номер', type: 'text' },
-      { name: 'passport_issued', label: 'Паспорт: кем и когда выдан', type: 'text' },
+      { name: 'passport', label: 'Паспорт: серия и номер', type: 'text', placeholder: '0000 000000' },
+      { name: 'passport_issued', label: 'Паспорт: когда и кем выдан', type: 'text', placeholder: 'дд.мм.гггг, кем выдан' },
       { name: 'director', label: 'Фамилия, имя, отчество руководителя', type: 'text' },
       { name: 'bank_account', label: 'Расчётный счёт', type: 'text', mask: 'bankaccount' },
       { name: 'bank_name', label: 'Банк', type: 'text' },

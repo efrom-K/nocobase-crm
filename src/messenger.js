@@ -1018,7 +1018,7 @@ function toggleInfoPanel(win, convId) {
 function askDeleteConversation(conv, btn) {
   const box = document.createElement('div');
   box.className = 'msgr-del-confirm';
-  box.innerHTML = '<div>Удалить ' + esc(conv.is_group ? '«' + (conv.name || 'групповой чат') + '»' : 'этот чат') +
+  box.innerHTML = '<div>Удалить ' + 'чат «' + esc(conv.title) + '»' +
     ' у всех участников вместе с перепиской? Отменить нельзя.</div>' +
     '<div class="msgr-del-actions"><button class="msgr-del-yes">Удалить</button><button class="msgr-del-no">Отмена</button></div>';
   btn.replaceWith(box);

@@ -3528,13 +3528,12 @@ function renderAddendumsSection(prefix) {
 function renderAddendumsList(items, canEdit) {
   if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет дополнительных соглашений</div>';
   return items.map(function(a) {
-    const fileHtml = (a.files || []).map(function(f) {
-      return '<span class="cm-addendum-file" data-att-url="' + esc(f.url) + '" data-att-name="' + esc(attName(f)) + '" style="color:#1677ff;cursor:pointer;text-decoration:underline;">' + esc(attName(f)) + '</span>';
-    }).join(', ');
     return '<div class="cm-contact-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
       + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#595959;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
       + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
-      + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + (fileHtml ? ' · ' + fileHtml : '') + '</div>'
+      + '<div style="font-size:11px;color:#bbb;margin-top:3px;">' + esc(nbFmtDateTimeLocal(a.created_at)) + (a.author ? ' · ' + esc(a.author.nickname || a.author.username) : '') + '</div>'
+      // файлы ДС — как в разделе «Файлы»: имя, размер, «Открыть», «Скачать» (удаление — через ✎)
+      + ((a.files || []).length ? '<div style="margin-top:4px;font-size:12.5px;">' + renderFilesList(a.files, null) + '</div>' : '')
       + '</div>' + (canEdit ? '<div class="cm-contact-actions"><a data-addendum-edit="' + a.id + '" title="Изменить">✎</a><a data-addendum-del="' + a.id + '" title="Удалить">✕</a></div>' : '')
       + '</div>';
   }).join('');
@@ -3555,23 +3554,6 @@ async function loadAddendums(contractType, contractId) {
   });
   const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
   return Array.isArray(payload) ? payload : [];
-}
-
-function wireAddendumFileOpen(root) {
-  root.querySelectorAll('.cm-addendum-file[data-att-url]').forEach(function(el) {
-    if (el.__wired) return;
-    el.__wired = true;
-    el.addEventListener('click', async function() {
-      try {
-        const res = await fetch(el.getAttribute('data-att-url'), { credentials: 'include' });
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = el.getAttribute('data-att-name'); a.target = '_blank';
-        document.body.appendChild(a); a.click(); a.remove();
-      } catch (e) { /* best-effort */ }
-    });
-  });
 }
 
 async function wireAddendums(overlay, prefix, contractType, contractId, currentUser) {
@@ -3617,7 +3599,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
     items = await loadAddendums(contractType, contractId);
     listEl.innerHTML = renderAddendumsList(items, canEdit);
     if (overlay.__cmRefreshStatus) overlay.__cmRefreshStatus();
-    wireAddendumFileOpen(overlay);
+    bindFileOpenLinks(listEl);
     if (!canEdit) return;
     listEl.querySelectorAll('[data-addendum-edit]').forEach(function(el) {
       el.addEventListener('click', function() {

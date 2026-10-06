@@ -507,7 +507,7 @@ async function aStart() {
 async function aReload() { await aLoad(); aRender(); }
 function aRender() {
   const head = ah.tab === 'home'
-    ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div><button class="hr-new" data-act="newexp">+ Счёт</button></div>'
+    ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div><button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
     : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд АХО</button><div class="hr-title">' + A_SECTIONS[ah.tab] + '</div></div>';
   aRoot().innerHTML = head + '<div data-hr-body></div>';
   ({ home: aRenderHome, routines: aRenderRoutines, money: aRenderMoney, poa: aRenderPoa, fire: aRenderFire, mail: aRenderMail, cars: aRenderCars, mailing: aRenderMailing, att: aRenderAtt })[ah.tab]();
@@ -577,7 +577,7 @@ function aRoutineWhen(r) {
 function aRenderRoutines() {
   const list = ah.d.routines.slice().sort(function(a, b) { return (a.active === false) - (b.active === false) || String(a.next_on || '9').localeCompare(String(b.next_on || '9')); });
   aBody().innerHTML = '<div class="hr-bar"><span class="hr-hint" style="margin:0;">Нажмите «✓ Сделано» — следующий срок посчитается сам по периоду. Сегодняшние — в «Сегодня по регламенту» на дашборде, просроченные — в ленте «Требует внимания», и те и другие — в колокольчике.</span>'
-    + '<button class="hr-new" data-act="newroutine">+ Дело</button></div>'
+    + '<button class="hr-new" data-act="newroutine"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Дело</button></div>'
     + (list.length ? '<div class="hr-card"><table><thead><tr><th>Что</th><th>Как часто</th><th>Следующий срок</th><th>Последний раз</th><th></th></tr></thead><tbody>'
       + list.map(function(r) {
         return '<tr data-rec="routine:' + r.id + '"' + (r.active === false ? ' style="opacity:.5;"' : '') + '><td>' + hEsc(r.title) + (r.link ? ' <a class="hr-flink" href="' + hEsc(r.link) + '" target="_blank">инструкция</a>' : '') + '</td>'
@@ -608,7 +608,7 @@ function aRenderMoney() {
   const gl = { open: 'В работе', approval: 'На согласовании', topay: 'К оплате', nodocs: 'Ждут закрывающих', rejected: 'Отклонены', done: 'Переданы в бухгалтерию', all: 'Все' };
   const cnt = function(k) { return ah.d.exps.filter(function(x) { return !groups[k] || groups[k].indexOf(x.status || 'new') !== -1; }).length; };
   const list = ah.d.exps.filter(function(x) { return !groups[ah.expSt] || groups[ah.expSt].indexOf(x.status || 'new') !== -1; });
-  aBody().innerHTML = '<div class="hr-bar">' + seg + '<button class="hr-new" data-act="newexp">+ Счёт</button></div>'
+  aBody().innerHTML = '<div class="hr-bar">' + seg + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
     + '<div class="hr-flow">' + A_FLOW.map(function(s) { return '<span>' + A_EXP_ST[s] + '</span>'; }).join('<span style="background:none;padding:2px 0;">→</span>') + '</div>'
     + '<div class="hr-st">' + Object.keys(gl).map(function(k) { return '<button data-act="expst" data-v="' + k + '"' + (ah.expSt === k ? ' class="on"' : '') + '>' + gl[k] + '<b>' + cnt(k) + '</b></button>'; }).join('') + '</div>'
     + (list.length ? '<div class="hr-card"><table><thead><tr><th>Что</th><th>Поставщик</th><th>Статья</th><th>Юрлицо / объект</th><th class="n">Сумма</th><th>Оплатить до</th><th>Статус</th></tr></thead><tbody>'
@@ -666,7 +666,7 @@ async function aExpStep(x, step, m) {
 function aRenderSubs(seg) {
   const list = ah.d.subs.slice().sort(function(a, b) { return (a.active === false) - (b.active === false) || String(a.next_pay_on || '9').localeCompare(String(b.next_pay_on || '9')); });
   const monthly = list.filter(function(s) { return s.active !== false; }).reduce(function(n, s) { return n + (Number(s.amount) || 0) / (A_SUB_MONTHS[s.period] || 1); }, 0);
-  aBody().innerHTML = '<div class="hr-bar">' + seg + '<span class="hr-hint" style="margin:0;">≈ ' + hMoney(monthly) + ' в месяц</span><button class="hr-new" data-act="newsub">+ Платёж</button></div>'
+  aBody().innerHTML = '<div class="hr-bar">' + seg + '<span class="hr-hint" style="margin:0;">≈ ' + hMoney(monthly) + ' в месяц</span><button class="hr-new" data-act="newsub"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Платёж</button></div>'
     + '<div class="hr-hint" style="margin-bottom:10px;">«Оплачено» заводит счёт со статусом «Оплачен» (для плана/факта и закрывающих) и переносит следующую оплату на период вперёд.</div>'
     + (list.length ? '<div class="hr-card"><table><thead><tr><th>Что</th><th>Статья</th><th>Юрлицо</th><th class="n">Сумма</th><th>Период</th><th>Следующая оплата</th><th></th></tr></thead><tbody>'
       + list.map(function(s) {
@@ -708,7 +708,7 @@ function aRenderPlan(seg) {
       + '<td class="n"><b>' + n0(sp) + '</b><div class="hr-hint" style="margin:0;' + (sp && sf > sp ? 'color:#cf1322;' : '') + '">факт ' + n0(sf) + '</div></td></tr>';
   }).join('');
   aBody().innerHTML = '<div class="hr-bar">' + seg + '<button class="hr-btn" data-act="year" data-d="-1">‹</button><b>' + y + '</b><button class="hr-btn" data-act="year" data-d="1">›</button>'
-    + '<button class="hr-new" data-act="newart">+ Статья</button></div>'
+    + '<button class="hr-new" data-act="newart"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Статья</button></div>'
     + '<div class="hr-hint" style="margin-bottom:10px;">План вводится прямо в ячейке (сохраняется при выходе из неё). Факт — оплаченные счета этой статьи по дате оплаты; красный — перерасход.</div>'
     + '<div class="hr-card hr-plan"><table><thead><tr><th>Статья</th>' + A_MONTHS.map(function(m) { return '<th class="n">' + m + '</th>'; }).join('') + '<th class="n">Год</th></tr></thead><tbody>' + body
     + '<tr><td><b>Итого</b></td><td colspan="12"></td><td class="n"><b>' + n0(tp) + '</b><div class="hr-hint" style="margin:0;">факт ' + n0(tf) + '</div></td></tr></tbody></table></div>';
@@ -734,7 +734,7 @@ function aRenderPoa() {
   const byLe = {};
   list.forEach(function(p) { (byLe[p.legal_entity_id || 0] = byLe[p.legal_entity_id || 0] || []).push(p); });
   aBody().innerHTML = '<div class="hr-bar"><select data-f="poaLe"><option value="">Все юрлица</option>' + ah.d.les.map(function(l) { return '<option value="' + l.id + '"' + (ah.poaLe === String(l.id) ? ' selected' : '') + '>' + hEsc(l.name) + '</option>'; }).join('') + '</select>'
-    + '<button class="hr-new" data-act="newpoa">+ Доверенность</button></div>'
+    + '<button class="hr-new" data-act="newpoa"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Доверенность</button></div>'
     + (list.length ? Object.keys(byLe).map(function(k) {
       return '<div class="hr-grp">' + hEsc(aLeName(k) || 'Юрлицо не указано') + '<span>' + byLe[k].length + '</span></div><div class="hr-card"><table><thead><tr><th>На кого</th><th>Для чего</th><th>Номер</th><th>Выдана</th><th>Срок</th></tr></thead><tbody>'
         + byLe[k].map(function(p) {
@@ -751,7 +751,7 @@ function aRenderFire() {
   const by = {};
   list.forEach(function(f) { (by[f.object_name || '—'] = by[f.object_name || '—'] || []).push(f); });
   aBody().innerHTML = '<div class="hr-bar"><select data-f="fireObj"><option value="">Все объекты</option>' + objs.map(function(o) { return '<option' + (ah.fireObj === o ? ' selected' : '') + '>' + hEsc(o) + '</option>'; }).join('') + '</select>'
-    + '<button class="hr-new" data-act="newfire">+ Требование</button></div>'
+    + '<button class="hr-new" data-act="newfire"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Требование</button></div>'
     + (list.length ? Object.keys(by).sort().map(function(o) {
       const open = by[o].filter(function(f) { return f.status !== 'fixed'; }).length;
       return '<div class="hr-grp">' + hEsc(o) + '<span>' + by[o].length + ' ' + hNoun(by[o].length, 'требование', 'требования', 'требований') + (open ? ', не устранено ' + open : '') + '</span></div>'
@@ -775,7 +775,7 @@ function aRenderMail() {
   const cnt = function(k) { return ah.d.mail.filter(function(x) { return !k || x.kind === k; }).length; };
   aBody().innerHTML = '<div class="hr-bar"><div class="hr-st" style="margin:0;">' + [['', 'Все']].concat(Object.keys(A_MAIL_KIND).map(function(k) { return [k, A_MAIL_KIND[k]]; })).map(function(x) {
       return '<button data-act="mailkind" data-v="' + x[0] + '"' + (ah.mailKind === x[0] ? ' class="on"' : '') + '>' + x[1] + '<b>' + cnt(x[0]) + '</b></button>'; }).join('') + '</div>'
-    + '<button class="hr-new" data-act="newmail">+ Запись</button></div>'
+    + '<button class="hr-new" data-act="newmail"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Запись</button></div>'
     + (list.length ? '<div class="hr-card"><table><thead><tr><th>Дата</th><th>Вид</th><th>О чём</th><th>От кого / кому</th><th>Объект</th><th>Как</th><th>Статус</th><th>Срок</th></tr></thead><tbody>'
       + list.map(function(x) {
         const open = x.status !== 'done' && x.status !== 'answered';
@@ -790,13 +790,13 @@ function aOpenMail(x) { aEdit({ coll: 'crm_aho_mail', rec: x, preset: { kind: ah
 // ---------- машины и штрафы ----------
 function aRenderCars() {
   const fines = ah.d.fines;
-  aBody().innerHTML = '<div class="hr-cols"><div><div class="hr-card"><div class="hr-card-t">Штрафы <small>не оплачено ' + fines.filter(function(f) { return !f.paid_on; }).length + '</small><button class="hr-btn sm" data-act="newfine">+ Штраф</button></div>'
+  aBody().innerHTML = '<div class="hr-cols"><div><div class="hr-card"><div class="hr-card-t">Штрафы <small>не оплачено ' + fines.filter(function(f) { return !f.paid_on; }).length + '</small><button class="hr-btn sm" data-act="newfine"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Штраф</button></div>'
     + (fines.length ? '<table><thead><tr><th>Машина</th><th>Дата</th><th class="n">Сумма</th><th>Скидка 50% до</th><th>Оплачен</th></tr></thead><tbody>' + fines.map(function(f) {
       const c = aCar(f.car_id);
       return '<tr data-rec="fine:' + f.id + '"><td>' + hEsc(c ? c.name : '') + '</td><td>' + hEsc(hDate(f.issued_on)) + '</td><td class="n">' + hMoney(f.amount) + '</td><td>' + (f.paid_on ? hEsc(hDate(f.discount_until)) : aDueChip(f.discount_until, 5)) + '</td>'
         + '<td>' + (f.paid_on ? '<span class="hr-ok">' + hDate(f.paid_on) + '</span>' : '<span class="hr-chip red">нет</span>') + '</td></tr>';
     }).join('') + '</tbody></table>' : '<div class="hr-hint">Штрафов нет</div>') + '</div></div><div>'
-    + '<div class="hr-card"><div class="hr-card-t">Машины <small>' + ah.d.cars.length + '</small><button class="hr-btn sm" data-act="newcar">+ Машина</button></div>'
+    + '<div class="hr-card"><div class="hr-card-t">Машины <small>' + ah.d.cars.length + '</small><button class="hr-btn sm" data-act="newcar"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Машина</button></div>'
     + (ah.d.cars.length ? '<div class="hr-lines">' + ah.d.cars.map(function(c) {
       const unpaid = fines.filter(function(f) { return Number(f.car_id) === c.id && !f.paid_on; }).length;
       return '<div data-rec="car:' + c.id + '"' + (c.active === false ? ' style="opacity:.5;"' : '') + '><span>' + hEsc(c.name) + (c.plate ? ' <span class="hr-hint">' + hEsc(c.plate) + '</span>' : '') + (aFilesOf('car', c.id).length ? ' 📎' : '') + '</span>'

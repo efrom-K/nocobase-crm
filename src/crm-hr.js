@@ -771,9 +771,9 @@ function hRender() {
     hr.staffView = hr.tab === 'org' ? 'org' : 'list';
   } else {                     // дашборд HR: без вкладок, раздел открывается с главного экрана
     head = hr.tab === 'home'
-      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div><button class="hr-new" data-act="newemp">+ Сотрудник</button></div>'
+      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div><button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
       : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд HR</button><div class="hr-title">' + HR_SECTIONS[hr.tab] + '</div>'
-        + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp">+ Сотрудник</button>' : '') + '</div>';
+        + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button>' : '') + '</div>';
   }
   hRoot().innerHTML = head + '<div data-hr-body></div>';
   ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs, hire: hRenderHire })[hr.tab]();
@@ -946,7 +946,7 @@ function hRenderMil() {
       + '<td class="n">' + n + '</td><td class="n hr-hint">' + all + '</td></tr>';
   }).join('');
   const col = function(k) { return H_MIL.find(function(f) { return f[0] === k; }); };
-  hBody().innerHTML = '<div class="hr-card"><div class="hr-card-t">Организации<button class="hr-btn sm" data-act="newle">+ Юрлицо</button></div>'
+  hBody().innerHTML = '<div class="hr-card"><div class="hr-card-t">Организации<button class="hr-btn sm" data-act="newle"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Юрлицо</button></div>'
     + '<div class="hr-hint" style="margin:-4px 0 8px;">Ежегодная сверка с военкоматом; план воинского учёта на следующий год — осенью (приказ об организации ВУ, план, карточка организации по форме 18). Нажмите на строку, чтобы отметить.</div>'
     + (orgs ? '<table><thead><tr><th>Юрлицо</th><th>Военкомат</th><th>Последняя сверка</th><th>План на год</th><th class="n">На учёте</th><th class="n">Всего людей</th></tr></thead><tbody>' + orgs + '</tbody></table>' : '<div class="hr-hint">Юрлица не заведены.</div>') + '</div>'
     + '<div class="hr-card"><div class="hr-card-t">Военнообязанные <small>' + liable.length + '</small></div>'
@@ -968,7 +968,7 @@ function hRenderStaff() {
     + (hrm ? '<span class="hr-seg"><button data-act="sv" data-v="table" class="' + (!org ? 'on' : '') + '">Таблица</button><button data-act="sv" data-v="org" class="' + (org ? 'on' : '') + '">Структура</button></span>' : '')
     + (!org ? '<input type="text" data-f="q" placeholder="Найти: фамилия, должность, телефон" value="' + hEsc(hr.q) + '">' + leSel + deptSel + (hrm ? typeSel : '')
       + '<label class="hr-hint" style="margin:0;cursor:pointer;"><input type="checkbox" data-f="fired"' + (hr.fired ? ' checked' : '') + '> уволенные</label>'
-      : (hCan() ? '<button class="hr-btn sm" data-act="newle">+ Юрлицо</button><button class="hr-btn' + (hr.orgEdit ? ' pri' : '') + '" data-act="orgedit" style="margin-left:auto;">' + (hr.orgEdit ? 'Готово' : 'Изменить руководителей') + '</button>' : ''))
+      : (hCan() ? '<button class="hr-btn sm" data-act="newle"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Юрлицо</button><button class="hr-btn' + (hr.orgEdit ? ' pri' : '') + '" data-act="orgedit" style="margin-left:auto;">' + (hr.orgEdit ? 'Готово' : 'Изменить руководителей') + '</button>' : ''))
     + '</div>' + (hr.only && !org ? '<div class="hr-only">Показаны: <b>' + hEsc(hr.only.title) + '</b> (' + hr.only.ids.length + ')<button class="hr-btn sm" data-act="unonly" style="margin-left:auto;">Показать всех</button></div>' : '')
     + '<div data-staff-list></div>';
   if (org) hRenderOrg(); else hRenderStaffList();
@@ -1070,7 +1070,7 @@ function hRenderOrg() {
   };
   const top = d.depts.find(function(x) { return !x.parent_name || !d.depts.some(function(y) { return y.name === x.parent_name; }); });
   const act = hActive();
-  const les = '<div class="hr-card-t" style="margin-bottom:6px;">Юрлица' + (can ? '<button class="hr-btn sm" data-act="newle">+ Юрлицо</button>' : '') + '</div>'
+  const les = '<div class="hr-card-t" style="margin-bottom:6px;">Юрлица' + (can ? '<button class="hr-btn sm" data-act="newle"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Юрлицо</button>' : '') + '</div>'
     + (d.les.length ? '<div class="hr-le">' + d.les.map(function(l) {
         const n = act.filter(function(e) { return hInLe(e, l.id); }).length;
         return '<div class="hr-le-c"' + (can ? ' data-le="' + l.id + '"' : '') + '><b>' + hEsc(l.name) + '</b><span class="hr-hint">' + (l.inn ? 'ИНН ' + hEsc(l.inn) + ' · ' : '') + n + ' чел.</span></div>';
@@ -1156,7 +1156,7 @@ function hRenderEmp(m, id) {
   const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.end_date).slice(0, 4) >= String(y); });
   const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + '</div>' : '')
     + lines(vacs.map(function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; }), 'Отпусков не запланировано')
-    + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac>+ Отпуск</button></div>' : '');
+    + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button></div>' : '');
   // охрана труда
   const so = hSout(e.sout_id);
   const otView = (staff ? lines(HR_SAFETY.map(function(k) {
@@ -1175,7 +1175,7 @@ function hRenderEmp(m, id) {
   const evView = lines(evs.slice(0, 10).map(function(x) { return '<div data-rec="ev:' + x.id + '"><span>' + hEsc(x.title) + '</span><span class="hr-hint">' + hDate(x.event_date) + '</span></div>'; }), 'Пока не участвовал(а)');
   const tasks = hr.d.tasks.filter(function(x) { return (e.user_id && Number(x.executor_id) === Number(e.user_id)) || (x.executor_name && x.executor_name === e.full_name) || Number(x.employee_id) === e.id; });
   const taskView = lines(tasks.slice(0, 8).map(function(x) { return '<div data-task="' + x.id + '"><span>' + hEsc(x.title) + '</span><span class="' + (x.due_date && hD(x.due_date) < t ? 'hr-late' : 'hr-hint') + '">' + (x.due_date ? 'срок ' + hDate(x.due_date) : '') + '</span></div>'; }), 'Открытых задач нет')
-    + '<div class="hr-actions" style="margin-top:8px;"><a class="hr-btn sm" href="' + HR_TASKS_PAGE + '?new=' + (e.user_id ? 'u' + e.user_id : 'e' + e.id) + '">Поставить задачу</a>' + (can ? '<a class="hr-btn sm" href="' + HR_TASKS_PAGE + '?new=hr:' + e.id + '">+ Кадровая задача</a>' : '') + '</div>';
+    + '<div class="hr-actions" style="margin-top:8px;"><a class="hr-btn sm" href="' + HR_TASKS_PAGE + '?new=' + (e.user_id ? 'u' + e.user_id : 'e' + e.id) + '">Поставить задачу</a>' + (can ? '<a class="hr-btn sm" href="' + HR_TASKS_PAGE + '?new=hr:' + e.id + '"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Кадровая задача</a>' : '') + '</div>';
   const milView = p.mil_status === 'liable' ? hKv(H_MIL.filter(function(f) { return p[f[0]] || f[0] === 'mil_office' || f[0] === 'mil_vus'; }), p) : hKv(H_MIL.slice(0, 1), p);
   const prog = hr.d.progs.find(function(x) { return x.id === Number(p.program_id); });
   const motView = '<div class="hr-kv"><div class="k">Программа</div><div class="v">' + (prog ? '<a class="hr-link" data-rec="prog:' + prog.id + '" style="color:#1c2d58;cursor:pointer;">' + hEsc(prog.title) + '</a>' : '<span class="hr-none">—</span>') + '</div>'
@@ -1322,7 +1322,7 @@ function hRenderVac() {
   hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1">‹</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
       + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — приказа ещё нет</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
-    + (can ? '<button class="hr-new" data-act="newvac">+ Отпуск</button>' : '') + '</div>'
+    + (can ? '<button class="hr-new" data-act="newvac"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button>' : '') + '</div>'
     + (can ? '<div class="hr-hint" style="margin-bottom:8px;">Нажмите на пустое место в строке сотрудника — откроется новый отпуск с этой даты. Нажмите на отпуск — изменить. Справа — сколько дней ежегодного отпуска осталось запланировать.</div>' : '')
     + (function() {   // итог года по видам: сколько дней и у скольких людей
         const yv = hr.d.vacs.filter(function(v) { const e = hEmp(v.employee_id); return e && e.status !== 'fired' && hD(v.start_date).slice(0, 4) === String(y); });
@@ -1385,12 +1385,12 @@ function hRenderSafety() {
     + '<table class="hr-mx"><thead><tr><th>Сотрудник</th>' + HR_SAFETY.map(function(k) { return '<th class="c" title="' + hEsc(k[0] + (k[2] ? ', раз в ' + k[2] + ' мес.' : ', однократно')) + '">' + hEsc(k[3]) + '</th>'; }).join('') + '</tr></thead><tbody>'
     + people.map(function(e) { return '<tr><td class="nm" data-emp="' + e.id + '" style="cursor:pointer;white-space:nowrap;">' + hEsc(e.full_name) + '</td>' + HR_SAFETY.map(function(k) { return cell(e, k); }).join('') + '</tr>'; }).join('')
     + '</tbody></table><div class="hr-hint">Нажмите на ячейку — отметить проведение (дата следующего посчитается по типовому периоду) или посмотреть историю.</div></div>'
-    + '<div class="hr-cols"><div class="hr-card"><div class="hr-card-t">Пожарная безопасность: общие мероприятия<button class="hr-btn sm" data-act="newpb">+ Запись</button></div>'
+    + '<div class="hr-cols"><div class="hr-card"><div class="hr-card-t">Пожарная безопасность: общие мероприятия<button class="hr-btn sm" data-act="newpb"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Запись</button></div>'
     + (ck.length ? '<table><thead><tr><th>Что</th><th>Проведено</th><th>Следующее</th></tr></thead><tbody>' + ck.map(function(k) {
         const s = common[k], st = s.next_on ? hDue(s.next_on) : 'ok';
         return '<tr data-rec="safety:' + s.id + '"><td>' + hEsc(k) + (s.doc ? '<div class="hr-hint">' + hEsc(s.doc) + '</div>' : '') + '</td><td>' + hDate(s.done_on) + '</td><td class="hr-' + st + '">' + (hDate(s.next_on) || '—') + '</td></tr>';
       }).join('') + '</tbody></table>' : '<div class="hr-hint">Нет записей. Например: проверка огнетушителей, тренировка по эвакуации, проверка пожарной сигнализации.</div>') + '</div>'
-    + '<div class="hr-card"><div class="hr-card-t">СОУТ — специальная оценка условий труда<button class="hr-btn sm" data-act="newsout">+ Рабочее место</button></div>'
+    + '<div class="hr-card"><div class="hr-card-t">СОУТ — специальная оценка условий труда<button class="hr-btn sm" data-act="newsout"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Рабочее место</button></div>'
     + '<div class="hr-hint" style="margin:-4px 0 8px;">Оценка каждого рабочего места раз в 5 лет; класс условий: 1–2 допустимые, 3.1–4 вредные и опасные (доплаты, доп. отпуск).</div>'
     + (d.sout.length ? '<table><thead><tr><th>Рабочее место</th><th>Класс</th><th class="n">Людей</th><th>Следующая</th></tr></thead><tbody>' + d.sout.map(function(s) {
         const c = HR_SOUT_CLS[s.work_class] || '#8c8c8c', n = hActive().filter(function(e) { return Number(e.sout_id) === s.id; }).length;
@@ -1453,15 +1453,15 @@ function hRenderDocs() {
   const progCount = function(p) { return (d.priv || []).filter(function(x) { return Number(x.program_id) === p.id && hEmp(x.employee_id) && hEmp(x.employee_id).status !== 'fired'; }).length; };
   const up = d.events.filter(function(x) { return hD(x.event_date) >= t; }).reverse(), past = d.events.filter(function(x) { return hD(x.event_date) < t; });
   const evRow = function(x) { return '<tr data-rec="ev:' + x.id + '"><td>' + hDate(x.event_date) + '</td><td>' + hEsc(x.title) + '<div class="hr-hint">' + hEsc([x.kind, x.place].filter(Boolean).join(' · ')) + '</div></td><td class="n">' + (x.participants || []).length + '</td><td class="n">' + (x.budget ? Number(x.budget).toLocaleString('ru-RU') + ' ₽' : '') + '</td></tr>'; };
-  hBody().innerHTML = '<div class="hr-card"><div class="hr-card-t">Локальные нормативные акты<button class="hr-btn sm" data-act="newlna">+ Документ</button></div>'
+  hBody().innerHTML = '<div class="hr-card"><div class="hr-card-t">Локальные нормативные акты<button class="hr-btn sm" data-act="newlna"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Документ</button></div>'
     + (lnaRows ? '<table><thead><tr><th>Документ</th><th>Приказ</th><th>Пересмотр</th><th class="n">Ознакомлены</th><th></th></tr></thead><tbody>' + lnaRows + '</tbody></table>'
       : '<div class="hr-hint">Документов нет. Обычно это правила внутреннего трудового распорядка, положения об оплате труда и премировании, о персональных данных, инструкции по охране труда и пожарной безопасности.</div>') + '</div>'
-    + '<div class="hr-cols"><div class="hr-card"><div class="hr-card-t">Корпоративные мероприятия и тимбилдинги<button class="hr-btn sm" data-act="newev">+ Мероприятие</button></div>'
+    + '<div class="hr-cols"><div class="hr-card"><div class="hr-card-t">Корпоративные мероприятия и тимбилдинги<button class="hr-btn sm" data-act="newev"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Мероприятие</button></div>'
     + (d.events.length ? '<table><thead><tr><th>Дата</th><th>Мероприятие</th><th class="n">Участников</th><th class="n">Бюджет</th></tr></thead><tbody>'
         + (up.length ? '<tr><td colspan="4" class="hr-hint" style="font-weight:600;">Впереди</td></tr>' + up.map(evRow).join('') : '')
         + (past.length ? '<tr><td colspan="4" class="hr-hint" style="font-weight:600;">Прошедшие</td></tr>' + past.map(evRow).join('') : '') + '</tbody></table>'
       : '<div class="hr-hint">Мероприятий пока нет.</div>') + '</div>'
-    + '<div class="hr-card"><div class="hr-card-t">Мотивационные программы<button class="hr-btn sm" data-act="newprog">+ Программа</button></div>'
+    + '<div class="hr-card"><div class="hr-card-t">Мотивационные программы<button class="hr-btn sm" data-act="newprog"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Программа</button></div>'
     + (d.progs.length ? '<div class="hr-lines">' + d.progs.map(function(p) {
         const on = (!p.end_on || hD(p.end_on) >= t);
         return '<div data-rec="prog:' + p.id + '" style="cursor:pointer;"><span><b>' + hEsc(p.title) + '</b><div class="hr-hint">' + hEsc([p.kind, p.start_on || p.end_on ? (hDate(p.start_on) || '…') + ' – ' + (hDate(p.end_on) || 'бессрочно') : ''].filter(Boolean).join(' · ')) + '</div></span>'
@@ -1487,7 +1487,7 @@ function hCandLine(c) {
 function hRenderHire() {
   const d = hr.d, t = hToday(), v = hr.hireView;
   const seg = '<span class="hr-seg">' + [['funnel', 'Кандидаты'], ['vac', 'Вакансии'], ['pos', 'Штатное расписание']].map(function(x) { return '<button data-act="hv" data-v="' + x[0] + '" class="' + (v === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</span>';
-  const btn = { funnel: ['newcand', '+ Кандидат'], vac: ['newvacancy', '+ Вакансия'], pos: ['newpos', '+ Должность'] }[v];
+  const btn = { funnel: ['newcand', '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Кандидат'], vac: ['newvacancy', '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Вакансия'], pos: ['newpos', '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Должность'] }[v];
   let body = '';
   if (v === 'funnel') {
     const vsel = '<select data-f="hireVac"><option value="">Все вакансии</option>' + d.vacancies.filter(function(x) { return x.status === 'open' || x.status === 'paused' || String(x.id) === hr.hireVac; })
@@ -1562,7 +1562,7 @@ function hOpenVacancy(x, preset) {
     extra: function(r) {
       if (!r) return '';
       const cs = hr.d.cands.filter(function(c) { return c.vacancy_id === r.id; });
-      return '<div class="hr-actions" style="margin:14px 0 6px;"><b style="font-size:13.5px;">Кандидаты (' + cs.length + ')</b><button type="button" class="hr-btn sm" data-newcand>+ Кандидат</button></div>'
+      return '<div class="hr-actions" style="margin:14px 0 6px;"><b style="font-size:13.5px;">Кандидаты (' + cs.length + ')</b><button type="button" class="hr-btn sm" data-newcand><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Кандидат</button></div>'
         + (cs.length ? '<div class="hr-lines">' + cs.map(function(c) { return '<div data-cand="' + c.id + '" style="cursor:pointer;"><span>' + hEsc(c.full_name) + '</span><span class="hr-chip ' + HR_STAGE_C[c.stage] + '">' + hEsc(HR_STAGES[c.stage] || '') + '</span></div>'; }).join('') + '</div>' : '<div class="hr-hint">Пока нет</div>');
     },
     wire: function(mm, r) {

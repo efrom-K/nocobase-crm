@@ -199,7 +199,7 @@ function rqRender() {
   const tabs = [['list', 'Заявки'], ['stats', 'Статистика']].concat(rqIsAdmin() ? [['objects', 'Управляющие объектов']] : []);
   rqRoot().innerHTML = '<div class="rq-head"><div class="rq-title">Заявки по объектам</div><div class="rq-tabs">'
     + tabs.map(function(t) { return '<button class="rq-tab' + (rq.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('')
-    + '</div><button class="rq-new" data-act="new">+ Новая заявка</button></div><div id="rq-body"></div>';
+    + '</div><button class="rq-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Новая заявка</button></div><div id="rq-body"></div>';
   if (rq.tab === 'list') rqRenderListShell();
   else if (rq.tab === 'stats') rqRenderStats();
   else rqRenderObjects();

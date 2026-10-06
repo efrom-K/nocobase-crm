@@ -434,7 +434,7 @@ function openFolderMenu(root, anchorEl, convId) {
     const checked = inFolders.indexOf(f.id) !== -1;
     return '<div class="msgr-folder-menu-item" data-folder="' + f.id + '"><span>' + esc(f.name) + '</span><span>' + (checked ? '✓' : '') + '</span></div>';
   }).join('') + '<div class="msgr-folder-menu-sep"></div>' : '') +
-    '<div class="msgr-folder-menu-item" id="msgr-new-folder-item"><span>+ Новая папка…</span></div>';
+    '<div class="msgr-folder-menu-item" id="msgr-new-folder-item"><span><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Новая папка…</span></div>';
   document.body.appendChild(menu);
   const rect = anchorEl.getBoundingClientRect();
   menu.style.top = (rect.bottom + 4) + 'px';
@@ -1033,7 +1033,7 @@ async function renderInfoPanel(win, convId, tab) {
     body.innerHTML = '<div class="msgr-empty">Загрузка…</div>';
     const memberIds = conv.members.map(function (m) { return m.user_id; });
     const presence = await loadPresenceMap(memberIds);
-    body.innerHTML = '<button class="msgr-add-member-btn" id="msgr-add-member-btn">+ Добавить участника</button>' +
+    body.innerHTML = '<button class="msgr-add-member-btn" id="msgr-add-member-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Добавить участника</button>' +
       conv.members.map(function (m) {
       const iso = presence[m.user_id];
       const online = iso && (Date.now() - new Date(iso).getTime()) / 1000 < 40;
@@ -1116,7 +1116,7 @@ injectStyle();
 
 const shellHtml =
   '<div class="msgr-root">' +
-    '<div class="msgr-head"><h3>Сообщения</h3><button class="msgr-new-btn" id="msgr-new-btn">+</button></div>' +
+    '<div class="msgr-head"><h3>Сообщения</h3><button class="msgr-new-btn" id="msgr-new-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.8em height=.8em style=flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg></button></div>' +
     '<div class="msgr-search-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input id="msgr-search-input" placeholder="Поиск"></div>' +
     '<div class="msgr-folders" id="msgr-folders"></div>' +
     '<div class="msgr-conv-list" id="msgr-conv-list"><div class="msgr-empty">Загрузка…</div></div>' +

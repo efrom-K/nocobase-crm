@@ -388,7 +388,7 @@ async function setScanField(root, collectionName, contractId, r, field, value) {
   if (el) {
     el.value = value || '';
     const nameEl = root.querySelector('[data-scan-name="' + field + '"]'); if (nameEl) nameEl.textContent = value || 'не загружен';
-    const upBtn = root.querySelector('[data-scan-upload="' + field + '"]'); if (upBtn) upBtn.textContent = value ? 'Заменить файл' : '+ Загрузить файл';
+    const upBtn = root.querySelector('[data-scan-upload="' + field + '"]'); if (upBtn) upBtn.innerHTML = value ? 'Заменить файл' : '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Загрузить файл';
   }
 }
 function bindScanMarks(root, contractId, r, onDone, collectionName) {
@@ -1260,7 +1260,7 @@ function mountAreaLinesEditor(body, initial, onChange) {
       }).join('')
       + '<div class="cm-al-line"></div>'
       + '<div class="cm-al-foot" data-al-foot="area"></div><div class="cm-al-foot"></div><div class="cm-al-foot num" data-al-foot="rent"></div><div class="cm-al-foot"></div>'
-      + '</div><button type="button" class="cm-upload-btn" data-al-add style="margin-top:8px;font-size:12px;">+ Площадь</button>';
+      + '</div><button type="button" class="cm-upload-btn" data-al-add style="margin-top:8px;font-size:12px;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Площадь</button>';
     body.querySelectorAll('[data-al-area],[data-al-rate]').forEach(function(inp) {
       const i = Number(inp.getAttribute('data-al-area') || inp.getAttribute('data-al-rate')), k = inp.hasAttribute('data-al-area') ? 'area' : 'rate';
       inp.addEventListener('input', function() {
@@ -1892,7 +1892,7 @@ function renderPricesSection(prefix) {
   };
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные расчёты аренды</div>'
-    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;">+ Период</button></div>'
+    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Период</button></div>'
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
@@ -2537,7 +2537,7 @@ async function purgeContractSideData(type, id) {
 function renderContactsSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-contacts-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Контактные данные</div>'
-    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-contact-add-btn" style="display:none;">+ Контакт</button></div>'
+    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-contact-add-btn" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Контакт</button></div>'
     + '<div id="' + prefix + '-contacts-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-contact-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
@@ -2707,7 +2707,7 @@ async function openCompletedContractModal(id) {
           <div class="cm-members-footer" id="cm-members-footer">
             <div class="cm-members-head">
               <div class="cm-members-title">Сотрудники по договору</div>
-              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;">+</button>
+              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.8em height=.8em style=flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg></button>
               <div class="cm-add-popover" id="cm-add-popover">
                 <div class="cm-add-popover-title">Добавить сотрудника</div>
                 <div class="cm-add-popover-list" id="cm-add-popover-list">Загрузка…</div>
@@ -2818,7 +2818,7 @@ async function openContractModal(id) {
           <div class="cm-members-footer" id="cm-members-footer">
             <div class="cm-members-head">
               <div class="cm-members-title">Сотрудники по договору</div>
-              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;">+</button>
+              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.8em height=.8em style=flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg></button>
               <div class="cm-add-popover" id="cm-add-popover">
                 <div class="cm-add-popover-title">Добавить сотрудника</div>
                 <div class="cm-add-popover-list" id="cm-add-popover-list">Загрузка…</div>
@@ -2887,7 +2887,7 @@ async function openContractModal(id) {
     html += '<div class="cm-section" id="cm-active-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
       + '<div id="cm-active-files-list">' + renderFilesList(files, currentUser, activeScans(r, currentUser)) + '</div>'
       + '<div class="cm-upload-row"><input type="file" id="cm-active-file-input" style="display:none;">'
-      + '<button class="cm-upload-btn" id="cm-active-upload-btn">+ Прикрепить файл</button>'
+      + '<button class="cm-upload-btn" id="cm-active-upload-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Прикрепить файл</button>'
       + '<span id="cm-active-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
       + renderAddendumsSection('cm-active')
       + renderHistorySection('cm-active');
@@ -3117,7 +3117,7 @@ function renderEditableField(f, value, rec) {
   if (f.type === 'scan') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><div style="display:flex;align-items:center;gap:8px;">'
       + '<input type="hidden" data-field="' + f.name + '" value="' + escAttr(value) + '">'
-      + '<button type="button" class="cm-upload-btn" data-scan-upload="' + f.name + '">' + (value ? 'Заменить файл' : '+ Загрузить файл') + '</button>'
+      + '<button type="button" class="cm-upload-btn" data-scan-upload="' + f.name + '">' + (value ? 'Заменить файл' : '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Загрузить файл') + '</button>'
       + '<span data-scan-name="' + f.name + '" style="font-size:12px;color:#595959;">' + esc(value || 'не загружен') + '</span></div></div>';
   }
   if (f.type === 'calc') {
@@ -3556,7 +3556,7 @@ function renderFormingSideSections(r, currentUser, beforeHistory) {
     + '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
     + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser, recScans(r, true)) + '</div>'
     + '<div class="cm-upload-row"><input type="file" id="cm-forming-file-input" style="display:none;">'
-    + '<button class="cm-upload-btn" id="cm-forming-upload-btn">+ Прикрепить файл</button>'
+    + '<button class="cm-upload-btn" id="cm-forming-upload-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Прикрепить файл</button>'
     + '<span id="cm-forming-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
     + renderAddendumsSection('cm-forming')
     + (beforeHistory || '')
@@ -3770,7 +3770,7 @@ async function uploadFileGetId(file) {
 function renderAddendumsSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-addendums-section" style="margin-bottom:0;">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные соглашения</div>'
-    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-addendum-add-btn">+ Дополнительное соглашение</button></div>'
+    + '<button class="cm-stage-edit-toggle" id="' + prefix + '-addendum-add-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Дополнительное соглашение</button></div>'
     + '<div id="' + prefix + '-addendums-list" style="margin-top:6px;"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-addendum-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
@@ -3780,7 +3780,7 @@ function renderAddendumsSection(prefix) {
     + '</div>'
     + '<div style="display:flex;align-items:flex-start;gap:8px;">'
     + '<input type="file" multiple id="' + prefix + '-addendum-file" style="display:none;">'
-    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;white-space:nowrap;">+ Файлы</button>'
+    + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;white-space:nowrap;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Файлы</button>'
     + '<div id="' + prefix + '-addendum-filename" style="font-size:12px;color:#999;align-self:center;">Файлы не выбраны</div>'
     + '</div>'
     + '<div class="cm-stage-edit-actions">'
@@ -4852,7 +4852,7 @@ async function openFormingContractModal(id) {
           <div class="cm-members-footer" id="cm-members-footer">
             <div class="cm-members-head">
               <div class="cm-members-title">Сотрудники по договору</div>
-              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;">+</button>
+              <button id="cm-members-add-btn" class="cm-members-add-btn" title="Добавить сотрудника" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.8em height=.8em style=flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg></button>
               <div class="cm-add-popover" id="cm-add-popover">
                 <div class="cm-add-popover-title">Добавить сотрудника</div>
                 <div class="cm-add-popover-list" id="cm-add-popover-list">Загрузка…</div>
@@ -5034,7 +5034,7 @@ function injectCreateContractButton() {
 
   const btn = document.createElement('button');
   btn.id = 'cm-create-btn';
-  btn.textContent = '+ Создать договор';
+  btn.innerHTML = '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Создать договор';
   btn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:none;background:#1c2d58;color:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
   btn.addEventListener('click', async function() {
     await openDraftModal(null, false);
@@ -5043,7 +5043,7 @@ function injectCreateContractButton() {
 
   const quickBtn = document.createElement('button');
   quickBtn.id = 'cm-create-quick-btn';
-  quickBtn.textContent = '+ Срочный договор';
+  quickBtn.innerHTML = '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Срочный договор';
   quickBtn.title = 'Экстренное оформление: все данные одной формой, без этапов';
   quickBtn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid #ffd591;background:#fff7e6;color:#ad6800;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
   quickBtn.addEventListener('click', async function() {

@@ -15,11 +15,11 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .rq-tabs { display:flex; gap:4px; background:#f5f5f5; border-radius:8px; padding:3px; }
     #crm-req .rq-tab { border:none; background:transparent; padding:5px 12px; border-radius:6px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
     #crm-req .rq-tab.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
-    #crm-req .rq-new { margin-left:auto; border:none; background:#1677ff; color:#fff; border-radius:6px; padding:8px 16px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; }
+    #crm-req .rq-new { margin-left:auto; border:none; background:#1c2d58; color:#fff; border-radius:6px; padding:8px 16px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; }
     #crm-req .rq-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
     #crm-req .rq-chip { border:1px solid #d9d9d9; background:#fff; border-radius:14px; padding:3px 12px; font:inherit; font-size:13px; cursor:pointer; color:#434343; }
     #crm-req .rq-chip b { font-variant-numeric:tabular-nums; margin-left:4px; }
-    #crm-req .rq-chip.on { border-color:#1677ff; background:#e6f4ff; color:#0958d9; font-weight:600; }
+    #crm-req .rq-chip.on { border-color:#1c2d58; background:#eef1f8; color:#142142; font-weight:600; }
     #crm-req .rq-chip.bad b { color:#cf1322; }
     #crm-req .rq-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
     #crm-req select, #crm-req input[type=text], #crm-req input[type=date], #crm-req textarea, .rq-modal select, .rq-modal input[type=text], .rq-modal input[type=date], .rq-modal textarea {
@@ -27,7 +27,7 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .rq-filters select, #crm-req .rq-filters input { min-width:150px; }
     #crm-req .rq-list { display:flex; flex-direction:column; gap:8px; }
     #crm-req .rq-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:center; border:1px solid #f0f0f0; border-left:4px solid var(--c); border-radius:8px; padding:10px 14px; background:#fff; cursor:pointer; }
-    #crm-req .rq-row:hover { border-color:#91caff; border-left-color:var(--c); }
+    #crm-req .rq-row:hover { border-color:#b4bfd9; border-left-color:var(--c); }
     #crm-req .rq-row-title { font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #crm-req .rq-row-sub { font-size:12.5px; color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #crm-req .rq-row-side { text-align:right; font-size:12.5px; white-space:nowrap; }
@@ -67,19 +67,19 @@ if (!document.getElementById('crm-req-style')) {
     .rq-seg button.on { border-color:var(--c); background:var(--c); color:#fff; font-weight:600; }
     .rq-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
     .rq-btn { border:1px solid #d9d9d9; background:#fff; border-radius:6px; padding:7px 14px; font:inherit; font-size:13.5px; cursor:pointer; color:#262626; }
-    .rq-btn.pri { border-color:#1677ff; background:#1677ff; color:#fff; font-weight:600; }
+    .rq-btn.pri { border-color:#1c2d58; background:#1c2d58; color:#fff; font-weight:600; }
     .rq-btn.ok { border-color:#389e0d; background:#389e0d; color:#fff; font-weight:600; }
     .rq-btn.warn { color:#cf1322; border-color:#ffccc7; }
     .rq-btn:disabled { opacity:.5; cursor:default; }
     .rq-meta { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px 16px; font-size:13.5px; }
     .rq-meta .l { font-size:12px; color:#8c8c8c; }
     .rq-desc { white-space:pre-wrap; background:#fafafa; border-radius:6px; padding:10px 12px; margin-top:12px; font-size:13.5px; }
-    .rq-actbox { margin-top:12px; padding:12px; border:1px solid #e6f4ff; background:#f5faff; border-radius:8px; }
+    .rq-actbox { margin-top:12px; padding:12px; border:1px solid #eef1f8; background:#f5faff; border-radius:8px; }
     .rq-tl { margin-top:18px; border-top:1px solid #f0f0f0; padding-top:12px; }
     .rq-ev { display:flex; gap:10px; padding:7px 0; font-size:13px; }
     .rq-ev-d { color:#8c8c8c; font-size:12px; white-space:nowrap; min-width:92px; }
     .rq-ev.sys { color:#8c8c8c; }
-    .rq-ev a { color:#1677ff; cursor:pointer; }
+    .rq-ev a { color:#1c2d58; cursor:pointer; }
     .rq-comment { display:flex; gap:8px; margin-top:10px; align-items:flex-start; }
     .rq-comment textarea { flex:1; min-height:38px; resize:vertical; }
     @media (max-width: 700px) {
@@ -102,7 +102,7 @@ if (!document.getElementById('crm-req-style')) {
 
 const RQ_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
 const RQ_ST = {
-  new: { l: 'Новая', c: '#1677ff' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
+  new: { l: 'Новая', c: '#1c2d58' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
   done: { l: 'Выполнена — на проверке', c: '#13a8a8' }, closed: { l: 'Закрыта', c: '#389e0d' }, cancelled: { l: 'Отменена', c: '#8c8c8c' }
 };
 const RQ_OPEN = ['new', 'in_work', 'waiting'];
@@ -302,7 +302,7 @@ function rqOpenNew() {
     + '<div class="rq-f"><label>Объект *</label><select data-n="object_name"><option value="">Выберите объект</option>' + d.objects.map(function(o) { return '<option' + (rq.obj === o.name ? ' selected' : '') + '>' + rqEsc(o.name) + '</option>'; }).join('') + '</select></div>'
     + '<div class="rq-f"><label>Договор / арендатор</label><select data-n="contract_id"><option value="">— не по договору —</option></select></div>'
     + '<div class="rq-f"><label>Тип *</label><select data-n="kind"><option value="">Выберите тип</option>' + RQ_KINDS.map(function(k) { return '<option>' + rqEsc(k) + '</option>'; }).join('') + '</select></div>'
-    + '<div class="rq-f"><label>Срочность</label><div class="rq-seg" data-n="urgency">' + Object.keys(RQ_URG).map(function(k) { return '<button type="button" data-urg="' + k + '" style="--c:' + (k === 'normal' ? '#1677ff' : RQ_URG[k].c) + ';"' + (k === 'normal' ? ' class="on"' : '') + '>' + RQ_URG[k].l + '</button>'; }).join('') + '</div><div class="rq-hint" data-urg-hint>Срок: ' + RQ_URG.normal.hint + '</div></div>'
+    + '<div class="rq-f"><label>Срочность</label><div class="rq-seg" data-n="urgency">' + Object.keys(RQ_URG).map(function(k) { return '<button type="button" data-urg="' + k + '" style="--c:' + (k === 'normal' ? '#1c2d58' : RQ_URG[k].c) + ';"' + (k === 'normal' ? ' class="on"' : '') + '>' + RQ_URG[k].l + '</button>'; }).join('') + '</div><div class="rq-hint" data-urg-hint>Срок: ' + RQ_URG.normal.hint + '</div></div>'
     + '<div class="rq-f full"><label>Суть *</label><input type="text" data-n="title" placeholder="Коротко: что случилось или что нужно сделать"></div>'
     + '<div class="rq-f full"><label>Подробности</label><textarea data-n="description" placeholder="Где, что, контакты арендатора, что уже сделано"></textarea></div>'
     + '<div class="rq-f"><label>Ответственный</label><select data-n="responsible_id"><option value="">—</option>' + rqPeopleOptions(rq.me.id) + '</select><div class="rq-hint" data-resp-hint></div></div>'
@@ -391,7 +391,7 @@ async function rqRenderCard(m, r) {
     + (RQ_URG[r.urgency] && r.urgency !== 'normal' ? ' <span class="rq-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + rqEsc(u.l) + '</span>' : '') + '</div></div><button class="rq-x">✕</button></div>'
     + '<div class="rq-box-b"><div class="rq-meta">'
     + '<div><div class="l">Объект</div>' + rqEsc(r.object_name) + '</div>'
-    + '<div><div class="l">Договор / арендатор</div>' + (r.contract_id ? '<a href="/admin/b5znz7yxpy3?open=active:' + r.contract_id + '" style="color:#1677ff;">' + rqEsc(r.tenant_label || '#' + r.contract_id) + '</a>' : '—') + '</div>'
+    + '<div><div class="l">Договор / арендатор</div>' + (r.contract_id ? '<a href="/admin/b5znz7yxpy3?open=active:' + r.contract_id + '" style="color:#1c2d58;">' + rqEsc(r.tenant_label || '#' + r.contract_id) + '</a>' : '—') + '</div>'
     + '<div><div class="l">Тип</div>' + rqEsc(r.kind || '—') + '</div>'
     + '<div><div class="l">Срок</div>' + (RQ_OPEN.indexOf(r.status) !== -1 && late ? '<span class="rq-late">' + rqDate(r.due_date) + ', просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : rqDate(r.due_date)) + (r.due_moved ? ' <span style="color:#8c8c8c;font-size:12px;">(переносили ' + r.due_moved + ' раз)</span>' : '') + '</div>'
     + '<div><div class="l">Ответственный</div>' + rqEsc(rqUser(r.responsible_id)) + '</div>'

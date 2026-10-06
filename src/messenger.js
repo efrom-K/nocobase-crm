@@ -202,23 +202,23 @@ function injectStyle() {
   const style = document.createElement('style');
   style.id = 'msgr-style';
   style.textContent = `
-    .msgr-root { --msgr-accent:#2f88ff; --msgr-accent2:#5cb8ff; --msgr-bg:#ffffff; --msgr-panel:#f7f8fb;
+    .msgr-root { --msgr-accent:#1c2d58; --msgr-accent2:#3a5aa0; --msgr-bg:#ffffff; --msgr-panel:#f7f8fb;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       border:1px solid #ebedf0; border-radius:14px; overflow:hidden; background:#ffffff;
       box-shadow: 0 2px 18px rgba(20,30,60,.06); }
     .msgr-head { padding:16px 18px 10px; display:flex; align-items:center; justify-content:space-between; }
-    .msgr-head h3 { margin:0; font-size:19px; font-weight:700; letter-spacing:-.2px; background:linear-gradient(90deg,#2f88ff,#5cb8ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
-    .msgr-new-btn { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#2f88ff,#5cb8ff); color:#fff; border:none; cursor:pointer; font-size:19px; line-height:1; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(47,136,255,.35); transition:transform .15s; }
+    .msgr-head h3 { margin:0; font-size:19px; font-weight:700; letter-spacing:-.2px; background:linear-gradient(90deg,#1c2d58,#3a5aa0); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .msgr-new-btn { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; border:none; cursor:pointer; font-size:19px; line-height:1; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(28,45,88,.35); transition:transform .15s; }
     .msgr-new-btn:hover { transform:scale(1.07); }
     .msgr-search-wrap { margin:2px 18px 10px; position:relative; }
     .msgr-search-wrap svg { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#b7bcc7; pointer-events:none; }
     .msgr-search-wrap input { width:100%; box-sizing:border-box; padding:9px 12px 9px 32px; border-radius:20px; border:1px solid #e9ebf0; background:#f7f8fb; font-size:13.5px; outline:none; transition:border-color .15s, background .15s; }
-    .msgr-search-wrap input:focus { border-color:#2f88ff; background:#fff; }
+    .msgr-search-wrap input:focus { border-color:#1c2d58; background:#fff; }
     .msgr-folders { display:flex; gap:6px; padding:0 18px 10px; overflow-x:auto; scrollbar-width:none; }
     .msgr-folders::-webkit-scrollbar { display:none; }
     .msgr-folder-pill { flex-shrink:0; padding:6px 14px; border-radius:16px; font-size:12.5px; font-weight:600; cursor:pointer; background:#f7f8fb; color:#6b7280; white-space:nowrap; transition:all .15s; border:1px solid transparent; display:flex; align-items:center; gap:5px; }
     .msgr-folder-pill:hover { background:#eef2f8; }
-    .msgr-folder-pill.active { background:linear-gradient(135deg,#2f88ff,#5cb8ff); color:#fff; box-shadow:0 3px 8px rgba(47,136,255,.3); }
+    .msgr-folder-pill.active { background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; box-shadow:0 3px 8px rgba(28,45,88,.3); }
     .msgr-folder-pill.add { background:transparent; border:1px dashed #d7dce3; color:#9aa1ac; }
     .msgr-conv-list { max-height:560px; overflow-y:auto; padding:2px 8px 10px; }
     .msgr-conv-item { display:flex; align-items:center; gap:11px; padding:10px 10px; cursor:pointer; border-radius:12px; position:relative; transition:background .12s; }
@@ -231,7 +231,7 @@ function injectStyle() {
     .msgr-conv-time { font-size:11px; color:#a6acb8; flex-shrink:0; }
     .msgr-conv-bottom { display:flex; justify-content:space-between; align-items:center; gap:6px; margin-top:2px; }
     .msgr-conv-preview { font-size:12.5px; color:#8a90a0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .msgr-badge { background:linear-gradient(135deg,#2f88ff,#5cb8ff); color:#fff; font-size:11px; font-weight:700; min-width:19px; height:19px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 5px; flex-shrink:0; }
+    .msgr-badge { background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; font-size:11px; font-weight:700; min-width:19px; height:19px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 5px; flex-shrink:0; }
     .msgr-kebab { opacity:0; transition:opacity .12s; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#a6acb8; font-size:15px; cursor:pointer; flex-shrink:0; }
     .msgr-kebab:hover { background:#e7ebf1; color:#4a5568; }
     .msgr-empty { padding:36px 18px; color:#b3b8c2; font-size:13px; text-align:center; }
@@ -261,9 +261,9 @@ function injectStyle() {
     .msgr-info-close:hover { background:#eef0f3; }
     .msgr-info-tabs { display:flex; padding:8px 12px 0; gap:4px; }
     .msgr-info-tab { flex:1; text-align:center; padding:8px 6px; font-size:12.5px; font-weight:600; color:#9aa1ac; cursor:pointer; border-bottom:2px solid transparent; }
-    .msgr-info-tab.active { color:#2f88ff; border-bottom-color:#2f88ff; }
+    .msgr-info-tab.active { color:#1c2d58; border-bottom-color:#1c2d58; }
     .msgr-info-body { flex:1; min-height:0; overflow-y:auto; padding:8px 10px 14px; }
-    .msgr-add-member-btn { display:block; width:100%; text-align:left; background:#eef5ff; color:#2f88ff; border:none; border-radius:9px; padding:9px 10px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:8px; }
+    .msgr-add-member-btn { display:block; width:100%; text-align:left; background:#eef5ff; color:#1c2d58; border:none; border-radius:9px; padding:9px 10px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:8px; }
     .msgr-add-member-btn:hover { background:#e2edff; }
     .msgr-member-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; }
     .msgr-member-row:hover { background:#f2f5fa; }
@@ -281,19 +281,19 @@ function injectStyle() {
     .msgr-media-thumb { width:100%; aspect-ratio:1; border-radius:8px; background:#eef0f3 center/cover no-repeat; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c5cad3; }
     .msgr-file-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; }
     .msgr-file-row:hover { background:#f2f5fa; }
-    .msgr-file-icon { width:36px; height:36px; border-radius:9px; background:linear-gradient(135deg,#2f88ff,#5cb8ff); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .msgr-file-icon { width:36px; height:36px; border-radius:9px; background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .msgr-file-meta { flex:1; min-width:0; }
     .msgr-file-name { font-size:12.5px; font-weight:600; color:#1a1d24; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .msgr-file-size { font-size:11px; color:#9aa1ac; }
-    .msgr-file-dl { color:#2f88ff; flex-shrink:0; }
+    .msgr-file-dl { color:#1c2d58; flex-shrink:0; }
 
     .msgr-attach-btn { width:38px; height:38px; border-radius:50%; background:#f7f8fb; border:1px solid #e6e9ee; color:#8a90a0; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background .12s; }
-    .msgr-attach-btn:hover { background:#eef2f8; color:#2f88ff; }
+    .msgr-attach-btn:hover { background:#eef2f8; color:#1c2d58; }
     .msgr-att-image { max-width:220px; max-height:220px; border-radius:12px; display:block; cursor:pointer; background:#eef0f3; }
     .msgr-att-file { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:12px; background:rgba(255,255,255,.15); min-width:180px; }
     .msgr-msg-row:not(.own) .msgr-att-file { background:#f7f8fb; }
     .msgr-att-file-icon { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .msgr-msg-row:not(.own) .msgr-att-file-icon { background:linear-gradient(135deg,#2f88ff,#5cb8ff); color:#fff; }
+    .msgr-msg-row:not(.own) .msgr-att-file-icon { background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; }
     .msgr-att-file-meta { min-width:0; }
     .msgr-att-file-name { font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
     .msgr-att-file-size { font-size:10.5px; opacity:.75; }
@@ -303,14 +303,14 @@ function injectStyle() {
     .msgr-msg-row.own { justify-content:flex-end; }
     @keyframes msgrFadeIn { from { opacity:0; transform:translateY(4px);} to { opacity:1; transform:translateY(0);} }
     .msgr-bubble { max-width:72%; padding:9px 13px; border-radius:16px; font-size:13.5px; line-height:1.42; word-wrap:break-word; white-space:pre-wrap; position:relative; box-shadow:0 1px 2px rgba(20,30,60,.06); }
-    .msgr-msg-row.own .msgr-bubble { background:linear-gradient(135deg,#2f88ff,#5cb8ff); color:#fff; border-bottom-right-radius:5px; }
+    .msgr-msg-row.own .msgr-bubble { background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; border-bottom-right-radius:5px; }
     .msgr-msg-row:not(.own) .msgr-bubble { background:#fff; color:#1a1d24; border-bottom-left-radius:5px; }
-    .msgr-bubble .msgr-author { font-size:11px; font-weight:700; color:#2f88ff; display:block; margin-bottom:2px; }
+    .msgr-bubble .msgr-author { font-size:11px; font-weight:700; color:#1c2d58; display:block; margin-bottom:2px; }
     .msgr-bubble .msgr-time { font-size:10px; opacity:.65; margin-left:10px; float:right; margin-top:5px; }
     .msgr-composer { border-top:1px solid #eef0f3; padding:10px 14px; display:flex; gap:9px; align-items:flex-end; background:#fff; }
     .msgr-composer textarea { flex:1; resize:none; border:1px solid #e6e9ee; border-radius:14px; padding:9px 14px; font-size:13.5px; font-family:inherit; outline:none; height:38px; max-height:110px; background:#f7f8fb; transition:border-color .15s; }
-    .msgr-composer textarea:focus { border-color:#2f88ff; background:#fff; }
-    .msgr-send-btn { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#2f88ff,#5cb8ff); border:none; color:#fff; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(47,136,255,.35); transition:transform .12s; }
+    .msgr-composer textarea:focus { border-color:#1c2d58; background:#fff; }
+    .msgr-send-btn { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#1c2d58,#3a5aa0); border:none; color:#fff; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(28,45,88,.35); transition:transform .12s; }
     .msgr-send-btn:hover { transform:scale(1.06); }
     .msgr-send-btn:disabled { opacity:.5; cursor:default; transform:none; }
 
@@ -324,7 +324,7 @@ function injectStyle() {
     .msgr-user-row input { margin-left:auto; }
     .msgr-group-name-input, .msgr-folder-name-input { width:100%; box-sizing:border-box; padding:9px 11px; border-radius:9px; border:1px solid #e6e9ee; font-size:13px; margin-bottom:10px; display:none; }
     .msgr-modal-foot { padding:12px 16px; border-top:1px solid #eef0f3; display:flex; justify-content:flex-end; gap:8px; }
-    .msgr-modal-foot button { background:linear-gradient(135deg,#2f88ff,#5cb8ff); color:#fff; border:none; border-radius:9px; padding:8px 16px; font-size:13px; cursor:pointer; font-weight:600; }
+    .msgr-modal-foot button { background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; border:none; border-radius:9px; padding:8px 16px; font-size:13px; cursor:pointer; font-weight:600; }
     .msgr-modal-foot button:disabled { opacity:.5; cursor:default; }
   `;
   document.head.appendChild(style);

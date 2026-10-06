@@ -131,7 +131,7 @@ async function api(path, opts) {
     .ml-att-size { font-size: 12px; color: var(--ml-gray); }
     .ml-att-dl { position: absolute; right: 8px; top: 8px; width: 24px; height: 24px; border-radius: 6px; display: none; align-items: center; justify-content: center; color: #6f7278; background: #fff; }
     .ml-att:hover .ml-att-dl { display: flex; }
-    .ml-att-dl:hover { color: var(--ml-blue); background: #f0f5ff; }
+    .ml-att-dl:hover { color: var(--ml-blue); background: #f3f5fa; }
     .ml-quick-reply { margin-top: 22px; border: 1px solid var(--ml-line); border-radius: 12px; padding: 14px 16px; color: var(--ml-gray); cursor: text; font-size: 14px; }
     .ml-quick-reply:hover { border-color: #c9ccd2; }
     .ml-quick { display: flex; gap: 8px; margin-top: 12px; }
@@ -166,7 +166,7 @@ async function api(path, opts) {
     .ml-chip b { font-weight: 400; cursor: pointer; color: #6f7278; padding: 0 3px; }
     .ml-suggest { position: absolute; left: 90px; right: 18px; top: 100%; background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.16); z-index: 5; max-height: 260px; overflow-y: auto; }
     .ml-suggest div { padding: 8px 14px; font-size: 13.5px; cursor: pointer; }
-    .ml-suggest div.on, .ml-suggest div:hover { background: #f0f5ff; }
+    .ml-suggest div.on, .ml-suggest div:hover { background: #f3f5fa; }
     .ml-suggest small { color: var(--ml-gray); margin-left: 6px; }
     .ml-fmt { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 12px; border-bottom: 1px solid var(--ml-line); flex-shrink: 0; align-items: center; }
     .ml-fmt button, .ml-fmt select { height: 30px; min-width: 32px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-size: 14px; color: #4a4c50; font-family: inherit; }
@@ -191,7 +191,7 @@ async function api(path, opts) {
     .ml-toast a { color: #7fb2ff; cursor: pointer; font-weight: 600; }
     .ml-menu { position: fixed; background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.16); z-index: 1200; padding: 6px; min-width: 210px; max-height: 360px; overflow-y: auto; color: var(--ml-text); }
     .ml-menu div { padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-    .ml-menu div:hover { background: #f0f5ff; }
+    .ml-menu div:hover { background: #f3f5fa; }
     .ml-menu div.on { color: var(--ml-blue); font-weight: 600; }
     .ml-menu div.danger { color: #e0342c; }
     .ml-menu hr { border: none; border-top: 1px solid var(--ml-line); margin: 4px 0; }

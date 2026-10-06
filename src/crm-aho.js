@@ -14,11 +14,11 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-title { font-size:20px; font-weight:700; }
     .hr-tabs { display:flex; gap:2px; border-bottom:1px solid #f0f0f0; margin-bottom:14px; flex-wrap:wrap; }
     .hr-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#595959; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
-    .hr-tab.on { color:#1677ff; border-bottom-color:#1677ff; font-weight:600; }
+    .hr-tab.on { color:#1c2d58; border-bottom-color:#1c2d58; font-weight:600; }
     .hr-tab b { font-weight:600; color:#8c8c8c; margin-left:4px; font-size:12.5px; }
     .hr-tab b.red { color:#cf1322; }
-    .hr-new { margin-left:auto; border:none; background:#1677ff; color:#fff; border-radius:8px; padding:9px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
-    .hr-new:hover { background:#4096ff; }
+    .hr-new { margin-left:auto; border:none; background:#1c2d58; color:#fff; border-radius:8px; padding:9px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+    .hr-new:hover { background:#2f4373; }
     .hr-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
     .hr select, .hr input[type=text], .hr input[type=date], .hr input[type=number], .hr textarea,
     .hr-modal select, .hr-modal input[type=text], .hr-modal input[type=date], .hr-modal input[type=number], .hr-modal textarea {
@@ -27,16 +27,16 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-bar input[type=text] { flex:1; min-width:200px; }
     .hr-seg { display:inline-flex; border:1px solid #d9d9d9; border-radius:6px; overflow:hidden; }
     .hr-seg button { border:none; background:#fff; padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
-    .hr-seg button.on { background:#1677ff; color:#fff; font-weight:600; }
-    .hr-only { display:flex; gap:10px; align-items:center; background:#e6f4ff; border:1px solid #91caff; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:13.5px; }
+    .hr-seg button.on { background:#1c2d58; color:#fff; font-weight:600; }
+    .hr-only { display:flex; gap:10px; align-items:center; background:#eef1f8; border:1px solid #b4bfd9; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:13.5px; }
     .hr-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
     .hr-tile { border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px; background:#fff; }
     .hr-tile[data-go], .hr-sect { cursor:pointer; }
     .hr-sect { display:flex; flex-direction:column; }
-    .hr-sect:hover { border-color:#1677ff; box-shadow:0 2px 8px rgba(22,119,255,.08); }
-    .hr-tile-go { margin-top:auto; padding-top:6px; font-size:12.5px; color:#1677ff; }
+    .hr-sect:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(28,45,88,.08); }
+    .hr-tile-go { margin-top:auto; padding-top:6px; font-size:12.5px; color:#1c2d58; }
     .hr-sect .hr-tile-l { color:#262626; font-weight:600; font-size:13.5px; }
-    .hr-tile[data-go]:hover { border-color:#91caff; }
+    .hr-tile[data-go]:hover { border-color:#b4bfd9; }
     .hr-tile-l { font-size:12.5px; color:#8c8c8c; }
     .hr-tile-v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
     .hr-tile-v.red { color:#cf1322; }
@@ -66,7 +66,7 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-grp span { font-weight:400; color:#8c8c8c; font-size:12.5px; }
     .hr-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
     .hr-chip { font-size:11.5px; padding:1px 7px; border-radius:10px; background:#f5f5f5; color:#595959; white-space:nowrap; }
-    .hr-chip.blue { background:#e6f4ff; color:#0958d9; }
+    .hr-chip.blue { background:#eef1f8; color:#142142; }
     .hr-chip.orange { background:#fff7e6; color:#d46b08; }
     .hr-chip.red { background:#fff1f0; color:#cf1322; }
     .hr-chip.green { background:#f6ffed; color:#389e0d; }
@@ -89,8 +89,8 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-f textarea { min-height:64px; resize:vertical; }
     .hr-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center; }
     .hr-btn { border:1px solid #d9d9d9; background:#fff; border-radius:6px; padding:6px 13px; font:inherit; font-size:13.5px; cursor:pointer; color:#262626; text-decoration:none; }
-    .hr-btn:hover { border-color:#1677ff; color:#1677ff; }
-    .hr-btn.pri { border-color:#1677ff; background:#1677ff; color:#fff; font-weight:600; }
+    .hr-btn:hover { border-color:#1c2d58; color:#1c2d58; }
+    .hr-btn.pri { border-color:#1c2d58; background:#1c2d58; color:#fff; font-weight:600; }
     .hr-btn.warn { color:#cf1322; border-color:#ffccc7; margin-left:auto; }
     .hr-btn.sm { padding:2px 9px; font-size:12.5px; }
     .hr-btn:disabled { opacity:.5; cursor:default; }
@@ -106,7 +106,7 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-lines > div:last-child { border-bottom:none; }
     .hr-lines > div > span:first-child { flex:1; min-width:0; }
     .hr-lines [data-rec], .hr-lines [data-task] { cursor:pointer; }
-    .hr-lines [data-rec]:hover, .hr-lines [data-task]:hover { color:#1677ff; }
+    .hr-lines [data-rec]:hover, .hr-lines [data-task]:hover { color:#1c2d58; }
     .hr-pick { max-height:260px; overflow:auto; border:1px solid #f0f0f0; border-radius:8px; padding:6px 10px; columns:2; }
     .hr-pick label { display:block; font-size:13px; padding:2px 0; break-inside:avoid; cursor:pointer; }
     .hr-lock { font-size:12.5px; color:#8c8c8c; }
@@ -114,7 +114,7 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-files-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
     .hr-files-h b { font-size:13.5px; margin-right:auto; }
     .hr-files-h select { font-size:12.5px; padding:4px 8px; }
-    .hr-flink { color:#1677ff; text-decoration:none; font-size:13px; cursor:pointer; }
+    .hr-flink { color:#1c2d58; text-decoration:none; font-size:13px; cursor:pointer; }
     .hr-fcell { display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
     .hr-fdel { border:none; background:none; color:#bfbfbf; cursor:pointer; font-size:12px; padding:0 2px; }
     .hr-fdel:hover { color:#cf1322; }
@@ -130,13 +130,13 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-chip.grey { background:#f5f5f5; color:#8c8c8c; }
     .hr-st { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
     .hr-st button { border:1px solid #d9d9d9; background:#fff; border-radius:14px; padding:3px 11px; font:inherit; font-size:12.5px; cursor:pointer; color:#595959; }
-    .hr-st button.on { border-color:#1677ff; background:#e6f4ff; color:#0958d9; font-weight:600; }
+    .hr-st button.on { border-color:#1c2d58; background:#eef1f8; color:#142142; font-weight:600; }
     .hr-st button b { font-weight:600; margin-left:3px; }
     .hr td.btn { white-space:nowrap; text-align:right; }
     .hr-flow { display:flex; gap:4px; flex-wrap:wrap; margin:0 0 12px; font-size:12px; }
     .hr-flow span { padding:2px 8px; border-radius:10px; background:#f5f5f5; color:#8c8c8c; }
-    .hr-flow span.on { background:#1677ff; color:#fff; }
-    .hr-flow span.done { background:#e6f4ff; color:#0958d9; }
+    .hr-flow span.on { background:#1c2d58; color:#fff; }
+    .hr-flow span.done { background:#eef1f8; color:#142142; }
     .hr-plan input { width:90px; padding:3px 6px !important; text-align:right; font-size:12.5px !important; }
     .hr-plan td, .hr-plan th { white-space:nowrap; }
     .hr-mails { font-size:12.5px; color:#595959; word-break:break-all; background:#fafafa; border-radius:8px; padding:8px 10px; }
@@ -541,7 +541,7 @@ function aRenderHome() {
   const fireOpen = d.fire.filter(function(f) { return f.status !== 'fixed'; });
   const mailOpen = d.mail.filter(function(x) { return x.status !== 'done' && x.status !== 'answered'; });
   const finesOpen = d.fines.filter(function(f) { return !f.paid_on; });
-  const lvlC = ['#cf1322', '#fa8c16', '#1677ff'];
+  const lvlC = ['#cf1322', '#fa8c16', '#1c2d58'];
   const week = act.filter(function(r) { return r.next_on && hD(r.next_on) > t && hDays(t, r.next_on) <= 7; }).sort(function(a, b) { return hD(a.next_on).localeCompare(hD(b.next_on)); });
   aBody().innerHTML = (aIsApprover() ? '<div class="hr-only">Вы согласуете счета АХО — счета на согласовании выделены в ленте ниже.</div>' : '')
     + '<div class="hr-tiles">'

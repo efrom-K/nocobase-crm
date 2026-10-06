@@ -13,7 +13,7 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-title { font-size:18px; font-weight:700; margin-right:4px; }
     #cm-dash-panel .dash-sub { font-size:12px; color:#8c8c8c; }
     #cm-dash-panel .dash-link { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:3px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
-    #cm-dash-panel .dash-link:hover { border-color:#1677ff; color:#1677ff; }
+    #cm-dash-panel .dash-link:hover { border-color:#1c2d58; color:#1c2d58; }
     #cm-dash-panel .dash-section { font-size:15px; font-weight:700; margin:18px 0 10px; }
     #cm-dash-panel .dash-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px; }
     #cm-dash-panel .dash-tile { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }
@@ -22,7 +22,7 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-tile-value small { font-size:13px; font-weight:400; color:#8c8c8c; }
     #cm-dash-panel .dash-tile-note { font-size:12px; color:#8c8c8c; margin-top:4px; line-height:1.45; }
     #cm-dash-panel .dash-track { height:8px; background:#f0f0f0; border-radius:4px; overflow:hidden; margin-top:8px; }
-    #cm-dash-panel .dash-fill { height:100%; background:#1677ff; border-radius:0 4px 4px 0; }
+    #cm-dash-panel .dash-fill { height:100%; background:#1c2d58; border-radius:0 4px 4px 0; }
     #cm-dash-panel .dash-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
     #cm-dash-panel .dash-chip { display:inline-flex; align-items:center; gap:5px; padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid; white-space:nowrap; }
     #cm-dash-panel .dash-chip b { font-variant-numeric:tabular-nums; }
@@ -36,7 +36,7 @@ if (!document.getElementById('cm-dash-style')) {
     /* карточки объектов */
     #cm-dash-panel .dash-objs { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
     #cm-dash-panel .dash-obj { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .12s, box-shadow .12s; display:flex; flex-direction:column; }
-    #cm-dash-panel .dash-obj:hover { border-color:#91caff; box-shadow:0 2px 8px rgba(22,119,255,.08); }
+    #cm-dash-panel .dash-obj:hover { border-color:#b4bfd9; box-shadow:0 2px 8px rgba(28,45,88,.08); }
     #cm-dash-panel .dash-obj-name { font-size:15px; font-weight:700; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
     #cm-dash-panel .dash-obj-name span { font-size:12px; font-weight:400; color:#8c8c8c; white-space:nowrap; }
     #cm-dash-panel .dash-obj-money { font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:10px; }
@@ -58,32 +58,32 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; min-width:0; }
     #cm-dash-panel .dash-step:not(:last-child)::after { content:''; position:absolute; top:17px; left:calc(50% + 19px); right:calc(-50% + 19px); height:2px; background:#e8e8e8; }
     #cm-dash-panel .dash-step-dot { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; border:2px solid #e8e8e8; color:#bfbfbf; background:#fff; font-variant-numeric:tabular-nums; }
-    #cm-dash-panel .dash-step-dot.on { background:#1677ff; border-color:#1677ff; color:#fff; }
-    #cm-dash-panel .dash-step[data-go]:hover .dash-step-dot { box-shadow:0 0 0 4px #bae0ff; }
-    #cm-dash-panel .dash-step[data-go]:hover .dash-step-lbl { color:#1677ff; }
+    #cm-dash-panel .dash-step-dot.on { background:#1c2d58; border-color:#1c2d58; color:#fff; }
+    #cm-dash-panel .dash-step[data-go]:hover .dash-step-dot { box-shadow:0 0 0 4px #cdd5e8; }
+    #cm-dash-panel .dash-step[data-go]:hover .dash-step-lbl { color:#1c2d58; }
     #cm-dash-panel .dash-step-lbl { font-size:11.5px; color:#595959; text-align:center; margin-top:6px; line-height:1.3; padding:0 2px; }
     #cm-dash-panel .dash-row { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid #f5f5f5; font-size:13px; }
     #cm-dash-panel .dash-row:first-child { border-top:none; }
     #cm-dash-panel [data-open] { cursor:pointer; }
-    #cm-dash-panel [data-open]:hover { color:#1677ff; }
+    #cm-dash-panel [data-open]:hover { color:#1c2d58; }
     #cm-dash-panel .dash-row-main { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #cm-dash-panel .dash-row-side { flex-shrink:0; font-variant-numeric:tabular-nums; }
     #cm-dash-panel .dash-gap { font-size:13px; padding:6px 0; border-top:1px solid #f5f5f5; }
     #cm-dash-panel .dash-gap:first-child { border-top:none; }
-    #cm-dash-panel .dash-gap a { color:#1677ff; cursor:pointer; margin-right:6px; }
+    #cm-dash-panel .dash-gap a { color:#1c2d58; cursor:pointer; margin-right:6px; }
     #cm-dash-panel .dash-table-wrap { overflow-x:auto; }
     #cm-dash-panel table.dash-table { width:100%; border-collapse:collapse; font-size:13px; }
     #cm-dash-panel .dash-table th { text-align:left; font-weight:600; color:#595959; padding:7px 8px; border-bottom:1px solid #f0f0f0; white-space:nowrap; }
     #cm-dash-panel .dash-table td { padding:7px 8px; border-bottom:1px solid #f5f5f5; white-space:nowrap; font-variant-numeric:tabular-nums; }
     #cm-dash-panel .dash-table .num { text-align:right; }
     #cm-dash-panel .dash-table tbody tr:hover td { background:#f5faff; }
-    #cm-dash-panel .dash-edit { color:#1677ff; cursor:pointer; }
+    #cm-dash-panel .dash-edit { color:#1c2d58; cursor:pointer; }
     #cm-dash-panel .dash-tile.dash-wide { grid-column:span 2; }
     #cm-dash-panel .dash-kinds { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; column-gap:16px; font-size:13px; font-variant-numeric:tabular-nums; }
     #cm-dash-panel .dash-kinds > div { padding:7px 0; border-top:1px solid #f5f5f5; }
     #cm-dash-panel .dash-kinds > .kh { padding:0 0 4px; border-top:none; font-size:12px; color:#8c8c8c; }
     #cm-dash-panel .dash-kinds .num { text-align:right; white-space:nowrap; }
-    #cm-dash-panel .dash-kinds .on { background:#f0f5ff; }
+    #cm-dash-panel .dash-kinds .on { background:#f3f5fa; }
     #cm-dash-panel .dash-kinds [data-act] { cursor:pointer; }
     @media (max-width: 700px) {
       #cm-dash-panel .dash-grid { grid-template-columns:1fr; }
@@ -103,7 +103,7 @@ if (!document.getElementById('cm-dash-style')) {
 const DASH_STATUS = [
   { v: '1_problem', label: 'Проблема', color: '#cf1322' },
   { v: '2_terminating', label: 'На расторжении', color: '#722ed1' },
-  { v: '2_docs', label: 'Не хватает документов', color: '#1677ff' },
+  { v: '2_docs', label: 'Не хватает документов', color: '#1c2d58' },
   { v: '2_attention', label: 'Требует внимания', color: '#d48806' },
   { v: '3_ok', label: 'В порядке', color: '#389e0d' },
   { v: '', label: 'Статус не задан', color: '#8c8c8c' }
@@ -113,7 +113,7 @@ const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: ''
 // вид объекта договора (поле object_kind); '' — вид не указан. Площадь в м² складываем только у помещений (и у договоров без вида —
 // до внедрения поля все договоры были помещениями); участки — отдельной площадью, машино-места — штуками.
 const DASH_KINDS = [
-  { v: 'Помещение', many: 'Помещения', n: ['помещение', 'помещения', 'помещений'], color: '#1677ff' },
+  { v: 'Помещение', many: 'Помещения', n: ['помещение', 'помещения', 'помещений'], color: '#1c2d58' },
   { v: 'Земельный участок', many: 'Земельные участки', n: ['земельный участок', 'земельных участка', 'земельных участков'], color: '#389e0d' },
   { v: 'Машино-место', many: 'Машино-места', n: ['машино-место', 'машино-места', 'машино-мест'], color: '#d46b08' },
   { v: '', many: 'Вид не указан', n: ['без вида', 'без вида', 'без вида'], color: '#8c8c8c' }
@@ -279,7 +279,7 @@ function kindsTile(active) {
         + (x.areaN && x.areaN < x.n ? '<div class="dash-sub">площадь указана у ' + x.areaN + ' из ' + dOfContracts(x.n) + '</div>' : '') + '</div>'
       + '<div' + a + ' class="num' + (on ? ' on' : '') + '">' + (x.areaN ? dFmt2(x.areaKop) + ' м²' : '<span class="dash-warn">не указана</span>') + '</div>'
       + '<div' + a + ' class="num kx' + (on ? ' on' : '') + '">' + dMoney(x.monthly) + '</div>'
-      + '<div class="num kx' + (on ? ' on' : '') + '"><a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1677ff;">договоры →</a></div>';
+      + '<div class="num kx' + (on ? ' on' : '') + '"><a data-go="kind=' + encodeURIComponent(kindKey(k.v)) + '" title="Открыть эти договоры в реестре" style="color:#1c2d58;">договоры →</a></div>';
   }).join('');
   return '<div class="dash-tile dash-wide"><div class="dash-tile-label">По видам объектов</div>'
     + (cells ? '<div class="dash-kinds"><div class="kh">Вид</div><div class="kh num">Площадь</div><div class="kh num kx">В месяц</div><div class="kh kx"></div>' + cells + '</div>' : '<div class="dash-empty">Договоров нет</div>') + '</div>';
@@ -300,7 +300,7 @@ function renderDashboard() {
 }
 
 function kindSelect() {
-  return '<select data-act="kindsel" class="dash-link" style="padding:3px 6px;' + (dashState.kind ? 'border-color:#1677ff;color:#1677ff;' : '') + '" title="Вид объекта">'
+  return '<select data-act="kindsel" class="dash-link" style="padding:3px 6px;' + (dashState.kind ? 'border-color:#1c2d58;color:#1c2d58;' : '') + '" title="Вид объекта">'
     + '<option value="">Все виды объектов</option>'
     + DASH_KINDS.map(function(k) { const key = kindKey(k.v); return '<option value="' + dEsc(key) + '"' + (dashState.kind === key ? ' selected' : '') + '>' + dEsc(k.many) + '</option>'; }).join('')
     + '</select>';
@@ -362,7 +362,7 @@ function objectCard(o) {
   if (st['1_problem']) chips.push(dChip(' проблема', '#cf1322', st['1_problem'], go('1_problem')));
   if (term) chips.push(dChip((term.days < 0 ? 'расторжение прошло ' + dDateTxt(term.t) : 'расторжение ' + dDateTxt(term.t)), '#722ed1', undefined, go('2_terminating')));
   else if (st['2_terminating']) chips.push(dChip(' на расторжении', '#722ed1', st['2_terminating'], go('2_terminating')));
-  if (st['2_docs']) chips.push(dChip(' нет документов', '#1677ff', st['2_docs'], go('2_docs')));
+  if (st['2_docs']) chips.push(dChip(' нет документов', '#1c2d58', st['2_docs'], go('2_docs')));
   if (st['2_attention']) chips.push(dChip(' требуют внимания', '#d48806', st['2_attention'], go('2_attention')));
   if (noPrice) chips.push(dChip(' без цены', '#d46b08', noPrice));
   if (o.forming) chips.push(dChip(' оформляется', '#595959', o.forming));
@@ -416,7 +416,7 @@ function renderObject(name) {
     ? '<div class="dash-steps">' + DASH_STAGES.map(function(t, i) {
         const go = stageN[i] ? ' data-go="stage=' + i + '&obj=' + encodeURIComponent(name) + '" title="Открыть договоры на этом этапе"' : '';
         return '<div class="dash-step"' + go + '><div class="dash-step-dot' + (stageN[i] ? ' on' : '') + '">' + stageN[i] + '</div><div class="dash-step-lbl">' + (i + 1) + '. ' + dEsc(t) + '</div></div>';
-      }).join('') + '</div>' + (quick ? '<div class="dash-tile-note" style="margin-top:10px;" data-go="stage=quick&obj=' + encodeURIComponent(name) + '">и срочных (одной формой): <a style="color:#1677ff;">' + quick + '</a></div>' : '')
+      }).join('') + '</div>' + (quick ? '<div class="dash-tile-note" style="margin-top:10px;" data-go="stage=quick&obj=' + encodeURIComponent(name) + '">и срочных (одной формой): <a style="color:#1c2d58;">' + quick + '</a></div>' : '')
     : '<div class="dash-empty">Новых договоров в оформлении нет</div>';
 
   // сроки: расторжения и смены цены
@@ -528,7 +528,7 @@ function dashEditArea(el) {
   const cur = o.total_area !== null && o.total_area !== undefined ? String(o.total_area).replace('.', ',') : '';
   const box = el.closest('.dash-tile');
   const note = box.querySelector('.dash-tile-note');
-  note.innerHTML = 'Общая площадь объекта, м²: <input class="dash-area-input" inputmode="decimal" style="width:110px;text-align:right;border:1px solid #1677ff;border-radius:4px;padding:2px 6px;font:inherit;" value="' + dEsc(cur) + '">';
+  note.innerHTML = 'Общая площадь объекта, м²: <input class="dash-area-input" inputmode="decimal" style="width:110px;text-align:right;border:1px solid #1c2d58;border-radius:4px;padding:2px 6px;font:inherit;" value="' + dEsc(cur) + '">';
   const inp = note.querySelector('input');
   inp.focus(); inp.select();
   let done = false;

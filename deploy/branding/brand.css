@@ -1,0 +1,7 @@
+
+/* --- Консалт Недвижимость: фирменная шапка (branding/global.css, см. docker-compose) --- */
+header.ant-layout-header.ant-pro-layout-header { background: #1c2d58 !important; border-bottom: 1px solid #142142; }
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-item-selected,
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-submenu-selected { background: rgba(255,255,255,.12) !important; }
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-item:hover,
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-submenu:hover { background: rgba(255,255,255,.08) !important; }

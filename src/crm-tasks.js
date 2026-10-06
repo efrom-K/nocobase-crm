@@ -15,27 +15,27 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-sub { color:#8c8c8c; font-size:13px; margin-bottom:14px; }
     .tk-tabs { display:flex; gap:2px; border-bottom:1px solid #f0f0f0; margin-bottom:14px; flex-wrap:wrap; }
     .tk-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#595959; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
-    .tk-tab.on { color:#1677ff; border-bottom-color:#1677ff; font-weight:600; }
+    .tk-tab.on { color:#1c2d58; border-bottom-color:#1c2d58; font-weight:600; }
     .tk-tab b { font-weight:600; color:#8c8c8c; margin-left:4px; font-size:12.5px; }
-    .tk-new { margin-left:auto; border:none; background:#1677ff; color:#fff; border-radius:8px; padding:9px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
-    .tk-new:hover { background:#4096ff; }
+    .tk-new { margin-left:auto; border:none; background:#1c2d58; color:#fff; border-radius:8px; padding:9px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+    .tk-new:hover { background:#2f4373; }
     .tk-views { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
     .tk-view { border:1px solid #f0f0f0; background:#fff; border-radius:10px; padding:8px 14px; font:inherit; cursor:pointer; text-align:left; min-width:120px; }
-    .tk-view:hover { border-color:#91caff; }
+    .tk-view:hover { border-color:#b4bfd9; }
     .tk-view .n { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; display:block; line-height:1.2; }
     .tk-view .l { font-size:12.5px; color:#595959; }
-    .tk-view.on { border-color:#1677ff; background:#e6f4ff; }
-    .tk-view.on .l { color:#0958d9; font-weight:600; }
+    .tk-view.on { border-color:#1c2d58; background:#eef1f8; }
+    .tk-view.on .l { color:#142142; font-weight:600; }
     .tk-view.bad .n { color:#cf1322; }
     .tk-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
     .tk select, .tk input[type=text], .tk input[type=date], .tk textarea, .tk-modal select, .tk-modal input[type=text], .tk-modal input[type=date], .tk-modal textarea {
       border:1px solid #d9d9d9; border-radius:6px; padding:7px 10px; font:inherit; font-size:13.5px; background:#fff; color:#262626; box-sizing:border-box; }
     .tk-filters select { min-width:160px; }
     .tk-filters input[type=text] { flex:1; min-width:200px; }
-    .tk-reset { border:none; background:none; color:#1677ff; font:inherit; font-size:13px; cursor:pointer; padding:4px; }
+    .tk-reset { border:none; background:none; color:#1c2d58; font:inherit; font-size:13px; cursor:pointer; padding:4px; }
     .tk-list { display:flex; flex-direction:column; gap:6px; }
     .tk-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:center; border:1px solid #f0f0f0; border-left:4px solid var(--c); border-radius:8px; padding:10px 14px; background:#fff; cursor:pointer; }
-    .tk-row:hover { border-color:#91caff; border-left-color:var(--c); background:#fcfdff; }
+    .tk-row:hover { border-color:#b4bfd9; border-left-color:var(--c); background:#fcfdff; }
     .tk-row-title { font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .tk-row-meta { font-size:12.5px; color:#8c8c8c; display:flex; gap:12px; flex-wrap:wrap; margin-top:3px; }
     .tk-row-meta span { white-space:nowrap; }
@@ -81,18 +81,18 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-seg button.on { border-color:var(--c); background:var(--c); color:#fff; font-weight:600; }
     .tk-quickdue { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
     .tk-quickdue button { border:1px solid #d9d9d9; background:#fafafa; border-radius:12px; padding:2px 10px; font:inherit; font-size:12.5px; cursor:pointer; color:#434343; }
-    .tk-quickdue button:hover { border-color:#1677ff; color:#1677ff; }
+    .tk-quickdue button:hover { border-color:#1c2d58; color:#1c2d58; }
     .tk-adv { margin-top:14px; border-top:1px dashed #e8e8e8; padding-top:10px; }
-    .tk-adv-t { border:none; background:none; color:#1677ff; font:inherit; font-size:13.5px; cursor:pointer; padding:0; }
+    .tk-adv-t { border:none; background:none; color:#1c2d58; font:inherit; font-size:13.5px; cursor:pointer; padding:0; }
     .tk-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center; }
     .tk-btn { border:1px solid #d9d9d9; background:#fff; border-radius:6px; padding:7px 14px; font:inherit; font-size:13.5px; cursor:pointer; color:#262626; }
-    .tk-btn:hover { border-color:#1677ff; color:#1677ff; }
-    .tk-btn.pri { border-color:#1677ff; background:#1677ff; color:#fff; font-weight:600; }
+    .tk-btn:hover { border-color:#1c2d58; color:#1c2d58; }
+    .tk-btn.pri { border-color:#1c2d58; background:#1c2d58; color:#fff; font-weight:600; }
     .tk-btn.ok { border-color:#389e0d; background:#389e0d; color:#fff; font-weight:600; }
     .tk-btn.warn { color:#cf1322; border-color:#ffccc7; }
     .tk-btn.link { border-color:transparent; color:#595959; }
     .tk-btn:disabled { opacity:.5; cursor:default; }
-    .tk-next { border:1px solid #d6e4ff; background:#f0f5ff; border-radius:10px; padding:12px 14px; margin-bottom:14px; }
+    .tk-next { border:1px solid #d6e4ff; background:#f3f5fa; border-radius:10px; padding:12px 14px; margin-bottom:14px; }
     .tk-next-t { font-weight:600; margin-bottom:2px; }
     .tk-next-s { font-size:13px; color:#595959; }
     .tk-next .tk-actions { margin-top:10px; }
@@ -113,7 +113,7 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-msg-t { white-space:pre-wrap; margin-top:1px; }
     .tk-msg.sys { font-size:12.5px; color:#8c8c8c; padding:4px 0 4px 40px; }
     .tk-msg.sys .tk-msg-t { display:inline; }
-    .tk-msg a { color:#1677ff; cursor:pointer; }
+    .tk-msg a { color:#1c2d58; cursor:pointer; }
     .tk-comment { display:flex; gap:8px; margin-top:12px; align-items:flex-start; }
     .tk-comment textarea { flex:1; min-height:40px; resize:vertical; }
     .tk-sec { font-weight:600; margin:18px 0 6px; display:flex; align-items:center; gap:10px; }
@@ -139,7 +139,7 @@ if (!document.getElementById('crm-tk-style')) {
 const TK_PAGE = '/admin/tskpage01';   // «Задачи (тест)»
 const TK_HR_PAGE = '/admin/hrpage01'; // «Персонал (тест)»: сотрудники, структура, кадры
 const TK_ST = {
-  new: { l: 'Новая', c: '#1677ff' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
+  new: { l: 'Новая', c: '#1c2d58' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
   done: { l: 'На проверке', c: '#13a8a8' }, closed: { l: 'Закрыта', c: '#389e0d' }, cancelled: { l: 'Отменена', c: '#8c8c8c' }
 };
 const TK_OPEN = ['new', 'in_work', 'waiting'];
@@ -148,7 +148,7 @@ const TK_KINDS = ['Общая', 'Объект и арендаторы', 'Фин�
 const TK_WAIT = ['ответа коллеги', 'ответа арендатора', 'подрядчика', 'оплаты', 'согласования руководства', 'документов', 'другое'];
 const TK_HR_TPL = ['Отпуск', 'Больничный', 'Приём на работу', 'Увольнение', 'Перевод / смена должности', 'Командировка', 'Отгул'];
 const TK_HR_DEPT = 'HR служба персонала';
-const TK_AVA = ['#1677ff', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f54eb', '#08979c'];
+const TK_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
 const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50 };
 
 function tkEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -423,13 +423,13 @@ function tkOnClick(e) {
 function tkOpenNew(preset) {
   const d = tk.data, hr = preset.kind === 'Кадры';
   const m = tkModal('<div class="tk-box-h"><div class="tk-box-t">' + (hr ? 'Кадровая задача' : 'Новая задача') + '</div><button class="tk-x">✕</button></div><div class="tk-box-b"><div class="tk-form">'
-    + (hr ? '<div class="tk-f full"><label>Что оформляем</label><div class="tk-seg">' + TK_HR_TPL.map(function(x) { return '<button type="button" style="--c:#1677ff;" data-hr="' + tkEsc(x) + '">' + tkEsc(x) + '</button>'; }).join('') + '</div></div>' : '')
+    + (hr ? '<div class="tk-f full"><label>Что оформляем</label><div class="tk-seg">' + TK_HR_TPL.map(function(x) { return '<button type="button" style="--c:#1c2d58;" data-hr="' + tkEsc(x) + '">' + tkEsc(x) + '</button>'; }).join('') + '</div></div>' : '')
     + '<div class="tk-f full"><label>Что сделать <i>*</i></label><input type="text" data-n="title" placeholder="Например: подготовить акт сверки с арендатором" value="' + tkEsc(preset.title || '') + '"></div>'
     + '<div class="tk-f"><label>Кому <i>*</i></label><select data-n="executor"><option value="">Выберите сотрудника</option>' + tkPeopleOptions(preset.executor || '') + '</select></div>'
     + '<div class="tk-f"><label>Срок</label><input type="date" data-n="due_date" min="2000-01-01" max="2099-12-31" value="' + tkAddWorkDays(TK_URG.normal.d) + '">'
     + '<div class="tk-quickdue"><button type="button" data-due="0">сегодня</button><button type="button" data-due="1">завтра</button><button type="button" data-due="7">через неделю</button><button type="button" data-due="">без срока</button></div></div>'
     + '<div class="tk-f full"><label>Подробности</label><textarea data-n="description" placeholder="Что именно нужно, где взять данные, что уже сделано"></textarea></div>'
-    + '<div class="tk-f full"><label>Срочность</label><div class="tk-seg">' + Object.keys(TK_URG).map(function(k) { return '<button type="button" data-urg="' + k + '" style="--c:' + (k === 'normal' ? '#1677ff' : TK_URG[k].c) + ';"' + (k === 'normal' ? ' class="on"' : '') + '>' + TK_URG[k].l + '</button>'; }).join('') + '</div></div>'
+    + '<div class="tk-f full"><label>Срочность</label><div class="tk-seg">' + Object.keys(TK_URG).map(function(k) { return '<button type="button" data-urg="' + k + '" style="--c:' + (k === 'normal' ? '#1c2d58' : TK_URG[k].c) + ';"' + (k === 'normal' ? ' class="on"' : '') + '>' + TK_URG[k].l + '</button>'; }).join('') + '</div></div>'
     + '</div>'
     + '<div class="tk-adv"><button type="button" class="tk-adv-t" data-adv>' + (hr ? '▾' : '▸') + ' Дополнительно: тип, объект, договор, кто проверяет, файл</button><div class="tk-form" data-adv-b style="margin-top:10px;' + (hr ? '' : 'display:none;') + '">'
     + '<div class="tk-f"><label>Тип</label><select data-n="kind">' + TK_KINDS.map(function(k) { return '<option' + ((preset.kind || 'Общая') === k ? ' selected' : '') + '>' + tkEsc(k) + '</option>'; }).join('') + '</select></div>'

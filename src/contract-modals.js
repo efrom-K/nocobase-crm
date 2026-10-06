@@ -3032,10 +3032,10 @@ function hasRole(user, roleName) {
 
 function readonlyFieldValue(f, r) {
   if (f.type === 'arealines') {
-    const l = areaLinesOf(r.area_lines) || [], t = areaLinesTotals(l);
+    const l = areaLinesOf(r.area_lines) || [];
     return l.filter(function(x) { return numOf(x.area) > 0; }).map(function(x) {
       return esc(formatNum(x.area)) + ' м² × ' + esc(formatNum(x.rate)) + ' ₽ = ' + esc(formatNum(mulMoney(numOf(x.rate) || 0, numOf(x.area)))) + ' ₽';
-    }).join('<br>') + '<div style="color:#595959;margin-top:2px;">Итого ' + esc(formatNum(t.area)) + ' м², ' + esc(formatNum(t.rent)) + ' ₽ в месяц</div>';
+    }).join('<br>');
   }
   let v = r[f.name];
   // в архиве нет отдельных «основных» значений — показываем текущие

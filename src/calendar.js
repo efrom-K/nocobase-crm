@@ -9,7 +9,8 @@ const CAL_GROUPS = {
   aho: { l: 'АХО', c: '#722ed1' }, hr: { l: 'Кадры', c: '#389e0d' }
 };
 const CAL_DEFAULTS = { '/admin/hrdash01': ['hr', 'tasks'], '/admin/ahodash01': ['aho', 'tasks', 'requests'] };   // остальные — все разделы
-const CAL_AHEAD = 30;           // «Ближайшие»: на сколько дней вперёд
+const CAL_AHEAD = 14;           // «Ближайшие»: на сколько дней вперёд (дальше — «Месяц»)
+const CAL_DAY_MAX = 4;          // строк в дне, остальное — по клику «ещё N»
 const CAL_REFRESH_MS = 5 * 60 * 1000;
 const P_REG = '/admin/b5znz7yxpy3', P_REQ = '/admin/j3a32zo1jzo', P_TSK = '/admin/tskpage01', P_AHO = '/admin/ahodash01', P_HRD = '/admin/hrdash01', P_HR = '/admin/hrpage01';
 
@@ -26,7 +27,7 @@ function cGet(k) { try { return localStorage.getItem(k); } catch (e) { return nu
 function cSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* не запомним — не страшно */ } }
 
 const cal = { me: null, items: null, avail: {}, loadedAt: 0, view: cGet('crm-cal-view') || 'agenda', mine: cGet('crm-cal-mine') !== '0',
-  groups: null, month: null, day: null, lateOpen: false };
+  groups: null, month: null, day: null, lateOpen: false, openDays: {} };
 (function() {
   const saved = cGet('crm-cal-groups:' + location.pathname);
   cal.groups = saved ? saved.split(',').filter(function(g) { return CAL_GROUPS[g]; }) : (CAL_DEFAULTS[location.pathname] || Object.keys(CAL_GROUPS)).slice();
@@ -134,7 +135,11 @@ function cAgenda(list) {
   const days = Object.keys(by).sort();
   return (late.length ? '<div class="cal-late"><button class="cal-late-h" data-act="late">⚠ Просрочено: ' + late.length + ' <span>' + (cal.lateOpen ? 'скрыть' : 'показать') + '</span></button>'
       + (cal.lateOpen ? late.map(function(x) { return cItem(x, true); }).join('') : '') + '</div>' : '')
-    + (days.length ? days.map(function(d) { return '<div class="cal-day"><div class="cal-day-h">' + cDayTitle(d) + '</div>' + by[d].map(function(x) { return cItem(x, false); }).join('') + '</div>'; }).join('')
+    + (days.length ? '<div class="cal-days">' + days.map(function(d) {
+        const its = by[d], all = cal.openDays[d] || its.length <= CAL_DAY_MAX + 1;
+        return '<div class="cal-day"><div class="cal-day-h">' + cDayTitle(d) + '</div>' + (all ? its : its.slice(0, CAL_DAY_MAX)).map(function(x) { return cItem(x, false); }).join('')
+          + (all ? '' : '<button class="cal-more-b" data-act="dayall" data-d="' + d + '">ещё ' + (its.length - CAL_DAY_MAX) + '</button>') + '</div>';
+      }).join('') + '</div>'
       : '<div class="cal-empty">В ближайшие ' + CAL_AHEAD + ' дней сроков нет</div>');
 }
 function cMonth(list) {
@@ -184,6 +189,7 @@ function cWire(slot) {
     const day = c('[data-day]');
     if (day) { cal.day = cal.day === day.getAttribute('data-day') ? null : day.getAttribute('data-day'); return cRenderAll(); }
     const a = c('[data-act]'), act = a && a.getAttribute('data-act');
+    if (act === 'dayall') { cal.openDays[a.getAttribute('data-d')] = true; return cRenderAll(); }
     if (act === 'late') { cal.lateOpen = !cal.lateOpen; return cRenderAll(); }
     if (act === 'mprev' || act === 'mnext') {
       const d = new Date((cal.month || cToday().slice(0, 7)) + '-01T00:00:00'); d.setMonth(d.getMonth() + (act === 'mnext' ? 1 : -1));
@@ -217,7 +223,9 @@ if (!document.getElementById('crm-cal-style')) {
     .cal-seg { margin-left:auto; display:flex; gap:2px; background:#f5f5f5; border-radius:6px; padding:2px; }
     .cal-seg button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
     .cal-seg button.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
-    .cal-day { margin-bottom:10px; }
+    .cal-days { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:4px 20px; align-items:start; }
+    .cal-day { margin-bottom:10px; min-width:0; }
+    .cal-more-b { border:none; background:none; color:#1c2d58; font:inherit; font-size:12.5px; cursor:pointer; padding:2px 10px; text-decoration:underline; }
     .cal-day-h { font-size:12px; font-weight:600; color:#8c8c8c; text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
     .cal-it { display:flex; align-items:baseline; gap:8px; padding:5px 8px 5px 10px; border-left:3px solid var(--c); border-radius:4px; cursor:pointer; margin-bottom:3px; background:#fafafa; }
     .cal-it:hover { background:#eef1f8; }

@@ -830,7 +830,7 @@ async function rqRenderStats() {
     ['Поступило', a.created, 'за ' + per, { quick: 'all' }],
     ['Выполнено', a.done, 'в срок ' + (a.ontime === null ? '—' : a.ontime + '%'), { quick: 'closed' }],
     ['Срок выполнения', a.med === null ? '—' : rqCell(a, 'med') + '<small> ' + rqNoun(Math.round(a.med), 'день', 'дня', 'дней') + '</small>', 'медиана', { quick: 'closed' }],
-    ['Возвраты · эскалации', a.reopen + '<small> · </small>' + a.esc, 'переносили срок: ' + a.moved, { quick: 'open' }]
+    ['Возвраты / эскалации', a.reopen + '<small> / </small>' + a.esc, 'переносили срок: ' + a.moved, { quick: 'open' }]
   ];
   const by = RQ_BY.find(function(b) { return b[0] === rq.statsBy; }) || RQ_BY[0];
   const rows = st[by[2]];

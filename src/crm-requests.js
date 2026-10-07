@@ -82,6 +82,22 @@ if (!document.getElementById('crm-req-style')) {
     .rq-ev a { color:#1c2d58; cursor:pointer; }
     .rq-comment { display:flex; gap:8px; margin-top:10px; align-items:flex-start; }
     .rq-comment textarea { flex:1; min-height:38px; resize:vertical; }
+    /* доска */
+    #crm-req .rq-view { display:flex; gap:2px; background:#f5f5f5; border-radius:6px; padding:2px; }
+    #crm-req .rq-view button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
+    #crm-req .rq-view button.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    #crm-req .rq-board { display:grid; grid-template-columns:repeat(5, minmax(220px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; align-items:start; }
+    #crm-req .rq-col { background:#f7f8fa; border-radius:8px; padding:8px; min-height:120px; border:2px dashed transparent; }
+    #crm-req .rq-col.drop { border-color:#1c2d58; background:#eef1f8; }
+    #crm-req .rq-col-h { display:flex; align-items:center; gap:6px; font-weight:600; font-size:13px; padding:2px 4px 8px; }
+    #crm-req .rq-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); }
+    #crm-req .rq-col-h b { margin-left:auto; color:#8c8c8c; font-weight:600; font-variant-numeric:tabular-nums; }
+    #crm-req .rq-col-n { font-size:11.5px; color:#8c8c8c; padding:4px; }
+    #crm-req .rq-kc { background:#fff; border:1px solid #eceef2; border-left:4px solid var(--c); border-radius:7px; padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12.5px; }
+    #crm-req .rq-kc:hover { border-color:#b4bfd9; border-left-color:var(--c); }
+    #crm-req .rq-kc.drag { opacity:.4; }
+    #crm-req .rq-kc-t { font-weight:600; font-size:13.5px; margin-bottom:3px; overflow-wrap:anywhere; }
+    #crm-req .rq-kc-s { color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     @media (max-width: 700px) {
       #crm-req .rq-new { margin-left:0; width:100%; padding:11px; font-size:15px; }
       #crm-req .rq-filters select, #crm-req .rq-filters input { flex:1 1 45%; min-width:0; }
@@ -109,7 +125,8 @@ const RQ_OPEN = ['new', 'in_work', 'waiting'];
 const RQ_URG = { normal: { l: 'Обычная', d: 5, c: '#595959', hint: '5 рабочих дней' }, urgent: { l: 'Срочно', d: 1, c: '#d46b08', hint: '1 рабочий день' }, emergency: { l: 'Авария', d: 0, c: '#cf1322', hint: 'сегодня, сразу уведомление старшему управляющему' } };
 const RQ_KINDS = ['Ремонт и эксплуатация', 'Вопрос арендатора', 'Расторжение и выезд', 'Платёж, долг, штраф', 'Проверка, пожарная безопасность', 'Коммуналка, счётчики', 'Прочее'];
 const RQ_WAIT = ['ответа арендатора', 'подрядчика', 'оплаты', 'согласования руководства', 'другое'];
-const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '' };
+const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list' };
+try { if (localStorage.getItem('crm-req-view') === 'board') rq.view = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
 function rqEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function rqToken() { try { return localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return null; } }
@@ -223,6 +240,7 @@ function rqRenderListShell() {
     + '<select data-f="kind"><option value="">Все типы</option>' + RQ_KINDS.map(function(k) { return '<option' + (rq.kind === k ? ' selected' : '') + '>' + rqEsc(k) + '</option>'; }).join('') + '</select>'
     + '<select data-f="resp"><option value="">Все ответственные</option>' + people.map(function(id) { return '<option value="' + id + '"' + (String(rq.resp) === String(id) ? ' selected' : '') + '>' + rqEsc(rqUser(id)) + '</option>'; }).join('') + '</select>'
     + '<input type="text" data-f="q" placeholder="Поиск: суть, арендатор, номер" value="' + rqEsc(rq.q) + '">'
+    + '<div class="rq-view">' + [['list', 'Список'], ['board', 'Доска']].map(function(v) { return '<button data-view="' + v[0] + '"' + (rq.view === v[0] ? ' class="on"' : '') + '>' + v[1] + '</button>'; }).join('') + '</div>'
     + '</div><div class="rq-list" id="rq-list"></div>';
   rqRenderList();
 }
@@ -238,6 +256,7 @@ function rqFiltered(skipQuick) {
   });
 }
 function rqRenderList() {
+  if (rq.view === 'board') { rqRenderBoard(); return; }
   const base = rqFiltered(true);
   document.getElementById('rq-chips').innerHTML = RQ_QUICK.map(function(x) {
     const n = base.filter(x[2]).length;
@@ -273,6 +292,8 @@ function rqOnClick(e) {
   if (c('[data-act="new"]')) { rqOpenNew(); return; }
   const qk = c('[data-quick]');
   if (qk) { rq.quick = qk.getAttribute('data-quick'); rqRenderList(); return; }
+  const vw = c('[data-view]');
+  if (vw) { rq.view = vw.getAttribute('data-view'); try { localStorage.setItem('crm-req-view', rq.view); } catch (err) { /* не запомним — не страшно */ } rqRenderListShell(); return; }
   const go = c('[data-go]');
   if (go) {   // из статистики — в список с фильтром
     const p = JSON.parse(go.getAttribute('data-go'));
@@ -282,6 +303,94 @@ function rqOnClick(e) {
   const op = c('[data-open]');
   if (op) rqOpenCard(Number(op.getAttribute('data-open')));
 }
+
+// ---------- доска ----------
+// Колонки = статусы. Перетаскивание вызывает те же действия, что и кнопки в карточке (rqCan/rqAction/rqApply):
+// права, обязательные поля (что сделано, причина), история и уведомления — как при нажатии кнопки.
+const RQ_COLS = [['new', ['new']], ['in_work', ['in_work']], ['waiting', ['waiting']], ['done', ['done']], ['closed', ['closed', 'cancelled']]];
+const RQ_CLOSED_DAYS = 30;   // закрытые на доске — только за последний месяц, остальные в списке «Закрытые»
+function rqRenderBoard() {
+  document.getElementById('rq-chips').innerHTML = '';
+  const rows = rqFiltered(true), d = new Date(); d.setDate(d.getDate() - RQ_CLOSED_DAYS);
+  const since = rqIso(d);
+  document.getElementById('rq-list').innerHTML = '<div class="rq-board">' + RQ_COLS.map(function(col) {
+    let items = rows.filter(function(r) { return col[1].indexOf(r.status) !== -1; });
+    const all = items.length;
+    if (col[0] === 'closed') items = items.filter(function(r) { return String(r.closed_at || r.updatedAt || '').slice(0, 10) >= since; }).sort(function(a, b) { return String(b.closed_at || '').localeCompare(String(a.closed_at || '')); });
+    else items.sort(function(a, b) {
+      const w = function(r) { return (r.urgency === 'emergency' ? 0 : rqLate(r) ? 1 : 2); };
+      return w(a) - w(b) || String(a.due_date || '9').localeCompare(String(b.due_date || '9')) || b.id - a.id;
+    });
+    const st = RQ_ST[col[0]];
+    return '<div class="rq-col" data-col="' + col[0] + '"><div class="rq-col-h" style="--c:' + st.c + ';"><i></i>' + (col[0] === 'done' ? 'На проверке' : col[0] === 'closed' ? 'Закрытые' : st.l) + '<b>' + items.length + '</b></div>'
+      + items.map(rqCardHtml).join('')
+      + (all > items.length ? '<div class="rq-col-n">Ещё ' + (all - items.length) + ' старше ' + RQ_CLOSED_DAYS + ' дней — в списке «Закрытые»</div>' : '') + '</div>';
+  }).join('') + '</div>';
+}
+function rqCardHtml(r) {
+  const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal;
+  return '<div class="rq-kc" draggable="true" data-open="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
+    + '<div class="rq-kc-t">' + (r.urgency !== 'normal' && open && RQ_URG[r.urgency] ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
+    + '<div class="rq-kc-s">№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
+    + '<div class="rq-kc-s">' + rqEsc(rqUser(r.responsible_id))
+    + (r.status === 'waiting' && r.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
+    + (r.status === 'cancelled' ? ' · отменена' : '')
+    + (open && r.due_date ? ' · ' + (late ? '<span class="rq-late">просрочено ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : 'до ' + rqDate(r.due_date)) : '') + '</div></div>';
+}
+// куда перетащили → какое действие карточки это означает
+function rqDropAction(from, col) {
+  if (col === 'in_work') return from === 'new' ? 'take' : from === 'waiting' ? 'resume' : from === 'done' ? 'reopen' : null;
+  if (col === 'waiting') return (from === 'new' || from === 'in_work') ? 'wait' : null;
+  if (col === 'done') return (from === 'in_work' || from === 'waiting') ? 'done' : null;
+  if (col === 'closed') return from === 'done' ? 'close' : RQ_OPEN.indexOf(from) !== -1 ? 'cancel' : null;
+  return null;
+}
+async function rqDrop(id, col) {
+  const r = rq.data.reqs.find(function(x) { return x.id === id; });
+  if (!r || (RQ_COLS.find(function(c) { return c[0] === col; }) || [0, []])[1].indexOf(r.status) !== -1) return;
+  const a = rqDropAction(r.status, col);
+  if (!a) { rqToast('Из «' + RQ_ST[r.status].l + '» сюда перевести нельзя'); return; }
+  if (!rqCan(r).some(function(x) { return x[0] === a; })) { rqToast('Это может сделать только ' + (a === 'close' || a === 'reopen' || a === 'cancel' ? 'автор заявки' : 'ответственный')); return; }
+  const m = rqModal('<div id="rq-card"></div>');
+  const quick = a === 'take' || a === 'resume' || a === 'close';   // без ввода — сразу, окно не показываем
+  if (quick) m.style.display = 'none';
+  await rqRenderCard(m, r);
+  if (!quick) { rqAction(m, r, a); return; }
+  await rqApply(m, r, a, null);
+  m.remove();
+}
+(function() {
+  const root = rqRoot();
+  let dragId = null;
+  const colOf = function(e) { return e.target.closest ? e.target.closest('.rq-col') : null; };
+  root.addEventListener('dragstart', function(e) {
+    const k = e.target.closest ? e.target.closest('.rq-kc') : null;
+    if (!k) return;
+    dragId = Number(k.getAttribute('data-open'));
+    k.classList.add('drag');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(dragId));
+  });
+  root.addEventListener('dragend', function() {
+    dragId = null;
+    root.querySelectorAll('.rq-kc.drag, .rq-col.drop').forEach(function(x) { x.classList.remove('drag', 'drop'); });
+  });
+  root.addEventListener('dragover', function(e) {
+    const c = colOf(e);
+    if (!c || dragId == null) return;
+    e.preventDefault();
+    root.querySelectorAll('.rq-col.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
+    c.classList.add('drop');
+  });
+  root.addEventListener('drop', function(e) {
+    const c = colOf(e);
+    if (!c || dragId == null) return;
+    e.preventDefault();
+    const id = dragId;
+    c.classList.remove('drop');
+    rqDrop(id, c.getAttribute('data-col'));
+  });
+})();
 
 // ---------- новая заявка ----------
 function rqModal(html) {

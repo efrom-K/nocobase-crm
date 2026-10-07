@@ -81,12 +81,13 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .st-t td { padding:9px 12px; border-bottom:1px solid #e8ebf0; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500; }
     #crm-req .st-t td.n { text-align:right; min-width:64px; }
     #crm-req .st-t tbody tr:nth-child(even) td { background:#f8f9fb; }
-    #crm-req .st-t td.st-name { white-space:normal; width:260px; min-width:200px; font-weight:600; color:#141414; }
+    #crm-req .st-t td.st-name { white-space:normal; width:300px; min-width:220px; font-weight:600; color:#141414; }
     #crm-req .st-t .st-sep { border-left:2px solid #dfe3ea; }
     #crm-req .st-t tr.st-link { cursor:pointer; }
     #crm-req .st-t tr.st-link:hover td { background:#eaf0ff; }
     #crm-req .st-t td.st-pr { white-space:normal; min-width:200px; }
     #crm-req .st-sub { font-size:12px; color:#595959; font-weight:400; margin-top:2px; line-height:1.35; }
+    #crm-req .st-tag { display:inline-block; background:#f0f0f0; color:#595959; border-radius:4px; padding:0 5px; margin-right:6px; font-size:11px; line-height:16px; }
     #crm-req .st-mute { color:#a6a6a6; font-weight:400; }
     #crm-req .st-bad { display:inline-block; color:#fff; background:#cf1322; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
     #crm-req .st-badt { color:#cf1322; font-weight:700; }
@@ -841,7 +842,7 @@ async function rqRenderStats() {
     ['Поступило', a.created, 'за ' + per, { quick: 'all' }],
     ['Выполнено', a.done, a.ontime === null ? 'за ' + per : 'в срок <b>' + a.ontime + '%</b>', { quick: 'closed' }],
     ['Срок выполнения', a.med === null ? '—' : rqCell(a, 'med') + '<small> ' + rqNoun(Math.round(a.med), 'день', 'дня', 'дней') + '</small>', 'медиана за ' + per, { quick: 'closed' }],
-    ['Проблемы', a.moved + a.reopen + a.esc, 'перенос ' + a.moved + ' · возврат ' + a.reopen + ' · эскал. ' + a.esc, { quick: 'open' }]
+    ['Проблемы', a.moved + a.reopen + a.esc, [[a.moved, 'переносы'], [a.reopen, 'возвраты'], [a.esc, 'эскалации']].filter(function(x) { return x[0]; }).map(function(x) { return x[1] + ' ' + x[0]; }).join(' · ') || 'за ' + per + ' нет', { quick: 'open' }]
   ];
   const by = RQ_BY.find(function(b) { return b[0] === rq.statsBy; }) || RQ_BY[0];
   const rows = st[by[2]];
@@ -850,12 +851,12 @@ async function rqRenderStats() {
       + '<th class="st-sep" title="Переносы срока, возвраты на доработку и эскалации старшему за период">Проблемы за период</th></tr></thead><tbody>'
       + rows.map(function(x) {
           const go = {}; if (by[3]) go[by[3]] = x.k;
-          return '<tr' + (by[3] ? ' data-go="' + rqEsc(JSON.stringify(go)) + '" class="st-link"' : '') + '><td class="st-name"><div>' + rqEsc(x.label) + '</div>'
-            + (x.objects ? '<div class="st-sub">' + rqEsc(x.objects.join(', ') || 'объектов нет') + '</div>' : '') + '</td>'
+          const noAcc = / \(нет учётки в CRM\)$/.test(x.label);
+          return '<tr' + (by[3] ? ' data-go="' + rqEsc(JSON.stringify(go)) + '" class="st-link"' : '') + '><td class="st-name"><div>' + rqEsc(x.label.replace(/ \(нет учётки в CRM\)$/, '')) + '</div>'
+            + (x.objects ? '<div class="st-sub">' + (noAcc ? '<span class="st-tag">нет учётки в CRM</span>' : '') + rqEsc(x.objects.join(', ') || 'объектов нет') + '</div>' : '') + '</td>'
             + RQ_MAIN.map(function(c, n) { return '<td class="n' + (n === 3 ? ' st-sep' : '') + '">' + rqStatCell(x, c[0]) + '</td>'; }).join('')
             + '<td class="st-sep st-pr">' + rqProblems(x) + '</td></tr>';
         }).join('') + '</tbody></table></div>'
-      + '<div class="st-legend"><span class="st-now"></span>сейчас, на ' + rqDate(rqToday()) + '<span class="st-per"></span>за ' + per + '</div>'
     : '<div class="rq-empty">Данных пока нет</div>';
   // неделя за неделей: растёт ли очередь — поступило против выполнено, разница, сколько висит на конец недели
   const W = st.weeks;
@@ -876,7 +877,7 @@ async function rqRenderStats() {
         return '<div class="st-tile" data-go="' + rqEsc(JSON.stringify(t[3])) + '"><div class="st-tl">' + t[0] + '</div><div class="st-tv">' + t[1] + '</div><div class="st-tn">' + t[2] + '</div></div>';
       }).join('') + '</div>'
     + '<div class="st-card"><div class="st-ch"><div class="st-ct">В разрезе</div><div class="rq-view">' + RQ_BY.map(function(b) { return '<button data-by="' + b[0] + '"' + (by[0] === b[0] ? ' class="on"' : '') + '>' + b[1] + '</button>'; }).join('') + '</div>'
-    + (by[3] ? '<span class="st-hint">клик по строке — список этих заявок</span>' : '') + '</div>' + table + '</div>'
+    + '<span class="st-hint">открыто, просрочено, аварии — на ' + rqDate(rqToday()) + '; остальное — за ' + per + (by[3] ? '. Клик по строке — список этих заявок' : '') + '</span></div>' + table + '</div>'
     + '<div class="st-card"><div class="st-ch"><div class="st-ct">Неделя за неделей</div><span class="st-hint">за 8 недель ' + trend + '</span></div>' + weeks + '</div>'
     + '</div>';
 }

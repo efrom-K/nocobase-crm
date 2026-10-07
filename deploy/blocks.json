@@ -11,7 +11,5 @@
   "crmblock003": "src/crm-hr.js",
   "crmblock004": "src/crm-hr.js",
   "crmblock005": "src/crm-aho.js",
-  "calblock01": "src/calendar.js",
-  "calblock02": "src/calendar.js",
-  "calblock03": "src/calendar.js"
+  "calpageblk1": "src/calendar.js"
 }

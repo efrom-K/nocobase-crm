@@ -1,15 +1,12 @@
-// Календарь сроков — один код на все дашборды (блоки calblock01/02/03 на «Дашборд», «Дашборд HR», «Дашборд АХО»; scripts/setup_calendar.py).
-// Сам блок ничего не показывает: рисует календарь в «слот» <div data-crm-calendar></div>, который модуль оставляет на своём главном
-// экране (dashboard.js, crm-hr.js, crm-aho.js) и после отрисовки зовёт window.__crmCalendarRender(). Ушли в раздел — слота нет,
-// календаря нет; вернулись — календарь снова на месте.
+// Страница «Календарь (тест)» (/admin/calpage01, блок calblock01; scripts/setup_calendar.py) — сроки всех разделов в одном месте.
 // Сроки берутся из разделов через API с правами пользователя: нет доступа к разделу — его сроков просто нет.
-// Какие разделы показывать по умолчанию — по странице (CAL_DEFAULTS), человек может включить/выключить, выбор запоминается.
+// Какие разделы показывать по умолчанию — по роли (CAL_DEFAULTS), человек может включить/выключить, выбор запоминается.
 const CAL_GROUPS = {
   contracts: { l: 'Договоры', c: '#1c2d58' }, requests: { l: 'Заявки', c: '#d46b08' }, tasks: { l: 'Задачи', c: '#13a8a8' },
   aho: { l: 'АХО', c: '#722ed1' }, hr: { l: 'Кадры', c: '#389e0d' }
 };
-const CAL_DEFAULTS = { '/admin/hrdash01': ['hr', 'tasks'], '/admin/ahodash01': ['aho', 'tasks', 'requests'] };   // остальные — все разделы
-const CAL_AHEAD = 14;           // «Ближайшие»: на сколько дней вперёд (дальше — «Месяц»)
+const CAL_DEFAULTS = { hr: ['hr', 'tasks'], aho: ['aho', 'tasks', 'requests'] };   // по роли; остальным (и администратору) — все разделы
+const CAL_AHEAD = 30;           // «Ближайшие»: на сколько дней вперёд (дальше — «Месяц»)
 const CAL_DAY_MAX = 4;          // строк в дне, остальное — по клику «ещё N»
 const CAL_REFRESH_MS = 5 * 60 * 1000;
 const P_REG = '/admin/b5znz7yxpy3', P_REQ = '/admin/j3a32zo1jzo', P_TSK = '/admin/tskpage01', P_AHO = '/admin/ahodash01', P_HRD = '/admin/hrdash01', P_HR = '/admin/hrpage01';
@@ -28,10 +25,16 @@ function cSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* не з
 
 const cal = { me: null, items: null, avail: {}, loadedAt: 0, view: cGet('crm-cal-view') || 'agenda', mine: cGet('crm-cal-mine') !== '0',
   groups: null, month: null, day: null, lateOpen: false, openDays: {} };
-(function() {
-  const saved = cGet('crm-cal-groups:' + location.pathname);
-  cal.groups = saved ? saved.split(',').filter(function(g) { return CAL_GROUPS[g]; }) : (CAL_DEFAULTS[location.pathname] || Object.keys(CAL_GROUPS)).slice();
-})();
+function cDefaultGroups() {
+  const saved = cGet('crm-cal-groups');
+  if (saved !== null) return saved.split(',').filter(function(g) { return CAL_GROUPS[g]; });
+  const roles = ((cal.me && cal.me.roles) || []).map(function(r) { return r.name; });
+  if (roles.indexOf('admin') === -1 && roles.indexOf('root') === -1) {
+    const k = Object.keys(CAL_DEFAULTS).find(function(r) { return roles.indexOf(r) !== -1; });
+    if (k) return CAL_DEFAULTS[k].slice();
+  }
+  return Object.keys(CAL_GROUPS);
+}
 
 // ---------- данные ----------
 async function cList(coll, params) {
@@ -41,6 +44,7 @@ async function cLoad() {
   const t = cToday();
   if (!cal.me) {
     try { cal.me = ((await (await fetch('/api/auth:check', { headers: { Authorization: 'Bearer ' + cToken() } })).json()) || {}).data || {}; } catch (e) { cal.me = {}; }
+    cal.groups = cDefaultGroups();
   }
   const r = await Promise.all([
     cList('rental_contracts', { fields: ['id', 'contract_number', 'tenant_name', 'object_name', 'termination_date'] }),
@@ -181,7 +185,7 @@ function cWire(slot) {
     if (g) {
       const k = g.getAttribute('data-group'), i = cal.groups.indexOf(k);
       if (i === -1) cal.groups.push(k); else cal.groups.splice(i, 1);
-      cSet('crm-cal-groups:' + location.pathname, cal.groups.join(','));
+      cSet('crm-cal-groups', cal.groups.join(','));
       return cRenderAll();
     }
     const v = c('[data-v]');
@@ -213,9 +217,10 @@ if (!document.getElementById('crm-cal-style')) {
   const st = document.createElement('style');
   st.id = 'crm-cal-style';
   st.textContent = `
-    .cal { border:1px solid #f0f0f0; border-radius:10px; background:#fff; padding:14px 16px; margin-top:16px; color:#1f1f1f; font-size:13.5px; }
+    .cal { color:#1f1f1f; font-size:14px; }
+    [aria-label="Открыть ИИ-чат"] { display:none !important; }
     .cal-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
-    .cal-title { font-size:16px; font-weight:700; margin-right:4px; }
+    .cal-title { font-size:18px; font-weight:700; margin-right:6px; }
     .cal-chips { display:flex; gap:6px; flex-wrap:wrap; }
     .cal-chip { border:1px solid #d9d9d9; background:#fff; border-radius:14px; padding:3px 11px; font:inherit; font-size:12.5px; cursor:pointer; color:#8c8c8c; }
     .cal-chip.on { border-color:var(--c); color:var(--c); background:#fff; font-weight:600; box-shadow:inset 0 0 0 1px var(--c); }
@@ -259,16 +264,7 @@ if (!document.getElementById('crm-cal-style')) {
   `;
   document.head.appendChild(st);
 }
-// сам блок пустой — прячем его карточку, календарь живёт в слотах модулей
-ctx.render('');
-try { const card = ctx.element && ctx.element.closest && ctx.element.closest('.ant-card'); if (card) card.style.display = 'none'; } catch (e) { /* не страшно */ }
-
-// модуль перерисовал главный экран — он зовёт этот хук, и календарь снова рисуется в новом слоте (данные уже в памяти;
-// старше CAL_REFRESH_MS — подгружаются заново). MutationObserver в песочнице блоков недоступен, поэтому хук явный.
-window.__crmCalendarRender = function() {
-  if (cal.items && Date.now() - cal.loadedAt > CAL_REFRESH_MS) cLoad().then(cRenderAll).catch(function() { /* покажем старое */ });
-  cRenderAll();
-};
+ctx.render('<div id="crm-cal" data-crm-calendar></div>');
 cRenderAll();
 cLoad().then(cRenderAll).catch(function() {
   document.querySelectorAll('[data-crm-calendar]').forEach(function(s) { s.innerHTML = '<div class="cal"><div class="cal-empty" style="color:#cf1322;">Не удалось загрузить календарь</div></div>'; });

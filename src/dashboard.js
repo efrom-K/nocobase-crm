@@ -323,11 +323,9 @@ function renderMain() {
   ensureDashPanel().innerHTML = headHtml('Объекты аренды', { before: '', after: '<button class="dash-link" data-act="csv">Выгрузить в Excel</button>' })
     + '<div class="dash-tiles">' + areaTile(s, used.filter(function(o) { return o.active.length; }).length) + moneyTile(s)
     + contractsTile(d.active.length, d.forming.length, d.completed.length) + depositTile(s) + attentionTile(s) + kindsTile(dashState.data.active) + '</div>'
-    + '<div data-crm-calendar></div>'   // календарь сроков (src/calendar.js) рисует себя сюда
     + '<div class="dash-section">По объектам</div>'
     + (used.length ? '<div class="dash-objs">' + used.map(objectCard).join('') + '</div>' : '<div class="dash-empty">Договоров пока нет</div>')
     + (empty.length ? '<div class="dash-rest">Без договоров: ' + dEsc(empty.join(', ')) + '</div>' : '');
-  if (window.__crmCalendarRender) window.__crmCalendarRender();   // календарь сроков в слоте выше
 }
 
 function objectStats(d) {

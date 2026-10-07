@@ -573,8 +573,6 @@ function aRenderHome() {
     + '<div class="hr-card"><div class="hr-card-t">Сегодня по регламенту</div>' + (todayR.length ? '<div class="hr-lines">' + todayR.map(aRoutineLine).join('') + '</div>' : '<div class="hr-hint">На сегодня всё сделано</div>') + '</div>'
     + '<div class="hr-card"><div class="hr-card-t">На неделе</div>' + (week.length ? '<div class="hr-lines">' + week.map(aRoutineLine).join('') + '</div>' : '<div class="hr-hint">Ничего</div>') + '</div>'
     + '</div></div>';
-  aBody().insertAdjacentHTML('beforeend', '<div data-crm-calendar></div>');   // календарь сроков (src/calendar.js) рисует себя сюда
-  if (window.__crmCalendarRender) window.__crmCalendarRender();
 }
 function aRoutineLine(r) {
   return '<div data-rec="routine:' + r.id + '"><span>' + hEsc(r.title) + '</span>' + aDueChip(r.next_on, 1) + '<button class="hr-btn sm" data-act="done" data-id="' + r.id + '">✓ Сделано</button></div>';

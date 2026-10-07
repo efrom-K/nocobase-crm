@@ -88,7 +88,7 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .st-t tr.st-link { cursor:pointer; }
     #crm-req .st-t tr.st-link:hover td { background:#eaf0ff; }
     #crm-req .st-t td.st-pr { white-space:normal; }
-    #crm-req .st-t th { overflow:hidden; text-overflow:ellipsis; }
+    #crm-req .st-t thead th { white-space:normal; line-height:1.25; vertical-align:bottom; }
     #crm-req .st-sub { font-size:12px; color:#595959; font-weight:400; margin-top:2px; line-height:1.35; }
     #crm-req .st-tag { display:inline-block; background:#f0f0f0; color:#595959; border-radius:4px; padding:0 5px; margin-right:6px; font-size:11px; line-height:16px; }
     #crm-req .st-mute { color:#a6a6a6; font-weight:400; }

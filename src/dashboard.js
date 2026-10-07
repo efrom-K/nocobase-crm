@@ -122,7 +122,7 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-tile, #cm-dash-panel .dash-card, #cm-dash-panel .dash-obj { border-color:#dfe3ea; }
     #cm-dash-panel .dash-obj:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
     #cm-dash-panel .dash-tile-label { font-size:12.5px; color:#434343; font-weight:600; }
-    #cm-dash-panel .dash-tile-value { font-size:22px; color:#141414; }
+    #cm-dash-panel .dash-tile-value:not(.dash-bad):not(.dash-ok) { color:#141414; }
     #cm-dash-panel .dash-tile-value small, #cm-dash-panel .dash-tile-note, #cm-dash-panel .dash-sub, #cm-dash-panel .dash-rest,
     #cm-dash-panel .dash-obj-name span, #cm-dash-panel .dash-obj-money small, #cm-dash-panel .dash-card-title span { color:#595959; }
     #cm-dash-panel .dash-obj-area { color:#434343; }

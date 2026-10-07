@@ -229,6 +229,26 @@ if (!document.getElementById('crm-hr-style')) {
       .hr-tl td.nm { width:110px; }
       .hr-pick { columns:1; }
     }
+    /* читаемость (как в статистике заявок): контрастные плитки, карточки и таблицы */
+    .hr-tile { border-color:#dfe3ea; }
+    .hr-tile[data-go]:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
+    .hr-tile-l { color:#434343; font-weight:600; }
+    .hr-tile-v { color:#141414; font-size:24px; }
+    .hr-tile-n, .hr-hint, .hr-al-s, .hr-card-t small, .hr-grp span { color:#595959; }
+    .hr-tile-go { font-weight:600; }
+    .hr-tiles-home { grid-template-columns:repeat(var(--tiles, 6), minmax(0, 1fr)); }
+    @media (max-width: 1200px) { .hr-tiles-home { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .hr-tiles-home { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+    .hr-card { border-color:#dfe3ea; padding:14px 16px; }
+    .hr-card-t { font-size:15px; font-weight:700; color:#141414; margin-bottom:10px; }
+    .hr-al { color:#1f1f1f; border-bottom-color:#e8ebf0; }
+    .hr-al:hover { background:#eaf0ff; }
+    .hr table, .hr-modal table { font-size:13.5px; color:#1f1f1f; }
+    .hr th, .hr-modal th { color:#262626; font-size:12.5px; background:#eef1f6; border-bottom:2px solid #c9d1df; padding:8px 10px; }
+    .hr td, .hr-modal td { padding:8px 10px; border-bottom-color:#e8ebf0; }
+    .hr tbody tr:nth-child(even) td, .hr-modal tbody tr:nth-child(even) td { background:#f8f9fb; }
+    .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr tr[data-go]:hover td, .hr-modal tr[data-task]:hover td { background:#eaf0ff; }
+    .hr-empty { color:#595959; }
   `;
   document.head.appendChild(st);
 }
@@ -909,7 +929,7 @@ function hRenderHome() {
     const n = function(k) { return l.filter(function(e) { return (e.employment_type || 'staff') === k; }).length; };
     return '<tr data-go="' + hEsc(JSON.stringify({ tab: 'staff', le: x[0] === '' ? '-' : String(x[0]), type: '' })) + '" style="cursor:pointer;"><td>' + hEsc(x[1]) + '</td><td class="n">' + n('staff') + '</td><td class="n">' + n('external') + '</td><td class="n">' + n('self') + '</td><td class="n"><b>' + l.length + '</b></td></tr>';
   }).join('');
-  hBody().innerHTML = '<div class="hr-tiles">'
+  hBody().innerHTML = '<div class="hr-tiles hr-tiles-home" style="--tiles:6;">'
     + tile('staff', act.length, 'штат ' + byType('staff') + ' · ГПХ ' + byType('external') + ' · самозанятые ' + byType('self'))
     + tile('hire', d.vacancies.filter(function(v) { return v.status === 'open'; }).length + ' <small style="font-size:13px;font-weight:400;">вакансий</small>',
         'кандидатов в работе ' + d.cands.filter(function(c) { return ['new', 'interview', 'offer'].indexOf(c.stage) !== -1; }).length

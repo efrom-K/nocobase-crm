@@ -190,6 +190,26 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-plan input { width:90px; padding:3px 6px !important; text-align:right; font-size:12.5px !important; }
     .hr-plan td, .hr-plan th { white-space:nowrap; }
     .hr-mails { font-size:12.5px; color:#595959; word-break:break-all; background:#fafafa; border-radius:8px; padding:8px 10px; }
+    /* читаемость (как в статистике заявок): контрастные плитки, карточки и таблицы */
+    .hr-tile { border-color:#dfe3ea; }
+    .hr-tile[data-go]:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
+    .hr-tile-l { color:#434343; font-weight:600; }
+    .hr-tile-v { color:#141414; font-size:24px; }
+    .hr-tile-n, .hr-hint, .hr-al-s, .hr-card-t small, .hr-grp span { color:#595959; }
+    .hr-tile-go { font-weight:600; }
+    .hr-tiles-home { grid-template-columns:repeat(var(--tiles, 6), minmax(0, 1fr)); }
+    @media (max-width: 1200px) { .hr-tiles-home { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .hr-tiles-home { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+    .hr-card { border-color:#dfe3ea; padding:14px 16px; }
+    .hr-card-t { font-size:15px; font-weight:700; color:#141414; margin-bottom:10px; }
+    .hr-al { color:#1f1f1f; border-bottom-color:#e8ebf0; }
+    .hr-al:hover { background:#eaf0ff; }
+    .hr table, .hr-modal table { font-size:13.5px; color:#1f1f1f; }
+    .hr th, .hr-modal th { color:#262626; font-size:12.5px; background:#eef1f6; border-bottom:2px solid #c9d1df; padding:8px 10px; }
+    .hr td, .hr-modal td { padding:8px 10px; border-bottom-color:#e8ebf0; }
+    .hr tbody tr:nth-child(even) td, .hr-modal tbody tr:nth-child(even) td { background:#f8f9fb; }
+    .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr tr[data-go]:hover td, .hr-modal tr[data-task]:hover td { background:#eaf0ff; }
+    .hr-empty { color:#595959; }
   `;
   document.head.appendChild(st);
 }
@@ -594,7 +614,7 @@ function aRenderHome() {
   const lvlC = ['#cf1322', '#fa8c16', '#1c2d58'];
   const week = act.filter(function(r) { return r.next_on && hD(r.next_on) > t && hDays(t, r.next_on) <= 7; }).sort(function(a, b) { return hD(a.next_on).localeCompare(hD(b.next_on)); });
   aBody().innerHTML = (aIsApprover() ? '<div class="hr-only">Вы согласуете счета АХО — счета на согласовании выделены в ленте ниже.</div>' : '')
-    + '<div class="hr-tiles">'
+    + '<div class="hr-tiles hr-tiles-home" style="--tiles:4;">'
     + tile('routines', todayR.length ? todayR.length + sm('на сегодня') : '✓', act.length + ' ' + hNoun(act.length, 'дело', 'дела', 'дел') + ' по регламенту')
     + tile('money', openExp.length + sm(hNoun(openExp.length, 'счёт', 'счёта', 'счетов') + ' в работе'), 'на согласовании ' + d.exps.filter(function(x) { return x.status === 'approval'; }).length + ' · оплачено в этом месяце ' + hMoney(paidMonth))
     + tile('poa', poaAct.length + sm('действуют'), 'по ' + (new Set(poaAct.map(function(p) { return p.legal_entity_id; }))).size + ' юрлицам')

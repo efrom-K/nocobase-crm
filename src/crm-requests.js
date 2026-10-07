@@ -58,7 +58,7 @@ if (!document.getElementById('crm-req-style')) {
     .rq-late { color:#cf1322; font-weight:600; }
     #crm-req .rq-empty { color:#bfbfbf; padding:24px 0; text-align:center; }
     /* статистика */
-    #crm-req .st { display:flex; flex-direction:column; gap:16px; max-width:1240px; }
+    #crm-req .st { display:flex; flex-direction:column; gap:16px; }
     #crm-req .st-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     #crm-req .st-lbl { font-size:13px; color:#434343; font-weight:600; }
     #crm-req .st-bar .rq-view, #crm-req .st-ch .rq-view { margin-left:0; }
@@ -74,18 +74,21 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .st-ch { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     #crm-req .st-ct { font-size:15px; font-weight:700; color:#141414; margin-right:4px; }
     #crm-req .st-scroll { overflow-x:auto; }
-    #crm-req table.st-t { width:auto; border-collapse:collapse; font-size:13.5px; color:#1f1f1f; }
+    #crm-req table.st-t { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13.5px; color:#1f1f1f; }
     #crm-req .st-t th { font-weight:600; color:#262626; font-size:12.5px; padding:8px 12px; background:#eef1f6; border-bottom:2px solid #c9d1df; white-space:nowrap; text-align:left; }
     #crm-req .st-t th.n { text-align:right; }
     #crm-req .st-t th.st-now { background:#e6ebf5; }
     #crm-req .st-t td { padding:9px 12px; border-bottom:1px solid #e8ebf0; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500; }
-    #crm-req .st-t td.n { text-align:right; min-width:64px; }
+    #crm-req .st-t td.n { text-align:right; }
     #crm-req .st-t tbody tr:nth-child(even) td { background:#f8f9fb; }
-    #crm-req .st-t td.st-name { white-space:normal; width:300px; min-width:220px; font-weight:600; color:#141414; }
+    #crm-req .st-t th.st-name, #crm-req .st-t td.st-name { width:24%; }
+    #crm-req .st-t th.st-pr { width:18%; }
+    #crm-req .st-t td.st-name { white-space:normal; font-weight:600; color:#141414; }
     #crm-req .st-t .st-sep { border-left:2px solid #dfe3ea; }
     #crm-req .st-t tr.st-link { cursor:pointer; }
     #crm-req .st-t tr.st-link:hover td { background:#eaf0ff; }
-    #crm-req .st-t td.st-pr { white-space:normal; min-width:200px; }
+    #crm-req .st-t td.st-pr { white-space:normal; }
+    #crm-req .st-t th { overflow:hidden; text-overflow:ellipsis; }
     #crm-req .st-sub { font-size:12px; color:#595959; font-weight:400; margin-top:2px; line-height:1.35; }
     #crm-req .st-tag { display:inline-block; background:#f0f0f0; color:#595959; border-radius:4px; padding:0 5px; margin-right:6px; font-size:11px; line-height:16px; }
     #crm-req .st-mute { color:#a6a6a6; font-weight:400; }
@@ -99,9 +102,9 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .st-legend span:first-child { margin-left:0; }
     #crm-req .st-legend .st-now { background:#e6ebf5; border:1px solid #c9d1df; }
     #crm-req .st-legend .st-per { background:#eef1f6; border:1px solid #c9d1df; }
-    #crm-req .st-wk th:first-child { background:#eef1f6; min-width:170px; }
+    #crm-req .st-wk th:first-child { background:#eef1f6; width:16%; }
     #crm-req .st-wk tbody th { background:#f8f9fb; border-bottom:1px solid #e8ebf0; font-weight:600; color:#262626; cursor:help; }
-    #crm-req .st-wk td.n { min-width:58px; }
+    #crm-req .st-scroll table.st-t { min-width:900px; }
     @media (max-width: 1100px) { #crm-req .st-tiles { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 600px) { #crm-req .st-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
     #crm-req .rq-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
@@ -848,7 +851,7 @@ async function rqRenderStats() {
   const rows = st[by[2]];
   const table = rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th class="st-name">' + by[1].replace('Типы заявок', 'Тип') + '</th>'
       + RQ_MAIN.map(function(c, n) { return '<th class="n' + (n === 3 ? ' st-sep' : '') + ' st-' + c[2] + '" title="' + RQ_COLS_HINT[c[0]] + '">' + c[1] + '</th>'; }).join('')
-      + '<th class="st-sep" title="Переносы срока, возвраты на доработку и эскалации старшему за период">Проблемы за период</th></tr></thead><tbody>'
+      + '<th class="st-sep st-pr" title="Переносы срока, возвраты на доработку и эскалации старшему за период">Проблемы за период</th></tr></thead><tbody>'
       + rows.map(function(x) {
           const go = {}; if (by[3]) go[by[3]] = x.k;
           const noAcc = / \(нет учётки в CRM\)$/.test(x.label);

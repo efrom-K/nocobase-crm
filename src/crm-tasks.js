@@ -105,6 +105,57 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-tile-l { font-size:12.5px; color:#8c8c8c; }
     .tk-tile-v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
     .tk-tile-n { font-size:12px; color:#8c8c8c; margin-top:2px; }
+    /* статистика */
+    #crm-tasks .st { display:flex; flex-direction:column; gap:16px; }
+    #crm-tasks .st-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    #crm-tasks .st-lbl { font-size:13px; color:#434343; font-weight:600; }
+    #crm-tasks .st-bar .tk-layout { margin-left:0; }
+    #crm-tasks .st-hint { font-size:12.5px; color:#595959; }
+    #crm-tasks .st-tiles { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:10px; }
+    #crm-tasks .st-tile { border:1px solid #dfe3ea; border-radius:10px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .15s, box-shadow .15s; min-width:0; }
+    #crm-tasks .st-tile:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
+    #crm-tasks .st-tl { font-size:12.5px; color:#434343; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #crm-tasks .st-tv { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px; color:#141414; white-space:nowrap; }
+    #crm-tasks .st-tv small { font-size:13px; font-weight:600; color:#595959; }
+    #crm-tasks .st-tn { font-size:12.5px; color:#595959; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #crm-tasks .st-card { border:1px solid #dfe3ea; border-radius:10px; background:#fff; padding:14px 16px 12px; min-width:0; }
+    #crm-tasks .st-ch { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    #crm-tasks .st-ct { font-size:15px; font-weight:700; color:#141414; margin-right:4px; }
+    #crm-tasks .st-scroll { overflow-x:auto; }
+    #crm-tasks table.st-t { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13.5px; color:#1f1f1f; }
+    #crm-tasks .st-t th { font-weight:600; color:#262626; font-size:12.5px; padding:8px 12px; background:#eef1f6; border-bottom:2px solid #c9d1df; white-space:nowrap; text-align:left; }
+    #crm-tasks .st-t th.n { text-align:right; }
+    #crm-tasks .st-t th.st-now { background:#e6ebf5; }
+    #crm-tasks .st-t td { padding:9px 12px; border-bottom:1px solid #e8ebf0; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500; }
+    #crm-tasks .st-t td.n { text-align:right; }
+    #crm-tasks .st-t tbody tr:nth-child(even) td { background:#f8f9fb; }
+    #crm-tasks .st-t th.st-name, #crm-tasks .st-t td.st-name { width:24%; }
+    #crm-tasks .st-t th.st-pr { width:18%; }
+    #crm-tasks .st-t td.st-name { white-space:normal; font-weight:600; color:#141414; }
+    #crm-tasks .st-t .st-sep { border-left:2px solid #dfe3ea; }
+    #crm-tasks .st-t tr.st-link { cursor:pointer; }
+    #crm-tasks .st-t tr.st-link:hover td { background:#eaf0ff; }
+    #crm-tasks .st-t td.st-pr { white-space:normal; }
+    #crm-tasks .st-t thead th { white-space:normal; line-height:1.25; vertical-align:bottom; }
+    #crm-tasks .st-sub { font-size:12px; color:#595959; font-weight:400; margin-top:2px; line-height:1.35; }
+    #crm-tasks .st-tag { display:inline-block; background:#f0f0f0; color:#595959; border-radius:4px; padding:0 5px; margin-right:6px; font-size:11px; line-height:16px; }
+    #crm-tasks .st-mute { color:#a6a6a6; font-weight:400; }
+    #crm-tasks .st-bad { display:inline-block; color:#fff; background:#cf1322; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
+    #crm-tasks .st-badt { color:#cf1322; font-weight:700; }
+    #crm-tasks .st-ok { color:#237804; font-weight:700; }
+    #crm-tasks .st-warn { color:#ad6800; font-weight:700; }
+    #crm-tasks .st-chip { display:inline-block; background:#fff7e6; color:#873800; border:1px solid #ffd591; border-radius:10px; padding:0 8px; font-size:12px; line-height:20px; margin:1px 0; font-weight:600; }
+    #crm-tasks .st-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:#595959; margin-top:8px; }
+    #crm-tasks .st-legend span { width:12px; height:12px; border-radius:3px; display:inline-block; margin-left:10px; }
+    #crm-tasks .st-legend span:first-child { margin-left:0; }
+    #crm-tasks .st-legend .st-now { background:#e6ebf5; border:1px solid #c9d1df; }
+    #crm-tasks .st-legend .st-per { background:#eef1f6; border:1px solid #c9d1df; }
+    #crm-tasks .st-wk th:first-child { background:#eef1f6; width:16%; }
+    #crm-tasks .st-wk tbody th { background:#f8f9fb; border-bottom:1px solid #e8ebf0; font-weight:600; color:#262626; cursor:help; }
+    #crm-tasks .st-scroll table.st-t { min-width:900px; }
+    @media (max-width: 1100px) { #crm-tasks .st-tiles { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 600px) { #crm-tasks .st-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+    #crm-tasks .st-hot { display:inline-block; color:#ad4e00; background:#fff2e8; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
     .tk-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(460px, 1fr)); gap:12px; }
     .tk-card { border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; }
     .tk-card-t { font-weight:600; margin-bottom:8px; }
@@ -202,7 +253,7 @@ const TK_WAIT = ['ответа коллеги', 'ответа арендатор
 const TK_HR_TPL = ['Отпуск', 'Больничный', 'Приём на работу', 'Увольнение', 'Перевод / смена должности', 'Командировка', 'Отгул'];
 const TK_HR_DEPT = 'HR служба персонала';
 const TK_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
-const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, layout: 'list', drop: null };
+const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, layout: 'list', drop: null, statsDays: 30, statsBy: 'exec' };
 try { if (localStorage.getItem('crm-tasks-layout') === 'board') tk.layout = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
 function tkEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -462,6 +513,10 @@ function tkOnClick(e) {
   if (c('[data-act="new"]')) { tkOpenNew({}); return; }
   if (c('[data-act="more"]')) { tk.limit += 100; tkRenderList(); return; }
   if (c('[data-act="reset"]')) { tk.q = ''; tk.exec = ''; tk.kind = ''; tk.obj = ''; tkRenderListShell(); return; }
+  const pr = c('[data-period]');
+  if (pr) { tk.statsDays = Number(pr.getAttribute('data-period')); tkRenderStats(); return; }
+  const sb = c('[data-by]');
+  if (sb) { tk.statsBy = sb.getAttribute('data-by'); tkRenderStats(); return; }
   const ly = c('[data-layout]');
   if (ly) { tk.layout = ly.getAttribute('data-layout'); try { localStorage.setItem('crm-tasks-layout', tk.layout); } catch (err) { /* не запомним — не страшно */ } tkRenderListShell(); return; }
   const vw = c('[data-view]');
@@ -887,47 +942,107 @@ async function tkApply(m, t, a, btn) {
 function tkOpenEmp(id) { location.href = TK_HR_PAGE + '?open=emp:' + id; }
 
 // ---------- отчёты ----------
-function tkRenderStats() {
-  const tasks = tk.data.tasks, since = function(n) { const d = new Date(); d.setDate(d.getDate() - n); return tkIso(d); };
-  const d7 = since(7), d30 = since(30);
-  const open = tasks.filter(tkIsOpen);
+// Отчёты — тот же вид, что статистика заявок: период, плитки, одна таблица «В разрезе» с переключателем, неделя за неделей.
+// «Открыто / просрочено / горит» — на сегодня; остальное — за выбранный период.
+const TK_PERIODS = [[30, '30 дней'], [90, '3 месяца'], [365, 'год'], [0, 'всё время']];
+const TK_BY = [['exec', 'Исполнители', 'Исполнитель'], ['obj', 'Объекты', 'Объект'], ['kind', 'Типы задач', 'Тип']];
+const TK_SCOLS = [['open', 'Открыто', 'Сейчас в работе'], ['late', 'Просрочено', 'Сейчас, срок прошёл'], ['hot', 'Горит и срочно', 'Открытые «Горит» и «Срочно»'],
+  ['created', 'Поставлено', 'Поставлено за период'], ['closed', 'Закрыто', 'Выполнено или закрыто за период'], ['ontime', 'В срок', 'Доля закрытых за период не позже срока'],
+  ['med', 'Медиана, дн.', 'Медиана дней от постановки до выполнения (за период)'], ['moved', 'Переносили срок', 'Задачи за период, срок которых переносили']];
+function tkStats() {
+  const tasks = tk.data.tasks, days = tk.statsDays;
+  const d = new Date(); d.setDate(d.getDate() - days);
+  const from = days ? tkIso(d) : '0000';
+  const inP = function(v) { return !!v && String(v).slice(0, 10) >= from; };
   const finished = function(t) { return String(t.done_at || t.closed_at || '').slice(0, 10); };
-  const closedIn = function(list, from) { return list.filter(function(t) { return (t.status === 'closed' || t.status === 'done') && finished(t) >= from; }); };
-  const days = function(list) { return closedIn(list, d30).map(function(t) { return tkDays(String(t.createdAt).slice(0, 10), finished(t)); }); };
-  const med = tkMedian(days(tasks));
-  const tiles = [
-    ['Открыто сейчас', open.length, open.filter(tkLate).length ? '<span class="tk-late">из них просрочено ' + open.filter(tkLate).length + '</span>' : 'просрочек нет', { view: 'open' }],
-    ['Горит и срочно', open.filter(function(t) { return t.urgency && t.urgency !== 'normal'; }).length, '«горит»: ' + open.filter(function(t) { return t.urgency === 'asap'; }).length, { view: 'open' }],
-    ['Поставлено за неделю', tasks.filter(function(t) { return String(t.createdAt).slice(0, 10) >= d7; }).length, 'за месяц: ' + tasks.filter(function(t) { return String(t.createdAt).slice(0, 10) >= d30; }).length, { view: 'open' }],
-    ['Закрыто за неделю', closedIn(tasks, d7).length, 'ждут проверки: ' + tasks.filter(function(t) { return t.status === 'done'; }).length, { view: 'closed' }],
-    ['Обычно на задачу уходит', med === null ? '—' : med + ' ' + tkNoun(Math.round(med), 'день', 'дня', 'дней'), 'медиана за последний месяц', { view: 'closed' }]
-  ];
-  function table(title, keyFn, labelFn, goKey) {
+  const isClosed = function(t) { return (t.status === 'closed' || t.status === 'done') && inP(finished(t)); };
+  const inTime = function(t) { return !t.due_date || finished(t) <= String(t.due_date).slice(0, 10); };
+  function metrics(l) {
+    const o = l.filter(tkIsOpen), c = l.filter(isClosed);
+    return { open: o.length, late: o.filter(tkLate).length, hot: o.filter(function(t) { return t.urgency && t.urgency !== 'normal'; }).length,
+      asap: o.filter(function(t) { return t.urgency === 'asap'; }).length,
+      created: l.filter(function(t) { return inP(t.createdAt); }).length, closed: c.length,
+      ontime: c.length ? Math.round(100 * c.filter(inTime).length / c.length) : null,
+      med: tkMedian(c.map(function(t) { return tkDays(String(t.createdAt).slice(0, 10), finished(t)); })),
+      moved: l.filter(function(t) { return inP(t.createdAt) && t.due_moved > 0; }).length,
+      check: l.filter(function(t) { return t.status === 'done'; }).length };
+  }
+  function group(keyFn, labelFn) {
     const g = {};
     tasks.forEach(function(t) { const k = keyFn(t); if (!k) return; (g[k] = g[k] || []).push(t); });
-    const rows = Object.keys(g).map(function(k) {
-      const l = g[k], o = l.filter(tkIsOpen);
-      return { k: k, open: o.length, late: o.filter(tkLate).length, done30: closedIn(l, d30).length, med: tkMedian(days(l)) };
-    }).filter(function(x) { return x.open || x.done30; }).sort(function(a, b) { return b.late - a.late || b.open - a.open || b.done30 - a.done30; });
-    return '<div class="tk-card"><div class="tk-card-t">' + title + '</div>' + (rows.length ? '<table><thead><tr><th></th><th class="n">В работе</th><th class="n">Просрочено</th><th class="n" title="Закрыто за последние 30 дней">Закрыто за месяц</th><th class="n" title="Медиана дней от постановки до выполнения">Дней на задачу</th></tr></thead><tbody>'
-      + rows.map(function(x) { const go = { view: 'open' }; go[goKey] = x.k; return '<tr data-go="' + tkEsc(JSON.stringify(go)) + '"><td>' + tkEsc(labelFn(x.k)) + '</td><td class="n">' + x.open + '</td><td class="n' + (x.late ? ' tk-late' : '') + '">' + x.late + '</td><td class="n">' + x.done30 + '</td><td class="n">' + (x.med === null ? '—' : x.med) + '</td></tr>'; }).join('')
-      + '</tbody></table>' : '<div class="tk-hint">Данных пока нет</div>') + '</div>';
+    return Object.keys(g).map(function(k) { return Object.assign({ k: k, label: labelFn(k) }, metrics(g[k])); })
+      .filter(function(x) { return x.open || x.created || x.closed; })
+      .sort(function(a, b) { return b.late - a.late || b.open - a.open || b.closed - a.closed || a.label.localeCompare(b.label, 'ru'); });
   }
   const names = {};
   tasks.forEach(function(t) { const k = tkExecKey(t); if (k) names[k] = tkWho(t.executor_id, t.executor_name); });
   const weeks = [], mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
   for (let i = 7; i >= 0; i--) { const s = new Date(mon); s.setDate(s.getDate() - 7 * i); const e = new Date(s); e.setDate(e.getDate() + 7); weeks.push([tkIso(s), tkIso(e)]); }
   const inW = function(v, w) { const x = String(v || '').slice(0, 10); return x >= w[0] && x < w[1]; };
-  const weeksHtml = '<div class="tk-card"><div class="tk-card-t">По неделям</div><table><thead><tr><th>Неделя с</th><th class="n">Поставлено</th><th class="n">Закрыто</th><th class="n">Из них в срок</th></tr></thead><tbody>'
-    + weeks.map(function(w) {
-        const done = tasks.filter(function(t) { return (t.status === 'closed' || t.status === 'done') && inW(finished(t), w); });
-        return '<tr><td>' + tkDate(w[0]) + '</td><td class="n">' + tasks.filter(function(t) { return inW(t.createdAt, w); }).length + '</td><td class="n">' + done.length + '</td><td class="n">' + done.filter(function(t) { return !t.due_date || finished(t) <= String(t.due_date).slice(0, 10); }).length + '</td></tr>';
-      }).join('') + '</tbody></table></div>';
-  tkBody().innerHTML = '<div class="tk-tiles">' + tiles.map(function(t) {
-      return '<div class="tk-tile" data-go="' + tkEsc(JSON.stringify(t[3])) + '" style="cursor:pointer;"><div class="tk-tile-l">' + t[0] + '</div><div class="tk-tile-v">' + t[1] + '</div><div class="tk-tile-n">' + t[2] + '</div></div>';
-    }).join('') + '</div>'
-    + '<div class="tk-grid2">' + table('По исполнителям', tkExecKey, function(k) { return names[k] || k; }, 'exec')
-    + table('По объектам', function(t) { return t.object_name; }, function(k) { return k; }, 'obj')
-    + table('По типам', function(t) { return t.kind; }, function(k) { return k; }, 'kind') + weeksHtml + '</div>'
-    + '<div class="tk-hint" style="margin-top:10px;">Нажмите на строку или плитку — откроется список этих задач.</div>';
+  return {
+    all: metrics(tasks),
+    exec: group(tkExecKey, function(k) { return names[k] || k; }),
+    obj: group(function(t) { return t.object_name; }, function(k) { return k; }),
+    kind: group(function(t) { return t.kind; }, function(k) { return k; }),
+    weeks: weeks.map(function(w) {
+      const c = tasks.filter(function(t) { return (t.status === 'closed' || t.status === 'done') && inW(finished(t), w); });
+      const openEnd = tasks.filter(function(t) {
+        const cr = String(t.createdAt || '').slice(0, 10), f = finished(t), x = t.status === 'cancelled' ? String(t.closed_at || '').slice(0, 10) : '';
+        return cr && cr < w[1] && !(f && f < w[1]) && !(x && x < w[1]);
+      }).length;
+      return { from: w[0], created: tasks.filter(function(t) { return inW(t.createdAt, w); }).length, closed: c.length, ontime: c.filter(inTime).length, openEnd: openEnd };
+    })
+  };
+}
+function tkSCell(x, k) {
+  const v = x[k];
+  if (v === null || v === undefined) return '<span class="st-mute">—</span>';
+  if (k === 'late') return v ? '<span class="st-bad">' + v + '</span>' : '<span class="st-mute">0</span>';
+  if (k === 'hot') return v ? '<span class="st-hot">' + v + '</span>' : '<span class="st-mute">0</span>';
+  if (k === 'ontime') return '<span class="' + (v >= 80 ? 'st-ok' : v >= 50 ? 'st-warn' : 'st-badt') + '">' + v + '%</span>';
+  if (k === 'med') return Math.round(v * 10) / 10;
+  return v === 0 ? '<span class="st-mute">0</span>' : v;
+}
+function tkRenderStats() {
+  const st = tkStats(), a = st.all;
+  const per = (TK_PERIODS.find(function(p) { return p[0] === tk.statsDays; }) || [0, ''])[1];
+  const seg = function(list, attr, cur) { return '<div class="tk-layout">' + list.map(function(p) { return '<button ' + attr + '="' + p[0] + '"' + (cur === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'; };
+  const tiles = [
+    ['Открыто сейчас', a.open, a.late ? '<span class="st-bad">просрочено ' + a.late + '</span>' : 'просрочек нет', { view: 'open' }],
+    ['Горит и срочно', a.hot, '«горит»: ' + a.asap, { view: 'open' }],
+    ['Поставлено', a.created, 'за ' + per, { view: 'open' }],
+    ['Закрыто', a.closed, a.ontime === null ? 'за ' + per : 'в срок <b>' + a.ontime + '%</b>', { view: 'closed' }],
+    ['На задачу уходит', a.med === null ? '—' : (Math.round(a.med * 10) / 10) + '<small> ' + tkNoun(Math.round(a.med), 'день', 'дня', 'дней') + '</small>', 'медиана за ' + per, { view: 'closed' }],
+    ['Ждут проверки', a.check, a.moved ? 'переносили срок: ' + a.moved : 'выполнены, не закрыты', { view: 'check' }]
+  ];
+  const by = TK_BY.find(function(b) { return b[0] === tk.statsBy; }) || TK_BY[0];
+  const rows = st[by[0]];
+  const table = rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th class="st-name">' + by[2] + '</th>'
+      + TK_SCOLS.map(function(c, n) { return '<th class="n' + (n === 3 ? ' st-sep' : '') + (n < 3 ? ' st-now' : '') + '" title="' + c[2] + '">' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>'
+      + rows.map(function(x) {
+          const go = { view: 'open' }; go[by[0]] = x.k;
+          return '<tr data-go="' + tkEsc(JSON.stringify(go)) + '" class="st-link"><td class="st-name">' + tkEsc(x.label) + '</td>'
+            + TK_SCOLS.map(function(c, n) { return '<td class="n' + (n === 3 ? ' st-sep' : '') + '">' + tkSCell(x, c[0]) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>'
+    : '<div class="tk-hint">Данных пока нет</div>';
+  const W = st.weeks;
+  const wrow = function(title, fn, hint) { return '<tr><th title="' + (hint || '') + '">' + title + '</th>' + W.map(function(w) { return '<td class="n">' + fn(w) + '</td>'; }).join('') + '</tr>'; };
+  const weeks = '<div class="st-scroll"><table class="st-t st-wk"><thead><tr><th>Неделя с</th>' + W.map(function(w, i) { return '<th class="n">' + (i === W.length - 1 ? 'эта' : tkDate(w.from).slice(0, 5)) + '</th>'; }).join('') + '</tr></thead><tbody>'
+    + wrow('Поставлено', function(w) { return w.created || '<span class="st-mute">0</span>'; })
+    + wrow('Закрыто', function(w) { return w.closed || '<span class="st-mute">0</span>'; })
+    + wrow('Очередь за неделю', function(w) { const dd = w.created - w.closed; return dd > 0 ? '<span class="st-badt">+' + dd + '</span>' : dd < 0 ? '<span class="st-ok">−' + (-dd) + '</span>' : '<span class="st-mute">0</span>'; }, 'Поставлено минус закрыто: плюс — задач копится больше, минус — разбираются')
+    + wrow('Открыто на конец', function(w) { return '<b>' + w.openEnd + '</b>'; }, 'Сколько задач оставалось открытыми в конце недели')
+    + wrow('Закрыто в срок', function(w) { if (!w.closed) return '<span class="st-mute">—</span>'; const pc = Math.round(100 * w.ontime / w.closed); return '<span class="' + (pc >= 80 ? 'st-ok' : pc >= 50 ? 'st-warn' : 'st-badt') + '">' + pc + '%</span>'; })
+    + '</tbody></table></div>';
+  const f = W[0].openEnd, l = W[W.length - 1].openEnd;
+  const trend = l > f ? '<span class="st-badt">открытых задач стало больше: ' + f + ' → ' + l + '</span>' : l < f ? '<span class="st-ok">открытых задач стало меньше: ' + f + ' → ' + l + '</span>' : 'открытых задач столько же: ' + l;
+  tkBody().innerHTML = '<div class="st">'
+    + '<div class="st-bar"><span class="st-lbl">Период</span>' + seg(TK_PERIODS, 'data-period', tk.statsDays) + '</div>'
+    + '<div class="st-tiles">' + tiles.map(function(t) {
+        return '<div class="st-tile" data-go="' + tkEsc(JSON.stringify(t[3])) + '"><div class="st-tl">' + t[0] + '</div><div class="st-tv">' + t[1] + '</div><div class="st-tn">' + t[2] + '</div></div>';
+      }).join('') + '</div>'
+    + '<div class="st-card"><div class="st-ch"><div class="st-ct">В разрезе</div>' + seg(TK_BY, 'data-by', by[0])
+    + '<span class="st-hint">открыто, просрочено, горит — на ' + tkDate(tkToday()) + '; остальное — за ' + per + '. Клик по строке — список этих задач</span></div>' + table + '</div>'
+    + '<div class="st-card"><div class="st-ch"><div class="st-ct">Неделя за неделей</div><span class="st-hint">за 8 недель ' + trend + '</span></div>' + weeks + '</div>'
+    + '</div>';
 }

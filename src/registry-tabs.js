@@ -358,6 +358,19 @@ if (!document.getElementById('cm-notif-style')) {
   `;
   document.head.appendChild(nst);
 }
+// вид таблиц реестра — как в статистике и на дашбордах (уведомления .cm-notif-row важнее: у них свой фон)
+if (!document.getElementById('cm-reg-look-style')) {
+  const lst = document.createElement('style');
+  lst.id = 'cm-reg-look-style';
+  lst.textContent = `
+    /* реестр в стиле остальных таблиц CRM: тёмная шапка на голубом, строки через одну, тёмный текст */
+    [data-uid="ozazmpm4o4v"] .ant-table-thead > tr > th, [data-uid="formtbl000001"] .ant-table-thead > tr > th, [data-uid="ipb7gfluldk"] .ant-table-thead > tr > th { background:#eef1f6 !important; color:#262626 !important; font-weight:600 !important; font-size:12.5px; border-bottom:2px solid #c9d1df !important; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row > td { color:#1f1f1f; font-size:13.5px; border-bottom-color:#e8ebf0 !important; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td { background:#f8f9fb; }
+    .main-registry-clickable-rows .ant-table-tbody > tr.ant-table-row:not(.cm-notif-row):hover > td { background:#eaf0ff !important; }
+  `;
+  document.head.appendChild(lst);
+}
 // Договоры с непрочитанными уведомлениями всегда наверху — при любой сортировке, фильтре, поиске и странице.
 // Делается на уровне данных: ответ сервера на список договоров перехватывается, на первую страницу подставляются
 // эти договоры (отдельным запросом по id, в обход фильтров), а их дубли убираются со всех страниц.

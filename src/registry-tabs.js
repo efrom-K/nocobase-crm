@@ -187,17 +187,27 @@ function psApply(n, except) {
     }, 100);
   });
 }
-function psSave(n) {
+async function psSave(n) {
   try { localStorage.setItem(psLsKey(), String(n)); } catch (e) { /* ignore */ }
   if (colUserId === null) return;
-  const values = { user_id: colUserId, table_uid: PS_UID, config: { pageSize: n } };
-  (psRowId ? ctx.api.resource('user_table_settings').update({ filterByTk: psRowId, values: values })
-    : ctx.api.resource('user_table_settings').create({ values: values }).then(function(res) {
-        const rec = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : null;
-        if (rec && rec.id) psRowId = rec.id;
-      })).catch(function() { /* нет прав или сеть: остаётся в этом браузере */ });
+  const api = ctx.api.resource('user_table_settings'), values = { user_id: colUserId, table_uid: PS_UID, config: { pageSize: n } };
+  const one = function(res) { const d = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : null; return Array.isArray(d) ? d[0] : d; };
+  try {
+    if (!psRowId) { const ex = one(await api.list({ filter: { user_id: colUserId, table_uid: PS_UID }, pageSize: 1 })); if (ex && ex.id) psRowId = ex.id; }   // запись уже есть — обновляем, иначе сервер ругается «уже существует»
+    if (psRowId) await api.update({ filterByTk: psRowId, values: values });
+    else { const rec = one(await api.create({ values: values })); if (rec && rec.id) psRowId = rec.id; }
+  } catch (e) { /* нет прав или сеть: остаётся в этом браузере */ }
 }
-// перехват смены размера страницы в самой таблице (выпадающий список пагинации)
+// перехват смены размера страницы. Таблица сама зовёт setPageSize при загрузке (20) — это не выбор человека,
+// поэтому сохраняем только сразу после клика по пункту «N / стр.» в выпадающем списке пагинации.
+let psPickAt = 0;
+if (!window.__psPickListener) {
+  window.__psPickListener = true;
+  document.addEventListener('click', function(e) {
+    const o = e.target.closest ? e.target.closest('.ant-select-item-option') : null;
+    if (o && /\/\s*стр/.test(o.textContent || '')) window.__psPickAt = Date.now();
+  }, true);
+}
 function psWrap() {
   TABLES.forEach(function(u) {
     const r = psRes(u);
@@ -206,7 +216,7 @@ function psWrap() {
     const orig = r.setPageSize.bind(r);
     r.setPageSize = function(n) {
       const out = orig(n);
-      if (!r.__psSilent && Number(n) && Number(n) !== psCur) { psCur = Number(n); psSave(psCur); psApply(psCur, u); }
+      if (!r.__psSilent && Date.now() - (window.__psPickAt || psPickAt) < 3000 && Number(n) && Number(n) !== psCur) { psCur = Number(n); psSave(psCur); psApply(psCur, u); }
       return out;
     };
   });

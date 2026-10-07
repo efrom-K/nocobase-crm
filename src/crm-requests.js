@@ -35,6 +35,8 @@ if (!document.getElementById('crm-req-style')) {
     .rq-late { color:#cf1322; font-weight:600; }
     #crm-req .rq-empty { color:#bfbfbf; padding:24px 0; text-align:center; }
     /* статистика */
+    #crm-req .rq-stbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; font-size:13px; color:#595959; }
+    #crm-req .rq-stbar .rq-view { margin-left:0; }
     #crm-req .rq-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
     #crm-req .rq-tile { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; }
     #crm-req .rq-tile-l { font-size:12px; color:#8c8c8c; }
@@ -83,21 +85,36 @@ if (!document.getElementById('crm-req-style')) {
     .rq-comment { display:flex; gap:8px; margin-top:10px; align-items:flex-start; }
     .rq-comment textarea { flex:1; min-height:38px; resize:vertical; }
     /* доска */
-    #crm-req .rq-view { display:flex; gap:2px; background:#f5f5f5; border-radius:6px; padding:2px; }
+    #crm-req .rq-view { display:flex; gap:2px; background:#f5f5f5; border-radius:6px; padding:2px; margin-left:auto; }
     #crm-req .rq-view button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
     #crm-req .rq-view button.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
-    #crm-req .rq-board { display:grid; grid-template-columns:repeat(5, minmax(220px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; align-items:start; }
-    #crm-req .rq-col { background:#f7f8fa; border-radius:8px; padding:8px; min-height:120px; border:2px dashed transparent; }
-    #crm-req .rq-col.drop { border-color:#1c2d58; background:#eef1f8; }
-    #crm-req .rq-col-h { display:flex; align-items:center; gap:6px; font-weight:600; font-size:13px; padding:2px 4px 8px; }
-    #crm-req .rq-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); }
-    #crm-req .rq-col-h b { margin-left:auto; color:#8c8c8c; font-weight:600; font-variant-numeric:tabular-nums; }
-    #crm-req .rq-col-n { font-size:11.5px; color:#8c8c8c; padding:4px; }
-    #crm-req .rq-kc { background:#fff; border:1px solid #eceef2; border-left:4px solid var(--c); border-radius:7px; padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12.5px; }
-    #crm-req .rq-kc:hover { border-color:#b4bfd9; border-left-color:var(--c); }
-    #crm-req .rq-kc.drag { opacity:.4; }
-    #crm-req .rq-kc-t { font-weight:600; font-size:13.5px; margin-bottom:3px; overflow-wrap:anywhere; }
-    #crm-req .rq-kc-s { color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kb { display:grid; grid-template-columns:repeat(var(--n, 5), minmax(0, 1fr)); gap:12px; min-height:380px; }
+    .kb-col { display:flex; flex-direction:column; min-height:0; min-width:0; background:#f4f5f7; border-radius:10px; border:2px solid transparent; transition:opacity .15s, border-color .15s, background .15s; }
+    .kb-col.no { opacity:.4; }
+    .kb-col.ok { border-color:#c9d3ea; border-style:dashed; }
+    .kb-col.drop { border-color:#1c2d58; border-style:solid; background:#eaeef7; }
+    .kb-col-h { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; padding:10px 12px 8px; color:#262626; }
+    .kb-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); flex:none; }
+    .kb-col-h b { margin-left:auto; color:#8c8c8c; font-weight:600; font-variant-numeric:tabular-nums; background:#fff; border-radius:9px; padding:0 7px; font-size:12px; }
+    .kb-col-b { flex:1; overflow-y:auto; padding:0 8px 8px; min-height:0; }
+    .kb-card { background:#fff; border:1px solid #e8eaef; border-left:3px solid var(--c); border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:12.5px; cursor:grab; user-select:none; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+    .kb-card:hover { border-color:#b4bfd9; border-left-color:var(--c); box-shadow:0 2px 6px rgba(16,24,40,.08); }
+    .kb-card:active { cursor:grabbing; }
+    .kb-card.drag { opacity:.35; }
+    .kb-card.pending { cursor:default; border-color:#1c2d58; border-left-color:var(--c); box-shadow:0 4px 14px rgba(28,45,88,.18); user-select:auto; }
+    .kb-t { font-weight:600; font-size:13.5px; line-height:1.35; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+    .kb-s { color:#8c8c8c; line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kb-note, .kb-empty { font-size:12px; color:#a6a6a6; padding:6px 4px; text-align:center; }
+    .kb-form { margin-top:8px; padding-top:8px; border-top:1px dashed #d9d9d9; }
+    .kb-form label { display:block; font-size:12px; color:#595959; margin-bottom:4px; }
+    .kb-form textarea, .kb-form select { width:100%; box-sizing:border-box; border:1px solid #d9d9d9; border-radius:6px; padding:6px 8px; font:inherit; font-size:13px; resize:vertical; background:#fff; }
+    .kb-form textarea:focus, .kb-form select:focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
+    .kb-form-b { display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap; }
+    .kb-form-b span { font-size:11px; color:#a6a6a6; }
+    .kb-ok { border:none; background:#1c2d58; color:#fff; border-radius:6px; padding:5px 12px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+    .kb-no { border:1px solid #d9d9d9; background:#fff; color:#434343; border-radius:6px; padding:4px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
+    .kb-ok:disabled, .kb-no:disabled { opacity:.5; }
+    @media (max-width: 700px) { .kb { grid-template-columns:repeat(var(--n, 5), 260px); overflow-x:auto; } .kb-col-b { max-height:70vh; } }
     @media (max-width: 700px) {
       #crm-req .rq-new { margin-left:0; width:100%; padding:11px; font-size:15px; }
       #crm-req .rq-filters select, #crm-req .rq-filters input { flex:1 1 45%; min-width:0; }
@@ -125,7 +142,7 @@ const RQ_OPEN = ['new', 'in_work', 'waiting'];
 const RQ_URG = { normal: { l: 'Обычная', d: 5, c: '#595959', hint: '5 рабочих дней' }, urgent: { l: 'Срочно', d: 1, c: '#d46b08', hint: '1 рабочий день' }, emergency: { l: 'Авария', d: 0, c: '#cf1322', hint: 'сегодня, сразу уведомление старшему управляющему' } };
 const RQ_KINDS = ['Ремонт и эксплуатация', 'Вопрос арендатора', 'Расторжение и выезд', 'Платёж, долг, штраф', 'Проверка, пожарная безопасность', 'Коммуналка, счётчики', 'Прочее'];
 const RQ_WAIT = ['ответа арендатора', 'подрядчика', 'оплаты', 'согласования руководства', 'другое'];
-const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list' };
+const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30 };
 try { if (localStorage.getItem('crm-req-view') === 'board') rq.view = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
 function rqEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -292,6 +309,9 @@ function rqOnClick(e) {
   if (c('[data-act="new"]')) { rqOpenNew(); return; }
   const qk = c('[data-quick]');
   if (qk) { rq.quick = qk.getAttribute('data-quick'); rqRenderList(); return; }
+  const pr = c('[data-period]');
+  if (pr) { rq.statsDays = Number(pr.getAttribute('data-period')); rqRenderStats(); return; }
+  if (c('[data-act="xlsx"]')) { try { rqExportStats(); } catch (err) { rqToast('Не удалось выгрузить'); } return; }
   const vw = c('[data-view]');
   if (vw) { rq.view = vw.getAttribute('data-view'); try { localStorage.setItem('crm-req-view', rq.view); } catch (err) { /* не запомним — не страшно */ } rqRenderListShell(); return; }
   const go = c('[data-go]');
@@ -305,38 +325,14 @@ function rqOnClick(e) {
 }
 
 // ---------- доска ----------
-// Колонки = статусы. Перетаскивание вызывает те же действия, что и кнопки в карточке (rqCan/rqAction/rqApply):
-// права, обязательные поля (что сделано, причина), история и уведомления — как при нажатии кнопки.
-const RQ_COLS = [['new', ['new']], ['in_work', ['in_work']], ['waiting', ['waiting']], ['done', ['done']], ['closed', ['closed', 'cancelled']]];
+// Колонки = статусы, одной высоты (до низа экрана), прокрутка внутри колонки. Взяли карточку — колонки, куда её можно
+// перенести, подсвечены, остальные бледные. Перенос = то же действие, что кнопка в карточке (rqCan + rqDo): права, история,
+// уведомления. Где нужен ввод (что сделано, чего ждём, причина) — форма прямо на карточке в новой колонке, без окон.
+const RQ_COLS = [['new', ['new'], 'Новые'], ['in_work', ['in_work'], 'В работе'], ['waiting', ['waiting'], 'Ждут'], ['done', ['done'], 'На проверке'], ['closed', ['closed', 'cancelled'], 'Закрытые']];
 const RQ_CLOSED_DAYS = 30;   // закрытые на доске — только за последний месяц, остальные в списке «Закрытые»
-function rqRenderBoard() {
-  document.getElementById('rq-chips').innerHTML = '';
-  const rows = rqFiltered(true), d = new Date(); d.setDate(d.getDate() - RQ_CLOSED_DAYS);
-  const since = rqIso(d);
-  document.getElementById('rq-list').innerHTML = '<div class="rq-board">' + RQ_COLS.map(function(col) {
-    let items = rows.filter(function(r) { return col[1].indexOf(r.status) !== -1; });
-    const all = items.length;
-    if (col[0] === 'closed') items = items.filter(function(r) { return String(r.closed_at || r.updatedAt || '').slice(0, 10) >= since; }).sort(function(a, b) { return String(b.closed_at || '').localeCompare(String(a.closed_at || '')); });
-    else items.sort(function(a, b) {
-      const w = function(r) { return (r.urgency === 'emergency' ? 0 : rqLate(r) ? 1 : 2); };
-      return w(a) - w(b) || String(a.due_date || '9').localeCompare(String(b.due_date || '9')) || b.id - a.id;
-    });
-    const st = RQ_ST[col[0]];
-    return '<div class="rq-col" data-col="' + col[0] + '"><div class="rq-col-h" style="--c:' + st.c + ';"><i></i>' + (col[0] === 'done' ? 'На проверке' : col[0] === 'closed' ? 'Закрытые' : st.l) + '<b>' + items.length + '</b></div>'
-      + items.map(rqCardHtml).join('')
-      + (all > items.length ? '<div class="rq-col-n">Ещё ' + (all - items.length) + ' старше ' + RQ_CLOSED_DAYS + ' дней — в списке «Закрытые»</div>' : '') + '</div>';
-  }).join('') + '</div>';
-}
-function rqCardHtml(r) {
-  const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal;
-  return '<div class="rq-kc" draggable="true" data-open="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
-    + '<div class="rq-kc-t">' + (r.urgency !== 'normal' && open && RQ_URG[r.urgency] ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
-    + '<div class="rq-kc-s">№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
-    + '<div class="rq-kc-s">' + rqEsc(rqUser(r.responsible_id))
-    + (r.status === 'waiting' && r.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
-    + (r.status === 'cancelled' ? ' · отменена' : '')
-    + (open && r.due_date ? ' · ' + (late ? '<span class="rq-late">просрочено ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : 'до ' + rqDate(r.due_date)) : '') + '</div></div>';
-}
+const RQ_DROP_ASK = { wait: 'Чего ждём', done: 'Что сделано — увидит автор при проверке', reopen: 'Что не так — увидит ответственный', cancel: 'Причина отмены' };
+const RQ_DROP_OK = { take: 'Взята в работу', resume: 'Снова в работе', wait: 'Ждём', done: 'Отправлена на проверку', close: 'Закрыта', reopen: 'Возвращена в работу', cancel: 'Отменена' };
+function rqColOf(st) { return (RQ_COLS.find(function(c) { return c[1].indexOf(st) !== -1; }) || [''])[0]; }
 // куда перетащили → какое действие карточки это означает
 function rqDropAction(from, col) {
   if (col === 'in_work') return from === 'new' ? 'take' : from === 'waiting' ? 'resume' : from === 'done' ? 'reopen' : null;
@@ -345,50 +341,124 @@ function rqDropAction(from, col) {
   if (col === 'closed') return from === 'done' ? 'close' : RQ_OPEN.indexOf(from) !== -1 ? 'cancel' : null;
   return null;
 }
+function rqDropAllowed(r, col) {
+  const a = rqDropAction(r.status, col);
+  return a && rqCan(r).some(function(x) { return x[0] === a; }) ? a : null;
+}
+function rqRenderBoard() {
+  document.getElementById('rq-chips').innerHTML = '';
+  const rows = rqFiltered(true), d = new Date(); d.setDate(d.getDate() - RQ_CLOSED_DAYS);
+  const since = rqIso(d), pd = rq.drop;
+  document.getElementById('rq-list').innerHTML = '<div class="kb" data-kb>' + RQ_COLS.map(function(col) {
+    let items = rows.filter(function(r) { return pd && r.id === pd.id ? col[0] === pd.col : col[1].indexOf(r.status) !== -1; });
+    const all = items.length;
+    if (col[0] === 'closed') items = items.filter(function(r) { return String(r.closed_at || r.updatedAt || '').slice(0, 10) >= since; }).sort(function(a, b) { return String(b.closed_at || '').localeCompare(String(a.closed_at || '')); });
+    else items.sort(function(a, b) {
+      const w = function(r) { return pd && r.id === pd.id ? -1 : r.urgency === 'emergency' ? 0 : rqLate(r) ? 1 : 2; };
+      return w(a) - w(b) || String(a.due_date || '9').localeCompare(String(b.due_date || '9')) || b.id - a.id;
+    });
+    return '<div class="kb-col" data-col="' + col[0] + '"><div class="kb-col-h" style="--c:' + RQ_ST[col[1][0]].c + ';"><i></i>' + col[2] + '<b>' + items.length + '</b></div><div class="kb-col-b">'
+      + items.map(rqCardHtml).join('')
+      + (all > items.length ? '<div class="kb-note">Ещё ' + (all - items.length) + ' старше ' + RQ_CLOSED_DAYS + ' дней — в списке «Закрытые»</div>' : '')
+      + (items.length ? '' : '<div class="kb-empty">Пусто</div>') + '</div></div>';
+  }).join('') + '</div>';
+  kbFit();
+  const f = document.querySelector('.kb-form [data-bf-in]'); if (f) f.focus();
+}
+function rqCardHtml(r) {
+  const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal, pd = rq.drop && rq.drop.id === r.id ? rq.drop : null;
+  return '<div class="kb-card' + (pd ? ' pending' : '') + '"' + (pd ? '' : ' draggable="true" data-open="' + r.id + '"') + ' data-id="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
+    + '<div class="kb-t">' + (r.urgency !== 'normal' && open && RQ_URG[r.urgency] ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
+    + '<div class="kb-s">№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
+    + '<div class="kb-s">' + rqEsc(rqUser(r.responsible_id))
+    + (open && r.due_date ? ' · ' + (late ? '<span class="rq-late">просрочено ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : 'до ' + rqDate(r.due_date)) : '')
+    + (r.status === 'waiting' && r.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
+    + (r.status === 'cancelled' ? ' · отменена' : '') + '</div>'
+    + (pd ? '<div class="kb-form"><label>' + RQ_DROP_ASK[pd.a] + '</label>'
+      + (pd.a === 'wait' ? '<select data-bf-in>' + RQ_WAIT.map(function(w) { return '<option>' + w + '</option>'; }).join('') + '</select>' : '<textarea data-bf-in rows="2"></textarea>')
+      + '<div class="kb-form-b"><button class="kb-ok" data-bf-ok>Сохранить</button><button class="kb-no" data-bf-no>Отмена</button><span>Ctrl+Enter — сохранить, Esc — отмена</span></div></div>' : '')
+    + '</div>';
+}
 async function rqDrop(id, col) {
   const r = rq.data.reqs.find(function(x) { return x.id === id; });
-  if (!r || (RQ_COLS.find(function(c) { return c[0] === col; }) || [0, []])[1].indexOf(r.status) !== -1) return;
-  const a = rqDropAction(r.status, col);
-  if (!a) { rqToast('Из «' + RQ_ST[r.status].l + '» сюда перевести нельзя'); return; }
-  if (!rqCan(r).some(function(x) { return x[0] === a; })) { rqToast('Это может сделать только ' + (a === 'close' || a === 'reopen' || a === 'cancel' ? 'автор заявки' : 'ответственный')); return; }
-  const m = rqModal('<div id="rq-card"></div>');
-  const quick = a === 'take' || a === 'resume' || a === 'close';   // без ввода — сразу, окно не показываем
-  if (quick) m.style.display = 'none';
-  await rqRenderCard(m, r);
-  if (!quick) { rqAction(m, r, a); return; }
-  await rqApply(m, r, a, null);
-  m.remove();
+  if (!r || rqColOf(r.status) === col) return;
+  const a = rqDropAllowed(r, col);
+  if (!a) return;
+  if (RQ_DROP_ASK[a]) { rq.drop = { id: id, col: col, a: a }; rqRenderBoard(); return; }   // нужен ввод — форма на карточке
+  await rqDropSave(r, a, '');
+}
+async function rqDropSave(r, a, v) {
+  try {
+    const res = await rqDo(r, a, v, '');
+    if (res && res.err) { rqToast(res.err); const f = document.querySelector('.kb-form [data-bf-in]'); if (f) f.focus(); return; }
+    rq.drop = null;
+    await rqReload();
+    rqToast('№' + r.id + ': ' + (RQ_DROP_OK[a] || 'сохранено').toLowerCase());
+  } catch (e) { rqToast('Не удалось сохранить'); rq.drop = null; rqRenderBoard(); }
+}
+function rqDropSubmit() {
+  const pd = rq.drop, f = document.querySelector('.kb-form [data-bf-in]');
+  if (!pd || !f) return;
+  const r = rq.data.reqs.find(function(x) { return x.id === pd.id; });
+  document.querySelectorAll('.kb-form button').forEach(function(b) { b.disabled = true; });
+  rqDropSave(r, pd.a, f.value.trim()).then(function() { document.querySelectorAll('.kb-form button').forEach(function(b) { b.disabled = false; }); });
+}
+// доска до низа окна: колонки прокручиваются внутри, страница не растягивается
+function kbFit() {
+  const kb = document.querySelector('[data-kb]');
+  if (!kb || window.innerWidth <= 700) return;
+  kb.style.height = Math.max(380, window.innerHeight - kb.getBoundingClientRect().top - window.scrollY - 24) + 'px';
 }
 (function() {
   const root = rqRoot();
-  let dragId = null;
-  const colOf = function(e) { return e.target.closest ? e.target.closest('.rq-col') : null; };
+  let drag = null;
+  if (!window.__rqKbResize) { window.__rqKbResize = true; window.addEventListener('resize', function() { kbFit(); }); }
   root.addEventListener('dragstart', function(e) {
-    const k = e.target.closest ? e.target.closest('.rq-kc') : null;
+    const k = e.target.closest ? e.target.closest('.kb-card[draggable]') : null;
     if (!k) return;
-    dragId = Number(k.getAttribute('data-open'));
+    const r = rq.data.reqs.find(function(x) { return x.id === Number(k.getAttribute('data-id')); });
+    if (!r) return;
+    drag = r;
     k.classList.add('drag');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(dragId));
+    e.dataTransfer.setData('text/plain', String(r.id));
+    root.querySelectorAll('.kb-col').forEach(function(c) {
+      const col = c.getAttribute('data-col');
+      c.classList.add(col === rqColOf(r.status) ? 'home' : rqDropAllowed(r, col) ? 'ok' : 'no');
+    });
   });
   root.addEventListener('dragend', function() {
-    dragId = null;
-    root.querySelectorAll('.rq-kc.drag, .rq-col.drop').forEach(function(x) { x.classList.remove('drag', 'drop'); });
+    drag = null;
+    root.querySelectorAll('.kb-card.drag, .kb-col').forEach(function(x) { x.classList.remove('drag', 'drop', 'ok', 'no', 'home'); });
   });
   root.addEventListener('dragover', function(e) {
-    const c = colOf(e);
-    if (!c || dragId == null) return;
+    const c = e.target.closest ? e.target.closest('.kb-col.ok') : null;
+    if (!c || !drag) return;
     e.preventDefault();
-    root.querySelectorAll('.rq-col.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
+    e.dataTransfer.dropEffect = 'move';
+    root.querySelectorAll('.kb-col.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
     c.classList.add('drop');
   });
+  root.addEventListener('dragleave', function(e) {
+    const c = e.target.closest ? e.target.closest('.kb-col.drop') : null;
+    if (c && !c.contains(e.relatedTarget)) c.classList.remove('drop');
+  });
   root.addEventListener('drop', function(e) {
-    const c = colOf(e);
-    if (!c || dragId == null) return;
+    const c = e.target.closest ? e.target.closest('.kb-col.ok') : null;
+    if (!c || !drag) return;
     e.preventDefault();
-    const id = dragId;
-    c.classList.remove('drop');
+    const id = drag.id;
     rqDrop(id, c.getAttribute('data-col'));
+  });
+  root.addEventListener('click', function(e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-bf-ok]')) { rqDropSubmit(); return; }
+    if (e.target.closest('[data-bf-no]')) { rq.drop = null; rqRenderBoard(); }
+  });
+  root.addEventListener('keydown', function(e) {
+    if (!rq.drop || !e.target.closest || !e.target.closest('.kb-form')) return;
+    if (e.key === 'Escape') { rq.drop = null; rqRenderBoard(); }
+    else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || e.target.tagName === 'SELECT')) { e.preventDefault(); rqDropSubmit(); }
   });
 })();
 
@@ -560,42 +630,48 @@ function rqAction(m, r, a) {
     const f = box.querySelector('#rq-in'); if (f) f.focus();
   } else rqApply(m, r, a, null);
 }
-async function rqApply(m, r, a, btn) {
-  const box = m.querySelector('#rq-actbox');
-  const inp = box.querySelector('#rq-in'), inp2 = box.querySelector('#rq-in2');
-  const v = inp ? inp.value.trim() : '';
+// действие по заявке без интерфейса — его зовут и кнопки карточки, и доска: проверка ввода, запись, история, уведомления.
+// Ошибка ввода → { err, field: 1|2 }; ничего не меняется → { skip: true }; сбой сети → исключение. Перерисовку делает вызывающий.
+async function rqDo(r, a, v, v2) {
   const now = new Date().toISOString();
   const title = 'Заявка №' + r.id + ' · ' + r.object_name;
   let upd = null, ev = '', notify = [];
   if (a === 'take') { upd = { status: 'in_work' }; ev = 'Взята в работу'; notify = [[r.author_id, 'Взята в работу: ' + r.title]]; }
-  if (a === 'wait') { upd = { status: 'waiting', wait_reason: v }; ev = 'Ждём ' + v; notify = [[r.author_id, 'Ждём ' + v + ': ' + r.title]]; }
+  if (a === 'wait') { if (!v) return { err: 'Выберите, чего ждём', field: 1 }; upd = { status: 'waiting', wait_reason: v }; ev = 'Ждём ' + v; notify = [[r.author_id, 'Ждём ' + v + ': ' + r.title]]; }
   if (a === 'resume') { upd = { status: 'in_work', wait_reason: null }; ev = 'Снова в работе'; }
-  if (a === 'done') { if (!v) { rqToast('Напишите, что сделано'); inp.focus(); return; } upd = { status: 'done', result: v, done_at: now, wait_reason: null }; ev = 'Выполнена: ' + v; notify = [[r.author_id, 'Выполнена, проверьте и закройте: ' + r.title]]; }
+  if (a === 'done') { if (!v) return { err: 'Напишите, что сделано', field: 1 }; upd = { status: 'done', result: v, done_at: now, wait_reason: null }; ev = 'Выполнена: ' + v; notify = [[r.author_id, 'Выполнена, проверьте и закройте: ' + r.title]]; }
   if (a === 'close') { upd = { status: 'closed', closed_at: now }; ev = 'Принята и закрыта'; notify = [[r.responsible_id, 'Закрыта автором: ' + r.title]]; }
-  if (a === 'reopen') { if (!v) { rqToast('Напишите, что не так'); inp.focus(); return; } upd = { status: 'in_work', done_at: null }; ev = 'Возвращена в работу: ' + v; notify = [[r.responsible_id, 'Вернули в работу: ' + v]]; }
-  if (a === 'cancel') { if (!v) { rqToast('Укажите причину'); inp.focus(); return; } upd = { status: 'cancelled', closed_at: now, result: v }; ev = 'Отменена: ' + v; notify = [[r.responsible_id, 'Отменена: ' + r.title]]; }
+  if (a === 'reopen') { if (!v) return { err: 'Напишите, что не так', field: 1 }; upd = { status: 'in_work', done_at: null }; ev = 'Возвращена в работу: ' + v; notify = [[r.responsible_id, 'Вернули в работу: ' + v]]; }
+  if (a === 'cancel') { if (!v) return { err: 'Укажите причину', field: 1 }; upd = { status: 'cancelled', closed_at: now, result: v }; ev = 'Отменена: ' + v; notify = [[r.responsible_id, 'Отменена: ' + r.title]]; }
   if (a === 'due') {
-    const reason = inp2 ? inp2.value.trim() : '';
-    if (!/^(19|20)\d{2}-\d{2}-\d{2}$/.test(v)) { rqToast('Укажите новый срок'); inp.focus(); return; }
-    if (!reason) { rqToast('Укажите причину переноса'); inp2.focus(); return; }
+    if (!/^(19|20)\d{2}-\d{2}-\d{2}$/.test(v)) return { err: 'Укажите новый срок', field: 1 };
+    if (!v2) return { err: 'Укажите причину переноса', field: 2 };
     upd = { due_date: v, due_moved: (Number(r.due_moved) || 0) + 1, reminded_on: null, escalated_at: null };
-    ev = 'Срок перенесён с ' + rqDate(r.due_date) + ' на ' + rqDate(v) + ': ' + reason;
-    notify = [[r.responsible_id, 'Срок перенесён на ' + rqDate(v) + ': ' + reason], [r.author_id, 'Срок перенесён на ' + rqDate(v) + ': ' + reason]];
+    ev = 'Срок перенесён с ' + rqDate(r.due_date) + ' на ' + rqDate(v) + ': ' + v2;
+    notify = [[r.responsible_id, 'Срок перенесён на ' + rqDate(v) + ': ' + v2], [r.author_id, 'Срок перенесён на ' + rqDate(v) + ': ' + v2]];
   }
   if (a === 'assign') {
     const to = Number(v);
-    if (!to || to === Number(r.responsible_id)) { box.innerHTML = ''; return; }
+    if (!to || to === Number(r.responsible_id)) return { skip: true };
     upd = { responsible_id: to, reminded_on: null, escalated_at: null };
     ev = 'Передана: ' + rqUser(r.responsible_id) + ' → ' + rqUser(to);
     notify = [[to, 'Вам передана заявка: ' + r.title + ' (срок ' + rqDate(r.due_date) + ')']];
   }
-  if (!upd) return;
+  if (!upd) return { skip: true };
+  await ctx.api.resource('object_requests').update({ filterByTk: r.id, values: upd });
+  await rqEvent(r.id, a === 'due' ? 'due' : a === 'assign' ? 'assign' : 'status', ev);
+  notify.forEach(function(n) { rqNotify(n[0], title, n[1], r.id); });
+  Object.assign(r, upd);
+  return null;
+}
+async function rqApply(m, r, a, btn) {
+  const box = m.querySelector('#rq-actbox');
+  const inp = box.querySelector('#rq-in'), inp2 = box.querySelector('#rq-in2');
   if (btn) btn.disabled = true;
   try {
-    await ctx.api.resource('object_requests').update({ filterByTk: r.id, values: upd });
-    await rqEvent(r.id, a === 'due' ? 'due' : a === 'assign' ? 'assign' : 'status', ev);
-    notify.forEach(function(n) { rqNotify(n[0], title, n[1], r.id); });
-    Object.assign(r, upd);
+    const res = await rqDo(r, a, inp ? inp.value.trim() : '', inp2 ? inp2.value.trim() : '');
+    if (res && res.err) { rqToast(res.err); const f = res.field === 2 ? inp2 : inp; if (f) f.focus(); if (btn) btn.disabled = false; return; }
+    if (res && res.skip) { box.innerHTML = ''; return; }
     await rqReload();
     const fresh = rq.data.reqs.find(function(x) { return x.id === r.id; }) || r;
     await rqRenderCard(m, fresh);
@@ -603,50 +679,191 @@ async function rqApply(m, r, a, btn) {
 }
 
 // ---------- статистика ----------
-function rqRenderStats() {
-  const reqs = rq.data.reqs, today = rqToday();
-  const open = reqs.filter(function(r) { return RQ_OPEN.indexOf(r.status) !== -1; });
-  const since = function(n) { const d = new Date(); d.setDate(d.getDate() - n); return rqIso(d); };
-  const d7 = since(7), d30 = since(30);
-  const doneDays = function(list) { return list.filter(function(r) { return r.done_at && String(r.done_at).slice(0, 10) >= d30; }).map(function(r) { return rqDays(String(r.createdAt).slice(0, 10), String(r.done_at).slice(0, 10)); }); };
-  const med = rqMedian(doneDays(reqs));
-  const tiles = [
-    ['Открыто', open.length, open.filter(rqLate).length ? '<span class="rq-late">просрочено ' + open.filter(rqLate).length + '</span>' : 'просрочек нет', { quick: 'open' }],
-    ['Аварии в работе', open.filter(function(r) { return r.urgency === 'emergency'; }).length, 'срочных: ' + open.filter(function(r) { return r.urgency === 'urgent'; }).length, { quick: 'open' }],
-    ['Новых за 7 дней', reqs.filter(function(r) { return String(r.createdAt).slice(0, 10) >= d7; }).length, 'за 30 дней: ' + reqs.filter(function(r) { return String(r.createdAt).slice(0, 10) >= d30; }).length, { quick: 'all' }],
-    ['Выполнено за 7 дней', reqs.filter(function(r) { return r.done_at && String(r.done_at).slice(0, 10) >= d7; }).length, 'ждут проверки автором: ' + reqs.filter(function(r) { return r.status === 'done'; }).length, { quick: 'check' }],
-    ['Срок выполнения', med === null ? '—' : med + ' ' + rqNoun(Math.round(med), 'день', 'дня', 'дней'), 'медиана за 30 дней', { quick: 'closed' }],
-    ['Переносы срока', open.filter(function(r) { return r.due_moved > 0; }).length, 'открытых заявок, срок которых переносили', { quick: 'open' }]
-  ];
-  function table(title, keyFn, labelFn, goKey) {
-    const g = {};
-    reqs.forEach(function(r) { const k = keyFn(r); if (k === null || k === undefined || k === '') return; (g[k] = g[k] || []).push(r); });
-    const rows = Object.keys(g).map(function(k) {
-      const l = g[k], o = l.filter(function(r) { return RQ_OPEN.indexOf(r.status) !== -1; });
-      return { k: k, open: o.length, late: o.filter(rqLate).length, em: o.filter(function(r) { return r.urgency === 'emergency'; }).length,
-        done30: l.filter(function(r) { return r.done_at && String(r.done_at).slice(0, 10) >= d30; }).length, med: rqMedian(doneDays(l)) };
-    }).sort(function(a, b) { return b.late - a.late || b.open - a.open || b.done30 - a.done30; });
-    return '<div class="rq-card"><div class="rq-card-t">' + title + '</div>' + (rows.length ? '<table><thead><tr><th></th><th class="n">Открыто</th><th class="n">Просрочено</th><th class="n">Аварии</th><th class="n" title="Выполнено за последние 30 дней">Выполнено, 30 дн.</th><th class="n" title="Медиана дней от создания до выполнения, за 30 дней">Медиана, дн.</th></tr></thead><tbody>'
-      + rows.map(function(x) { const go = {}; go[goKey] = x.k; return '<tr data-go="' + rqEsc(JSON.stringify(go)) + '"><td>' + rqEsc(labelFn(x.k)) + '</td><td class="n">' + x.open + '</td><td class="n' + (x.late ? ' rq-late' : '') + '">' + x.late + '</td><td class="n">' + (x.em || '') + '</td><td class="n">' + x.done30 + '</td><td class="n">' + (x.med === null ? '—' : x.med) + '</td></tr>'; }).join('')
-      + '</tbody></table>' : '<div class="rq-empty" style="padding:8px 0;">Данных пока нет</div>') + '</div>';
+// Все цифры считает rqStats() — их же показывает экран и выгружает Excel, расхождений быть не может.
+// Период (30 / 90 / 365 дней / всё время) — для «поступило, выполнено, в срок, медиана, переносы, эскалации, возвраты»;
+// «открыто / просрочено / аварии» — всегда на сегодня.
+const RQ_PERIODS = [[30, '30 дней'], [90, '3 месяца'], [365, 'год'], [0, 'всё время']];
+function rqMgrKey(o) { return !o ? '' : o.manager_user_id ? 'u' + o.manager_user_id : o.manager_name ? 'n' + o.manager_name : ''; }
+function rqMgrLabel(k) { return !k ? 'Без управляющего' : k[0] === 'u' ? rqUser(Number(k.slice(1))) : k.slice(1) + ' (нет учётки в CRM)'; }
+function rqStats() {
+  const reqs = rq.data.reqs, days = rq.statsDays;
+  const sinceD = function(n) { const d = new Date(); d.setDate(d.getDate() - n); return rqIso(d); };
+  const from = days ? sinceD(days) : '0000';
+  const inP = function(v) { return !!v && String(v).slice(0, 10) >= from; };
+  const isOpen = function(r) { return RQ_OPEN.indexOf(r.status) !== -1; };
+  const inTime = function(r) { return !r.due_date || String(r.done_at).slice(0, 10) <= String(r.due_date).slice(0, 10); };
+  const reopenOf = {};
+  (rq.data.reopens || []).forEach(function(e) { if (inP(e.createdAt)) reopenOf[e.request_id] = (reopenOf[e.request_id] || 0) + 1; });
+  function metrics(l) {
+    const o = l.filter(isOpen), done = l.filter(function(r) { return inP(r.done_at); });
+    const med = rqMedian(done.map(function(r) { return rqDays(String(r.createdAt).slice(0, 10), String(r.done_at).slice(0, 10)); }));
+    return { total: l.length, open: o.length, late: o.filter(rqLate).length, em: o.filter(function(r) { return r.urgency === 'emergency'; }).length,
+      created: l.filter(function(r) { return inP(r.createdAt); }).length, done: done.length,
+      ontime: done.length ? Math.round(100 * done.filter(inTime).length / done.length) : null, med: med,
+      moved: l.filter(function(r) { return inP(r.createdAt) && r.due_moved > 0; }).length,
+      esc: l.filter(function(r) { return inP(r.escalated_at); }).length,
+      reopen: l.reduce(function(n, r) { return n + (reopenOf[r.id] || 0); }, 0) };
   }
-  // по неделям: создано / выполнено, 8 недель (понедельник — начало недели)
+  function group(keyFn, labelFn) {
+    const g = {};
+    reqs.forEach(function(r) { const k = keyFn(r); if (k === null || k === undefined) return; (g[k] = g[k] || []).push(r); });
+    return Object.keys(g).map(function(k) { return Object.assign({ k: k, label: labelFn(k) }, metrics(g[k])); })
+      .sort(function(a, b) { return b.late - a.late || b.open - a.open || b.done - a.done || a.label.localeCompare(b.label, 'ru'); });
+  }
+  const objs = rq.data.objects || [];
+  const mgrOfObj = {}; objs.forEach(function(o) { mgrOfObj[o.name] = rqMgrKey(o); });
+  const byMgr = group(function(r) { return mgrOfObj[r.object_name] || ''; }, rqMgrLabel).map(function(x) {
+    x.objects = objs.filter(function(o) { return rqMgrKey(o) === x.k; }).map(function(o) { return o.name; });
+    return x;
+  });
+  const all = metrics(reqs);
   const weeks = [];
   const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
   for (let i = 7; i >= 0; i--) { const s = new Date(mon); s.setDate(s.getDate() - 7 * i); const e = new Date(s); e.setDate(e.getDate() + 7); weeks.push([rqIso(s), rqIso(e)]); }
   const inW = function(v, w) { const x = String(v || '').slice(0, 10); return x >= w[0] && x < w[1]; };
+  return {
+    all: all, byMgr: byMgr,
+    byObj: group(function(r) { return r.object_name || null; }, function(k) { return k; }),
+    byResp: group(function(r) { return r.responsible_id ? String(r.responsible_id) : null; }, function(k) { return rqUser(Number(k)); }),
+    byKind: group(function(r) { return r.kind || null; }, function(k) { return k; }),
+    weeks: weeks.map(function(w) {
+      const done = reqs.filter(function(r) { return inW(r.done_at, w); });
+      return { from: w[0], created: reqs.filter(function(r) { return inW(r.createdAt, w); }).length, done: done.length, ontime: done.filter(inTime).length };
+    })
+  };
+}
+const RQ_COLS_STAT = [['open', 'Открыто'], ['late', 'Просрочено'], ['em', 'Аварии'], ['created', 'Поступило'], ['done', 'Выполнено'], ['ontime', 'В срок, %'], ['med', 'Медиана, дн.'], ['moved', 'Переносили срок'], ['esc', 'Эскалации'], ['reopen', 'Возвраты']];
+const RQ_COLS_HINT = { open: 'Сейчас', late: 'Сейчас, срок прошёл', em: 'Открытые аварии сейчас', created: 'Поступило за период', done: 'Выполнено за период', ontime: 'Доля выполненных за период не позже срока',
+  med: 'Медиана дней от создания до выполнения (за период)', moved: 'Заявки за период, срок которых переносили', esc: 'Эскалации старшему управляющему за период', reopen: 'Сколько раз за период автор вернул «не выполнено»' };
+function rqCell(x, k) { const v = x[k]; return v === null || v === undefined ? '—' : k === 'med' ? Math.round(v * 10) / 10 : v; }
+async function rqRenderStats() {
+  const body = document.getElementById('rq-body');
+  if (!rq.data.reopens) {
+    body.innerHTML = '<div class="rq-empty">Считаю…</div>';
+    try { rq.data.reopens = rqRows(await ctx.api.resource('request_events').list({ filter: { kind: 'status', text: { $includes: 'Возвращена в работу' } }, fields: ['request_id', 'createdAt'], paginate: false })); }
+    catch (e) { rq.data.reopens = []; }
+    if (rq.tab !== 'stats') return;
+  }
+  const st = rqStats(), a = st.all;
+  const tiles = [
+    ['Открыто', a.open, a.late ? '<span class="rq-late">просрочено ' + a.late + '</span>' : 'просрочек нет', { quick: 'open' }],
+    ['Аварии в работе', a.em, 'срочных: ' + rq.data.reqs.filter(function(r) { return RQ_OPEN.indexOf(r.status) !== -1 && r.urgency === 'urgent'; }).length, { quick: 'open' }],
+    ['Поступило', a.created, 'за период', { quick: 'all' }],
+    ['Выполнено', a.done, 'в срок: ' + (a.ontime === null ? '—' : a.ontime + '%'), { quick: 'closed' }],
+    ['Срок выполнения', a.med === null ? '—' : rqCell(a, 'med') + ' ' + rqNoun(Math.round(a.med), 'день', 'дня', 'дней'), 'медиана за период', { quick: 'closed' }],
+    ['Возвраты и эскалации', a.reopen + ' / ' + a.esc, 'возвращено на доработку / эскалаций', { quick: 'open' }]
+  ];
+  function table(title, rows, goKey, extraHead, extraCell) {
+    return '<div class="rq-card"><div class="rq-card-t">' + title + '</div>' + (rows.length ? '<table><thead><tr><th></th>' + (extraHead || '')
+      + RQ_COLS_STAT.map(function(c) { return '<th class="n" title="' + RQ_COLS_HINT[c[0]] + '">' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>'
+      + rows.map(function(x) {
+          const go = {}; if (goKey) go[goKey] = x.k;
+          return '<tr' + (goKey ? ' data-go="' + rqEsc(JSON.stringify(go)) + '"' : '') + '><td>' + rqEsc(x.label) + '</td>' + (extraCell ? extraCell(x) : '')
+            + RQ_COLS_STAT.map(function(c) { const v = rqCell(x, c[0]); return '<td class="n' + (c[0] === 'late' && x.late ? ' rq-late' : '') + '">' + (v === 0 && (c[0] === 'em' || c[0] === 'esc' || c[0] === 'reopen' || c[0] === 'moved') ? '' : v) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table>' : '<div class="rq-empty" style="padding:8px 0;">Данных пока нет</div>') + '</div>';
+  }
   const weeksHtml = '<div class="rq-card"><div class="rq-card-t">По неделям</div><table><thead><tr><th>Неделя с</th><th class="n">Создано</th><th class="n">Выполнено</th><th class="n">Из них в срок</th></tr></thead><tbody>'
-    + weeks.map(function(w) {
-        const done = reqs.filter(function(r) { return inW(r.done_at, w); });
-        return '<tr><td>' + rqDate(w[0]) + '</td><td class="n">' + reqs.filter(function(r) { return inW(r.createdAt, w); }).length + '</td><td class="n">' + done.length + '</td><td class="n">' + done.filter(function(r) { return !r.due_date || String(r.done_at).slice(0, 10) <= String(r.due_date).slice(0, 10); }).length + '</td></tr>';
-      }).join('') + '</tbody></table></div>';
-  document.getElementById('rq-body').innerHTML = '<div class="rq-tiles">' + tiles.map(function(t) {
+    + st.weeks.map(function(w) { return '<tr><td>' + rqDate(w.from) + '</td><td class="n">' + w.created + '</td><td class="n">' + w.done + '</td><td class="n">' + w.ontime + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  body.innerHTML = '<div class="rq-stbar"><span>Период:</span><div class="rq-view">' + RQ_PERIODS.map(function(p) { return '<button data-period="' + p[0] + '"' + (rq.statsDays === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'
+    + '<button class="rq-btn" data-act="xlsx" style="margin-left:auto;">⬇ Выгрузить в Excel</button></div>'
+    + '<div class="rq-tiles">' + tiles.map(function(t) {
       return '<div class="rq-tile" data-go="' + rqEsc(JSON.stringify(t[3])) + '" style="cursor:pointer;"><div class="rq-tile-l">' + t[0] + '</div><div class="rq-tile-v">' + t[1] + '</div><div class="rq-tile-n">' + t[2] + '</div></div>';
     }).join('') + '</div>'
-    + '<div class="rq-grid2">' + table('По объектам', function(r) { return r.object_name; }, function(k) { return k; }, 'obj')
-    + table('По ответственным', function(r) { return r.responsible_id; }, function(k) { return rqUser(Number(k)); }, 'resp')
-    + table('По типам', function(r) { return r.kind; }, function(k) { return k; }, 'kind') + weeksHtml + '</div>'
-    + '<div class="rq-hint" style="margin-top:10px;">Клик по строке или плитке — список этих заявок. Сегодня ' + rqDate(today) + '.</div>';
+    + table('По управляющим объектов', st.byMgr, null, '<th>Объекты</th>', function(x) { return '<td style="color:#8c8c8c;font-size:12px;max-width:260px;">' + rqEsc(x.objects.join(', ') || '—') + '</td>'; })
+    + '<div class="rq-grid2" style="margin-top:12px;">' + table('По объектам', st.byObj, 'obj') + table('По ответственным', st.byResp, 'resp') + table('По типам', st.byKind, 'kind') + weeksHtml + '</div>'
+    + '<div class="rq-hint" style="margin-top:10px;">Наведите на заголовок столбца — пояснение. Клик по строке или плитке — список этих заявок. Сегодня ' + rqDate(rqToday()) + '.</div>';
+}
+
+// ---------- выгрузка статистики в Excel (.xlsx собирается прямо в браузере: zip без сжатия + XML листов) ----------
+function rqXlsxBlob(sheets) {
+  const enc = typeof TextEncoder !== 'undefined' ? new TextEncoder() : { encode: function(str) {   // запасной UTF-8, если в песочнице нет TextEncoder
+    const out = [];
+    for (let i = 0; i < str.length; i++) {
+      let c = str.codePointAt(i); if (c > 0xffff) i++;
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) out.push(0xc0 | c >> 6, 0x80 | c & 63);
+      else if (c < 0x10000) out.push(0xe0 | c >> 12, 0x80 | c >> 6 & 63, 0x80 | c & 63);
+      else out.push(0xf0 | c >> 18, 0x80 | c >> 12 & 63, 0x80 | c >> 6 & 63, 0x80 | c & 63);
+    }
+    return new Uint8Array(out);
+  } };
+  const x = function(v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ''); };
+  const col = function(i) { let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+  const files = [];
+  files.push(['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+    + sheets.map(function(s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') + '</Types>']);
+  files.push(['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>']);
+  files.push(['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+    + sheets.map(function(s, i) { return '<sheet name="' + x(s.name.slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets></workbook>']);
+  files.push(['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + sheets.map(function(s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('')
+    + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>']);
+  files.push(['xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEEF1F8"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="3"><xf/><xf fontId="1" fillId="2" applyFont="1" applyFill="1"><alignment wrapText="1" vertical="center"/></xf><xf><alignment wrapText="1" vertical="top"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>']);
+  sheets.forEach(function(sh, si) {
+    const widths = sh.rows[0].map(function(_, c) { return Math.min(60, Math.max(8, Math.max.apply(null, sh.rows.map(function(r) { return String(r[c] == null ? '' : r[c]).length; })) + 2)); });
+    files.push(['xl/worksheets/sheet' + (si + 1) + '.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'
+      + widths.map(function(w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols><sheetData>'
+      + sh.rows.map(function(r, ri) {
+          return '<row r="' + (ri + 1) + '">' + r.map(function(v, ci) {
+            const ref = col(ci) + (ri + 1), st = ri === 0 ? ' s="1"' : (typeof v === 'string' && v.length > 60 ? ' s="2"' : '');
+            if (v === null || v === undefined || v === '') return '';
+            return typeof v === 'number' && isFinite(v) ? '<c r="' + ref + '"' + st + '><v>' + v + '</v></c>' : '<c r="' + ref + '" t="inlineStr"' + st + '><is><t xml:space="preserve">' + x(v) + '</t></is></c>';
+          }).join('') + '</row>';
+        }).join('') + '</sheetData><autoFilter ref="A1:' + col(sh.rows[0].length - 1) + sh.rows.length + '"/></worksheet>']);
+  });
+  // zip (метод store): локальные заголовки + центральный каталог
+  const crcT = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcT[n] = c >>> 0; }
+  const crc = function(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const parts = [], central = []; let off = 0;
+  files.forEach(function(f) {
+    const name = enc.encode(f[0]), data = enc.encode(f[1]), c = crc(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint32(14, c, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const d = new DataView(new ArrayBuffer(46));
+    d.setUint32(0, 0x02014b50, true); d.setUint16(4, 20, true); d.setUint16(6, 20, true); d.setUint16(8, 0x0800, true);
+    d.setUint32(16, c, true); d.setUint32(20, data.length, true); d.setUint32(24, data.length, true); d.setUint16(28, name.length, true); d.setUint32(42, off, true);
+    central.push(new Uint8Array(d.buffer), name);
+    off += 30 + name.length + data.length;
+  });
+  const cdSize = central.reduce(function(n, b) { return n + b.length; }, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+  return new Blob(parts.concat(central, [new Uint8Array(e.buffer)]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function rqExportStats() {
+  const st = rqStats(), per = (RQ_PERIODS.find(function(p) { return p[0] === rq.statsDays; }) || [0, ''])[1];
+  const head = RQ_COLS_STAT.map(function(c) { return c[1]; });
+  const num = function(x, k) { const v = x[k]; return v === null || v === undefined ? '' : k === 'med' ? Math.round(v * 10) / 10 : v; };
+  const tab = function(first, rows, extra) {
+    return [[first].concat(extra ? extra.h : [], head)].concat(rows.map(function(x) { return [x.label].concat(extra ? extra.v(x) : [], RQ_COLS_STAT.map(function(c) { return num(x, c[0]); })); }));
+  };
+  const a = st.all;
+  const summary = [['Показатель', 'Значение', 'Пояснение'],
+    ['Период', per, 'для «поступило, выполнено, в срок, медиана, переносы, эскалации, возвраты»'], ['Дата выгрузки', rqDate(rqToday()), '']]
+    .concat(RQ_COLS_STAT.map(function(c) { return [c[1], num(a, c[0]), RQ_COLS_HINT[c[0]]]; }));
+  const list = [['№', 'Создана', 'Объект', 'Управляющий', 'Тип', 'Суть', 'Арендатор', 'Срочность', 'Статус', 'Ответственный', 'Автор', 'Срок', 'Просрочено, дн.', 'Переносов срока', 'Выполнена', 'Закрыта', 'Результат']]
+    .concat(rq.data.reqs.slice().sort(function(x, y) { return y.id - x.id; }).map(function(r) {
+      const o = (rq.data.objects || []).find(function(z) { return z.name === r.object_name; });
+      return [r.id, rqDate(r.createdAt), r.object_name || '', rqMgrKey(o) ? rqMgrLabel(rqMgrKey(o)) : '', r.kind || '', r.title || '', r.tenant_label || '', (RQ_URG[r.urgency] || RQ_URG.normal).l,
+        (RQ_ST[r.status] || { l: r.status }).l, rqUser(r.responsible_id), rqUser(r.author_id), rqDate(r.due_date),
+        rqLate(r) ? rqDays(String(r.due_date).slice(0, 10), rqToday()) : '', Number(r.due_moved) || '', rqDate(r.done_at), rqDate(r.closed_at), r.result || ''];
+    }));
+  const blob = rqXlsxBlob([
+    { name: 'Сводка', rows: summary },
+    { name: 'По управляющим', rows: tab('Управляющий', st.byMgr, { h: ['Объекты'], v: function(x) { return [x.objects.join(', ')]; } }) },
+    { name: 'По объектам', rows: tab('Объект', st.byObj) },
+    { name: 'По ответственным', rows: tab('Ответственный', st.byResp) },
+    { name: 'По типам', rows: tab('Тип', st.byKind) },
+    { name: 'По неделям', rows: [['Неделя с', 'Создано', 'Выполнено', 'Из них в срок']].concat(st.weeks.map(function(w) { return [rqDate(w.from), w.created, w.done, w.ontime]; })) },
+    { name: 'Заявки', rows: list }
+  ]);
+  const l = document.createElement('a');
+  l.href = URL.createObjectURL(blob);
+  l.download = 'Заявки — статистика ' + rqDate(rqToday()) + '.xlsx';
+  document.body.appendChild(l); l.click(); l.remove();
+  setTimeout(function() { URL.revokeObjectURL(l.href); }, 2000);
 }
 
 // ---------- управляющие объектов (кому по умолчанию уходят заявки и кому эскалация) ----------

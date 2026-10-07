@@ -127,17 +127,33 @@ if (!document.getElementById('crm-aho-style')) {
       .hr-pick { columns:1; }
     }
   
-    .hr-board { display:grid; grid-template-columns:repeat(6, minmax(190px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; align-items:start; }
-    .hr-bcol { background:#f7f8fa; border-radius:8px; padding:8px; min-height:120px; border:2px dashed transparent; }
-    .hr-bcol.drop { border-color:#1c2d58; background:#eef1f8; }
-    .hr-bcol-h { display:flex; align-items:center; font-weight:600; font-size:13px; padding:2px 4px 8px; }
-    .hr-bcol-h b { margin-left:auto; color:#8c8c8c; font-variant-numeric:tabular-nums; }
-    .hr-bcol-n { font-size:11.5px; color:#8c8c8c; padding:4px; }
-    .hr-kc { background:#fff; border:1px solid #eceef2; border-radius:7px; padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12.5px; }
-    .hr-kc:hover { border-color:#b4bfd9; }
-    .hr-kc.drag { opacity:.4; }
-    .hr-kc-t { font-weight:600; font-size:13.5px; margin-bottom:3px; overflow-wrap:anywhere; }
-    .hr-kc-s { color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kb { display:grid; grid-template-columns:repeat(var(--n, 5), minmax(0, 1fr)); gap:12px; min-height:380px; }
+    .kb-col { display:flex; flex-direction:column; min-height:0; min-width:0; background:#f4f5f7; border-radius:10px; border:2px solid transparent; transition:opacity .15s, border-color .15s, background .15s; }
+    .kb-col.no { opacity:.4; }
+    .kb-col.ok { border-color:#c9d3ea; border-style:dashed; }
+    .kb-col.drop { border-color:#1c2d58; border-style:solid; background:#eaeef7; }
+    .kb-col-h { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; padding:10px 12px 8px; color:#262626; }
+    .kb-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); flex:none; }
+    .kb-col-h b { margin-left:auto; color:#8c8c8c; font-weight:600; font-variant-numeric:tabular-nums; background:#fff; border-radius:9px; padding:0 7px; font-size:12px; }
+    .kb-col-b { flex:1; overflow-y:auto; padding:0 8px 8px; min-height:0; }
+    .kb-card { background:#fff; border:1px solid #e8eaef; border-left:3px solid var(--c); border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:12.5px; cursor:grab; user-select:none; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+    .kb-card:hover { border-color:#b4bfd9; border-left-color:var(--c); box-shadow:0 2px 6px rgba(16,24,40,.08); }
+    .kb-card:active { cursor:grabbing; }
+    .kb-card.drag { opacity:.35; }
+    .kb-card.pending { cursor:default; border-color:#1c2d58; border-left-color:var(--c); box-shadow:0 4px 14px rgba(28,45,88,.18); user-select:auto; }
+    .kb-t { font-weight:600; font-size:13.5px; line-height:1.35; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+    .kb-s { color:#8c8c8c; line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kb-note, .kb-empty { font-size:12px; color:#a6a6a6; padding:6px 4px; text-align:center; }
+    .kb-form { margin-top:8px; padding-top:8px; border-top:1px dashed #d9d9d9; }
+    .kb-form label { display:block; font-size:12px; color:#595959; margin-bottom:4px; }
+    .kb-form textarea, .kb-form select { width:100%; box-sizing:border-box; border:1px solid #d9d9d9; border-radius:6px; padding:6px 8px; font:inherit; font-size:13px; resize:vertical; background:#fff; }
+    .kb-form textarea:focus, .kb-form select:focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
+    .kb-form-b { display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap; }
+    .kb-form-b span { font-size:11px; color:#a6a6a6; }
+    .kb-ok { border:none; background:#1c2d58; color:#fff; border-radius:6px; padding:5px 12px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+    .kb-no { border:1px solid #d9d9d9; background:#fff; color:#434343; border-radius:6px; padding:4px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
+    .kb-ok:disabled, .kb-no:disabled { opacity:.5; }
+    @media (max-width: 700px) { .kb { grid-template-columns:repeat(var(--n, 5), 260px); overflow-x:auto; } .kb-col-b { max-height:70vh; } }
     .hr-chip.grey { background:#f5f5f5; color:#8c8c8c; }
     .hr-st { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
     .hr-st button { border:1px solid #d9d9d9; background:#fff; border-radius:14px; padding:3px 11px; font:inherit; font-size:12.5px; cursor:pointer; color:#595959; }
@@ -632,75 +648,99 @@ function aRenderMoney() {
           + '<td>' + (['new', 'approval', 'approved'].indexOf(x.status || 'new') !== -1 ? aDueChip(x.due_on, 3) : hEsc(hDate(x.due_on))) + '</td><td>' + aExpChip(x) + '</td></tr>';
       }).join('') + '</tbody></table></div>'
       : '<div class="hr-empty"><b>Счетов нет</b>«+ Счёт» — заведите счёт, прикрепите PDF и отправьте на согласование.</div>'));
+  if (ah.expLayout === 'board') kbFit();
 }
-// доска счетов: колонки = шаги A_FLOW (отклонённые — в «Новый», их снова отправляют на согласование).
-// Перетаскивание — только на следующий шаг и через aExpStep: те же проверки (PDF приложен, согласует только согласующий) и уведомления.
+// доска счетов: колонки = шаги A_FLOW (отклонённые — в «Новый», их снова отправляют на согласование), одной высоты,
+// прокрутка внутри. Взяли карточку — подсвечена колонка следующего шага (если этот шаг вам доступен), остальные бледные.
+// Перенос = тот же шаг, что кнопка в карточке (aExpDo): PDF приложен, согласует только согласующий, уведомления.
 // Отклонить — только из карточки: нужна причина.
 const A_EXP_DONE_DAYS = 30;
+const A_EXP_NEXT = { new: 'send', rejected: 'send', approval: 'approve', approved: 'paid', paid: 'docs', docs: 'handed' };
+function aExpCol(x) { const s = x.status || 'new'; return s === 'rejected' ? 'new' : s; }
+function aExpAllowed(x, col) {
+  const s = x.status || 'new', step = A_EXP_NEXT[s];
+  if (!step || A_FLOW[A_FLOW.indexOf(aExpCol(x)) + 1] !== col) return null;
+  return step === 'approve' && !aIsApprover() ? null : step;
+}
 function aExpBoard() {
   const d = new Date(); d.setDate(d.getDate() - A_EXP_DONE_DAYS);
   const since = hIso(d);
-  return '<div class="hr-board" data-exp-board>' + A_FLOW.map(function(col) {
-    let items = ah.d.exps.filter(function(x) { const s = x.status || 'new'; return col === 'new' ? (s === 'new' || s === 'rejected') : s === col; });
+  return '<div class="kb" data-kb data-exp-board style="--n:6;">' + A_FLOW.map(function(col) {
+    let items = ah.d.exps.filter(function(x) { return aExpCol(x) === col; });
     const all = items.length;
     if (col === 'handed') items = items.filter(function(x) { return hD(x.handed_on || x.updatedAt) >= since; });
     items.sort(function(a, b) { return String(a.due_on || '9').localeCompare(String(b.due_on || '9')) || b.id - a.id; });
-    return '<div class="hr-bcol" data-col="' + col + '"><div class="hr-bcol-h">' + A_EXP_ST[col] + '<b>' + items.length + '</b></div>'
+    return '<div class="kb-col" data-col="' + col + '"><div class="kb-col-h" style="--c:#1c2d58;"><i></i>' + A_EXP_ST[col] + '<b>' + items.length + '</b></div><div class="kb-col-b">'
       + items.map(function(x) {
         const a = aArt(x.article_id);
-        return '<div class="hr-kc" draggable="true" data-rec="exp:' + x.id + '"><div class="hr-kc-t">' + hEsc(x.title) + (aFilesOf('exp', x.id).length ? ' 📎' : '') + '</div>'
-          + '<div class="hr-kc-s"><b style="color:#262626;">' + hMoney(x.amount) + '</b>' + (x.supplier ? ' · ' + hEsc(x.supplier) : '') + '</div>'
-          + '<div class="hr-kc-s">' + (x.status === 'rejected' ? '<span class="hr-chip red">отклонён</span> ' : '') + (['new', 'approval', 'approved'].indexOf(x.status || 'new') !== -1 && x.due_on ? aDueChip(x.due_on, 3) : hEsc(a ? a.name : '')) + '</div></div>';
+        return '<div class="kb-card" draggable="true" data-rec="exp:' + x.id + '" data-id="' + x.id + '" style="--c:' + (x.status === 'rejected' ? '#cf1322' : '#1c2d58') + ';">'
+          + '<div class="kb-t">' + hEsc(x.title) + (aFilesOf('exp', x.id).length ? ' 📎' : '') + '</div>'
+          + '<div class="kb-s"><b style="color:#262626;">' + hMoney(x.amount) + '</b>' + (x.supplier ? ' · ' + hEsc(x.supplier) : '') + '</div>'
+          + '<div class="kb-s">' + (x.status === 'rejected' ? '<span style="color:#cf1322;">отклонён</span> · ' : '')
+          + (['new', 'approval', 'approved'].indexOf(x.status || 'new') !== -1 && x.due_on ? 'оплатить до ' + hEsc(hDate(x.due_on)) : hEsc(a ? a.name : '')) + '</div></div>';
       }).join('')
-      + (all > items.length ? '<div class="hr-bcol-n">Ещё ' + (all - items.length) + ' старше ' + A_EXP_DONE_DAYS + ' дней — в таблице</div>' : '') + '</div>';
+      + (all > items.length ? '<div class="kb-note">Ещё ' + (all - items.length) + ' старше ' + A_EXP_DONE_DAYS + ' дней — в таблице</div>' : '')
+      + (items.length ? '' : '<div class="kb-empty">Пусто</div>') + '</div></div>';
   }).join('') + '</div>';
 }
-const A_EXP_NEXT = { new: 'send', rejected: 'send', approval: 'approve', approved: 'paid', paid: 'docs', docs: 'handed' };
 async function aExpDrop(id, col) {
   const x = aFind(ah.d.exps, id);
-  if (!x) return;
-  const s = x.status || 'new';
-  if (col === s || (col === 'new' && s === 'rejected')) return;
-  const step = A_EXP_NEXT[s];
-  if (!step || A_FLOW[A_FLOW.indexOf(s === 'rejected' ? 'new' : s) + 1] !== col) { hToast('Счёт двигается только на следующий шаг: ' + (step ? A_EXP_ST[A_FLOW[A_FLOW.indexOf(s === 'rejected' ? 'new' : s) + 1]] : 'он уже на последнем')); return; }
-  if (step === 'approve' && !aIsApprover()) { hToast('Согласовать может только согласующий'); return; }
-  const m = aOpenExp(x);
-  m.style.display = 'none';
-  await aExpStep(x, step, m);
-  if (document.body.contains(m)) m.remove();   // шаг не прошёл (например, нет PDF) — подсказку уже показали
+  const step = x && aExpAllowed(x, col);
+  if (!step) return;
+  try {
+    const err = await aExpDo(x, step, '', aFilesOf('exp', x.id).length > 0);
+    if (err) { hToast(err); return; }
+    await aReload(); hToast(x.title + ': ' + A_EXP_ST[col].toLowerCase());
+  } catch (e) { hToast('Не удалось сохранить'); }
+}
+// доска до низа окна: колонки прокручиваются внутри, страница не растягивается
+function kbFit() {
+  const kb = document.querySelector('[data-kb]');
+  if (!kb || window.innerWidth <= 700) return;
+  kb.style.height = Math.max(380, window.innerHeight - kb.getBoundingClientRect().top - window.scrollY - 24) + 'px';
 }
 (function() {
   const root = aRoot();
-  let dragId = null;
-  const colOf = function(e) { const c = e.target.closest ? e.target.closest('.hr-bcol') : null; return c && c.closest('[data-exp-board]') ? c : null; };
+  let drag = null;
+  if (!window.__ahoKbResize) { window.__ahoKbResize = true; window.addEventListener('resize', function() { kbFit(); }); }
   root.addEventListener('dragstart', function(e) {
-    const k = e.target.closest ? e.target.closest('.hr-kc[data-rec^="exp:"]') : null;
+    const k = e.target.closest ? e.target.closest('[data-exp-board] .kb-card') : null;
     if (!k) return;
-    dragId = Number(k.getAttribute('data-rec').split(':')[1]);
+    const x = aFind(ah.d.exps, k.getAttribute('data-id'));
+    if (!x) return;
+    drag = x;
     k.classList.add('drag');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(dragId));
+    e.dataTransfer.setData('text/plain', String(x.id));
+    root.querySelectorAll('[data-exp-board] .kb-col').forEach(function(c) {
+      const col = c.getAttribute('data-col');
+      c.classList.add(col === aExpCol(x) ? 'home' : aExpAllowed(x, col) ? 'ok' : 'no');
+    });
   });
   root.addEventListener('dragend', function() {
-    dragId = null;
-    root.querySelectorAll('.hr-kc.drag, .hr-bcol.drop').forEach(function(x) { x.classList.remove('drag', 'drop'); });
+    drag = null;
+    root.querySelectorAll('.kb-card.drag, .kb-col').forEach(function(x) { x.classList.remove('drag', 'drop', 'ok', 'no', 'home'); });
   });
   root.addEventListener('dragover', function(e) {
-    const c = colOf(e);
-    if (!c || dragId == null) return;
+    const c = e.target.closest ? e.target.closest('.kb-col.ok') : null;
+    if (!c || !drag) return;
     e.preventDefault();
-    root.querySelectorAll('.hr-bcol.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
+    e.dataTransfer.dropEffect = 'move';
+    root.querySelectorAll('.kb-col.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
     c.classList.add('drop');
   });
+  root.addEventListener('dragleave', function(e) {
+    const c = e.target.closest ? e.target.closest('.kb-col.drop') : null;
+    if (c && !c.contains(e.relatedTarget)) c.classList.remove('drop');
+  });
   root.addEventListener('drop', function(e) {
-    const c = colOf(e);
-    if (!c || dragId == null) return;
+    const c = e.target.closest ? e.target.closest('.kb-col.ok') : null;
+    if (!c || !drag) return;
     e.preventDefault();
-    const id = dragId;
-    c.classList.remove('drop');
-    aExpDrop(id, c.getAttribute('data-col'));
+    aExpDrop(drag.id, c.getAttribute('data-col'));
   });
 })();
+
 // кнопки шага в карточке счёта: кто что может сделать сейчас
 function aExpSteps(x) {
   if (!x || !x.id) return '';
@@ -727,22 +767,29 @@ function aOpenExp(x, preset) {
   });
   return m;
 }
-async function aExpStep(x, step, m) {
+// шаг счёта без интерфейса — его зовут кнопки карточки и доска. Ошибка → текст; успех → null; сбой сети → исключение.
+async function aExpDo(x, step, reason, hasFile) {
   const t = hToday(), v = {};
-  const reason = m.querySelector('[data-reason]') ? m.querySelector('[data-reason]').value.trim() : '';
-  if (step === 'send') { if (!aFilesOf('exp', x.id).length && !m.__pending) { hToast('Прикрепите счёт (PDF) — согласующему нужно его видеть'); return; } Object.assign(v, { status: 'approval', sent_on: t, decision_note: null }); }
-  if (step === 'approve') Object.assign(v, { status: 'approved', approved_on: t, approved_by: (ah.me && (ah.me.nickname || ah.me.username)) || '' });
-  if (step === 'reject') { if (!reason) { hToast('Напишите, почему отклоняете'); return; } Object.assign(v, { status: 'rejected', approved_on: t, approved_by: (ah.me && (ah.me.nickname || ah.me.username)) || '', decision_note: reason }); }
+  if (step === 'send') { if (!hasFile) return 'Прикрепите счёт (PDF) — согласующему нужно его видеть'; Object.assign(v, { status: 'approval', sent_on: t, decision_note: null }); }
+  if (step === 'approve') { if (!aIsApprover()) return 'Согласовать может только согласующий'; Object.assign(v, { status: 'approved', approved_on: t, approved_by: (ah.me && (ah.me.nickname || ah.me.username)) || '' }); }
+  if (step === 'reject') { if (!reason) return 'Напишите, почему отклоняете'; Object.assign(v, { status: 'rejected', approved_on: t, approved_by: (ah.me && (ah.me.nickname || ah.me.username)) || '', decision_note: reason }); }
   if (step === 'paid') Object.assign(v, { status: 'paid', paid_on: t });
   if (step === 'docs') Object.assign(v, { status: 'docs', docs_on: t });
   if (step === 'handed') Object.assign(v, { status: 'handed', handed_on: t });
+  if (!v.status) return 'Неизвестный шаг';
+  await ctx.api.resource('crm_aho_expenses').update({ filterByTk: x.id, values: v });
+  const url = AHO_PAGE + '?open=exp:' + x.id, what = x.title + ' — ' + hMoney(x.amount) + (x.supplier ? ', ' + x.supplier : '');
+  if (step === 'send') await aNotify(ah.approver, 'Счёт на согласование', what, url);
+  if (step === 'approve') await aNotify(x.author_id, 'Счёт согласован — можно оплачивать', what, url);
+  if (step === 'reject') await aNotify(x.author_id, 'Счёт отклонён', what + '. ' + reason, url);
+  return null;
+}
+async function aExpStep(x, step, m) {
+  const reason = m.querySelector('[data-reason]') ? m.querySelector('[data-reason]').value.trim() : '';
   try {
-    await ctx.api.resource('crm_aho_expenses').update({ filterByTk: x.id, values: v });
-    const url = AHO_PAGE + '?open=exp:' + x.id, what = x.title + ' — ' + hMoney(x.amount) + (x.supplier ? ', ' + x.supplier : '');
-    if (step === 'send') await aNotify(ah.approver, 'Счёт на согласование', what, url);
-    if (step === 'approve') await aNotify(x.author_id, 'Счёт согласован — можно оплачивать', what, url);
-    if (step === 'reject') await aNotify(x.author_id, 'Счёт отклонён', what + '. ' + reason, url);
-    m.remove(); await aReload(); hToast(A_EXP_ST[v.status]);
+    const err = await aExpDo(x, step, reason, aFilesOf('exp', x.id).length > 0 || !!m.__pending);
+    if (err) { hToast(err); return; }
+    m.remove(); await aReload(); hToast(A_EXP_ST[{ send: 'approval', approve: 'approved', reject: 'rejected' }[step] || step]);
   } catch (e) { hToast('Не удалось сохранить'); }
 }
 function aRenderSubs(seg) {

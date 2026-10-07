@@ -30,18 +30,33 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-layout { display:flex; gap:2px; background:#f5f5f5; border-radius:6px; padding:2px; }
     .tk-layout button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
     .tk-layout button.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
-    .tk-board { display:grid; grid-template-columns:repeat(5, minmax(220px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; align-items:start; }
-    .tk-col { background:#f7f8fa; border-radius:8px; padding:8px; min-height:120px; border:2px dashed transparent; }
-    .tk-col.drop { border-color:#1c2d58; background:#eef1f8; }
-    .tk-col-h { display:flex; align-items:center; gap:6px; font-weight:600; font-size:13px; padding:2px 4px 8px; }
-    .tk-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); }
-    .tk-col-h b { margin-left:auto; color:#8c8c8c; font-variant-numeric:tabular-nums; }
-    .tk-col-n { font-size:11.5px; color:#8c8c8c; padding:4px; }
-    .tk-kc { background:#fff; border:1px solid #eceef2; border-left:4px solid var(--c); border-radius:7px; padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12.5px; }
-    .tk-kc:hover { border-color:#b4bfd9; border-left-color:var(--c); }
-    .tk-kc.drag { opacity:.4; }
-    .tk-kc-t { font-weight:600; font-size:13.5px; margin-bottom:3px; overflow-wrap:anywhere; }
-    .tk-kc-s { color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kb { display:grid; grid-template-columns:repeat(var(--n, 5), minmax(0, 1fr)); gap:12px; min-height:380px; }
+    .kb-col { display:flex; flex-direction:column; min-height:0; min-width:0; background:#f4f5f7; border-radius:10px; border:2px solid transparent; transition:opacity .15s, border-color .15s, background .15s; }
+    .kb-col.no { opacity:.4; }
+    .kb-col.ok { border-color:#c9d3ea; border-style:dashed; }
+    .kb-col.drop { border-color:#1c2d58; border-style:solid; background:#eaeef7; }
+    .kb-col-h { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; padding:10px 12px 8px; color:#262626; }
+    .kb-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); flex:none; }
+    .kb-col-h b { margin-left:auto; color:#8c8c8c; font-weight:600; font-variant-numeric:tabular-nums; background:#fff; border-radius:9px; padding:0 7px; font-size:12px; }
+    .kb-col-b { flex:1; overflow-y:auto; padding:0 8px 8px; min-height:0; }
+    .kb-card { background:#fff; border:1px solid #e8eaef; border-left:3px solid var(--c); border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:12.5px; cursor:grab; user-select:none; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+    .kb-card:hover { border-color:#b4bfd9; border-left-color:var(--c); box-shadow:0 2px 6px rgba(16,24,40,.08); }
+    .kb-card:active { cursor:grabbing; }
+    .kb-card.drag { opacity:.35; }
+    .kb-card.pending { cursor:default; border-color:#1c2d58; border-left-color:var(--c); box-shadow:0 4px 14px rgba(28,45,88,.18); user-select:auto; }
+    .kb-t { font-weight:600; font-size:13.5px; line-height:1.35; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+    .kb-s { color:#8c8c8c; line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kb-note, .kb-empty { font-size:12px; color:#a6a6a6; padding:6px 4px; text-align:center; }
+    .kb-form { margin-top:8px; padding-top:8px; border-top:1px dashed #d9d9d9; }
+    .kb-form label { display:block; font-size:12px; color:#595959; margin-bottom:4px; }
+    .kb-form textarea, .kb-form select { width:100%; box-sizing:border-box; border:1px solid #d9d9d9; border-radius:6px; padding:6px 8px; font:inherit; font-size:13px; resize:vertical; background:#fff; }
+    .kb-form textarea:focus, .kb-form select:focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
+    .kb-form-b { display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap; }
+    .kb-form-b span { font-size:11px; color:#a6a6a6; }
+    .kb-ok { border:none; background:#1c2d58; color:#fff; border-radius:6px; padding:5px 12px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+    .kb-no { border:1px solid #d9d9d9; background:#fff; color:#434343; border-radius:6px; padding:4px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
+    .kb-ok:disabled, .kb-no:disabled { opacity:.5; }
+    @media (max-width: 700px) { .kb { grid-template-columns:repeat(var(--n, 5), 260px); overflow-x:auto; } .kb-col-b { max-height:70vh; } }
     .tk-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
     .tk select, .tk input[type=text], .tk input[type=date], .tk textarea, .tk-modal select, .tk-modal input[type=text], .tk-modal input[type=date], .tk-modal textarea {
       border:1px solid #d9d9d9; border-radius:6px; padding:7px 10px; font:inherit; font-size:13.5px; background:#fff; color:#262626; box-sizing:border-box; }
@@ -164,7 +179,7 @@ const TK_WAIT = ['ответа коллеги', 'ответа арендатор
 const TK_HR_TPL = ['Отпуск', 'Больничный', 'Приём на работу', 'Увольнение', 'Перевод / смена должности', 'Командировка', 'Отгул'];
 const TK_HR_DEPT = 'HR служба персонала';
 const TK_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
-const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, layout: 'list' };
+const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, layout: 'list', drop: null };
 try { if (localStorage.getItem('crm-tasks-layout') === 'board') tk.layout = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
 function tkEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -439,37 +454,14 @@ function tkOnClick(e) {
 }
 
 // ---------- доска ----------
-// Колонки = статусы; перетаскивание = те же действия, что кнопки в карточке (tkNext/tkAction/tkApply): права,
-// обязательные поля, история и уведомления не обходятся. Фильтры (исполнитель, тип, объект, поиск) действуют и на доске.
-const TK_COLS = [['new', ['new']], ['in_work', ['in_work']], ['waiting', ['waiting']], ['done', ['done']], ['closed', ['closed', 'cancelled']]];
+// Колонки = статусы, одной высоты (до низа экрана), прокрутка внутри колонки. Взяли карточку — колонки, куда её можно
+// перенести, подсвечены, остальные бледные. Перенос = то же действие, что кнопка в карточке (tkNext + tkDo): права, история,
+// уведомления. Где нужен ввод (что сделано, чего ждём, причина) — форма прямо на карточке в новой колонке, без окон.
+// Фильтры (исполнитель, тип, объект, поиск) действуют и на доске.
+const TK_COLS = [['new', ['new'], 'Новые'], ['in_work', ['in_work'], 'В работе'], ['waiting', ['waiting'], 'Ждут'], ['done', ['done'], 'На проверке'], ['closed', ['closed', 'cancelled'], 'Закрытые']];
 const TK_CLOSED_DAYS = 30;
-function tkRenderBoard(base) {
-  tkRoot().querySelector('[data-tk-views]').innerHTML = '';
-  const d = new Date(); d.setDate(d.getDate() - TK_CLOSED_DAYS);
-  const since = tkIso(d);
-  tkRoot().querySelector('[data-tk-list]').innerHTML = '<div class="tk-board">' + TK_COLS.map(function(col) {
-    let items = base.filter(function(t) { return col[1].indexOf(t.status) !== -1; });
-    const all = items.length;
-    if (col[0] === 'closed') items = items.filter(function(t) { return String(t.closed_at || '').slice(0, 10) >= since; }).sort(function(a, b) { return String(b.closed_at || '').localeCompare(String(a.closed_at || '')); });
-    else items.sort(function(a, b) {
-      const w = function(t) { return t.urgency === 'asap' ? 0 : tkLate(t) ? 1 : 2; };
-      return w(a) - w(b) || String(a.due_date || '9').localeCompare(String(b.due_date || '9')) || b.id - a.id;
-    });
-    const st = TK_ST[col[0]];
-    return '<div class="tk-col" data-col="' + col[0] + '"><div class="tk-col-h" style="--c:' + st.c + ';"><i></i>' + (col[0] === 'closed' ? 'Закрытые' : st.l) + '<b>' + items.length + '</b></div>'
-      + items.map(tkCardHtml).join('')
-      + (all > items.length ? '<div class="tk-col-n">Ещё ' + (all - items.length) + ' старше ' + TK_CLOSED_DAYS + ' дней — в списке «Закрытые»</div>' : '') + '</div>';
-  }).join('') + '</div>';
-}
-function tkCardHtml(t) {
-  const open = tkIsOpen(t), u = TK_URG[t.urgency];
-  return '<div class="tk-kc" draggable="true" data-open="' + t.id + '" style="--c:' + (t.urgency === 'asap' && open ? '#cf1322' : (TK_ST[t.status] || {}).c || '#d9d9d9') + ';">'
-    + '<div class="tk-kc-t">' + (u && t.urgency !== 'normal' && open ? '<span style="color:' + u.c + ';">' + tkEsc(u.l) + ' · </span>' : '') + tkEsc(t.title || 'Без названия') + '</div>'
-    + '<div class="tk-kc-s">№' + t.id + ' · 👤 ' + tkEsc(tkWho(t.executor_id, t.executor_name)) + '</div>'
-    + '<div class="tk-kc-s">' + (open ? '📅 ' + tkDue(t) : t.status === 'cancelled' ? 'отменена' : '')
-    + (t.status === 'waiting' && t.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + tkEsc(t.wait_reason) + '</span>' : '')
-    + (t.object_name ? ' · ' + tkEsc(t.object_name) : '') + '</div></div>';
-}
+const TK_DROP_ASK = { wait: 'Чего ждём', done: 'Что сделано — коротко, увидит проверяющий', reopen: 'Что нужно доделать', cancel: 'Почему отменяем' };
+function tkColOf(st) { return (TK_COLS.find(function(c) { return c[1].indexOf(st) !== -1; }) || [''])[0]; }
 function tkDropAction(from, col) {
   const open = TK_OPEN.indexOf(from) !== -1;
   if (col === 'in_work') return from === 'new' ? 'take' : from === 'waiting' ? 'resume' : !open ? 'reopen' : null;
@@ -478,51 +470,121 @@ function tkDropAction(from, col) {
   if (col === 'closed') return from === 'done' ? 'close' : open ? 'cancel' : null;
   return null;
 }
+function tkDropAllowed(t, col) {
+  const a = tkDropAction(t.status, col), n = tkNext(t);
+  return a && n.main.concat(n.more).some(function(x) { return x[0] === a; }) ? a : null;
+}
+function tkRenderBoard(base) {
+  tkRoot().querySelector('[data-tk-views]').innerHTML = '';
+  const d = new Date(); d.setDate(d.getDate() - TK_CLOSED_DAYS);
+  const since = tkIso(d), pd = tk.drop;
+  tkRoot().querySelector('[data-tk-list]').innerHTML = '<div class="kb" data-kb>' + TK_COLS.map(function(col) {
+    let items = base.filter(function(t) { return pd && t.id === pd.id ? col[0] === pd.col : col[1].indexOf(t.status) !== -1; });
+    const all = items.length;
+    if (col[0] === 'closed') items = items.filter(function(t) { return String(t.closed_at || '').slice(0, 10) >= since; }).sort(function(a, b) { return String(b.closed_at || '').localeCompare(String(a.closed_at || '')); });
+    else items.sort(function(a, b) {
+      const w = function(t) { return pd && t.id === pd.id ? -1 : t.urgency === 'asap' ? 0 : tkLate(t) ? 1 : 2; };
+      return w(a) - w(b) || String(a.due_date || '9').localeCompare(String(b.due_date || '9')) || b.id - a.id;
+    });
+    return '<div class="kb-col" data-col="' + col[0] + '"><div class="kb-col-h" style="--c:' + TK_ST[col[1][0]].c + ';"><i></i>' + col[2] + '<b>' + items.length + '</b></div><div class="kb-col-b">'
+      + items.map(tkCardHtml).join('')
+      + (all > items.length ? '<div class="kb-note">Ещё ' + (all - items.length) + ' старше ' + TK_CLOSED_DAYS + ' дней — в списке «Закрытые»</div>' : '')
+      + (items.length ? '' : '<div class="kb-empty">Пусто</div>') + '</div></div>';
+  }).join('') + '</div>';
+  kbFit();
+  const f = document.querySelector('.kb-form [data-bf-in]'); if (f) f.focus();
+}
+function tkCardHtml(t) {
+  const open = tkIsOpen(t), u = TK_URG[t.urgency], pd = tk.drop && tk.drop.id === t.id ? tk.drop : null;
+  return '<div class="kb-card' + (pd ? ' pending' : '') + '"' + (pd ? '' : ' draggable="true" data-open="' + t.id + '"') + ' data-id="' + t.id + '" style="--c:' + (t.urgency === 'asap' && open ? '#cf1322' : (TK_ST[t.status] || {}).c || '#d9d9d9') + ';">'
+    + '<div class="kb-t">' + (u && t.urgency !== 'normal' && open ? '<span style="color:' + u.c + ';">' + tkEsc(u.l) + ' · </span>' : '') + tkEsc(t.title || 'Без названия') + '</div>'
+    + '<div class="kb-s">№' + t.id + ' · ' + tkEsc(tkWho(t.executor_id, t.executor_name)) + (t.object_name ? ' · ' + tkEsc(t.object_name) : '') + '</div>'
+    + '<div class="kb-s">' + (open ? tkDue(t) : t.status === 'cancelled' ? 'отменена' : 'закрыта ' + tkDate(t.closed_at))
+    + (t.status === 'waiting' && t.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + tkEsc(t.wait_reason) + '</span>' : '') + '</div>'
+    + (pd ? '<div class="kb-form"><label>' + TK_DROP_ASK[pd.a] + '</label>'
+      + (pd.a === 'wait' ? '<select data-bf-in>' + TK_WAIT.map(function(w) { return '<option>' + w + '</option>'; }).join('') + '</select>' : '<textarea data-bf-in rows="2"></textarea>')
+      + '<div class="kb-form-b"><button class="kb-ok" data-bf-ok>Сохранить</button><button class="kb-no" data-bf-no>Отмена</button><span>Ctrl+Enter — сохранить, Esc — отмена</span></div></div>' : '')
+    + '</div>';
+}
 async function tkDrop(id, col) {
   const t = tk.data.tasks.find(function(x) { return x.id === id; });
-  if (!t || (TK_COLS.find(function(c) { return c[0] === col; }) || [0, []])[1].indexOf(t.status) !== -1) return;
-  const a = tkDropAction(t.status, col);
-  if (!a) { tkToast('Из «' + TK_ST[t.status].l + '» сюда перевести нельзя'); return; }
-  const n = tkNext(t);
-  if (!n.main.concat(n.more).some(function(x) { return x[0] === a; })) { tkToast(a === 'close' || a === 'cancel' || a === 'reopen' ? 'Это может сделать только проверяющий или автор' : 'Это может сделать только исполнитель'); return; }
-  const m = tkModal('<div data-tk-card></div>');
-  const quick = a === 'take' || a === 'resume' || a === 'close';   // без ввода — сразу, окно не показываем
-  if (quick) m.style.display = 'none';
-  await tkRenderCard(m, t);
-  if (!quick) { tkAction(m, t, a); return; }
-  await tkApply(m, t, a, null);
-  m.remove();
+  if (!t || tkColOf(t.status) === col) return;
+  const a = tkDropAllowed(t, col);
+  if (!a) return;
+  if (TK_DROP_ASK[a]) { tk.drop = { id: id, col: col, a: a }; tkRenderList(); return; }   // нужен ввод — форма на карточке
+  await tkDropSave(t, a, '');
+}
+async function tkDropSave(t, a, v) {
+  try {
+    const res = await tkDo(t, a, v, '', '', '');
+    if (res && res.err) { tkToast(res.err); const f = document.querySelector('.kb-form [data-bf-in]'); if (f) f.focus(); return; }
+    tk.drop = null;
+    await tkReload();
+    tkToast('№' + t.id + ': ' + (TK_DONE_MSG[a] || 'сохранено').toLowerCase());
+  } catch (e) { tkToast('Не удалось сохранить'); tk.drop = null; tkRenderList(); }
+}
+function tkDropSubmit() {
+  const pd = tk.drop, f = document.querySelector('.kb-form [data-bf-in]');
+  if (!pd || !f) return;
+  const t = tk.data.tasks.find(function(x) { return x.id === pd.id; });
+  document.querySelectorAll('.kb-form button').forEach(function(b) { b.disabled = true; });
+  tkDropSave(t, pd.a, f.value.trim()).then(function() { document.querySelectorAll('.kb-form button').forEach(function(b) { b.disabled = false; }); });
+}
+// доска до низа окна: колонки прокручиваются внутри, страница не растягивается
+function kbFit() {
+  const kb = document.querySelector('[data-kb]');
+  if (!kb || window.innerWidth <= 700) return;
+  kb.style.height = Math.max(380, window.innerHeight - kb.getBoundingClientRect().top - window.scrollY - 24) + 'px';
 }
 (function() {
   const root = tkRoot();
-  let dragId = null;
-  const colOf = function(e) { return e.target.closest ? e.target.closest('.tk-col') : null; };
+  let drag = null;
+  if (!window.__tkKbResize) { window.__tkKbResize = true; window.addEventListener('resize', function() { kbFit(); }); }
   root.addEventListener('dragstart', function(e) {
-    const k = e.target.closest ? e.target.closest('.tk-kc') : null;
+    const k = e.target.closest ? e.target.closest('.kb-card[draggable]') : null;
     if (!k) return;
-    dragId = Number(k.getAttribute('data-open'));
+    const t = tk.data.tasks.find(function(x) { return x.id === Number(k.getAttribute('data-id')); });
+    if (!t) return;
+    drag = t;
     k.classList.add('drag');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(dragId));
+    e.dataTransfer.setData('text/plain', String(t.id));
+    root.querySelectorAll('.kb-col').forEach(function(c) {
+      const col = c.getAttribute('data-col');
+      c.classList.add(col === tkColOf(t.status) ? 'home' : tkDropAllowed(t, col) ? 'ok' : 'no');
+    });
   });
   root.addEventListener('dragend', function() {
-    dragId = null;
-    root.querySelectorAll('.tk-kc.drag, .tk-col.drop').forEach(function(x) { x.classList.remove('drag', 'drop'); });
+    drag = null;
+    root.querySelectorAll('.kb-card.drag, .kb-col').forEach(function(x) { x.classList.remove('drag', 'drop', 'ok', 'no', 'home'); });
   });
   root.addEventListener('dragover', function(e) {
-    const c = colOf(e);
-    if (!c || dragId == null) return;
+    const c = e.target.closest ? e.target.closest('.kb-col.ok') : null;
+    if (!c || !drag) return;
     e.preventDefault();
-    root.querySelectorAll('.tk-col.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
+    e.dataTransfer.dropEffect = 'move';
+    root.querySelectorAll('.kb-col.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
     c.classList.add('drop');
   });
+  root.addEventListener('dragleave', function(e) {
+    const c = e.target.closest ? e.target.closest('.kb-col.drop') : null;
+    if (c && !c.contains(e.relatedTarget)) c.classList.remove('drop');
+  });
   root.addEventListener('drop', function(e) {
-    const c = colOf(e);
-    if (!c || dragId == null) return;
+    const c = e.target.closest ? e.target.closest('.kb-col.ok') : null;
+    if (!c || !drag) return;
     e.preventDefault();
-    const id = dragId;
-    c.classList.remove('drop');
-    tkDrop(id, c.getAttribute('data-col'));
+    tkDrop(drag.id, c.getAttribute('data-col'));
+  });
+  root.addEventListener('click', function(e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-bf-ok]')) { tkDropSubmit(); return; }
+    if (e.target.closest('[data-bf-no]')) { tk.drop = null; tkRenderList(); }
+  });
+  root.addEventListener('keydown', function(e) {
+    if (!tk.drop || !e.target.closest || !e.target.closest('.kb-form')) return;
+    if (e.key === 'Escape') { tk.drop = null; tkRenderList(); }
+    else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || e.target.tagName === 'SELECT')) { e.preventDefault(); tkDropSubmit(); }
   });
 })();
 
@@ -737,54 +799,64 @@ function tkAction(m, t, a) {
     const f = box.querySelector('[data-in]'); if (f) f.focus();
   } else tkApply(m, t, a, null);
 }
-async function tkApply(m, t, a, btn) {
-  const box = m.querySelector('[data-actbox]');
-  const inp = box.querySelector('[data-in]'), inp2 = box.querySelector('[data-in2]'), inp3 = box.querySelector('[data-in3]'), inp4 = box.querySelector('[data-in4]');
-  const v = inp ? inp.value.trim() : '';
+// действие по задаче без интерфейса — его зовут и кнопки карточки, и доска. Ошибка ввода → { err, field: 1|2 };
+// ничего не меняется → { skip: true }; сбой сети → исключение. Перерисовку делает вызывающий.
+async function tkDo(t, a, v, v2, v3, v4) {
   const now = new Date().toISOString(), title = 'Задача №' + t.id, chk = tkChecker(t);
   let upd = null, ev = '', kind = 'status', notify = [];
   if (a === 'take') { upd = { status: 'in_work' }; ev = 'Взял в работу'; notify = [[chk, 'Взята в работу: ' + t.title]]; }
   if (a === 'wait') { upd = { status: 'waiting', wait_reason: v }; ev = 'Ждёт ' + v; notify = [[chk, 'Ждёт ' + v + ': ' + t.title]]; }
   if (a === 'resume') { upd = { status: 'in_work', wait_reason: null }; ev = 'Продолжил работу'; }
-  if (a === 'done') { if (!v) { tkToast('Напишите, что сделано'); inp.focus(); return; } upd = { status: 'done', result: v, done_at: now, wait_reason: null }; ev = 'Выполнил: ' + v; notify = [[chk, 'Выполнена, проверьте: ' + t.title]]; }
+  if (a === 'done') { if (!v) return { err: 'Напишите, что сделано', field: 1 }; upd = { status: 'done', result: v, done_at: now, wait_reason: null }; ev = 'Выполнил: ' + v; notify = [[chk, 'Выполнена, проверьте: ' + t.title]]; }
   if (a === 'close') { upd = { status: 'closed', closed_at: now }; ev = 'Принял и закрыл'; notify = [[t.executor_id, 'Закрыта: ' + t.title]]; }
-  if (a === 'reopen') { if (!v) { tkToast('Напишите, что не так'); inp.focus(); return; } upd = { status: 'in_work', done_at: null, closed_at: null }; ev = 'Вернул в работу: ' + v; notify = [[t.executor_id, 'Вернули в работу: ' + v]]; }
-  if (a === 'cancel') { if (!v) { tkToast('Напишите причину'); inp.focus(); return; } upd = { status: 'cancelled', closed_at: now, result: v }; ev = 'Отменил: ' + v; notify = [[t.executor_id, 'Отменена: ' + t.title]]; }
+  if (a === 'reopen') { if (!v) return { err: 'Напишите, что не так', field: 1 }; upd = { status: 'in_work', done_at: null, closed_at: null }; ev = 'Вернул в работу: ' + v; notify = [[t.executor_id, 'Вернули в работу: ' + v]]; }
+  if (a === 'cancel') { if (!v) return { err: 'Напишите причину', field: 1 }; upd = { status: 'cancelled', closed_at: now, result: v }; ev = 'Отменил: ' + v; notify = [[t.executor_id, 'Отменена: ' + t.title]]; }
   if (a === 'due') {
-    const reason = inp2 ? inp2.value.trim() : '';
-    if (!/^(19|20)\d{2}-\d{2}-\d{2}$/.test(v)) { tkToast('Укажите новый срок'); inp.focus(); return; }
-    if (!reason) { tkToast('Напишите, почему переносим'); inp2.focus(); return; }
+    const reason = v2;
+    if (!/^(19|20)\d{2}-\d{2}-\d{2}$/.test(v)) return { err: 'Укажите новый срок', field: 1 };
+    if (!reason) return { err: 'Напишите, почему переносим', field: 2 };
     upd = { due_date: v, due_moved: (Number(t.due_moved) || 0) + 1 };
     ev = 'Перенёс срок с ' + (tkDate(t.due_date) || '«без срока»') + ' на ' + tkDate(v) + ': ' + reason; kind = 'due';
     notify = [[t.executor_id, 'Срок перенесён на ' + tkDate(v) + ': ' + reason], [chk, 'Срок перенесён на ' + tkDate(v) + ': ' + reason]];
   }
   if (a === 'assign') {
     const p = tkPersonFromKey(v);
-    if ((!p.id && !p.name) || tkKeyOf(p.id, p.name) === tkKeyOf(t.executor_id, t.executor_name)) { box.innerHTML = ''; return; }
+    if ((!p.id && !p.name) || tkKeyOf(p.id, p.name) === tkKeyOf(t.executor_id, t.executor_name)) return { skip: true };
     upd = { executor_id: p.id, executor_name: p.name };
     ev = 'Передал: ' + tkWho(t.executor_id, t.executor_name) + ' → ' + p.name; kind = 'assign';
     notify = [[p.id, 'Вам передана задача: ' + t.title + (t.due_date ? ' (срок ' + tkDate(t.due_date) + ')' : '')]];
   }
   if (a === 'edit') {
-    upd = { kind: v, object_name: inp2.value || null, urgency: inp4.value, employee_id: v === 'Кадры' ? (Number(inp3.value) || null) : null };
+    upd = { kind: v, object_name: v2 || null, urgency: v4, employee_id: v === 'Кадры' ? (Number(v3) || null) : null };
     const ch = [];
     if (upd.kind !== t.kind) ch.push('тип: ' + upd.kind);
     if ((upd.object_name || '') !== (t.object_name || '')) ch.push('объект: ' + (upd.object_name || '—'));
     if (upd.urgency !== (t.urgency || 'normal')) ch.push('срочность: ' + TK_URG[upd.urgency].l);
     if ((upd.employee_id || null) !== (t.employee_id ? Number(t.employee_id) : null)) ch.push('сотрудник: ' + (upd.employee_id ? tkEmp(upd.employee_id).full_name : '—'));
-    if (!ch.length) { box.innerHTML = ''; return; }
+    if (!ch.length) return { skip: true };
     ev = 'Изменил ' + ch.join(', '); kind = 'edit';
   }
-  if (!upd) return;
+  if (!upd) return { skip: true };
+  await ctx.api.resource('crm_tasks').update({ filterByTk: t.id, values: upd });
+  await tkEvent(t.id, kind, ev);
+  notify.forEach(function(n) { tkNotify(n[0], title, n[1], t.id); });
+  Object.assign(t, upd);
+  return null;
+}
+const TK_DONE_MSG = { take: 'Задача в работе', done: 'Отправлено на проверку', close: 'Задача закрыта', reopen: 'Задача снова в работе', cancel: 'Задача отменена', due: 'Срок перенесён', assign: 'Задача передана', wait: 'Задача ждёт', resume: 'Задача снова в работе' };
+async function tkApply(m, t, a, btn) {
+  const box = m.querySelector('[data-actbox]');
+  const inp = box.querySelector('[data-in]'), inp2 = box.querySelector('[data-in2]'), inp3 = box.querySelector('[data-in3]'), inp4 = box.querySelector('[data-in4]');
+  const val = function(x) { return x ? x.value.trim() : ''; };
   if (btn) btn.disabled = true;
   try {
-    await ctx.api.resource('crm_tasks').update({ filterByTk: t.id, values: upd });
-    await tkEvent(t.id, kind, ev);
-    notify.forEach(function(n) { tkNotify(n[0], title, n[1], t.id); });
+    const res = await tkDo(t, a, val(inp), val(inp2), val(inp3), val(inp4));
+    if (res && res.err) { tkToast(res.err); const f = res.field === 2 ? inp2 : inp; if (f) f.focus(); if (btn) btn.disabled = false; return; }
+    if (res && res.skip) { box.innerHTML = ''; return; }
     await tkReload();
-    const fresh = tk.data.tasks.find(function(x) { return x.id === t.id; }) || Object.assign(t, upd);
+    const fresh = tk.data.tasks.find(function(x) { return x.id === t.id; }) || t;
     await tkRenderCard(m, fresh);
-    tkToast({ take: 'Задача в работе', done: 'Отправлено на проверку', close: 'Задача закрыта', reopen: 'Задача снова в работе', cancel: 'Задача отменена', due: 'Срок перенесён', assign: 'Задача передана' }[a] || 'Сохранено');
+    tkToast(TK_DONE_MSG[a] || 'Сохранено');
   } catch (e) { tkToast('Не удалось сохранить'); if (btn) btn.disabled = false; }
 }
 

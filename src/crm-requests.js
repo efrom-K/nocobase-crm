@@ -58,49 +58,49 @@ if (!document.getElementById('crm-req-style')) {
     .rq-late { color:#cf1322; font-weight:600; }
     #crm-req .rq-empty { color:#bfbfbf; padding:24px 0; text-align:center; }
     /* статистика */
-    /* статистика */
-    #crm-req .st { display:flex; flex-direction:column; gap:14px; }
-    #crm-req .st-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    #crm-req .st { display:flex; flex-direction:column; gap:16px; max-width:1240px; }
+    #crm-req .st-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    #crm-req .st-lbl { font-size:13px; color:#434343; font-weight:600; }
     #crm-req .st-bar .rq-view, #crm-req .st-ch .rq-view { margin-left:0; }
-    #crm-req .st-hint { font-size:12px; color:#8c8c8c; }
+    #crm-req .st-hint { font-size:12.5px; color:#595959; }
     #crm-req .st-tiles { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:10px; }
-    #crm-req .st-tile { border:1px solid #eceef2; border-radius:10px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .15s, box-shadow .15s; min-width:0; }
-    #crm-req .st-tile:hover { border-color:#b4bfd9; box-shadow:0 2px 8px rgba(16,24,40,.06); }
-    #crm-req .st-tl { font-size:12px; color:#8c8c8c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #crm-req .st-tv { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px; color:#1f1f1f; white-space:nowrap; }
-    #crm-req .st-tv small { font-size:13px; font-weight:500; color:#8c8c8c; }
-    #crm-req .st-tn { font-size:12px; color:#8c8c8c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #crm-req .st-card { border:1px solid #eceef2; border-radius:10px; background:#fff; padding:14px 16px; min-width:0; }
+    #crm-req .st-tile { border:1px solid #dfe3ea; border-radius:10px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .15s, box-shadow .15s; min-width:0; }
+    #crm-req .st-tile:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
+    #crm-req .st-tl { font-size:12.5px; color:#434343; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #crm-req .st-tv { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px; color:#141414; white-space:nowrap; }
+    #crm-req .st-tv small { font-size:13px; font-weight:600; color:#595959; }
+    #crm-req .st-tn { font-size:12.5px; color:#595959; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #crm-req .st-card { border:1px solid #dfe3ea; border-radius:10px; background:#fff; padding:14px 16px 12px; min-width:0; }
     #crm-req .st-ch { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
-    #crm-req .st-ct { font-size:15px; font-weight:700; margin-right:4px; }
+    #crm-req .st-ct { font-size:15px; font-weight:700; color:#141414; margin-right:4px; }
     #crm-req .st-scroll { overflow-x:auto; }
-    #crm-req table.st-t { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
-    #crm-req .st-t th { font-weight:500; color:#8c8c8c; font-size:12px; padding:6px 10px; border-bottom:1px solid #eceef2; white-space:nowrap; background:#fafbfc; }
-    #crm-req .st-t th.st-g { text-align:center; color:#595959; font-weight:600; text-transform:uppercase; letter-spacing:.04em; font-size:11px; border-left:1px solid #eceef2; }
-    #crm-req .st-t th.st-name { text-align:left; vertical-align:bottom; border-bottom:1px solid #eceef2; }
-    #crm-req .st-t td { padding:9px 10px; border-bottom:1px solid #f3f4f6; font-variant-numeric:tabular-nums; white-space:nowrap; }
-    #crm-req .st-t td.st-name { white-space:normal; min-width:180px; max-width:280px; font-weight:500; }
-    #crm-req .st-t .st-sep { border-left:1px solid #eceef2; }
-    #crm-req .st-t tr:last-child td { border-bottom:none; }
+    #crm-req table.st-t { width:auto; border-collapse:collapse; font-size:13.5px; color:#1f1f1f; }
+    #crm-req .st-t th { font-weight:600; color:#262626; font-size:12.5px; padding:8px 12px; background:#eef1f6; border-bottom:2px solid #c9d1df; white-space:nowrap; text-align:left; }
+    #crm-req .st-t th.n { text-align:right; }
+    #crm-req .st-t th.st-now { background:#e6ebf5; }
+    #crm-req .st-t td { padding:9px 12px; border-bottom:1px solid #e8ebf0; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500; }
+    #crm-req .st-t td.n { text-align:right; min-width:64px; }
+    #crm-req .st-t tbody tr:nth-child(even) td { background:#f8f9fb; }
+    #crm-req .st-t td.st-name { white-space:normal; width:260px; min-width:200px; font-weight:600; color:#141414; }
+    #crm-req .st-t .st-sep { border-left:2px solid #dfe3ea; }
     #crm-req .st-t tr.st-link { cursor:pointer; }
-    #crm-req .st-t tr.st-link:hover td { background:#f5f8ff; }
-    #crm-req .st-sub { font-size:11.5px; color:#8c8c8c; font-weight:400; margin-top:2px; line-height:1.35; }
-    #crm-req .st-mute { color:#c4c4c4; }
-    #crm-req .st-bad { display:inline-block; color:#cf1322; background:#fff1f0; border-radius:9px; padding:0 7px; font-weight:600; }
-    #crm-req .st-meter { display:inline-block; width:34px; height:5px; border-radius:3px; background:#eceef2; margin-right:6px; vertical-align:middle; overflow:hidden; }
-    #crm-req .st-meter i { display:block; height:100%; background:#1c2d58; border-radius:3px; }
-    #crm-req .st-leg { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#595959; }
-    #crm-req .st-leg i { width:10px; height:10px; border-radius:3px; display:inline-block; }
-    #crm-req .st-link-b { margin-left:auto; border:none; background:none; color:#1c2d58; font:inherit; font-size:12.5px; cursor:pointer; text-decoration:underline; }
-    #crm-req .st-chart { display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); gap:8px; align-items:end; height:150px; padding-top:6px; border-bottom:1px solid #eceef2; }
-    #crm-req .st-wk { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; cursor:default; border-radius:6px; }
-    #crm-req .st-wk:hover { background:#f5f8ff; }
-    #crm-req .st-bars { display:flex; align-items:flex-end; gap:2px; height:124px; }
-    #crm-req .st-bars i { display:block; width:14px; border-radius:4px 4px 0 0; position:relative; overflow:hidden; }
-    #crm-req .st-bars i.c { background:#3b5bdb; }
-    #crm-req .st-bars i.d { background:#13a8a8; }
-    #crm-req .st-bars i.d b { position:absolute; left:0; right:0; bottom:0; background:#0b7a7a; }
-    #crm-req .st-wl { font-size:11px; color:#8c8c8c; margin-top:4px; font-variant-numeric:tabular-nums; }
+    #crm-req .st-t tr.st-link:hover td { background:#eaf0ff; }
+    #crm-req .st-t td.st-pr { white-space:normal; min-width:200px; }
+    #crm-req .st-sub { font-size:12px; color:#595959; font-weight:400; margin-top:2px; line-height:1.35; }
+    #crm-req .st-mute { color:#a6a6a6; font-weight:400; }
+    #crm-req .st-bad { display:inline-block; color:#fff; background:#cf1322; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
+    #crm-req .st-badt { color:#cf1322; font-weight:700; }
+    #crm-req .st-ok { color:#237804; font-weight:700; }
+    #crm-req .st-warn { color:#ad6800; font-weight:700; }
+    #crm-req .st-chip { display:inline-block; background:#fff7e6; color:#873800; border:1px solid #ffd591; border-radius:10px; padding:0 8px; font-size:12px; line-height:20px; margin:1px 0; font-weight:600; }
+    #crm-req .st-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:#595959; margin-top:8px; }
+    #crm-req .st-legend span { width:12px; height:12px; border-radius:3px; display:inline-block; margin-left:10px; }
+    #crm-req .st-legend span:first-child { margin-left:0; }
+    #crm-req .st-legend .st-now { background:#e6ebf5; border:1px solid #c9d1df; }
+    #crm-req .st-legend .st-per { background:#eef1f6; border:1px solid #c9d1df; }
+    #crm-req .st-wk th:first-child { background:#eef1f6; min-width:170px; }
+    #crm-req .st-wk tbody th { background:#f8f9fb; border-bottom:1px solid #e8ebf0; font-weight:600; color:#262626; cursor:help; }
+    #crm-req .st-wk td.n { min-width:58px; }
     @media (max-width: 1100px) { #crm-req .st-tiles { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 600px) { #crm-req .st-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
     #crm-req .rq-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
@@ -208,7 +208,7 @@ const RQ_OPEN = ['new', 'in_work', 'waiting'];
 const RQ_URG = { normal: { l: 'Обычная', d: 5, c: '#595959', hint: '5 рабочих дней' }, urgent: { l: 'Срочно', d: 1, c: '#d46b08', hint: '1 рабочий день' }, emergency: { l: 'Авария', d: 0, c: '#cf1322', hint: 'сегодня, сразу уведомление старшему управляющему' } };
 const RQ_KINDS = ['Ремонт и эксплуатация', 'Вопрос арендатора', 'Расторжение и выезд', 'Платёж, долг, штраф', 'Проверка, пожарная безопасность', 'Коммуналка, счётчики', 'Прочее'];
 const RQ_WAIT = ['ответа арендатора', 'подрядчика', 'оплаты', 'согласования руководства', 'другое'];
-const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr', weeksTable: false };
+const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr' };
 try { if (localStorage.getItem('crm-req-view') === 'board') rq.view = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
 function rqEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -377,7 +377,6 @@ function rqOnClick(e) {
   if (qk) { rq.quick = qk.getAttribute('data-quick'); rqRenderList(); return; }
   const sb = c('[data-by]');
   if (sb) { rq.statsBy = sb.getAttribute('data-by'); rqRenderStats(); return; }
-  if (c('[data-act="weeks"]')) { rq.weeksTable = !rq.weeksTable; rqRenderStats(); return; }
   const pr = c('[data-period]');
   if (pr) { rq.statsDays = Number(pr.getAttribute('data-period')); rqRenderStats(); return; }
   if (c('[data-act="xlsx"]')) { try { rqExportStats(); } catch (err) { rqToast('Не удалось выгрузить'); } return; }
@@ -797,7 +796,11 @@ function rqStats() {
     byKind: group(function(r) { return r.kind || null; }, function(k) { return k; }),
     weeks: weeks.map(function(w) {
       const done = reqs.filter(function(r) { return inW(r.done_at, w); });
-      return { from: w[0], created: reqs.filter(function(r) { return inW(r.createdAt, w); }).length, done: done.length, ontime: done.filter(inTime).length };
+      const openEnd = reqs.filter(function(r) {   // висело открытыми на конец недели
+        const c = String(r.createdAt || '').slice(0, 10), d = String(r.done_at || '').slice(0, 10), x = String(r.closed_at || '').slice(0, 10);
+        return c && c < w[1] && !(d && d < w[1]) && !(x && x < w[1]);
+      }).length;
+      return { from: w[0], created: reqs.filter(function(r) { return inW(r.createdAt, w); }).length, done: done.length, ontime: done.filter(inTime).length, openEnd: openEnd };
     })
   };
 }
@@ -806,13 +809,21 @@ const RQ_COLS_HINT = { open: 'Сейчас', late: 'Сейчас, срок пр�
   med: 'Медиана дней от создания до выполнения (за период)', moved: 'Заявки за период, срок которых переносили', esc: 'Эскалации старшему управляющему за период', reopen: 'Сколько раз за период автор вернул «не выполнено»' };
 function rqCell(x, k) { const v = x[k]; return v === null || v === undefined ? '—' : k === 'med' ? Math.round(v * 10) / 10 : v; }
 const RQ_BY = [['mgr', 'Управляющие', 'byMgr', null], ['obj', 'Объекты', 'byObj', 'obj'], ['resp', 'Ответственные', 'byResp', 'resp'], ['kind', 'Типы заявок', 'byKind', 'kind']];
-const RQ_GROUPS = [['Сейчас', ['open', 'late', 'em']], ['За период', ['created', 'done', 'ontime', 'med']], ['Проблемы', ['moved', 'esc', 'reopen']]];
+const RQ_MAIN = [['open', 'Открыто', 'now'], ['late', 'Просрочено', 'now'], ['em', 'Аварии', 'now'], ['created', 'Поступило', 'per'], ['done', 'Выполнено', 'per'], ['ontime', 'В срок', 'per'], ['med', 'Медиана, дн.', 'per']];
 function rqStatCell(x, k) {
   const v = rqCell(x, k);
   if (v === '—') return '<span class="st-mute">—</span>';
   if (k === 'late') return v ? '<span class="st-bad">' + v + '</span>' : '<span class="st-mute">0</span>';
-  if (k === 'ontime') return '<span class="st-meter"><i style="width:' + v + '%;"></i></span>' + v + '%';
+  if (k === 'em') return v ? '<span class="st-bad">⚠ ' + v + '</span>' : '<span class="st-mute">0</span>';
+  if (k === 'ontime') return '<span class="' + (v >= 80 ? 'st-ok' : v >= 50 ? 'st-warn' : 'st-badt') + '">' + v + '%</span>';
   return v === 0 ? '<span class="st-mute">0</span>' : v;
+}
+function rqProblems(x) {
+  const p = [];
+  if (x.moved) p.push('переносили срок: ' + x.moved);
+  if (x.reopen) p.push('возвраты: ' + x.reopen);
+  if (x.esc) p.push('эскалации: ' + x.esc);
+  return p.length ? p.map(function(t) { return '<span class="st-chip">' + t + '</span>'; }).join(' ') : '<span class="st-mute">нет</span>';
 }
 async function rqRenderStats() {
   const body = document.getElementById('rq-body');
@@ -828,46 +839,45 @@ async function rqRenderStats() {
     ['Открыто сейчас', a.open, a.late ? '<span class="st-bad">просрочено ' + a.late + '</span>' : 'просрочек нет', { quick: 'open' }],
     ['Аварии в работе', a.em, 'срочных: ' + urgent, { quick: 'open' }],
     ['Поступило', a.created, 'за ' + per, { quick: 'all' }],
-    ['Выполнено', a.done, 'в срок ' + (a.ontime === null ? '—' : a.ontime + '%'), { quick: 'closed' }],
-    ['Срок выполнения', a.med === null ? '—' : rqCell(a, 'med') + '<small> ' + rqNoun(Math.round(a.med), 'день', 'дня', 'дней') + '</small>', 'медиана', { quick: 'closed' }],
-    ['Возвраты / эскалации', a.reopen + '<small> / </small>' + a.esc, 'переносили срок: ' + a.moved, { quick: 'open' }]
+    ['Выполнено', a.done, a.ontime === null ? 'за ' + per : 'в срок <b>' + a.ontime + '%</b>', { quick: 'closed' }],
+    ['Срок выполнения', a.med === null ? '—' : rqCell(a, 'med') + '<small> ' + rqNoun(Math.round(a.med), 'день', 'дня', 'дней') + '</small>', 'медиана за ' + per, { quick: 'closed' }],
+    ['Проблемы', a.moved + a.reopen + a.esc, 'перенос ' + a.moved + ' · возврат ' + a.reopen + ' · эскал. ' + a.esc, { quick: 'open' }]
   ];
   const by = RQ_BY.find(function(b) { return b[0] === rq.statsBy; }) || RQ_BY[0];
   const rows = st[by[2]];
-  const table = rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th rowspan="2" class="st-name">' + by[1].replace('Типы заявок', 'Тип') + '</th>'
-      + RQ_GROUPS.map(function(g) { return '<th colspan="' + g[1].length + '" class="st-g">' + g[0] + '</th>'; }).join('') + '</tr><tr>'
-      + RQ_GROUPS.map(function(g) { return g[1].map(function(k, n) { const c = RQ_COLS_STAT.find(function(z) { return z[0] === k; }); return '<th class="n' + (n === 0 ? ' st-sep' : '') + '" title="' + RQ_COLS_HINT[k] + '">' + c[1] + '</th>'; }).join(''); }).join('') + '</tr></thead><tbody>'
+  const table = rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th class="st-name">' + by[1].replace('Типы заявок', 'Тип') + '</th>'
+      + RQ_MAIN.map(function(c, n) { return '<th class="n' + (n === 3 ? ' st-sep' : '') + ' st-' + c[2] + '" title="' + RQ_COLS_HINT[c[0]] + '">' + c[1] + '</th>'; }).join('')
+      + '<th class="st-sep" title="Переносы срока, возвраты на доработку и эскалации старшему за период">Проблемы за период</th></tr></thead><tbody>'
       + rows.map(function(x) {
           const go = {}; if (by[3]) go[by[3]] = x.k;
           return '<tr' + (by[3] ? ' data-go="' + rqEsc(JSON.stringify(go)) + '" class="st-link"' : '') + '><td class="st-name"><div>' + rqEsc(x.label) + '</div>'
             + (x.objects ? '<div class="st-sub">' + rqEsc(x.objects.join(', ') || 'объектов нет') + '</div>' : '') + '</td>'
-            + RQ_GROUPS.map(function(g) { return g[1].map(function(k, n) { return '<td class="n' + (n === 0 ? ' st-sep' : '') + '">' + rqStatCell(x, k) + '</td>'; }).join(''); }).join('') + '</tr>';
+            + RQ_MAIN.map(function(c, n) { return '<td class="n' + (n === 3 ? ' st-sep' : '') + '">' + rqStatCell(x, c[0]) + '</td>'; }).join('')
+            + '<td class="st-sep st-pr">' + rqProblems(x) + '</td></tr>';
         }).join('') + '</tbody></table></div>'
+      + '<div class="st-legend"><span class="st-now"></span>сейчас, на ' + rqDate(rqToday()) + '<span class="st-per"></span>за ' + per + '</div>'
     : '<div class="rq-empty">Данных пока нет</div>';
-  // по неделям: столбики «поступило» и «выполнено» (тёмная часть — в срок); точные числа — в подсказке и в виде таблицы
-  const wmax = Math.max(1, Math.max.apply(null, st.weeks.map(function(w) { return Math.max(w.created, w.done); })));
-  const chart = rq.weeksTable
-    ? '<table class="st-t"><thead><tr><th class="st-name">Неделя с</th><th class="n">Поступило</th><th class="n">Выполнено</th><th class="n">Из них в срок</th></tr></thead><tbody>'
-      + st.weeks.map(function(w) { return '<tr><td class="st-name">' + rqDate(w.from) + '</td><td class="n">' + w.created + '</td><td class="n">' + w.done + '</td><td class="n">' + w.ontime + '</td></tr>'; }).join('') + '</tbody></table>'
-    : '<div class="st-chart">' + st.weeks.map(function(w) {
-        const h = function(n) { return n ? Math.max(4, Math.round(120 * n / wmax)) : 0; };
-        const tip = 'Неделя с ' + rqDate(w.from) + '\nПоступило: ' + w.created + '\nВыполнено: ' + w.done + ' (в срок ' + w.ontime + ')';
-        return '<div class="st-wk" title="' + rqEsc(tip) + '"><div class="st-bars"><i class="c" style="height:' + h(w.created) + 'px;"></i>'
-          + '<i class="d" style="height:' + h(w.done) + 'px;"><b style="height:' + (w.done ? Math.round(100 * w.ontime / w.done) : 0) + '%;"></b></i></div>'
-          + '<div class="st-wl">' + rqDate(w.from).slice(0, 5) + '</div></div>';
-      }).join('') + '</div>';
+  // неделя за неделей: растёт ли очередь — поступило против выполнено, разница, сколько висит на конец недели
+  const W = st.weeks;
+  const wrow = function(title, fn, hint) { return '<tr><th title="' + (hint || '') + '">' + title + '</th>' + W.map(function(w, i) { return '<td class="n">' + fn(w, i) + '</td>'; }).join('') + '</tr>'; };
+  const weeks = '<div class="st-scroll"><table class="st-t st-wk"><thead><tr><th>Неделя с</th>' + W.map(function(w, i) { return '<th class="n">' + (i === W.length - 1 ? 'эта' : rqDate(w.from).slice(0, 5)) + '</th>'; }).join('') + '</tr></thead><tbody>'
+    + wrow('Поступило', function(w) { return w.created || '<span class="st-mute">0</span>'; })
+    + wrow('Выполнено', function(w) { return w.done || '<span class="st-mute">0</span>'; })
+    + wrow('Очередь за неделю', function(w) { const d = w.created - w.done; return d > 0 ? '<span class="st-badt">+' + d + '</span>' : d < 0 ? '<span class="st-ok">−' + (-d) + '</span>' : '<span class="st-mute">0</span>'; }, 'Поступило минус выполнено: плюс — очередь растёт, минус — разбирается')
+    + wrow('Открыто на конец', function(w) { return '<b>' + w.openEnd + '</b>'; }, 'Сколько заявок оставалось незакрытыми в конце недели')
+    + wrow('Выполнено в срок', function(w) { if (!w.done) return '<span class="st-mute">—</span>'; const p = Math.round(100 * w.ontime / w.done); return '<span class="' + (p >= 80 ? 'st-ok' : p >= 50 ? 'st-warn' : 'st-badt') + '">' + p + '%</span>'; })
+    + '</tbody></table></div>';
+  const first = W[0].openEnd, last = W[W.length - 1].openEnd;
+  const trend = last > first ? '<span class="st-badt">очередь выросла с ' + first + ' до ' + last + '</span>' : last < first ? '<span class="st-ok">очередь сократилась с ' + first + ' до ' + last + '</span>' : 'очередь не изменилась: ' + last;
   body.innerHTML = '<div class="st">'
-    + '<div class="st-bar"><div class="rq-view">' + RQ_PERIODS.map(function(p) { return '<button data-period="' + p[0] + '"' + (rq.statsDays === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'
-    + '<span class="st-hint">«Сейчас» — на сегодня, ' + rqDate(rqToday()) + '; остальное — за выбранный период</span>'
+    + '<div class="st-bar"><span class="st-lbl">Период</span><div class="rq-view">' + RQ_PERIODS.map(function(p) { return '<button data-period="' + p[0] + '"' + (rq.statsDays === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'
     + '<button class="rq-btn" data-act="xlsx" style="margin-left:auto;">⬇ Выгрузить в Excel</button></div>'
     + '<div class="st-tiles">' + tiles.map(function(t) {
         return '<div class="st-tile" data-go="' + rqEsc(JSON.stringify(t[3])) + '"><div class="st-tl">' + t[0] + '</div><div class="st-tv">' + t[1] + '</div><div class="st-tn">' + t[2] + '</div></div>';
       }).join('') + '</div>'
     + '<div class="st-card"><div class="st-ch"><div class="st-ct">В разрезе</div><div class="rq-view">' + RQ_BY.map(function(b) { return '<button data-by="' + b[0] + '"' + (by[0] === b[0] ? ' class="on"' : '') + '>' + b[1] + '</button>'; }).join('') + '</div>'
-    + '<span class="st-hint">' + (by[3] ? 'клик по строке — список этих заявок · ' : '') + 'наведите на столбец — пояснение</span></div>' + table + '</div>'
-    + '<div class="st-card"><div class="st-ch"><div class="st-ct">По неделям</div>'
-    + (rq.weeksTable ? '' : '<span class="st-leg"><i style="background:#3b5bdb;"></i>Поступило</span><span class="st-leg"><i style="background:#13a8a8;"></i>Выполнено</span><span class="st-leg"><i style="background:#0b7a7a;"></i>из них в срок</span>')
-    + '<button class="st-link-b" data-act="weeks">' + (rq.weeksTable ? 'показать графиком' : 'показать таблицей') + '</button></div>' + chart + '</div>'
+    + (by[3] ? '<span class="st-hint">клик по строке — список этих заявок</span>' : '') + '</div>' + table + '</div>'
+    + '<div class="st-card"><div class="st-ch"><div class="st-ct">Неделя за неделей</div><span class="st-hint">за 8 недель ' + trend + '</span></div>' + weeks + '</div>'
     + '</div>';
 }
 
@@ -953,7 +963,7 @@ function rqExportStats() {
     { name: 'По объектам', rows: tab('Объект', st.byObj) },
     { name: 'По ответственным', rows: tab('Ответственный', st.byResp) },
     { name: 'По типам', rows: tab('Тип', st.byKind) },
-    { name: 'По неделям', rows: [['Неделя с', 'Создано', 'Выполнено', 'Из них в срок']].concat(st.weeks.map(function(w) { return [rqDate(w.from), w.created, w.done, w.ontime]; })) },
+    { name: 'По неделям', rows: [['Неделя с', 'Поступило', 'Выполнено', 'Очередь за неделю (+ растёт)', 'Открыто на конец недели', 'Из них в срок', 'В срок, %']].concat(st.weeks.map(function(w) { return [rqDate(w.from), w.created, w.done, w.created - w.done, w.openEnd, w.ontime, w.done ? Math.round(100 * w.ontime / w.done) : '']; })) },
     { name: 'Заявки', rows: list }
   ]);
   const l = document.createElement('a');

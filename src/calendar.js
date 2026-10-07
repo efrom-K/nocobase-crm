@@ -43,7 +43,7 @@ async function cLoad() {
     try { cal.me = ((await (await fetch('/api/auth:check', { headers: { Authorization: 'Bearer ' + cToken() } })).json()) || {}).data || {}; } catch (e) { cal.me = {}; }
   }
   const r = await Promise.all([
-    cList('rental_contracts', { fields: ['id', 'tenant_name', 'object_name', 'termination_date'] }),
+    cList('rental_contracts', { fields: ['id', 'contract_number', 'tenant_name', 'object_name', 'termination_date'] }),
     cList('contract_price_periods', { fields: ['id', 'contract_ref_id', 'date_from'], filter: { contract_type: 'active' } }),
     cList('object_requests', { fields: ['id', 'title', 'object_name', 'due_date', 'status', 'responsible_id', 'author_id'], filter: { status: { $in: ['new', 'in_work', 'waiting'] } } }),
     cList('crm_tasks', { fields: ['id', 'title', 'due_date', 'status', 'executor_id', 'controller_id', 'author_id'], filter: { status: { $in: ['new', 'in_work', 'waiting'] } } }),
@@ -69,7 +69,7 @@ async function cLoad() {
   const empName = {}; (emps || []).forEach(function(e) { empName[e.id] = e.full_name; });
   const tenantOf = {}; (contracts || []).forEach(function(c) { tenantOf[c.id] = c.tenant_name || c.object_name; });
 
-  if (contracts) { avail.contracts = 1; contracts.forEach(function(c) { add('contracts', c.termination_date, 'Расторжение: ' + (c.tenant_name || 'договор #' + c.id), P_REG + '?open=active:' + c.id, { sub: c.object_name, canLate: false }); }); }
+  if (contracts) { avail.contracts = 1; contracts.forEach(function(c) { add('contracts', c.termination_date, 'Расторжение: ' + (c.tenant_name || 'договор #' + c.id), P_REG + '?open=active:' + c.id, { sub: [c.object_name, c.contract_number ? '№' + c.contract_number : ''].filter(Boolean).join(' · '), canLate: false }); }); }
   if (prices) prices.forEach(function(p) { add('contracts', p.date_from, 'Новая ставка' + (tenantOf[p.contract_ref_id] ? ': ' + tenantOf[p.contract_ref_id] : ''), P_REG + '?open=active:' + p.contract_ref_id, { canLate: false }); });
   if (reqs) { avail.requests = 1; reqs.forEach(function(x) { add('requests', x.due_date, 'Заявка №' + x.id + ': ' + (x.title || ''), P_REQ + '?open=req:' + x.id, { sub: x.object_name, mine: Number(x.responsible_id) === me || Number(x.author_id) === me }); }); }
   if (tasks) { avail.tasks = 1; tasks.forEach(function(x) { add('tasks', x.due_date, 'Задача №' + x.id + ': ' + (x.title || ''), P_TSK + '?open=task:' + x.id, { mine: [x.executor_id, x.controller_id, x.author_id].map(Number).indexOf(me) !== -1 }); }); }

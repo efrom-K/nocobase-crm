@@ -127,6 +127,17 @@ if (!document.getElementById('crm-aho-style')) {
       .hr-pick { columns:1; }
     }
   
+    .hr-board { display:grid; grid-template-columns:repeat(6, minmax(190px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; align-items:start; }
+    .hr-bcol { background:#f7f8fa; border-radius:8px; padding:8px; min-height:120px; border:2px dashed transparent; }
+    .hr-bcol.drop { border-color:#1c2d58; background:#eef1f8; }
+    .hr-bcol-h { display:flex; align-items:center; font-weight:600; font-size:13px; padding:2px 4px 8px; }
+    .hr-bcol-h b { margin-left:auto; color:#8c8c8c; font-variant-numeric:tabular-nums; }
+    .hr-bcol-n { font-size:11.5px; color:#8c8c8c; padding:4px; }
+    .hr-kc { background:#fff; border:1px solid #eceef2; border-radius:7px; padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12.5px; }
+    .hr-kc:hover { border-color:#b4bfd9; }
+    .hr-kc.drag { opacity:.4; }
+    .hr-kc-t { font-weight:600; font-size:13.5px; margin-bottom:3px; overflow-wrap:anywhere; }
+    .hr-kc-s { color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .hr-chip.grey { background:#f5f5f5; color:#8c8c8c; }
     .hr-st { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
     .hr-st button { border:1px solid #d9d9d9; background:#fff; border-radius:14px; padding:3px 11px; font:inherit; font-size:12.5px; cursor:pointer; color:#595959; }
@@ -170,7 +181,7 @@ const A_DOC_KINDS = {
   routine: ['Инструкция', 'Другое']
 };
 const A_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-const ah = { tab: 'home', d: null, me: null, approver: null, year: new Date().getFullYear(), expSt: 'open', mailKind: '', fireObj: '', poaLe: '', mObj: '', moneyView: 'exp',
+const ah = { tab: 'home', d: null, me: null, approver: null, year: new Date().getFullYear(), expSt: 'open', mailKind: '', fireObj: '', poaLe: '', mObj: '', moneyView: 'exp', expLayout: 'list',
   att: { view: 'day', day: null, month: null, ev: [], cardsOnlyFree: false } };
 
 // ---------- мелочи ----------
@@ -598,6 +609,7 @@ async function aDone(id) {
 }
 
 // ---------- счета и расходы ----------
+try { if (localStorage.getItem('crm-aho-exp-layout') === 'board') ah.expLayout = 'board'; } catch (e) { /* хранилище недоступно — таблица */ }
 function aExpChip(x) { return '<span class="hr-chip ' + (A_EXP_C[x.status] || '') + '">' + hEsc(A_EXP_ST[x.status] || 'Новый') + '</span>'; }
 function aRenderMoney() {
   const v = ah.moneyView;
@@ -609,8 +621,9 @@ function aRenderMoney() {
   const cnt = function(k) { return ah.d.exps.filter(function(x) { return !groups[k] || groups[k].indexOf(x.status || 'new') !== -1; }).length; };
   const list = ah.d.exps.filter(function(x) { return !groups[ah.expSt] || groups[ah.expSt].indexOf(x.status || 'new') !== -1; });
   aBody().innerHTML = '<div class="hr-bar">' + seg + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
-    + '<div class="hr-flow">' + A_FLOW.map(function(s) { return '<span>' + A_EXP_ST[s] + '</span>'; }).join('<span style="background:none;padding:2px 0;">→</span>') + '</div>'
-    + '<div class="hr-st">' + Object.keys(gl).map(function(k) { return '<button data-act="expst" data-v="' + k + '"' + (ah.expSt === k ? ' class="on"' : '') + '>' + gl[k] + '<b>' + cnt(k) + '</b></button>'; }).join('') + '</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div class="hr-flow" style="flex:1;">' + A_FLOW.map(function(s) { return '<span>' + A_EXP_ST[s] + '</span>'; }).join('<span style="background:none;padding:2px 0;">→</span>') + '</div>'
+    + '<div class="hr-seg">' + [['list', 'Таблица'], ['board', 'Доска']].map(function(x) { return '<button data-act="explayout" data-v="' + x[0] + '"' + (ah.expLayout === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div></div>'
+    + (ah.expLayout === 'board' ? aExpBoard() : '<div class="hr-st">' + Object.keys(gl).map(function(k) { return '<button data-act="expst" data-v="' + k + '"' + (ah.expSt === k ? ' class="on"' : '') + '>' + gl[k] + '<b>' + cnt(k) + '</b></button>'; }).join('') + '</div>'
     + (list.length ? '<div class="hr-card"><table><thead><tr><th>Что</th><th>Поставщик</th><th>Статья</th><th>Юрлицо / объект</th><th class="n">Сумма</th><th>Оплатить до</th><th>Статус</th></tr></thead><tbody>'
       + list.map(function(x) {
         const a = aArt(x.article_id);
@@ -618,8 +631,76 @@ function aRenderMoney() {
           + '<td>' + hEsc([aLeName(x.legal_entity_id), x.object_name].filter(Boolean).join(' · ')) + '</td><td class="n">' + hMoney(x.amount) + '</td>'
           + '<td>' + (['new', 'approval', 'approved'].indexOf(x.status || 'new') !== -1 ? aDueChip(x.due_on, 3) : hEsc(hDate(x.due_on))) + '</td><td>' + aExpChip(x) + '</td></tr>';
       }).join('') + '</tbody></table></div>'
-      : '<div class="hr-empty"><b>Счетов нет</b>«+ Счёт» — заведите счёт, прикрепите PDF и отправьте на согласование.</div>');
+      : '<div class="hr-empty"><b>Счетов нет</b>«+ Счёт» — заведите счёт, прикрепите PDF и отправьте на согласование.</div>'));
 }
+// доска счетов: колонки = шаги A_FLOW (отклонённые — в «Новый», их снова отправляют на согласование).
+// Перетаскивание — только на следующий шаг и через aExpStep: те же проверки (PDF приложен, согласует только согласующий) и уведомления.
+// Отклонить — только из карточки: нужна причина.
+const A_EXP_DONE_DAYS = 30;
+function aExpBoard() {
+  const d = new Date(); d.setDate(d.getDate() - A_EXP_DONE_DAYS);
+  const since = hIso(d);
+  return '<div class="hr-board" data-exp-board>' + A_FLOW.map(function(col) {
+    let items = ah.d.exps.filter(function(x) { const s = x.status || 'new'; return col === 'new' ? (s === 'new' || s === 'rejected') : s === col; });
+    const all = items.length;
+    if (col === 'handed') items = items.filter(function(x) { return hD(x.handed_on || x.updatedAt) >= since; });
+    items.sort(function(a, b) { return String(a.due_on || '9').localeCompare(String(b.due_on || '9')) || b.id - a.id; });
+    return '<div class="hr-bcol" data-col="' + col + '"><div class="hr-bcol-h">' + A_EXP_ST[col] + '<b>' + items.length + '</b></div>'
+      + items.map(function(x) {
+        const a = aArt(x.article_id);
+        return '<div class="hr-kc" draggable="true" data-rec="exp:' + x.id + '"><div class="hr-kc-t">' + hEsc(x.title) + (aFilesOf('exp', x.id).length ? ' 📎' : '') + '</div>'
+          + '<div class="hr-kc-s"><b style="color:#262626;">' + hMoney(x.amount) + '</b>' + (x.supplier ? ' · ' + hEsc(x.supplier) : '') + '</div>'
+          + '<div class="hr-kc-s">' + (x.status === 'rejected' ? '<span class="hr-chip red">отклонён</span> ' : '') + (['new', 'approval', 'approved'].indexOf(x.status || 'new') !== -1 && x.due_on ? aDueChip(x.due_on, 3) : hEsc(a ? a.name : '')) + '</div></div>';
+      }).join('')
+      + (all > items.length ? '<div class="hr-bcol-n">Ещё ' + (all - items.length) + ' старше ' + A_EXP_DONE_DAYS + ' дней — в таблице</div>' : '') + '</div>';
+  }).join('') + '</div>';
+}
+const A_EXP_NEXT = { new: 'send', rejected: 'send', approval: 'approve', approved: 'paid', paid: 'docs', docs: 'handed' };
+async function aExpDrop(id, col) {
+  const x = aFind(ah.d.exps, id);
+  if (!x) return;
+  const s = x.status || 'new';
+  if (col === s || (col === 'new' && s === 'rejected')) return;
+  const step = A_EXP_NEXT[s];
+  if (!step || A_FLOW[A_FLOW.indexOf(s === 'rejected' ? 'new' : s) + 1] !== col) { hToast('Счёт двигается только на следующий шаг: ' + (step ? A_EXP_ST[A_FLOW[A_FLOW.indexOf(s === 'rejected' ? 'new' : s) + 1]] : 'он уже на последнем')); return; }
+  if (step === 'approve' && !aIsApprover()) { hToast('Согласовать может только согласующий'); return; }
+  const m = aOpenExp(x);
+  m.style.display = 'none';
+  await aExpStep(x, step, m);
+  if (document.body.contains(m)) m.remove();   // шаг не прошёл (например, нет PDF) — подсказку уже показали
+}
+(function() {
+  const root = aRoot();
+  let dragId = null;
+  const colOf = function(e) { const c = e.target.closest ? e.target.closest('.hr-bcol') : null; return c && c.closest('[data-exp-board]') ? c : null; };
+  root.addEventListener('dragstart', function(e) {
+    const k = e.target.closest ? e.target.closest('.hr-kc[data-rec^="exp:"]') : null;
+    if (!k) return;
+    dragId = Number(k.getAttribute('data-rec').split(':')[1]);
+    k.classList.add('drag');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(dragId));
+  });
+  root.addEventListener('dragend', function() {
+    dragId = null;
+    root.querySelectorAll('.hr-kc.drag, .hr-bcol.drop').forEach(function(x) { x.classList.remove('drag', 'drop'); });
+  });
+  root.addEventListener('dragover', function(e) {
+    const c = colOf(e);
+    if (!c || dragId == null) return;
+    e.preventDefault();
+    root.querySelectorAll('.hr-bcol.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
+    c.classList.add('drop');
+  });
+  root.addEventListener('drop', function(e) {
+    const c = colOf(e);
+    if (!c || dragId == null) return;
+    e.preventDefault();
+    const id = dragId;
+    c.classList.remove('drop');
+    aExpDrop(id, c.getAttribute('data-col'));
+  });
+})();
 // кнопки шага в карточке счёта: кто что может сделать сейчас
 function aExpSteps(x) {
   if (!x || !x.id) return '';
@@ -644,6 +725,7 @@ function aOpenExp(x, preset) {
   m.querySelectorAll('[data-step]').forEach(function(b) {
     b.addEventListener('click', function() { aExpStep(x, b.getAttribute('data-step'), m); });
   });
+  return m;
 }
 async function aExpStep(x, step, m) {
   const t = hToday(), v = {};
@@ -1022,6 +1104,7 @@ aRoot().addEventListener('click', function(e) {
     if (a === 'newcar') return aOpenCar(null);
     if (a === 'newfine') return aOpenFine(null);
     if (a === 'mv') { ah.moneyView = act.getAttribute('data-v'); return aRenderMoney(); }
+    if (a === 'explayout') { ah.expLayout = act.getAttribute('data-v'); try { localStorage.setItem('crm-aho-exp-layout', ah.expLayout); } catch (err) { /* не запомним — не страшно */ } return aRenderMoney(); }
     if (a === 'expst') { ah.expSt = act.getAttribute('data-v'); return aRenderMoney(); }
     if (a === 'mailkind') { ah.mailKind = act.getAttribute('data-v'); return aRenderMail(); }
     if (a === 'year') { ah.year += Number(act.getAttribute('data-d')); return aRenderMoney(); }

@@ -27,6 +27,21 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-view.on { border-color:#1c2d58; background:#eef1f8; }
     .tk-view.on .l { color:#142142; font-weight:600; }
     .tk-view.bad .n { color:#cf1322; }
+    .tk-layout { display:flex; gap:2px; background:#f5f5f5; border-radius:6px; padding:2px; }
+    .tk-layout button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
+    .tk-layout button.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    .tk-board { display:grid; grid-template-columns:repeat(5, minmax(220px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; align-items:start; }
+    .tk-col { background:#f7f8fa; border-radius:8px; padding:8px; min-height:120px; border:2px dashed transparent; }
+    .tk-col.drop { border-color:#1c2d58; background:#eef1f8; }
+    .tk-col-h { display:flex; align-items:center; gap:6px; font-weight:600; font-size:13px; padding:2px 4px 8px; }
+    .tk-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); }
+    .tk-col-h b { margin-left:auto; color:#8c8c8c; font-variant-numeric:tabular-nums; }
+    .tk-col-n { font-size:11.5px; color:#8c8c8c; padding:4px; }
+    .tk-kc { background:#fff; border:1px solid #eceef2; border-left:4px solid var(--c); border-radius:7px; padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12.5px; }
+    .tk-kc:hover { border-color:#b4bfd9; border-left-color:var(--c); }
+    .tk-kc.drag { opacity:.4; }
+    .tk-kc-t { font-weight:600; font-size:13.5px; margin-bottom:3px; overflow-wrap:anywhere; }
+    .tk-kc-s { color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .tk-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
     .tk select, .tk input[type=text], .tk input[type=date], .tk textarea, .tk-modal select, .tk-modal input[type=text], .tk-modal input[type=date], .tk-modal textarea {
       border:1px solid #d9d9d9; border-radius:6px; padding:7px 10px; font:inherit; font-size:13.5px; background:#fff; color:#262626; box-sizing:border-box; }
@@ -149,7 +164,8 @@ const TK_WAIT = ['ответа коллеги', 'ответа арендатор
 const TK_HR_TPL = ['Отпуск', 'Больничный', 'Приём на работу', 'Увольнение', 'Перевод / смена должности', 'Командировка', 'Отгул'];
 const TK_HR_DEPT = 'HR служба персонала';
 const TK_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
-const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50 };
+const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, layout: 'list' };
+try { if (localStorage.getItem('crm-tasks-layout') === 'board') tk.layout = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
 function tkEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function tkToken() { try { return localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return null; } }
@@ -354,6 +370,7 @@ function tkRenderListShell() {
     + '<select data-f="kind"><option value="">Любой тип</option>' + TK_KINDS.map(function(k) { return '<option' + (tk.kind === k ? ' selected' : '') + '>' + tkEsc(k) + '</option>'; }).join('') + '</select>'
     + '<select data-f="obj"><option value="">Любой объект</option><option value="-"' + (tk.obj === '-' ? ' selected' : '') + '>— без объекта —</option>' + d.objects.map(function(o) { return '<option' + (tk.obj === o.name ? ' selected' : '') + '>' + tkEsc(o.name) + '</option>'; }).join('') + '</select>'
     + '<button class="tk-reset" data-act="reset"' + (tkHasFilter() ? '' : ' style="display:none;"') + '>Сбросить фильтры</button>'
+    + '<div class="tk-layout" style="margin-left:auto;">' + [['list', 'Список'], ['board', 'Доска']].map(function(v) { return '<button data-layout="' + v[0] + '"' + (tk.layout === v[0] ? ' class="on"' : '') + '>' + v[1] + '</button>'; }).join('') + '</div>'
     + '</div><div class="tk-list" data-tk-list></div>';
   tkRenderList();
 }
@@ -370,6 +387,7 @@ function tkFiltered() {
 function tkRenderList() {
   const base = tkFiltered();
   const rs = tkRoot().querySelector('[data-act="reset"]'); if (rs) rs.style.display = tkHasFilter() ? '' : 'none';
+  if (tk.layout === 'board') { tkRenderBoard(base); return; }
   tkRoot().querySelector('[data-tk-views]').innerHTML = TK_VIEWS.map(function(v) {
     const n = v[2](base).length;
     return '<button class="tk-view' + (tk.view === v[0] ? ' on' : '') + ((v[0] === 'late' || v[0] === 'check') && n ? ' bad' : '') + '" data-view="' + v[0] + '"><span class="n">' + n + '</span><span class="l">' + v[1] + '</span></button>';
@@ -406,6 +424,8 @@ function tkOnClick(e) {
   if (c('[data-act="new"]')) { tkOpenNew({}); return; }
   if (c('[data-act="more"]')) { tk.limit += 100; tkRenderList(); return; }
   if (c('[data-act="reset"]')) { tk.q = ''; tk.exec = ''; tk.kind = ''; tk.obj = ''; tkRenderListShell(); return; }
+  const ly = c('[data-layout]');
+  if (ly) { tk.layout = ly.getAttribute('data-layout'); try { localStorage.setItem('crm-tasks-layout', tk.layout); } catch (err) { /* не запомним — не страшно */ } tkRenderListShell(); return; }
   const vw = c('[data-view]');
   if (vw) { tk.view = vw.getAttribute('data-view'); tk.limit = 50; tkRenderList(); return; }
   const go = c('[data-go]');
@@ -417,6 +437,94 @@ function tkOnClick(e) {
   const op = c('[data-open]');
   if (op) tkOpenCard(Number(op.getAttribute('data-open')));
 }
+
+// ---------- доска ----------
+// Колонки = статусы; перетаскивание = те же действия, что кнопки в карточке (tkNext/tkAction/tkApply): права,
+// обязательные поля, история и уведомления не обходятся. Фильтры (исполнитель, тип, объект, поиск) действуют и на доске.
+const TK_COLS = [['new', ['new']], ['in_work', ['in_work']], ['waiting', ['waiting']], ['done', ['done']], ['closed', ['closed', 'cancelled']]];
+const TK_CLOSED_DAYS = 30;
+function tkRenderBoard(base) {
+  tkRoot().querySelector('[data-tk-views]').innerHTML = '';
+  const d = new Date(); d.setDate(d.getDate() - TK_CLOSED_DAYS);
+  const since = tkIso(d);
+  tkRoot().querySelector('[data-tk-list]').innerHTML = '<div class="tk-board">' + TK_COLS.map(function(col) {
+    let items = base.filter(function(t) { return col[1].indexOf(t.status) !== -1; });
+    const all = items.length;
+    if (col[0] === 'closed') items = items.filter(function(t) { return String(t.closed_at || '').slice(0, 10) >= since; }).sort(function(a, b) { return String(b.closed_at || '').localeCompare(String(a.closed_at || '')); });
+    else items.sort(function(a, b) {
+      const w = function(t) { return t.urgency === 'asap' ? 0 : tkLate(t) ? 1 : 2; };
+      return w(a) - w(b) || String(a.due_date || '9').localeCompare(String(b.due_date || '9')) || b.id - a.id;
+    });
+    const st = TK_ST[col[0]];
+    return '<div class="tk-col" data-col="' + col[0] + '"><div class="tk-col-h" style="--c:' + st.c + ';"><i></i>' + (col[0] === 'closed' ? 'Закрытые' : st.l) + '<b>' + items.length + '</b></div>'
+      + items.map(tkCardHtml).join('')
+      + (all > items.length ? '<div class="tk-col-n">Ещё ' + (all - items.length) + ' старше ' + TK_CLOSED_DAYS + ' дней — в списке «Закрытые»</div>' : '') + '</div>';
+  }).join('') + '</div>';
+}
+function tkCardHtml(t) {
+  const open = tkIsOpen(t), u = TK_URG[t.urgency];
+  return '<div class="tk-kc" draggable="true" data-open="' + t.id + '" style="--c:' + (t.urgency === 'asap' && open ? '#cf1322' : (TK_ST[t.status] || {}).c || '#d9d9d9') + ';">'
+    + '<div class="tk-kc-t">' + (u && t.urgency !== 'normal' && open ? '<span style="color:' + u.c + ';">' + tkEsc(u.l) + ' · </span>' : '') + tkEsc(t.title || 'Без названия') + '</div>'
+    + '<div class="tk-kc-s">№' + t.id + ' · 👤 ' + tkEsc(tkWho(t.executor_id, t.executor_name)) + '</div>'
+    + '<div class="tk-kc-s">' + (open ? '📅 ' + tkDue(t) : t.status === 'cancelled' ? 'отменена' : '')
+    + (t.status === 'waiting' && t.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + tkEsc(t.wait_reason) + '</span>' : '')
+    + (t.object_name ? ' · ' + tkEsc(t.object_name) : '') + '</div></div>';
+}
+function tkDropAction(from, col) {
+  const open = TK_OPEN.indexOf(from) !== -1;
+  if (col === 'in_work') return from === 'new' ? 'take' : from === 'waiting' ? 'resume' : !open ? 'reopen' : null;
+  if (col === 'waiting') return (from === 'new' || from === 'in_work') ? 'wait' : null;
+  if (col === 'done') return open ? 'done' : null;
+  if (col === 'closed') return from === 'done' ? 'close' : open ? 'cancel' : null;
+  return null;
+}
+async function tkDrop(id, col) {
+  const t = tk.data.tasks.find(function(x) { return x.id === id; });
+  if (!t || (TK_COLS.find(function(c) { return c[0] === col; }) || [0, []])[1].indexOf(t.status) !== -1) return;
+  const a = tkDropAction(t.status, col);
+  if (!a) { tkToast('Из «' + TK_ST[t.status].l + '» сюда перевести нельзя'); return; }
+  const n = tkNext(t);
+  if (!n.main.concat(n.more).some(function(x) { return x[0] === a; })) { tkToast(a === 'close' || a === 'cancel' || a === 'reopen' ? 'Это может сделать только проверяющий или автор' : 'Это может сделать только исполнитель'); return; }
+  const m = tkModal('<div data-tk-card></div>');
+  const quick = a === 'take' || a === 'resume' || a === 'close';   // без ввода — сразу, окно не показываем
+  if (quick) m.style.display = 'none';
+  await tkRenderCard(m, t);
+  if (!quick) { tkAction(m, t, a); return; }
+  await tkApply(m, t, a, null);
+  m.remove();
+}
+(function() {
+  const root = tkRoot();
+  let dragId = null;
+  const colOf = function(e) { return e.target.closest ? e.target.closest('.tk-col') : null; };
+  root.addEventListener('dragstart', function(e) {
+    const k = e.target.closest ? e.target.closest('.tk-kc') : null;
+    if (!k) return;
+    dragId = Number(k.getAttribute('data-open'));
+    k.classList.add('drag');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(dragId));
+  });
+  root.addEventListener('dragend', function() {
+    dragId = null;
+    root.querySelectorAll('.tk-kc.drag, .tk-col.drop').forEach(function(x) { x.classList.remove('drag', 'drop'); });
+  });
+  root.addEventListener('dragover', function(e) {
+    const c = colOf(e);
+    if (!c || dragId == null) return;
+    e.preventDefault();
+    root.querySelectorAll('.tk-col.drop').forEach(function(x) { if (x !== c) x.classList.remove('drop'); });
+    c.classList.add('drop');
+  });
+  root.addEventListener('drop', function(e) {
+    const c = colOf(e);
+    if (!c || dragId == null) return;
+    e.preventDefault();
+    const id = dragId;
+    c.classList.remove('drop');
+    tkDrop(id, c.getAttribute('data-col'));
+  });
+})();
 
 // ---------- новая задача ----------
 // preset: { kind, employee_id, title, object_name, executor } — например, кадровая задача из карточки сотрудника

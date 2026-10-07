@@ -160,6 +160,58 @@ function setColCfg(uid, cfg, persist) {
   if (persist) saveColCfgRemote(uid);
 }
 
+// ---------- сколько договоров на странице: личная настройка, общая для трёх вкладок ----------
+// Выбрал 50/100 в пагинации — запоминается (user_table_settings, table_uid PS_UID — идёт за человеком на любой ПК; копия в localStorage)
+// и применяется к «Активным», «Формирующимся» и «Архиву» сразу и при следующих заходах.
+const PS_UID = 'registry:pageSize';
+let psRowId = null, psCur = 0;
+function psLsKey() { return 'cm-pagesize-' + colUserId; }
+function psRes(uid) { const m = colTable(uid); return m && m.resource && m.resource.setPageSize ? m.resource : null; }
+// применить ко всем таблицам; ждём, пока таблица загрузит первую страницу — иначе её собственная инициализация вернёт 20
+function psApply(n, except) {
+  n = Number(n);
+  if (!n) return;
+  psCur = n;
+  TABLES.forEach(function(u) {
+    if (u === except) return;
+    let tries = 0;
+    const t = setInterval(function() {
+      const r = psRes(u);
+      tries++;
+      if (!r || (r.getMeta && r.getMeta('count') === undefined)) { if (tries > 100) clearInterval(t); return; }
+      clearInterval(t);
+      if (Number(r.getPageSize()) === n) return;
+      r.__psSilent = true; r.setPageSize(n); r.__psSilent = false;
+      r.setPage(1);
+      r.refresh();
+    }, 100);
+  });
+}
+function psSave(n) {
+  try { localStorage.setItem(psLsKey(), String(n)); } catch (e) { /* ignore */ }
+  if (colUserId === null) return;
+  const values = { user_id: colUserId, table_uid: PS_UID, config: { pageSize: n } };
+  (psRowId ? ctx.api.resource('user_table_settings').update({ filterByTk: psRowId, values: values })
+    : ctx.api.resource('user_table_settings').create({ values: values }).then(function(res) {
+        const rec = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : null;
+        if (rec && rec.id) psRowId = rec.id;
+      })).catch(function() { /* нет прав или сеть: остаётся в этом браузере */ });
+}
+// перехват смены размера страницы в самой таблице (выпадающий список пагинации)
+function psWrap() {
+  TABLES.forEach(function(u) {
+    const r = psRes(u);
+    if (!r || r.__psWrapped) return;
+    r.__psWrapped = true;
+    const orig = r.setPageSize.bind(r);
+    r.setPageSize = function(n) {
+      const out = orig(n);
+      if (!r.__psSilent && Number(n) && Number(n) !== psCur) { psCur = Number(n); psSave(psCur); psApply(psCur, u); }
+      return out;
+    };
+  });
+}
+
 async function initColumnSettings() {
   // ждём, пока модели таблиц и столбцы появятся
   let tries = 0;
@@ -187,11 +239,14 @@ async function initColumnSettings() {
       if (raw) { colCfg[u] = JSON.parse(raw); applyColCfg(u, colCfg[u]); }
     } catch (e) { /* ignore */ }
   });
+  psWrap();
+  try { const ls = Number(localStorage.getItem(psLsKey())); if (ls) psApply(ls); } catch (e) { /* ignore */ }
   // основной источник: личные настройки из БД
   try {
     const res = await ctx.api.resource('user_table_settings').list({ filter: { user_id: colUserId }, pageSize: 20 });
     const rows = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
     (Array.isArray(rows) ? rows : []).forEach(function(row) {
+      if (row.table_uid === PS_UID && row.config && row.config.pageSize) { psRowId = row.id; psApply(row.config.pageSize); return; }
       if (TABLES.indexOf(row.table_uid) === -1 || !row.config) return;
       colRowIds[row.table_uid] = row.id;
       rememberCfg(row.table_uid, row.config);

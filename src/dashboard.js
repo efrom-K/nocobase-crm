@@ -327,6 +327,7 @@ function renderMain() {
     + '<div class="dash-section">По объектам</div>'
     + (used.length ? '<div class="dash-objs">' + used.map(objectCard).join('') + '</div>' : '<div class="dash-empty">Договоров пока нет</div>')
     + (empty.length ? '<div class="dash-rest">Без договоров: ' + dEsc(empty.join(', ')) + '</div>' : '');
+  if (window.__crmCalendarRender) window.__crmCalendarRender();   // календарь сроков в слоте выше
 }
 
 function objectStats(d) {

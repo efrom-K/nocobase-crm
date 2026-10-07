@@ -1,6 +1,7 @@
 // Календарь сроков — один код на все дашборды (блоки calblock01/02/03 на «Дашборд», «Дашборд HR», «Дашборд АХО»; scripts/setup_calendar.py).
 // Сам блок ничего не показывает: рисует календарь в «слот» <div data-crm-calendar></div>, который модуль оставляет на своём главном
-// экране (dashboard.js, crm-hr.js, crm-aho.js). Ушли в раздел — слота нет, календаря нет; вернулись — календарь снова на месте.
+// экране (dashboard.js, crm-hr.js, crm-aho.js) и после отрисовки зовёт window.__crmCalendarRender(). Ушли в раздел — слота нет,
+// календаря нет; вернулись — календарь снова на месте.
 // Сроки берутся из разделов через API с правами пользователя: нет доступа к разделу — его сроков просто нет.
 // Какие разделы показывать по умолчанию — по странице (CAL_DEFAULTS), человек может включить/выключить, выбор запоминается.
 const CAL_GROUPS = {
@@ -254,23 +255,12 @@ if (!document.getElementById('crm-cal-style')) {
 ctx.render('');
 try { const card = ctx.element && ctx.element.closest && ctx.element.closest('.ant-card'); if (card) card.style.display = 'none'; } catch (e) { /* не страшно */ }
 
-// при повторном заходе на страницу блок запускается заново — старый наблюдатель (со старыми данными) снимаем
-if (window.__crmCalObserver) window.__crmCalObserver.disconnect();
-{
-  // модуль перерисовал главный экран — в новом слоте снова рисуем календарь (данные уже в памяти)
-  let pending = null;
-  window.__crmCalObserver = new MutationObserver(function() {
-    if (pending) return;
-    pending = setTimeout(function() {
-      pending = null;
-      const fresh = Array.prototype.some.call(document.querySelectorAll('[data-crm-calendar]'), function(s) { return !s.firstChild; });
-      if (!fresh) return;
-      if (cal.items && Date.now() - cal.loadedAt > CAL_REFRESH_MS) cLoad().then(cRenderAll).catch(function() { /* покажем старое */ });
-      cRenderAll();
-    }, 50);
-  });
-  window.__crmCalObserver.observe(document.body, { childList: true, subtree: true });
-}
+// модуль перерисовал главный экран — он зовёт этот хук, и календарь снова рисуется в новом слоте (данные уже в памяти;
+// старше CAL_REFRESH_MS — подгружаются заново). MutationObserver в песочнице блоков недоступен, поэтому хук явный.
+window.__crmCalendarRender = function() {
+  if (cal.items && Date.now() - cal.loadedAt > CAL_REFRESH_MS) cLoad().then(cRenderAll).catch(function() { /* покажем старое */ });
+  cRenderAll();
+};
 cRenderAll();
 cLoad().then(cRenderAll).catch(function() {
   document.querySelectorAll('[data-crm-calendar]').forEach(function(s) { s.innerHTML = '<div class="cal"><div class="cal-empty" style="color:#cf1322;">Не удалось загрузить календарь</div></div>'; });

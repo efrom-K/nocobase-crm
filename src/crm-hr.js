@@ -909,6 +909,7 @@ function hRenderHome() {
       + '</div>' : '<div class="hr-hint">Никто не уходит</div>') + '</div>'
     + hActsCard()
     + '</div></div>';
+  hBody().insertAdjacentHTML('beforeend', '<div data-crm-calendar></div>');   // календарь сроков (src/calendar.js) рисует себя сюда
 }
 // самозанятые: отметка ежемесячного акта (за прошлый и текущий месяц)
 function hActsCard() {

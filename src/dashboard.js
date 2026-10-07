@@ -3,11 +3,11 @@
 // Всё считается в браузере из тех же коллекций, что и реестр (права те же). Суммы — в целых копейках, без округлений и средних:
 // правило владельца «ни одного примерного числа». Шкала — только там, где есть доля от целого (сдано из общей площади).
 // Доступ к странице — через права ролей на пункт меню (сейчас только admin).
-// единый вид выпадающих списков во всех блоках CRM — тот же фрагмент в каждом блоке, где есть <select>
+// единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
-if (!document.getElementById('crm-select-style')) {
+if (!document.getElementById('crm-controls-style')) {
   const st = document.createElement('style');
-  st.id = 'crm-select-style';
+  st.id = 'crm-controls-style';
   st.textContent = `
     select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
       background-color:#fff; border:1px solid #d9d9d9; border-radius:6px; color:#262626; font-family:inherit; line-height:1.4;
@@ -19,6 +19,10 @@ if (!document.getElementById('crm-select-style')) {
     select:not([multiple]):not([size]):disabled { background-color:#f5f5f5 !important; color:#bfbfbf; cursor:not-allowed; border-color:#d9d9d9; }
     select option { color:#262626; background:#fff; }
     select option:disabled { color:#bfbfbf; }
+    input[type=file] { font-family:inherit; font-size:13px; color:#595959; max-width:100%; }
+    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #d9d9d9; border-radius:6px;
+      padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
+    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#f3f5fa; }
   `;
   document.head.appendChild(st);
 }

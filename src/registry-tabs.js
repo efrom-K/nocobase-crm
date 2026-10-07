@@ -215,8 +215,10 @@ function psWrap() {
     r.__psWrapped = true;
     const orig = r.setPageSize.bind(r);
     r.setPageSize = function(n) {
+      const user = !r.__psSilent && Date.now() - (window.__psPickAt || psPickAt) < 3000;
+      if (!user && psCur && Number(n) !== psCur) return orig(psCur);   // таблица сама сбрасывает (загрузка, перерисовка) — держим выбор человека
       const out = orig(n);
-      if (!r.__psSilent && Date.now() - (window.__psPickAt || psPickAt) < 3000 && Number(n) && Number(n) !== psCur) { psCur = Number(n); psSave(psCur); psApply(psCur, u); }
+      if (user && Number(n) && Number(n) !== psCur) { psCur = Number(n); psSave(psCur); psApply(psCur, u); }
       return out;
     };
   });

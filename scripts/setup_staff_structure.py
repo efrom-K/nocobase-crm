@@ -2,7 +2,6 @@
 """Структура компании для всех сотрудников: раздел «Сотрудники» (/admin/hrpage01) открыт каждой роли, права разделены.
 
 Делает:
-  - поле crm_departments.about — «чем занимается отдел, с какими вопросами обращаться» (по нему ищут в структуре);
   - пункт меню «Сотрудники (тест)» → «Сотрудники», виден всем ролям сотрудников;
   - права: HR (hr) и администраторы видят и правят всё. Остальные роли — только просмотр справочника:
       crm_employees — рабочие поля (ФИО, должность, отдел, объект, юрлицо, рабочий телефон и почта, график, учётка);
@@ -38,18 +37,12 @@ PUBLIC_EMP = ['id', 'full_name', 'last_name', 'first_name', 'middle_name', 'posi
               'user_id', 'legal_entity_id', 'extra_le_ids', 'object_name', 'work_schedule']
 VIEW_ONLY = {
     'crm_employees': PUBLIC_EMP,
-    'crm_departments': None,            # None = все поля
+    'crm_departments': ['id', 'name', 'parent_name', 'head_employee_id', 'sort'],   # пустой список в NocoBase = ни одного поля, поэтому явно
     'crm_legal_entities': ['id', 'name', 'director', 'sort'],
     'crm_vacations': ['id', 'employee_id', 'start_date', 'end_date', 'days', 'status'],
 }
 DENY = ['crm_safety', 'crm_sout', 'crm_lna', 'crm_hr_programs', 'crm_hr_events',
         'crm_hr_private', 'crm_hr_files', 'crm_candidates', 'crm_vacancies', 'crm_staff_positions']
-
-# 1. поле «чем занимается»
-fields = call('collections/crm_departments/fields:list?paginate=false').get('data', [])
-if not any(f.get('name') == 'about' for f in fields):
-    print('field about', ok(call('collections/crm_departments/fields:create', {'name': 'about', 'type': 'text', 'interface': 'textarea',
-          'uiSchema': {'type': 'string', 'title': 'Чем занимается', 'x-component': 'Input.TextArea'}})))
 
 # 2. права по ролям
 roles = [r['name'] for r in call('roles:list?paginate=false').get('data', []) if r['name'] not in FULL | SKIP]
@@ -60,8 +53,7 @@ for role in roles:
         r = call('roles/%s/resources:update?filterByTk=%s' % (role, have[name]['id']), body) if name in have else call('roles/%s/resources:create' % role, body)
         return ok(r)
     for coll, flds in VIEW_ONLY.items():
-        act = {'name': 'view'}
-        if flds: act['fields'] = flds
+        act = {'name': 'view', 'fields': flds}
         print(role, coll, 'view', put(coll, [act]))
     for coll in DENY:
         print(role, coll, 'deny', put(coll, []))

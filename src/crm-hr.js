@@ -136,7 +136,6 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-dt.sub .hr-dt-h b { font-size:14px; }
     .hr-dt-h span { margin-left:auto; font-size:12.5px; color:#1c2d58; white-space:nowrap; }
     .hr-dt-h:hover b { color:#1c2d58; text-decoration:underline; }
-    .hr-dt-a { font-size:12.5px; color:#595959; margin-bottom:4px; cursor:pointer; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .hr-dt-n { font-size:12.5px; color:#595959; padding:4px 0 2px; }
     .hr-dt-head .hr-pr { background:#eef1f8; border-radius:8px; }
     .hr-pr { display:flex; align-items:center; gap:10px; padding:5px 6px; border-radius:6px; cursor:pointer; min-width:0; }
@@ -1035,7 +1034,7 @@ function hRenderStaff() {
     + (hrm ? '<span class="hr-seg"><button data-act="sv" data-v="table" class="' + (!org ? 'on' : '') + '">Таблица</button><button data-act="sv" data-v="org" class="' + (org ? 'on' : '') + '">Структура</button></span>' : '')
     + (!org ? '<input type="text" data-f="q" placeholder="Найти: фамилия, должность, телефон" value="' + hEsc(hr.q) + '">' + leSel + deptSel + (hrm ? typeSel : '')
       + '<label class="hr-hint" style="margin:0;cursor:pointer;"><input type="checkbox" data-f="fired"' + (hr.fired ? ' checked' : '') + '> уволенные</label>'
-      : '<input type="text" data-f="oq" placeholder="Кто чем занимается: фамилия, должность, отдел, вопрос, объект" value="' + hEsc(hr.orgQ) + '" style="flex:1;min-width:260px;">'
+      : '<input type="text" data-f="oq" placeholder="Найти: фамилия, должность, отдел, объект" value="' + hEsc(hr.orgQ) + '" style="flex:1;min-width:260px;">'
         + (hCan() ? '<button class="hr-btn sm" data-act="newle"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Юрлицо</button><button class="hr-btn sm" data-act="newdep"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отдел</button>' : ''))
     + '</div>' + (hr.only && !org ? '<div class="hr-only">Показаны: <b>' + hEsc(hr.only.title) + '</b> (' + hr.only.ids.length + ')<button class="hr-btn sm" data-act="unonly" style="margin-left:auto;">Показать всех</button></div>' : '')
     + '<div data-staff-list></div>';
@@ -1115,9 +1114,9 @@ function hRenderStaffList() {
     : '<div class="hr-empty"><b>Никого не нашли</b>Измените поиск или фильтры.</div>';
 }
 // ---------- оргструктура: кто чем занимается и как связаться ----------
-// Видна всем. Отдел — кликабельный (окно отдела: чем занимается, руководитель, люди, подотделы, чат и письмо всему отделу).
+// Видна всем. Отдел — кликабельный (окно отдела: руководитель, люди, подотделы, чат и письмо всему отделу).
 // У каждого человека кнопки связи: мессенджер (если есть настоящая учётка в CRM), внутренняя почта, телефон.
-// Править структуру (отделы, подчинённость, руководители, описание) — HR и администратор в дашборде HR.
+// Править структуру (отделы, подчинённость, руководители) — HR и администратор в дашборде HR.
 const HR_MSG_PAGE = '/admin/msgspage01', HR_MAIL_PAGE = '/admin/mailpage01';
 const HR_OBJ_DEPT = 'Управление объектами';   // люди этого отдела группируются по объектам
 function hPhone(p) { return String(p || '').replace(/^\+7(\d{3})(\d{3})(\d{2})(\d{2})$/, '+7 $1 $2-$3-$4'); }
@@ -1166,7 +1165,6 @@ function hDepTile(dep, depth) {
     : own.length > 6 ? '<div class="hr-dt-n">' + hPeople(own.length) + '</div>'
     : own.map(function(e) { return hPersonRow(e); }).join('');
   return '<div class="hr-dt' + (depth ? ' sub' : '') + '"><div class="hr-dt-h" data-dep="' + dep.id + '"><b>' + hEsc(dep.name) + '</b><span>' + all.length + ' чел. ›</span></div>'
-    + (dep.about ? '<div class="hr-dt-a" data-dep="' + dep.id + '">' + hEsc(dep.about) + '</div>' : '')
     + (h ? '<div class="hr-dt-head">' + hPersonRow(h) + '</div>' : '<div class="hr-hint" style="margin:4px 0;">руководитель не назначен</div>')
     + people + kids.map(function(k) { return hDepTile(k, (depth || 0) + 1); }).join('') + '</div>';
 }
@@ -1199,17 +1197,17 @@ function hRenderOrg() {
     + (lost.length ? '<div class="hr-card" style="margin-top:12px;"><div class="hr-card-t">Отдел не указан <small>' + lost.length + '</small></div>' + lost.map(function(e) { return hPersonRow(e); }).join('') + '</div>' : '')
     + '<div style="margin-top:18px;">' + hOrgLes() + '</div></div>';
 }
-// поиск «кто чем занимается»: по людям (имя, должность, отдел, объект) и по отделам (название и описание)
+// поиск по людям (имя, должность, отдел, объект) и по отделам (название)
 function hOrgSearch(q) {
   const words = q.split(' ').filter(Boolean);
   const hit = function(s) { s = hNorm(s); return words.every(function(w) { return s.indexOf(w) !== -1; }); };
-  const deps = hr.d.depts.filter(function(d) { return hDepVisible(d) && hit([d.name, d.about].join(' ')); });
-  const people = hActive().filter(function(e) { const d = hDepByName(e.department); return hit([e.full_name, e.middle_name, e.position, e.department, e.object_name, e.email, d && d.about].join(' ')); });
-  if (!deps.length && !people.length) return '<div class="hr-empty"><b>Ничего не нашли</b>Попробуйте другое слово: «договор», «бухгалтер», «пропуск», название объекта.</div>';
+  const deps = hr.d.depts.filter(function(d) { return hDepVisible(d) && hit(d.name); });
+  const people = hActive().filter(function(e) { return hit([e.full_name, e.middle_name, e.position, e.department, e.object_name, e.email].join(' ')); });
+  if (!deps.length && !people.length) return '<div class="hr-empty"><b>Ничего не нашли</b>Попробуйте фамилию, должность, отдел или объект.</div>';
   return (deps.length ? '<div class="hr-card"><div class="hr-card-t">Отделы <small>' + deps.length + '</small></div>' + deps.map(function(d) {
       const h = hDepHead(d);
       return '<div class="hr-sr" data-dep="' + d.id + '"><b>' + hEsc(d.name) + '</b> <span class="hr-hint">' + hEsc(hDepPath(d).slice(0, -1).map(function(x) { return x.name; }).join(' › ')) + '</span>'
-        + (d.about ? '<div>' + hEsc(d.about) + '</div>' : '') + (h ? '<div class="hr-hint">Руководитель: ' + hEsc(h.full_name) + '</div>' : '') + '</div>';
+        + (h ? '<div class="hr-hint">Руководитель: ' + hEsc(h.full_name) + '</div>' : '') + '</div>';
     }).join('') + '</div>' : '')
     + (people.length ? '<div class="hr-card"><div class="hr-card-t">Сотрудники <small>' + people.length + '</small></div>' + people.map(function(e) { return hPersonRow(e, { dept: true, obj: true }); }).join('') + '</div>' : '');
 }
@@ -1251,18 +1249,16 @@ function hRenderDept(m, id) {
     + (mails.length ? '<a class="hr-cb" href="' + HR_MAIL_PAGE + '?to=' + encodeURIComponent(mails.join(',')) + '">✉️ Письмо всему отделу</a>' : '')
     + (can ? '<button class="hr-btn sm" data-depedit="' + dep.id + '">Изменить отдел</button><button class="hr-btn sm" data-depnew="' + dep.id + '">+ Подотдел</button>' : '') + '</div>'
     + '</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
-    + '<div class="hr-sec full"><div class="hr-sec-t">Чем занимается, с какими вопросами обращаться</div>'
-    + (dep.about ? '<div style="white-space:pre-wrap;">' + hEsc(dep.about) + '</div>' : '<div class="hr-hint">Пока не описано' + (can ? ' — нажмите «Изменить отдел».' : '. Описание заполняет HR-служба.') + '</div>') + '</div>'
     + '<div class="hr-sec full"><div class="hr-sec-t">Руководитель</div>' + (h ? '<div class="hr-dt-head">' + hPersonRow(h) + '</div>' + '<div style="margin-top:6px;">' + hContacts(h, true) + '</div>' : '<div class="hr-hint">Не назначен</div>') + '</div>'
     + (people ? '<div class="hr-sec full"><div class="hr-sec-t">Сотрудники <span class="hr-hint" style="font-weight:400;">' + own.length + '</span></div>' + people + '</div>' : '')
     + (kids.length ? '<div class="hr-sec full"><div class="hr-sec-t">Подотделы</div><div class="hr-org-cols">' + kids.map(function(k) {
         const kh = hDepHead(k);
-        return '<div class="hr-sr" data-dep="' + k.id + '"><b>' + hEsc(k.name) + '</b> <span class="hr-hint">' + hDepAll(k).length + ' чел.</span>' + (kh ? '<div class="hr-hint">Руководитель: ' + hEsc(kh.full_name) + '</div>' : '') + (k.about ? '<div class="hr-hint">' + hEsc(k.about) + '</div>' : '') + '</div>';
+        return '<div class="hr-sr" data-dep="' + k.id + '"><b>' + hEsc(k.name) + '</b> <span class="hr-hint">' + hDepAll(k).length + ' чел.</span>' + (kh ? '<div class="hr-hint">Руководитель: ' + hEsc(kh.full_name) + '</div>' : '') + '</div>';
       }).join('') + '</div></div>' : '')
     + '</div>';
 }
 const H_DEP = [['name', 'Название отдела', 'text', null, true], ['parent_name', 'Входит в', 'select', null], ['head_employee_id', 'Руководитель', 'select', null],
-  ['about', 'Чем занимается, с какими вопросами обращаться (по этому тексту ищут в структуре)', 'textarea'], ['sort', 'Порядок среди соседних отделов', 'num']];
+  ['sort', 'Порядок среди соседних отделов', 'num']];
 function hEditDept(dep, parent, after) {
   const under = function(x, root) { let n = 0; while (x && n++ < 12) { if (x.id === root.id) return true; x = hDepByName(x.parent_name); } return false; };
   const spec = H_DEP.map(function(f) {

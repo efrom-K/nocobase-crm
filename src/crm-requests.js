@@ -203,15 +203,13 @@ if (!document.getElementById('crm-req-style')) {
   document.head.appendChild(st);
 }
 
+// @include src/_crm-config.js
 const RQ_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
-const RQ_ST = {
-  new: { l: 'Новая', c: '#1c2d58' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
-  done: { l: 'Выполнена — на проверке', c: '#13a8a8' }, closed: { l: 'Закрыта', c: '#389e0d' }, cancelled: { l: 'Отменена', c: '#8c8c8c' }
-};
+const RQ_ST = cfg('requests.status');
 const RQ_OPEN = ['new', 'in_work', 'waiting'];
-const RQ_URG = { normal: { l: 'Обычная', d: 5, c: '#595959', hint: '5 рабочих дней' }, urgent: { l: 'Срочно', d: 1, c: '#d46b08', hint: '1 рабочий день' }, emergency: { l: 'Авария', d: 0, c: '#cf1322', hint: 'сегодня, сразу уведомление старшему управляющему' } };
-const RQ_KINDS = ['Ремонт и эксплуатация', 'Вопрос арендатора', 'Расторжение и выезд', 'Платёж, долг, штраф', 'Проверка, пожарная безопасность', 'Коммуналка, счётчики', 'Прочее'];
-const RQ_WAIT = ['ответа арендатора', 'подрядчика', 'оплаты', 'согласования руководства', 'другое'];
+const RQ_URG = cfg('requests.urgency');
+const RQ_KINDS = cfg('requests.kinds');
+const RQ_WAIT = cfg('requests.wait');
 const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr' };
 try { if (localStorage.getItem('crm-req-view') === 'board') rq.view = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
@@ -401,7 +399,7 @@ function rqOnClick(e) {
 // перенести, подсвечены, остальные бледные. Перенос = то же действие, что кнопка в карточке (rqCan + rqDo): права, история,
 // уведомления. Где нужен ввод (что сделано, чего ждём, причина) — форма прямо на карточке в новой колонке, без окон.
 const RQ_COLS = [['new', ['new'], 'Новые'], ['in_work', ['in_work'], 'В работе'], ['waiting', ['waiting'], 'Ждут'], ['done', ['done'], 'На проверке'], ['closed', ['closed', 'cancelled'], 'Закрытые']];
-const RQ_CLOSED_DAYS = 30;   // закрытые на доске — только за последний месяц, остальные в списке «Закрытые»
+const RQ_CLOSED_DAYS = cfg('requests.closedDays');   // закрытые на доске — только за последний месяц, остальные в списке «Закрытые»
 const RQ_DROP_ASK = { wait: 'Чего ждём', done: 'Что сделано — увидит автор при проверке', reopen: 'Что не так — увидит ответственный', cancel: 'Причина отмены' };
 const RQ_DROP_OK = { take: 'Взята в работу', resume: 'Снова в работе', wait: 'Ждём', done: 'Отправлена на проверку', close: 'Закрыта', reopen: 'Возвращена в работу', cancel: 'Отменена' };
 function rqColOf(st) { return (RQ_COLS.find(function(c) { return c[1].indexOf(st) !== -1; }) || [''])[0]; }

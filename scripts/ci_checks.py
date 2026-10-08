@@ -16,8 +16,12 @@ def err(msg): errors.append(msg)
 
 # ---- 1. JS-блоки ----
 SANDBOX_MISSING = ['MutationObserver', 'requestAnimationFrame', 'URLSearchParams', 'new FormData', 'getComputedStyle', 'CSS.escape']   # в песочнице JS-блоков NocoBase их нет
+INCLUDE = re.compile(r'^// @include (\S+)[ \t]*$', re.M)   # общий фрагмент подставляется при выкладке (deploy/nb_deploy.py) — проверяем код в том виде, как он уйдёт в блок
 for f in sorted(glob.glob('src/*.js')):
     code = open(f, encoding='utf-8').read()
+    for inc in INCLUDE.findall(code):
+        if not os.path.exists(inc): err('%s: подключён несуществующий файл %s' % (f, inc))
+    code = INCLUDE.sub(lambda m: open(m.group(1), encoding='utf-8').read() if os.path.exists(m.group(1)) else '', code)
     with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as t:
         t.write('(async()=>{\n' + code + '\n})()')
         tmp = t.name

@@ -240,18 +240,16 @@ if (!document.getElementById('crm-tk-style')) {
   document.head.appendChild(st);
 }
 
+// @include src/_crm-config.js
 const TK_PAGE = '/admin/tskpage01';   // «Задачи (тест)»
 const TK_HR_PAGE = '/admin/hrpage01'; // «Персонал (тест)»: сотрудники, структура, кадры
-const TK_ST = {
-  new: { l: 'Новая', c: '#1c2d58' }, in_work: { l: 'В работе', c: '#d48806' }, waiting: { l: 'Ждёт', c: '#722ed1' },
-  done: { l: 'На проверке', c: '#13a8a8' }, closed: { l: 'Закрыта', c: '#389e0d' }, cancelled: { l: 'Отменена', c: '#8c8c8c' }
-};
+const TK_ST = cfg('tasks.status');
 const TK_OPEN = ['new', 'in_work', 'waiting'];
-const TK_URG = { normal: { l: 'Обычная', d: 3, c: '#595959' }, urgent: { l: 'Срочно', d: 1, c: '#d46b08' }, asap: { l: 'Горит', d: 0, c: '#cf1322' } };
-const TK_KINDS = ['Общая', 'Объект и арендаторы', 'Финансы и платежи', 'Документы', 'Кадры'];
-const TK_WAIT = ['ответа коллеги', 'ответа арендатора', 'подрядчика', 'оплаты', 'согласования руководства', 'документов', 'другое'];
-const TK_HR_TPL = ['Отпуск', 'Больничный', 'Приём на работу', 'Увольнение', 'Перевод / смена должности', 'Командировка', 'Отгул'];
-const TK_HR_DEPT = 'HR служба персонала';
+const TK_URG = cfg('tasks.urgency');
+const TK_KINDS = cfg('tasks.kinds');
+const TK_WAIT = cfg('tasks.wait');
+const TK_HR_TPL = cfg('tasks.hrTemplates');
+const TK_HR_DEPT = cfg('org.hrDept');
 const TK_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
 const tk = { data: null, me: null, myEmp: null, tab: 'list', view: '', exec: '', kind: '', obj: '', q: '', limit: 50, layout: 'list', drop: null, statsDays: 30, statsBy: 'exec' };
 try { if (localStorage.getItem('crm-tasks-layout') === 'board') tk.layout = 'board'; } catch (e) { /* хранилище недоступно — список */ }
@@ -537,7 +535,7 @@ function tkOnClick(e) {
 // уведомления. Где нужен ввод (что сделано, чего ждём, причина) — форма прямо на карточке в новой колонке, без окон.
 // Фильтры (исполнитель, тип, объект, поиск) действуют и на доске.
 const TK_COLS = [['new', ['new'], 'Новые'], ['in_work', ['in_work'], 'В работе'], ['waiting', ['waiting'], 'Ждут'], ['done', ['done'], 'На проверке'], ['closed', ['closed', 'cancelled'], 'Закрытые']];
-const TK_CLOSED_DAYS = 30;
+const TK_CLOSED_DAYS = cfg('tasks.closedDays');
 const TK_DROP_ASK = { wait: 'Чего ждём', done: 'Что сделано — коротко, увидит проверяющий', reopen: 'Что нужно доделать', cancel: 'Почему отменяем' };
 function tkColOf(st) { return (TK_COLS.find(function(c) { return c[1].indexOf(st) !== -1; }) || [''])[0]; }
 function tkDropAction(from, col) {

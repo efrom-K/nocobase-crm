@@ -270,10 +270,11 @@ if (!document.getElementById('crm-hr-style')) {
   document.head.appendChild(st);
 }
 
+// @include src/_crm-config.js
 const HR_TASKS_PAGE = '/admin/tskpage01';
 const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/hrdash01';
 const HR_MODE = location.pathname.indexOf(HR_DASH_PAGE) !== -1 ? 'hr' : 'staff';
-const HR_DEPT = 'HR служба персонала';
+const HR_DEPT = cfg('org.hrDept');
 const HR_EMP_TYPE = { staff: 'Штатный', external: 'Внештатный (ГПХ)', self: 'Самозанятый' };
 const HR_EMP_ST = { active: 'Работает', fired: 'Уволен' };
 const HR_VAC_KINDS = ['Ежегодный оплачиваемый', 'Без сохранения зарплаты', 'Учебный', 'По беременности и родам', 'По уходу за ребёнком'];

@@ -22,7 +22,7 @@
   NB_NOTIFY_USER_IDS    через запятую id пользователей NocoBase, кому положить сообщение в колокольчик о результате
   NB_CI_REQUIRED        1 (по умолчанию): выкладывать только коммиты с успешным CI; 0 — не проверять
 """
-import datetime, hashlib, json, os, subprocess, sys, urllib.request, urllib.error
+import datetime, hashlib, json, os, re, subprocess, sys, urllib.request, urllib.error
 
 HOME = os.path.expanduser(os.environ.get('NB_DEPLOY_HOME', '~/nb_deploy'))
 REPO = os.path.expanduser(os.environ.get('NB_REPO_DIR', os.path.join(HOME, 'repo')))
@@ -69,8 +69,13 @@ def write_live(uid, code):
 def blocks():
     return json.load(open(os.path.join(REPO, 'deploy', 'blocks.json'), encoding='utf-8'))
 
+INCLUDE = re.compile(r'^// @include (\S+)[ \t]*$', re.M)
+
 def repo_code(path):
-    return norm(open(os.path.join(REPO, path), encoding='utf-8').read())
+    # строка «// @include src/x.js» заменяется содержимым файла (общие фрагменты: настройки CRM и т. п.)
+    code = open(os.path.join(REPO, path), encoding='utf-8').read()
+    code = INCLUDE.sub(lambda m: open(os.path.join(REPO, m.group(1)), encoding='utf-8').read().rstrip('\n'), code)
+    return norm(code)
 
 def load_state():
     try: return json.load(open(STATE, encoding='utf-8'))

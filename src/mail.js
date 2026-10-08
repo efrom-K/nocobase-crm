@@ -476,6 +476,7 @@ function showSetup(email, badPassword) {
 }
 function handleFatal(e) {
   if (e.code === 'NO_PASSWORD' || e.code === 'BAD_PASSWORD') { showSetup(S.me ? S.me.email : '', e.code === 'BAD_PASSWORD'); return true; }
+  if (e.code === 'NOT_ENABLED' && composeTo()) { location.href = 'mailto:' + composeTo().join(','); showCard('<h2>Открываем ваш почтовый клиент</h2><p>Внутренняя почта для вашей учётной записи пока не включена, поэтому письмо откроется в обычной почтовой программе.</p>'); return true; }
   if (e.code === 'NOT_ENABLED') { showCard('<h2>Почта скоро появится</h2><p>Почту подключаем постепенно. Для вашей учётной записи она пока не включена.</p>'); return true; }
   if (e.code === 'NO_SESSION') { showCard('<h2>Сессия закончилась</h2><p>Обновите страницу и войдите в NocoBase заново.</p>'); return true; }
   if (e.code === 'OFFLINE') { showCard('<h2>Почта недоступна</h2><p>Почтовый сервис не отвечает. Попробуйте обновить страницу через минуту.</p>'); return true; }
@@ -1418,7 +1419,16 @@ function rcptField(el, initial, st) {
 }
 
 // ---------- ссылка из уведомления: ?open=<папка>:<uid> ----------
+// ссылка «Письмо» из структуры сотрудников: ?to=адрес[,адрес] — открыть новое письмо этим людям
+function composeTo() { const m = location.search.match(/[?&]to=([^&]+)/); if (!m) return null; try { return decodeURIComponent(m[1]).split(',').filter(Boolean); } catch (e) { return null; } }
 async function openFromUrl() {
+  const to = composeTo();
+  if (to && S.me && S.me.configured && root.querySelector('.ml-app') && window.__mlOpenedKey !== 'to:' + to.join(',')) {
+    window.__mlOpenedKey = 'to:' + to.join(',');
+    try { history.replaceState(history.state, '', location.pathname); } catch (e) { /* ignore */ }
+    openCompose({ to: to });
+    return false;   // список писем под окном всё равно загрузить
+  }
   const mm = location.search.match(/[?&]open=([^&]+)/);
   if (!mm) { window.__mlOpenedKey = null; return false; }
   if (!S.me || !S.me.configured || !root.querySelector('.ml-app')) return false;

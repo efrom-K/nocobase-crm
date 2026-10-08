@@ -1237,6 +1237,29 @@ window.__msgrOpenConversation = function (convId) {
   doOpen();
 };
 
+// ссылки из структуры сотрудников: ?dm=<id пользователя> — личный чат, ?group=<id,id…>&name=<отдел> — чат отдела (тот же, если уже есть)
+const dmMatch = location.search.match(/[?&]dm=(\d+)/), grpMatch = location.search.match(/[?&]group=([\d,]+)/);
+if ((dmMatch || grpMatch) && window.__msgrLinkKey !== location.search) {
+  window.__msgrLinkKey = location.search;
+  (async function () {
+    try {
+      const me = state.currentUser.id;
+      const ids = (dmMatch ? dmMatch[1] : grpMatch[1]).split(',').map(Number).filter(function (x, i, a) { return x && x !== me && a.indexOf(x) === i; });
+      if (!ids.length) return;
+      let nm = 'Группа';
+      try { nm = decodeURIComponent(((location.search.match(/[?&]name=([^&]*)/) || [])[1] || '').replace(/\+/g, ' ')) || nm; } catch (e) { /* оставить «Группа» */ }
+      const same = ids.length > 1 && state.conversations.find(function (c) {
+        return c.is_group && c.title === nm && c.others.length === ids.length && ids.every(function (id) { return c.others.some(function (o) { return o.user_id === id; }); });
+      });
+      const convId = same ? same.id : await getOrCreateConversation(ids, nm);
+      try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ }
+      await loadMyConversations();
+      renderConvList(root, '');
+      openChatWindow(root, convId);
+    } catch (e) { /* нет прав на чат */ }
+  })();
+}
+
 const urlMatch = location.search.match(/[?&]openConv=([^&]+)/);
 if (urlMatch) {
   const wantConvId = Number(urlMatch[1]);

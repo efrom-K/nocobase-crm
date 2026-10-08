@@ -174,7 +174,8 @@ function csRenderUsers() {
     const warn = e.status === 'fired' && u && roles.length ? ' <span class="cs-chip red">уволен, а доступ есть</span>' : e.status === 'fired' ? ' <span class="cs-chip">уволен</span>' : '';
     return '<tr><td><b style="font-weight:600;">' + csEsc(e.full_name) + '</b>' + warn + '<div class="cs-hint" style="margin:0;">' + csEsc([e.position, e.department].filter(Boolean).join(' · ')) + '</div></td>'
       + '<td>' + acc + '</td><td>' + (roles.map(function(r) { return '<span class="cs-chip blue">' + csEsc(csRoleTitle(r.name)) + '</span>'; }).join('') || '<span class="cs-hint">—</span>') + '</td>'
-      + '<td>' + (e.email ? csEsc(e.email) : '<span class="cs-hint">—</span>') + '</td><td style="white-space:nowrap;">' + act + '</td></tr>';
+      + '<td>' + (e.email ? csEsc(e.email) + (e.status !== 'fired' ? '<br><label class="cs-hint" style="cursor:pointer;margin:0;"><input type="checkbox" data-mailon="' + csEsc(e.email) + '"' + (csMailUsers().indexOf(String(e.email).toLowerCase()) !== -1 ? ' checked' : '') + '> почта в CRM</label>' : '') : '<span class="cs-hint">—</span>') + '</td>'
+      + '<td style="white-space:nowrap;">' + act + '</td></tr>';
   };
   csBody().innerHTML = '<div class="cs-card"><div class="cs-card-t">Сотрудники и их учётные записи CRM <small>' + list.length + '</small></div>'
     + '<div class="cs-hint">Учётка привязана к карточке сотрудника: по ней CRM знает, чьи задачи и заявки, кому слать уведомления и кому писать в мессенджере. '
@@ -188,6 +189,14 @@ function csRenderUsers() {
         return '<tr><td><b>' + csEsc(u.username) + '</b></td><td>' + csEsc(u.nickname || '') + '</td><td>' + (u.roles || []).map(function(r) { return '<span class="cs-chip blue">' + csEsc(csRoleTitle(r.name)) + '</span>'; }).join('') + '</td>'
           + '<td><button class="cs-btn" data-uedit="' + u.id + '">Изменить</button></td></tr>';
       }).join('') + '</tbody></table></div>' : '');
+}
+// кому открыта вкладка «Почта» (почтовый сервис читает этот список из crm_config, ключ mail.users)
+function csMailUsers() { const r = csCfgRow('mail.users'); return r && Array.isArray(r.value) ? r.value.map(function(x) { return String(x).toLowerCase(); }) : []; }
+async function csSetMail(email, on) {
+  const cur = csMailUsers().filter(function(x) { return x !== String(email).toLowerCase(); });
+  if (on) cur.push(String(email).toLowerCase());
+  await csSaveKey('mail.users', cur);
+  await csLoad();
 }
 function csRolesBox(cur) {
   return '<div class="cs-f"><label>Роли — что человек видит и может делать в CRM</label><div class="cs-roles">' + cs.d.roles.map(function(r) {
@@ -287,13 +296,14 @@ function csEditor(key) {
   if (s.type === 'labels') {
     return '<table class="cs-lab"><thead><tr>' + s.fields.map(function(f) { return '<th>' + csEsc(f[1]) + '</th>'; }).join('') + '</tr></thead><tbody>' + Object.keys(v).map(function(k) {
       return '<tr data-lk="' + csEsc(k) + '">' + s.fields.map(function(f) {
-        const x = v[k][f[0]];
+        const x = typeof v[k] === 'object' ? v[k][f[0]] : v[k];   // подпись-строка: поле одно, правится сама строка
         return '<td>' + (f[2] === 'color' ? '<input type="color" data-lf="' + f[0] + '" value="' + csEsc(/^#[0-9a-f]{6}$/i.test(x) ? x : '#595959') + '">'
           : '<input type="' + (f[2] === 'num' ? 'number' : 'text') + '" data-lf="' + f[0] + '" value="' + csEsc(x) + '"' + (f[2] === 'num' ? ' min="0"' : '') + '>') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table><div class="cs-hint">Набор строк постоянный — на нём держится логика модуля; меняются названия, сроки и цвета.</div>';
   }
-  if (s.type === 'number') return '<input type="number" data-val min="0" value="' + csEsc(v) + '">';
+  if (s.type === 'number') return '<input type="number" data-val min="' + (s.min || 0) + '" value="' + csEsc(v) + '">';
+  if (s.type === 'numlist') return '<input type="text" data-val value="' + csEsc(v.join(', ')) + '" style="width:220px;">';
   if (s.type === 'dept') return '<select data-val>' + (cs.d.depts.some(function(d) { return d.name === v; }) ? '' : '<option selected>' + csEsc(v) + '</option>') + cs.d.depts.map(function(d) { return '<option' + (d.name === v ? ' selected' : '') + '>' + csEsc(d.name) + '</option>'; }).join('') + '</select>';
   return '<input type="text" data-val value="' + csEsc(v) + '" style="width:100%;">';
 }
@@ -310,11 +320,13 @@ function csRead(box, key) {
     box.querySelectorAll('[data-lk]').forEach(function(tr) {
       const k = tr.getAttribute('data-lk'); o[k] = {};
       tr.querySelectorAll('[data-lf]').forEach(function(i) { const f = i.getAttribute('data-lf'), d = s.fields.find(function(x) { return x[0] === f; }); o[k][f] = d[2] === 'num' ? Number(i.value || 0) : i.value.trim(); });
+      if (typeof s.v[k] === 'string') o[k] = o[k]._;   // подпись-строка хранится строкой
     });
     return o;
   }
   const x = box.querySelector('[data-val]').value.trim();
-  if (s.type === 'number') return x === '' || isNaN(Number(x)) ? 'Нужно число' : Number(x);
+  if (s.type === 'number') return x === '' || isNaN(Number(x)) || Number(x) < (s.min || 0) ? 'Нужно число' + (s.min ? ' от ' + s.min : '') : Number(x);
+  if (s.type === 'numlist') { const n = x.split(/[\s,;]+/).filter(Boolean).map(Number); return !n.length || n.some(function(y) { return !(y > 0); }) ? 'Нужны числа больше нуля через запятую' : n; }
   return x;
 }
 function csRenderDict() {
@@ -340,6 +352,7 @@ const CS_APP = [
   ['skud_grace_min', 'СКУД: допустимое опоздание, минут', 'num'],
   ['dadata_token', 'Ключ DaData (поиск компаний по ИНН в договорах)', 'secret']
 ];
+function csNotifyIds() { const r = csCfgRow('notify.admins'); return r && Array.isArray(r.value) ? r.value.map(Number) : [2]; }   // по умолчанию — как было в cron (пользователь 2)
 function csRenderSvc() {
   const people = cs.d.users.filter(function(u) { return (u.roles || []).length && CS_SERVICE_USERS.indexOf(u.username) === -1; });
   csBody().innerHTML = '<div class="cs-card"><div class="cs-card-t">Служебные параметры</div><div class="cs-hint">Их используют уведомления, СКУД и проверка контрагентов.</div>'
@@ -350,7 +363,11 @@ function csRenderSvc() {
       else if (f[2] === 'num') inp = '<input type="number" min="0" data-app="' + f[0] + '" value="' + csEsc(v || '') + '">';
       else inp = '<input type="password" data-app="' + f[0] + '" value="' + csEsc(v || '') + '" style="width:340px;" autocomplete="off">';
       return '<tr><td style="width:45%;">' + csEsc(f[1]) + '</td><td>' + inp + '</td><td><button class="cs-btn" data-appsave="' + f[0] + '">Сохранить</button></td></tr>';
-    }).join('') + '</tbody></table></div>';
+    }).join('') + '</tbody></table></div>'
+    + '<div class="cs-card"><div class="cs-card-t">Кому сообщать о сбоях</div><div class="cs-hint">Бэкап CRM не сделался, выкладка обновления не прошла — уведомление в колокольчик этим людям.</div>'
+    + '<div class="cs-roles" data-notify>' + people.filter(function(u) { return (u.roles || []).some(function(r) { return r.name === 'admin' || r.name === 'root'; }) || csNotifyIds().indexOf(u.id) !== -1; }).map(function(u) {
+        return '<label><input type="checkbox" value="' + u.id + '"' + (csNotifyIds().indexOf(u.id) !== -1 ? ' checked' : '') + '> ' + csEsc(u.nickname || u.username) + '</label>';
+      }).join('') + '</div><div class="cs-actions"><button class="cs-btn pri" data-notifysave>Сохранить</button></div></div>';
 }
 async function csSaveApp(name, value) {
   const x = cs.d.app.find(function(a) { return a.name === name; });
@@ -390,6 +407,12 @@ function csOnClick(e) {
     ctx.api.resource('crm_config').destroy({ filterByTk: csCfgRow(key).id }).then(csLoad).then(function() { csRenderDict(); csToast('Вернули значение по умолчанию'); }).catch(function(err) { csToast(csErr(err)); });
     return;
   }
+  if (c('[data-notifysave]')) {
+    const ids = Array.prototype.map.call(csRoot().querySelectorAll('[data-notify] input:checked'), function(x) { return Number(x.value); });
+    if (!ids.length) { csToast('Отметьте хотя бы одного человека'); return; }
+    csSaveKey('notify.admins', ids).then(csLoad).then(function() { csToast('Сохранено'); }).catch(function(err) { csToast(csErr(err)); });
+    return;
+  }
   if ((id = g('data-appsave'))) {
     const inp = csRoot().querySelector('[data-app="' + id + '"]');
     csSaveApp(id, inp.value.trim()).then(csLoad).then(function() { csToast('Сохранено'); }).catch(function(err) { csToast(csErr(err)); });
@@ -407,6 +430,10 @@ ctx.render('<div id="crm-cfg" class="cs"><div class="cs-empty">Загрузка�
     csRender();
     csRoot().addEventListener('click', csOnClick);
     csRoot().addEventListener('input', function(e) { if (e.target.hasAttribute('data-q')) { cs.q = e.target.value; const pos = e.target.selectionStart; csRenderUsers(); const i = csRoot().querySelector('[data-q]'); i.focus(); i.setSelectionRange(pos, pos); } });
-    csRoot().addEventListener('change', function(e) { if (e.target.hasAttribute('data-fired')) { cs.showFired = e.target.checked; csRenderUsers(); } });
+    csRoot().addEventListener('change', function(e) {
+      if (e.target.hasAttribute('data-fired')) { cs.showFired = e.target.checked; csRenderUsers(); }
+      const ml = e.target.getAttribute('data-mailon');
+      if (ml) csSetMail(ml, e.target.checked).then(function() { csToast(e.target.checked ? 'Почта включена (вступит в силу в течение минуты)' : 'Почта выключена'); }).catch(function(err) { e.target.checked = !e.target.checked; csToast(csErr(err)); });
+    });
   } catch (e) { csRoot().innerHTML = '<div class="cs-empty" style="color:#cf1322;">Не удалось загрузить настройки. Обновите страницу.</div>'; }
 })();

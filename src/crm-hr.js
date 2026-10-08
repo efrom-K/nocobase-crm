@@ -275,10 +275,10 @@ const HR_TASKS_PAGE = '/admin/tskpage01';
 const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/hrdash01';
 const HR_MODE = location.pathname.indexOf(HR_DASH_PAGE) !== -1 ? 'hr' : 'staff';
 const HR_DEPT = cfg('org.hrDept');
-const HR_EMP_TYPE = { staff: 'Штатный', external: 'Внештатный (ГПХ)', self: 'Самозанятый' };
+const HR_EMP_TYPE = cfg('hr.empType');
 const HR_EMP_ST = { active: 'Работает', fired: 'Уволен' };
-const HR_VAC_KINDS = ['Ежегодный оплачиваемый', 'Без сохранения зарплаты', 'Учебный', 'По беременности и родам', 'По уходу за ребёнком'];
-const HR_VAC_ST = { plan: 'Приказа ещё нет', ordered: 'Оформлен приказом' };
+const HR_VAC_KINDS = cfg('hr.vacKinds');
+const HR_VAC_ST = cfg('hr.vacStatus');
 const HR_VAC_SCHED = { yes: 'По графику отпусков', no: 'Вне графика (внеплановый)' };
 // цвет полосы: ежегодный по графику / вне графика, за свой счёт, прочие; пусто в in_schedule = по графику (так загружен утверждённый график)
 function hVacCls(v) { return !v.kind || v.kind === HR_VAC_KINDS[0] ? (v.in_schedule === 'no' ? 'unsched' : 'sched') : v.kind === HR_VAC_KINDS[1] ? 'unpaid' : 'other'; }
@@ -294,20 +294,18 @@ const HR_SAFETY = [
   ['Электробезопасность', 'ot', 12, 'Электро'],
   ['Экологическая безопасность', 'ot', 36, 'Экология']
 ];
-const HR_FILE_DOCS = ['Заявление о приёме', 'Трудовой договор', 'Приказ о приёме', 'Согласие на обработку персональных данных', 'Договор о материальной ответственности',
-  'Репутационное соглашение', 'Лист ознакомления с ЛНА', 'Копия паспорта', 'СНИЛС и ИНН', 'Военный билет / приписное', 'Опись личного дела'];
-const HR_FILE_DOCS_SELF = ['Договор с самозанятым', 'Справка о статусе самозанятого', 'Копия паспорта', 'Согласие на обработку персональных данных'];
+const HR_FILE_DOCS = cfg('hr.fileDocs');
+const HR_FILE_DOCS_SELF = cfg('hr.fileDocsSelf');
 const HR_PB_COMMON = [['Проверка огнетушителей', 12], ['Тренировка по эвакуации', 12], ['Проверка пожарной сигнализации', 12], ['Проверка внутреннего противопожарного водопровода', 6], ['Обучение ответственного за пожарную безопасность', 36]];
 const HR_SOUT_CLS = { '1': '#389e0d', '2': '#52c41a', '3.1': '#faad14', '3.2': '#fa8c16', '3.3': '#fa541c', '3.4': '#f5222d', '4': '#a8071a' };
-const HR_LNA_KINDS = ['Правила внутреннего трудового распорядка', 'Положение об оплате труда', 'Положение о премировании', 'Положение о персональных данных',
-  'Положение о системе управления охраной труда', 'Инструкция по охране труда', 'Инструкция о мерах пожарной безопасности', 'Должностная инструкция', 'Другое'];
-const HR_PROG_KINDS = ['Премия по результатам', 'KPI', 'Обучение и развитие', 'ДМС', 'Нематериальная', 'Другое'];
-const HR_EVENT_KINDS = ['Корпоратив', 'Тимбилдинг', 'Праздник', 'Обучение', 'Другое'];
-const HR_STAGES = { new: 'Новый', interview: 'Собеседование', offer: 'Оффер', hired: 'Вышел на работу', rejected: 'Отказали', declined: 'Отказался сам' };
+const HR_LNA_KINDS = cfg('hr.lnaKinds');
+const HR_PROG_KINDS = cfg('hr.progKinds');
+const HR_EVENT_KINDS = cfg('hr.eventKinds');
+const HR_STAGES = cfg('hr.stages');
 const HR_STAGE_C = { new: '', interview: 'blue', offer: 'orange', hired: 'green', rejected: '', declined: '' };
-const HR_VACANCY_ST = { open: 'Открыта', paused: 'На паузе', closed: 'Закрыта — нашли', cancelled: 'Отменена' };
-const HR_COMPS = ['Профессиональные знания', 'Опыт в похожей роли', 'Коммуникация', 'Ответственность и самостоятельность', 'Мотивация работать у нас'];
-const HR_SOURCES = ['hh.ru', 'Авито Работа', 'SuperJob', 'Рекомендация', 'Telegram', 'Сайт компании', 'Другое'];
+const HR_VACANCY_ST = cfg('hr.vacancyStatus');
+const HR_COMPS = cfg('hr.comps');
+const HR_SOURCES = cfg('hr.sources');
 const HR_RANKS = ['рядовой', 'ефрейтор', 'младший сержант', 'сержант', 'старший сержант', 'старшина', 'прапорщик', 'старший прапорщик', 'лейтенант', 'старший лейтенант', 'капитан', 'майор', 'подполковник', 'полковник'];
 const HR_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
 const HR_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
@@ -485,16 +483,16 @@ function hKv(spec, rec) { return '<div class="hr-kv">' + spec.map(function(f) { 
 
 // ---------- документы к записям (crm_hr_files → attachments; сервер отдаёт их только admin и hr) ----------
 const HR_DOC_KINDS = {
-  vac: ['Заявление на отпуск', 'Приказ', 'Уведомление о начале отпуска', 'Другое'],
-  safety: ['Удостоверение', 'Протокол', 'Выписка из журнала', 'Договор / счёт', 'Другое'],
-  sout: ['Карта СОУТ', 'Отчёт СОУТ', 'Декларация', 'Другое'],
-  le: ['Приказ об организации ВУ', 'План ВУ', 'Карточка организации (форма 18)', 'Сверка с военкоматом', 'Анкета СОУТ', 'Приказ о проведении СОУТ', 'Штатное расписание', 'Уставные документы', 'Другое'],
-  event: ['Смета / затраты', 'Список гостей', 'Договор', 'Счёт', 'Фото', 'Другое'],
-  prog: ['Положение', 'Приказ', 'Расчёт', 'Другое'],
-  lna: ['Лист ознакомления (подписанный)', 'Приказ об утверждении', 'Другое'],
-  cand: ['Резюме', 'Анкета', 'Тестовое задание', 'Оффер', 'Другое'],
-  vacancy: ['Текст вакансии', 'Заявка руководителя', 'Другое'],
-  emp: ['Согласие на оценку', 'Результат оценки', 'Заявление', 'Приказ', 'Дополнительное соглашение', 'Диплом / удостоверение', 'Справка', 'Другое']
+  vac: cfg('hr.docKinds.vac'),
+  safety: cfg('hr.docKinds.safety'),
+  sout: cfg('hr.docKinds.sout'),
+  le: cfg('hr.docKinds.le'),
+  event: cfg('hr.docKinds.event'),
+  prog: cfg('hr.docKinds.prog'),
+  lna: cfg('hr.docKinds.lna'),
+  cand: cfg('hr.docKinds.cand'),
+  vacancy: cfg('hr.docKinds.vacancy'),
+  emp: cfg('hr.docKinds.emp')
 };
 function hFilesOf(entity, id, doc) {
   return (hr.d.files || []).filter(function(f) { return f.entity === entity && Number(f.record_id) === Number(id) && (doc === undefined || f.doc === doc); });
@@ -1119,7 +1117,7 @@ function hRenderStaffList() {
 // У каждого человека кнопки связи: мессенджер (если есть настоящая учётка в CRM), внутренняя почта, телефон.
 // Править структуру (отделы, подчинённость, руководители) — HR и администратор в дашборде HR.
 const HR_MSG_PAGE = '/admin/msgspage01', HR_MAIL_PAGE = '/admin/mailpage01';
-const HR_OBJ_DEPT = 'Управление объектами';   // люди этого отдела группируются по объектам
+const HR_OBJ_DEPT = cfg('org.objDept');   // люди этого отдела группируются по объектам
 function hPhone(p) { return String(p || '').replace(/^\+7(\d{3})(\d{3})(\d{2})(\d{2})$/, '+7 $1 $2-$3-$4'); }
 // учётка, через которую человек реально читает мессенджер; тестовые test.* — не канал связи
 function hUser(e) { const u = e && e.user_id ? (hr.d.users || []).find(function(x) { return x.id === Number(e.user_id); }) : null; return u && !/^test\./.test(u.username || '') ? u : null; }

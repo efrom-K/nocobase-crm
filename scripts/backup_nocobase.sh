@@ -14,7 +14,9 @@ mkdir -p "$DIR"
 
 fail() {
   echo "$(date '+%F %T') FAIL $1"
-  for uid in ${NB_NOTIFY_USER_IDS:-2}; do
+  # кому — «Настройки CRM» → Служебное (crm_config notify.admins), иначе NB_NOTIFY_USER_IDS из cron, иначе пользователь 2
+  ids=$($PSQL -At -c "select string_agg(x, ' ') from crm_config, json_array_elements_text(value) x where key = 'notify.admins'" 2>/dev/null || true)
+  for uid in ${ids:-${NB_NOTIFY_USER_IDS:-2}}; do
     $PSQL -c "insert into \"notificationInAppMessages\"(id,\"createdAt\",\"updatedAt\",\"userId\",\"channelName\",title,content,status,\"receiveTimestamp\",options)
       values (gen_random_uuid(),now(),now(),$uid,'status','Бэкап CRM не сделан','$1 — проверьте ~/nb_bik/backup.log на svc','unread',(extract(epoch from now())*1000)::bigint,'{}'::json)" || true
   done

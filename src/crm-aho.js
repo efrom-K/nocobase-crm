@@ -215,29 +215,30 @@ if (!document.getElementById('crm-aho-style')) {
 }
 
 // ---------- справочники ----------
+// @include src/_crm-config.js
 const AHO_PAGE = '/admin/ahodash01', AHO_MAIL_PAGE = '/admin/mailpage01';
-const A_PERIOD = { daily: 'Каждый рабочий день', weekly: 'Раз в неделю', monthly: 'Раз в месяц', quarterly: 'Раз в квартал', yearly: 'Раз в год' };
+const A_PERIOD = cfg('aho.period');
 const A_WEEKDAYS = ['', 'по понедельникам', 'по вторникам', 'по средам', 'по четвергам', 'по пятницам', 'по субботам', 'по воскресеньям'];
-const A_EXP_ST = { new: 'Новый', approval: 'На согласовании', approved: 'Согласован', rejected: 'Отклонён', paid: 'Оплачен', docs: 'Закрывающие получены', handed: 'Передан в бухгалтерию' };
+const A_EXP_ST = cfg('aho.expStatus');
 const A_EXP_C = { new: '', approval: 'orange', approved: 'blue', rejected: 'red', paid: 'purple', docs: 'green', handed: 'grey' };
 const A_FLOW = ['new', 'approval', 'approved', 'paid', 'docs', 'handed'];
 const A_SUB_PERIOD = { month: 'Ежемесячно', quarter: 'Раз в квартал', year: 'Раз в год' };
 const A_SUB_MONTHS = { month: 1, quarter: 3, year: 12 };
-const A_POA_ST = { active: 'Действует', revoked: 'Отозвана' };
-const A_POA_PURPOSE = ['Получение товара у поставщика', 'Почта России', 'Налоговая', 'Энергосбыт / ресурсоснабжающие', 'Банк', 'Военкомат', 'Представление интересов', 'Другое'];
-const A_FIRE_ST = { sent: 'Требование вручено', repeat: 'Повторное требование', fixed: 'Устранено' };
+const A_POA_ST = cfg('aho.poaStatus');
+const A_POA_PURPOSE = cfg('aho.poaPurpose');
+const A_FIRE_ST = cfg('aho.fireStatus');
 const A_FIRE_C = { sent: 'orange', repeat: 'red', fixed: 'green' };
-const A_MAIL_KIND = { in: 'Входящее', out: 'Исходящее', memo: 'Служебная записка' };
-const A_MAIL_ST = { registered: 'Зарегистрировано', sent: 'Отправлено', delivered: 'Доставлено / вручено', answered: 'Ответ получен', done: 'Закрыто' };
-const A_MAIL_METHOD = ['Почта России', 'Курьер', 'Лично', 'Электронная почта', 'ЭДО'];
+const A_MAIL_KIND = cfg('aho.mailKind');
+const A_MAIL_ST = cfg('aho.mailStatus');
+const A_MAIL_METHOD = cfg('aho.mailMethod');
 const A_DOC_KINDS = {
-  exp: ['Счёт', 'Закрывающий документ (УПД, акт, чек)', 'Договор', 'Другое'],
-  poa: ['Скан доверенности', 'Шаблон (Word)', 'Другое'],
-  fire: ['Требование (скан)', 'Ответ арендатора', 'Фото', 'Акт проверки', 'Другое'],
-  mail: ['Скан письма', 'Опись / квитанция', 'Ответ', 'Другое'],
-  car: ['СТС', 'Страховка', 'Другое'],
-  fine: ['Постановление', 'Квитанция об оплате', 'Другое'],
-  routine: ['Инструкция', 'Другое']
+  exp: cfg('aho.docKinds.exp'),
+  poa: cfg('aho.docKinds.poa'),
+  fire: cfg('aho.docKinds.fire'),
+  mail: cfg('aho.docKinds.mail'),
+  car: cfg('aho.docKinds.car'),
+  fine: cfg('aho.docKinds.fine'),
+  routine: cfg('aho.docKinds.routine')
 };
 const A_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const ah = { tab: 'home', d: null, me: null, approver: null, year: new Date().getFullYear(), expSt: 'open', mailKind: '', fireObj: '', poaLe: '', mObj: '', moneyView: 'exp', expLayout: 'list',
@@ -697,7 +698,7 @@ function aRenderMoney() {
 // прокрутка внутри. Взяли карточку — подсвечена колонка следующего шага (если этот шаг вам доступен), остальные бледные.
 // Перенос = тот же шаг, что кнопка в карточке (aExpDo): PDF приложен, согласует только согласующий, уведомления.
 // Отклонить — только из карточки: нужна причина.
-const A_EXP_DONE_DAYS = 30;
+const A_EXP_DONE_DAYS = cfg('aho.expDoneDays');
 const A_EXP_NEXT = { new: 'send', rejected: 'send', approval: 'approve', approved: 'paid', paid: 'docs', docs: 'handed' };
 function aExpCol(x) { const s = x.status || 'new'; return s === 'rejected' ? 'new' : s; }
 function aExpAllowed(x, col) {

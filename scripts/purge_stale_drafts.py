@@ -29,6 +29,14 @@ def psql(sql):
 
 def jrows(sql): return json.loads(psql("select coalesce(json_agg(t), '[]'::json) from (%s) t" % sql) or '[]')
 
+def setting(key, default):   # значение со страницы «Настройки CRM» (коллекция crm_config); нет записи или мусор — по умолчанию
+    try: v = json.loads(psql("select coalesce((select value::text from crm_config where key = '%s'), 'null')" % key.replace("'", "''")).strip() or 'null')
+    except Exception: v = None
+    if isinstance(default, int): return int(v) if isinstance(v, (int, float)) and v >= 0 else default
+    if isinstance(default, list): return [int(x) for x in v if isinstance(x, (int, float)) and x > 0] or default if isinstance(v, list) else default
+    return default if v is None else v
+if '--days' not in sys.argv: DAYS = max(1, setting('contracts.draftPurgeDays', DAYS))   # 0 стёр бы все черновики
+
 stale = jrows("""
     select d.id, d.contract_number, d.object_name, d.tenant_name, d.created_by_id
     from draft_contracts d

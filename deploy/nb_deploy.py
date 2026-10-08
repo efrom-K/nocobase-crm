@@ -89,8 +89,17 @@ def git(*args):
     if r.returncode: raise RuntimeError('git %s: %s' % (' '.join(args), r.stderr.strip()[:300]))
     return r.stdout.strip()
 
+def recipients():
+    # кому — «Настройки CRM» → Служебное (crm_config notify.admins); нет записи — NB_NOTIFY_USER_IDS из cron
+    try:
+        out = psql("select string_agg(x, ',') from crm_config, json_array_elements_text(value) x where key = 'notify.admins'").strip()
+        ids = [int(x) for x in out.split(',') if x.strip().isdigit()]
+        if ids: return ids
+    except Exception: pass
+    return NOTIFY
+
 def notify(title, text):
-    for uid in NOTIFY:
+    for uid in recipients():
         try:
             lit_t, lit_c = title.replace("'", "''"), text.replace("'", "''")
             psql("insert into \"notificationInAppMessages\"(id,\"createdAt\",\"updatedAt\",\"userId\",\"channelName\",title,content,status,\"receiveTimestamp\",options) "

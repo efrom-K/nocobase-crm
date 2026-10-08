@@ -30,6 +30,14 @@ def psql(sql):
 def q(v): return 'NULL' if v is None else "'" + str(v).replace("'", "''") + "'"
 def jrows(sql): return json.loads(psql("select coalesce(json_agg(t), '[]'::json) from (%s) t" % sql) or '[]')
 
+def setting(key, default):   # значение со страницы «Настройки CRM» (коллекция crm_config); нет записи или мусор — по умолчанию
+    try: v = json.loads(psql("select coalesce((select value::text from crm_config where key = '%s'), 'null')" % key.replace("'", "''")).strip() or 'null')
+    except Exception: v = None
+    if isinstance(default, int): return int(v) if isinstance(v, (int, float)) and v >= 0 else default
+    if isinstance(default, list): return [int(x) for x in v if isinstance(x, (int, float)) and x > 0] or default if isinstance(v, list) else default
+    return default if v is None else v
+THRESHOLDS = sorted(set(setting('contracts.expiryDays', THRESHOLDS)))
+
 def parse(s):
     s = (s or '').strip()
     m = re.match(r'^(\d{4})-(\d{2})-(\d{2})', s)

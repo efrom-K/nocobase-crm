@@ -23,6 +23,15 @@ def psql(sql):
 def rows(sql): return json.loads(psql("select coalesce(json_agg(t), '[]'::json) from (%s) t" % sql))
 def q(s): return 'NULL' if s is None else "'" + str(s).replace("'", "''") + "'"
 
+def setting(key, default):   # значение со страницы «Настройки CRM» (коллекция crm_config); нет записи или мусор — по умолчанию
+    try: v = json.loads(psql("select coalesce((select value::text from crm_config where key = '%s'), 'null')" % key.replace("'", "''")).strip() or 'null')
+    except Exception: v = None
+    if isinstance(default, int): return int(v) if isinstance(v, (int, float)) and v >= 0 else default
+    if isinstance(default, list): return [int(x) for x in v if isinstance(x, (int, float)) and x > 0] or default if isinstance(v, list) else default
+    return default if v is None else v
+AUTO_CLOSE = max(1, setting('requests.autoCloseDays', 3))  # «Выполнена» и автор не проверил — закрыть через N дней
+ESCALATE = max(1, setting('requests.escalateDays', 3))    # просрочка N дней — старшему управляющему
+
 today = datetime.date.today()
 nxt = today + datetime.timedelta(days=1)
 while nxt.weekday() >= 5: nxt += datetime.timedelta(days=1)          # ближайший рабочий день
@@ -46,10 +55,10 @@ for r in reqs:
     due, rem = d(r['due_date']), d(r['reminded_on'])
     if r['status'] == 'done':
         done = datetime.datetime.fromisoformat(str(r['done_at'])[:19]).date() if r['done_at'] else None
-        if done and (today - done).days >= 3:
+        if done and (today - done).days >= AUTO_CLOSE:
             stmts.append("update object_requests set status='closed', closed_at=now(), \"updatedAt\"=now() where id=%s;" % r['id'])
-            event(r, 'Закрыта автоматически: автор не проверил за 3 дня')
-            notify(r['responsible_id'], r, 'Закрыта автоматически (автор не проверил за 3 дня): ' + r['title'])
+            event(r, 'Закрыта автоматически: автор не проверил за %d дн.' % AUTO_CLOSE)
+            notify(r['responsible_id'], r, 'Закрыта автоматически (автор не проверил за %d дн.): ' % AUTO_CLOSE + r['title'])
         continue
     if not due: continue
     if due == nxt and rem != today and (rem is None or rem < today):
@@ -58,7 +67,7 @@ for r in reqs:
     elif due < today and (rem is None or rem <= due):
         notify(r['responsible_id'], r, 'Просрочена (срок был %s): %s' % (fmt(due), r['title']))
         stmts.append("update object_requests set reminded_on=%s where id=%s;" % (q(today.isoformat()), r['id']))
-    if due < today and (today - due).days >= 3 and not r['escalated_at']:
+    if due < today and (today - due).days >= ESCALATE and not r['escalated_at']:
         who = r['senior_user_id']
         notify(who, r, 'Эскалация: просрочена на %d дн. (ответственный #%s): %s' % ((today - due).days, r['responsible_id'], r['title']))
         stmts.append("update object_requests set escalated_at=now() where id=%s;" % r['id'])

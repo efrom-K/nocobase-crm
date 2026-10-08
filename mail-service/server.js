@@ -78,15 +78,30 @@ async function whoami(token) {
     if (r.ok) { const j = await r.json(); u = j && j.data; }
   } catch (e) { u = null; }
   if (!u || !u.id) { tokenCache.delete(token); return null; }
+  await refreshMailUsers(token);
   const v = { userId: u.id, email: String(u.email || '').trim().toLowerCase(), name: u.nickname || u.username || '', exp: Date.now() + 60000 };
   tokenCache.set(token, v);
   if (tokenCache.size > 500) for (const [k, x] of tokenCache) if (x.exp < Date.now()) tokenCache.delete(k);
   return v;
 }
+// кому включена почта: список со страницы «Настройки CRM» (crm_config, ключ mail.users); нет записи — MAIL_USERS из .env.
+// Читаем токеном самого пользователя (настройки видят все роли), не чаще раза в минуту.
+const cfgMail = { at: 0, list: null };
+async function refreshMailUsers(token) {
+  if (Date.now() - cfgMail.at < 60000) return;
+  cfgMail.at = Date.now();
+  try {
+    const r = await fetch(NB_URL + '/api/crm_config:list?filter=' + encodeURIComponent(JSON.stringify({ key: 'mail.users' })), { headers: { Authorization: 'Bearer ' + token, 'X-Authenticator': 'basic' } });
+    if (!r.ok) return;   // нет коллекции или прав — остаётся прежний список
+    const j = await r.json(), row = j && j.data && j.data[0];
+    cfgMail.list = row && Array.isArray(row.value) ? row.value.map(x => String(x).trim().toLowerCase()).filter(Boolean) : null;
+  } catch (e) { /* сеть — остаётся прежний список */ }
+}
 function mailEnabled(email) {
   if (!email || !email.includes('@')) return false;
   if (DOMAIN && !email.endsWith('@' + DOMAIN)) return false;
-  return !USERS.length || USERS.includes(email);
+  if (cfgMail.list) return cfgMail.list.includes(email);   // из настроек: пустой список — почта выключена у всех
+  return !USERS.length || USERS.includes(email);           // из .env: пусто — все адреса домена (пилот)
 }
 
 class ApiError extends Error { constructor(status, code, message) { super(message || code); this.status = status; this.code = code; } }
@@ -552,7 +567,6 @@ async function nbServiceCall(pathName, body) {
   }
   return false;
 }
-function openUrl(folder, uid) { return '/admin/' + (env.NB_MAIL_PAGE || 'mailpage01') + '?open=' + encodeURIComponent(folder + ':' + uid); }
 async function notifyUser(userId, title, text, url) {
   try { await nbServiceCall('mail_notifications:create', { user_id: userId, title: title.slice(0, 250), text: text.slice(0, 1000), url: url }); }
   catch (e) { console.error('notify', e.message); }
@@ -568,22 +582,7 @@ async function checkInbox(email) {
     const p = inbox ? inbox.path : 'INBOX';
     const s = await c.status(p, { uidNext: true, uidValidity: true, unseen: true });
     unreadNow.set(email, { unseen: s.unseen || 0, at: Date.now() });
-    const top = (s.uidNext || 1) - 1, validity = String(s.uidValidity);
-    if (st.uidValidity !== validity || !st.lastUid) { patchState(email, { uidValidity: validity, lastUid: top }); return; }
-    if (top <= st.lastUid) return;
-    const fresh = [];
-    const lock = await c.getMailboxLock(p, { readOnly: true });
-    try {
-      for await (const m of c.fetch((st.lastUid + 1) + ':*', { uid: true, envelope: true, flags: true }, { uid: true })) {
-        if (m.uid <= st.lastUid || m.flags.has('\\Seen')) continue;
-        const f = ((m.envelope && m.envelope.from) || [])[0] || {};
-        fresh.push({ uid: m.uid, from: f.name || f.address || 'без отправителя', subject: (m.envelope && m.envelope.subject) || '(без темы)' });
-      }
-    } finally { lock.release(); }
-    patchState(email, { lastUid: top });
-    if (!fresh.length) return;
-    if (fresh.length <= 3) for (const x of fresh) await notifyUser(st.userId, 'Новое письмо: ' + x.from, x.subject, openUrl(p, x.uid));
-    else await notifyUser(st.userId, fresh.length + ' новых писем', fresh.slice(0, 5).map(x => x.from + ' — ' + x.subject).join('\n'), '/admin/' + (env.NB_MAIL_PAGE || 'mailpage01'));
+    // о новых письмах в колокольчик не пишем (10-07, решение владельца): только счётчик у пункта «Почта» через /unread
   });
 }
 async function inboxLoop() {

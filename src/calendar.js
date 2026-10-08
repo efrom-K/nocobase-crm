@@ -1,13 +1,14 @@
 // Страница «Календарь (тест)» (/admin/calpage01, блок calblock01; scripts/setup_calendar.py) — сроки всех разделов в одном месте.
 // Сроки берутся из разделов через API с правами пользователя: нет доступа к разделу — его сроков просто нет.
 // Какие разделы показывать по умолчанию — по роли (CAL_DEFAULTS), человек может включить/выключить, выбор запоминается.
+// @include src/_crm-config.js
 const CAL_GROUPS = {
   contracts: { l: 'Договоры', c: '#1c2d58' }, requests: { l: 'Заявки', c: '#d46b08' }, tasks: { l: 'Задачи', c: '#13a8a8' },
   aho: { l: 'АХО', c: '#722ed1' }, hr: { l: 'Кадры', c: '#389e0d' }
 };
 const CAL_DEFAULTS = { hr: ['hr', 'tasks'], aho: ['aho', 'tasks', 'requests'] };   // по роли; остальным (и администратору) — все разделы
-const CAL_AHEAD = 30;           // «Ближайшие»: на сколько дней вперёд (дальше — «Месяц»)
-const CAL_DAY_MAX = 4;          // строк в дне, остальное — по клику «ещё N»
+const CAL_AHEAD = cfg('calendar.ahead');           // «Ближайшие»: на сколько дней вперёд (дальше — «Месяц»)
+const CAL_DAY_MAX = cfg('calendar.dayMax');          // строк в дне, остальное — по клику «ещё N»
 const CAL_REFRESH_MS = 5 * 60 * 1000;
 const P_REG = '/admin/b5znz7yxpy3', P_REQ = '/admin/j3a32zo1jzo', P_TSK = '/admin/tskpage01', P_AHO = '/admin/ahodash01', P_HRD = '/admin/hrdash01', P_HR = '/admin/hrpage01';
 

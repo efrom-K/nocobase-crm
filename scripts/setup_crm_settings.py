@@ -56,11 +56,14 @@ ids = [x['id'] for x in call('desktopRoutes:list?paginate=false&filter=' + q({'s
 for role in [r['name'] for r in call('roles:list?paginate=false').get('data', []) if r['name'] not in ('admin', 'root')]:
     call('roles/%s/desktopRoutes:remove' % role, ids)
 print('menu admin', ok(call('roles/admin/desktopRoutes:add', ids)))
-# порядок: перед «Почтой» (последние два пункта меню — Почта и Мессенджер)
-mail = call('desktopRoutes:list?paginate=false&filter=' + q({'title': 'Почта', 'parentId': None})).get('data', [])
-page = call('desktopRoutes:list?paginate=false&filter=' + q({'schemaUid': 'crmcfg01'}))['data'][0]
-if mail:
-    print('move before mail', ok(call('desktopRoutes:move', {'sourceId': page['id'], 'targetId': mail[0]['id'], 'method': 'insertBefore', 'sortField': 'sort'})))
+# порядок: перед «Почтой» и «Мессенджером» — они всегда последние (move insertBefore не сработал — ставим sort явно)
+top = call('desktopRoutes:list?paginate=false&sort=sort&filter=' + q({'parentId': None})).get('data', [])
+tail = [r for r in top if r['title'] in ('Почта', 'Мессенджер')]
+rest = [r for r in top if r not in tail and r.get('schemaUid') != 'crmcfg01']
+page = next(r for r in top if r.get('schemaUid') == 'crmcfg01')
+for i, r in enumerate(rest + [page] + sorted(tail, key=lambda r: r['title'] != 'Почта'), 1):
+    if r.get('sort') != i: call('desktopRoutes:update?filterByTk=%s' % r['id'], {'sort': i})
+print('menu order ok')
 
 LAYOUT = {'rows': [{'id': 'cfgrow1', 'cells': [{'id': 'cfgrow1:cell:0', 'items': ['crmblock006']}], 'sizes': [24]}], 'version': 2}
 grid = {'use': 'BlockGridModel', 'parent': 'crmcfgtabs01', 'parentId': 'crmcfgtabs01', 'subKey': 'grid', 'subType': 'object', 'sortIndex': 0, 'flowRegistry': {},

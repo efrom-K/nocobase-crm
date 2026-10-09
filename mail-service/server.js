@@ -750,8 +750,21 @@ function rtcStream(req, res, user, origin) {
   const uid = Number(user.userId);
   if (!rtcStreams.has(uid)) rtcStreams.set(uid, new Set());
   rtcStreams.get(uid).add(res);
+  // открыл CRM, пока ему звонят — вызов приходит сразу
+  for (const pr of rtcPending.values()) if (pr.to.get(uid) === 'ringing') { try { res.write('data: ' + JSON.stringify(pr.msg) + '\n\n'); } catch (e) { /* */ } }
   const ping = setInterval(function() { try { res.write(': ping\n\n'); } catch (e) { /* */ } }, 25000);
   req.on('close', function() { clearInterval(ping); const set = rtcStreams.get(uid); if (set) { set.delete(res); if (!set.size) rtcStreams.delete(uid); } });
+}
+// вызов ждёт человека до минуты: кто откроет CRM за это время — получит звонок; кто так и не ответил — «пропущенный» в колокольчик
+const rtcPending = new Map();   // callId → { from, fromName, to: Map(uid → 'ringing'|'done'), msg, timer }
+const RTC_RING_MS = 60000;
+function rtcFinish(callId) {
+  const pr = rtcPending.get(callId); if (!pr) return;
+  clearTimeout(pr.timer); rtcPending.delete(callId);
+  for (const [uid, st] of pr.to) if (st === 'ringing') {
+    rtcPush(uid, { type: 'cancel', call: callId, from: pr.from, fromName: pr.fromName });
+    notifyUser(uid, 'Пропущенный звонок', pr.fromName + (pr.msg.data && pr.msg.data.video ? ' — видеозвонок' : ' — звонок'), '/admin/msgspage01');
+  }
 }
 function rtcSend(user, b) {
   const type = String(b.type || '');
@@ -762,6 +775,10 @@ function rtcSend(user, b) {
   const msg = { type: type, call: call, from: Number(user.userId), fromName: user.name, data: b.data == null ? null : b.data };
   const delivered = {};
   to.forEach(function(u) { delivered[u] = rtcPush(u, msg); });
+  const me = Number(user.userId), pr = rtcPending.get(call);
+  if (type === 'ring') rtcPending.set(call, { from: me, fromName: user.name, to: new Map(to.map(function(u) { return [u, 'ringing']; })), msg: msg, timer: setTimeout(function() { rtcFinish(call); }, RTC_RING_MS) });
+  else if (pr && (type === 'join' || type === 'decline' || type === 'busy') && pr.to.has(me)) { pr.to.set(me, 'done'); if ([...pr.to.values()].every(function(x) { return x === 'done'; })) { clearTimeout(pr.timer); rtcPending.delete(call); } }
+  else if (pr && pr.from === me && (type === 'cancel' || type === 'hangup')) rtcFinish(call);
   return { delivered: delivered };
 }
 function rtcIce(user) {

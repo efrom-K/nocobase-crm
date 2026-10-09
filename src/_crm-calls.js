@@ -155,11 +155,13 @@ if (!window.__crmRtc) {
     render();
     tone('back');
     const res = await sendCall(id, ids, 'ring', { members: R.call.members, title: R.call.title, video: R.call.video, names: Object.assign({}, R.names, R.me ? { [R.me]: R.myName || '' } : {}) });
+    R.call.conv = o.conv || null;
     const online = ids.filter(function(u) { return (res.delivered || {})[u]; });
-    if (!online.length) { end(ids.length === 1 ? (R.names[ids[0]] || 'Собеседник') + ' сейчас не в CRM — позвонить не получится' : 'Никого из участников сейчас нет в CRM'); return; }
+    // CRM у человека сейчас не открыта — вызов всё равно ждёт минуту (придёт, как только откроет), потом — «пропущенный»
+    if (!online.length) rtcToast((ids.length === 1 ? (R.names[ids[0]] || 'Собеседник') : 'Участники') + ' сейчас не в CRM — звоним минуту; если не ответит, увидит пропущенный звонок');
     R.call.ringTimer = setTimeout(function() {
-      if (R.call && R.call.id === id && !Object.keys(R.call.peers).length) { sendCall(id, ids, 'cancel'); end('Не ответили'); }
-    }, 45000);
+      if (R.call && R.call.id === id && !Object.keys(R.call.peers).length) { sendCall(id, ids, 'cancel'); missed(R.call); end('Не ответили — увидят пропущенный звонок'); }
+    }, 60000);
   };
   const accept = async function(video) {
     const m = R.incoming; if (!m) return;
@@ -183,9 +185,15 @@ if (!window.__crmRtc) {
     const w = document.querySelector('.rtc-win'); if (w) w.remove();
     if (note) rtcToast(note);
   };
+  // никто не ответил — сообщение в чат (видно в списке чатов и с телефона), колокольчик шлёт сервер
+  const missed = function(c) {
+    if (!c || !c.conv || !c.out) return;
+    try { ctx.api.resource('chat_messages').create({ values: { conversation_id: c.conv, author_id: R.me, message: '📞 Пропущенный ' + (c.video ? 'видеозвонок' : 'звонок'), created_at: new Date().toISOString() } }); } catch (e) { /* не страшно */ }
+  };
   const hangup = function() {
     const c = R.call; if (!c) return;
     const others = c.members.filter(function(u) { return u !== R.me; });
+    if (!Object.keys(c.peers).length && c.out) missed(c);
     sendCall(c.id, others, Object.keys(c.peers).length || !c.out ? 'hangup' : 'cancel');
     end(c.startedAt ? 'Звонок завершён · ' + dur(c.startedAt) : null);
   };
@@ -350,8 +358,8 @@ if (!window.__crmRtc) {
   });
 }
 // кнопки «позвонить» для шапки чата: data-call-ids="1,2" data-call-video="1"
-function crmCallButtons(ids, title, names) {
-  const d = ' data-call-ids="' + rtcEsc(ids.join(',')) + '" data-call-title="' + rtcEsc(title || '') + '" data-call-names="' + rtcEsc(JSON.stringify(names || {})) + '"';
+function crmCallButtons(ids, title, names, conv) {
+  const d = ' data-call-ids="' + rtcEsc(ids.join(',')) + '" data-call-title="' + rtcEsc(title || '') + '" data-call-names="' + rtcEsc(JSON.stringify(names || {})) + '" data-call-conv="' + rtcEsc(conv || '') + '"';
   return '<button class="msgr-call-btn" title="Позвонить" data-call-go' + d + '>' + RTC_ICON.phone + '</button><button class="msgr-call-btn" title="Видеозвонок" data-call-go data-call-video="1"' + d + '>' + RTC_ICON.video + '</button>';
 }
 if (!window.__crmRtcBtn) {
@@ -360,7 +368,7 @@ if (!window.__crmRtcBtn) {
     const b = e.target.closest && e.target.closest('[data-call-go]'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
     let names = {}; try { names = JSON.parse(b.getAttribute('data-call-names') || '{}'); } catch (x) { /* */ }
-    window.crmCall(b.getAttribute('data-call-ids').split(',').map(Number), { video: b.hasAttribute('data-call-video'), title: b.getAttribute('data-call-title'), names: names });
+    window.crmCall(b.getAttribute('data-call-ids').split(',').map(Number), { video: b.hasAttribute('data-call-video'), title: b.getAttribute('data-call-title'), names: names, conv: Number(b.getAttribute('data-call-conv')) || null });
   }, true);
 }
 // ===== конец фрагмента звонков =====

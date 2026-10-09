@@ -273,6 +273,7 @@ if (!document.getElementById('crm-hr-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
 const HR_TASKS_PAGE = '/admin/tskpage01';
 const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/hrdash01';

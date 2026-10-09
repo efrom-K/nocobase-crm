@@ -2,6 +2,7 @@
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-mobile.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
 if (!document.getElementById('crm-controls-style')) {
@@ -360,6 +361,21 @@ function injectStyle() {
     .msgr-modal-foot { padding:12px 16px; border-top:1px solid #eef0f3; display:flex; justify-content:flex-end; gap:8px; }
     .msgr-modal-foot button { background:linear-gradient(135deg,#1c2d58,#3a5aa0); color:#fff; border:none; border-radius:9px; padding:8px 16px; font-size:13px; cursor:pointer; font-weight:600; }
     .msgr-modal-foot button:disabled { opacity:.5; cursor:default; }
+    /* телефон: чат на весь экран над клавиатурой (--crm-vvh из _crm-mobile.js), участники/файлы — поверх чата */
+    @media (max-width: 700px) {
+      .msgr-chat-window, .msgr-chat-window.open, .msgr-chat-window.with-info { top:var(--crm-vvt, 0); left:0; transform:none; width:100%; max-width:none; height:var(--crm-vvh, 100dvh); max-height:none; border-radius:0; transition:opacity .15s; }
+      .msgr-chat-window.with-info .msgr-chat-main { display:none; }
+      .msgr-chat-window.with-info .msgr-info-panel { width:100%; border-left:none; }
+      .msgr-chat-head { padding:8px 6px 8px 12px; gap:6px; }
+      .msgr-chat-close { width:40px; height:40px; font-size:24px; }
+      .msgr-thread { padding:10px 10px 6px; }
+      .msgr-bubble { max-width:84%; font-size:15px; }
+      .msgr-composer { padding:8px 8px calc(8px + env(safe-area-inset-bottom)); }
+      .msgr-composer textarea { min-height:42px; padding:10px 14px; }
+      .msgr-attach-btn, .msgr-send-btn { width:42px; height:42px; }
+      .msgr-modal-box { width:100%; max-width:none; top:auto; bottom:0; left:0; transform:none; border-radius:14px 14px 0 0; max-height:85vh; }
+      .msgr-modal-box.open { transform:none; }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -679,14 +695,24 @@ async function openChatWindow(rootPage, convId) {
   const textarea = win.querySelector('#msgr-input');
   const sendBtn = win.querySelector('#msgr-send-btn');
   sendBtn.addEventListener('click', function () { sendMessage(rootPage, win, convId); });
+  const touch = window.matchMedia('(pointer: coarse)').matches;
   textarea.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(rootPage, win, convId); }
+    // на телефоне Enter — новая строка (как в мессенджерах), отправка — кнопкой
+    if (e.key === 'Enter' && !e.shiftKey && !touch) { e.preventDefault(); sendMessage(rootPage, win, convId); }
   });
+  // нажатие «Отправить» не забирает фокус у поля — клавиатура телефона не прячется после каждого сообщения
+  sendBtn.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+  // клавиатура открылась / закрылась — переписка остаётся прижатой к последнему сообщению
+  if (window.visualViewport) {
+    const keep = function () { const t = document.getElementById('msgr-thread'); if (!document.getElementById('msgr-chat-window')) { window.visualViewport.removeEventListener('resize', keep); return; } if (t) t.scrollTop = t.scrollHeight; };
+    window.visualViewport.addEventListener('resize', keep);
+  }
   textarea.addEventListener('input', function () {
     textarea.style.height = '38px';
     textarea.style.height = Math.min(textarea.scrollHeight, 110) + 'px';
   });
-  textarea.focus();
+  // на телефоне не открываем клавиатуру сама по себе — она закрывала бы переписку
+  if (!touch) textarea.focus();
 
   const fileInput = win.querySelector('#msgr-file-input');
   win.querySelector('#msgr-attach-btn').addEventListener('click', function () { fileInput.click(); });

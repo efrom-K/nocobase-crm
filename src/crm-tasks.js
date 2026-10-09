@@ -243,6 +243,7 @@ if (!document.getElementById('crm-tk-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-mobile.js
 const TK_PAGE = '/admin/tskpage01';   // «Задачи (тест)»
 const TK_HR_PAGE = '/admin/hrpage01'; // «Персонал (тест)»: сотрудники, структура, кадры
 const TK_ST = cfg('tasks.status');

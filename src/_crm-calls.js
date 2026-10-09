@@ -44,6 +44,20 @@ if (!document.getElementById('crm-call-style')) {
     .rtc-msg { padding:18px; text-align:center; color:#a7b0c4; }
     .msgr-call-btn { border:none; background:transparent; color:#1c2d58; width:34px; height:34px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex:none; }
     .msgr-call-btn:hover { background:#eef1f8; }
+    /* телефон: окно звонка на весь экран (без «Развернуть»), крупные кнопки, входящий — во всю ширину */
+    @media (max-width: 700px) {
+      .rtc-win, .rtc-win.big { top:var(--crm-vvt, 0); left:0; right:0; bottom:auto; width:100%; max-width:none; height:var(--crm-vvh, 100dvh); border-radius:0; }
+      .rtc-win [data-rtc="big"] { display:none; }
+      .rtc-top { padding:calc(12px + env(safe-area-inset-top)) 16px 12px; font-size:15px; }
+      .rtc-grid, .rtc-win.big .rtc-grid { grid-template-columns:1fr; }
+      .rtc-tile .rtc-ava { width:96px; height:96px; font-size:30px; }
+      .rtc-me { bottom:calc(100px + env(safe-area-inset-bottom)); width:96px; height:128px; }
+      .rtc-bar { gap:22px; padding:16px 12px calc(20px + env(safe-area-inset-bottom)); }
+      .rtc-bar .rtc-b { width:60px; height:60px; }
+      .rtc-bar [data-rtc="screen"] { display:none; }
+      .rtc-in { top:calc(10px + env(safe-area-inset-top)); min-width:0; width:calc(100vw - 20px); }
+      .rtc-in .rtc-b { width:52px; height:52px; }
+    }
   `;
   document.head.appendChild(st);
 }
@@ -97,6 +111,9 @@ if (!window.__crmRtc) {
 
   // ---------- медиа ----------
   const getMedia = async function(video) {
+    // iPhone (Safari 16.4+): режим «разговор» — звук аудиозвонка в ухо (видеозвонок — на динамик, как обычно), а не на громкую связь.
+    // Chrome на Android так не умеет (сайт не выбирает динамик) — там громкая связь, пока не подключены наушники.
+    try { if (W.navigator.audioSession && !video) W.navigator.audioSession.type = 'play-and-record'; } catch (e) { /* */ }
     if (!MD || !PC) throw new Error('Браузер не поддерживает звонки' + (location.protocol !== 'https:' ? ' по http — откройте CRM по адресу https://crm.ykinvest.ru' : ''));
     try { return await MD.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: video ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false }); }
     catch (e) {
@@ -181,6 +198,7 @@ if (!window.__crmRtc) {
     c.local.getTracks().forEach(function(t) { t.stop(); });
     if (c.screen) c.screen.getTracks().forEach(function(t) { t.stop(); });
     stopTone(); stopFlash();
+    try { if (W.navigator.audioSession) W.navigator.audioSession.type = 'auto'; } catch (e) { /* */ }
     R.call = null;
     const w = document.querySelector('.rtc-win'); if (w) w.remove();
     if (note) rtcToast(note);

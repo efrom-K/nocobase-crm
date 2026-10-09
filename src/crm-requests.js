@@ -206,6 +206,7 @@ if (!document.getElementById('crm-req-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
 const RQ_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
 const RQ_ST = cfg('requests.status');

@@ -218,6 +218,7 @@ if (!document.getElementById('crm-aho-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
 const AHO_PAGE = '/admin/ahodash01', AHO_MAIL_PAGE = '/admin/mailpage01';
 const A_PERIOD = cfg('aho.period');

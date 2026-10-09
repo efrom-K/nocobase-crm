@@ -24,7 +24,7 @@ if (!document.getElementById('crm-mobile-style')) {
       .ant-layout-content .ant-table tbody > tr > td[data-l]:not(.crm-m-title) { display:flex !important; flex-wrap:wrap; align-items:baseline; column-gap:6px; }
       .ant-layout-content .ant-table tbody > tr > td[data-l]:not(.crm-m-title)::before { content:attr(data-l) ':'; color:#8c8c8c; flex:none; }
       .ant-layout-content .ant-table tbody > tr > td .ant-table-cell-content, .ant-layout-content .ant-table tbody > tr > td > * { white-space:normal !important; display:inline; }
-      .ant-layout-content .ant-table tbody > tr > td * { overflow:visible !important; text-overflow:clip !important; white-space:normal !important; max-width:none !important; -webkit-line-clamp:unset !important; }
+      .ant-layout-content .ant-table tbody > tr > td * { overflow:visible !important; text-overflow:clip !important; white-space:normal !important; max-width:none !important; width:auto !important; -webkit-line-clamp:unset !important; }
     }
   `;
   document.head.appendChild(st);
@@ -51,7 +51,7 @@ if (!window.__crmMTables) {
           if (td.classList.contains('ant-table-selection-column')) return;
           const l = heads[i] || '';
           if (l && td.getAttribute('data-l') !== l) td.setAttribute('data-l', l);
-          const empty = !(td.textContent || '').trim() && !td.querySelector('img,button,a,input');
+          const empty = !(td.textContent || '').trim() && !td.querySelector('img');
           td.classList.toggle('crm-m-empty', empty);
           td.classList.toggle('crm-m-title', first && !empty);
           if (!empty) first = false;

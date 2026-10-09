@@ -52,6 +52,91 @@ function decrypt(o) {
 function getPassword(email) { const o = loadCreds()[email]; if (!o) return null; try { return decrypt(o); } catch (e) { return null; } }
 function setPassword(email, pass) { const all = loadCreds(); all[email] = encrypt(pass); saveCreds(all); }
 
+// ---------- несколько ящиков у одного человека ----------
+// Основной ящик — почта учётки NocoBase, ключ = адрес (как было всегда). Дополнительные — data/accounts.json { userId: [{ email, imapHost, … }] },
+// ключ «userId|адрес»: пароль, настройки, состояние и соединение — свои у каждого человека, чужой ящик по ключу не открыть.
+const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
+function loadAccounts() { try { return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8')); } catch (e) { return {}; } }
+function saveAccounts(all) { fs.mkdirSync(DATA_DIR, { recursive: true }); const tmp = ACCOUNTS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(all, null, 1), { mode: 0o600 }); fs.renameSync(tmp, ACCOUNTS_FILE); }
+function boxAddr(key) { const i = String(key).indexOf('|'); return i === -1 ? key : key.slice(i + 1); }
+function boxHosts(key) {
+  const i = String(key).indexOf('|');
+  if (i === -1) return { imapHost: IMAP_HOST, imapPort: IMAP_PORT, smtpHost: SMTP_HOST, smtpPort: SMTP_PORT };
+  const a = (loadAccounts()[key.slice(0, i)] || []).find(x => x.email === key.slice(i + 1));
+  if (!a) throw new ApiError(404, 'NO_BOX', 'Ящик не найден');
+  return a;
+}
+// известные почтовые службы: по домену или по MX
+const MAIL_PRESETS = {
+  mailru: { imapHost: 'imap.mail.ru', imapPort: 993, smtpHost: 'smtp.mail.ru', smtpPort: 465 },
+  yandex: { imapHost: 'imap.yandex.ru', imapPort: 993, smtpHost: 'smtp.yandex.ru', smtpPort: 465 },
+  gmail: { imapHost: 'imap.gmail.com', imapPort: 993, smtpHost: 'smtp.gmail.com', smtpPort: 465 },
+  rambler: { imapHost: 'imap.rambler.ru', imapPort: 993, smtpHost: 'smtp.rambler.ru', smtpPort: 465 }
+};
+async function guessHosts(email) {
+  const dom = String(email).split('@')[1] || '';
+  if (dom === DOMAIN) return { imapHost: IMAP_HOST, imapPort: IMAP_PORT, smtpHost: SMTP_HOST, smtpPort: SMTP_PORT };
+  if (/^(mail|bk|inbox|list|internet)\.ru$/.test(dom)) return MAIL_PRESETS.mailru;
+  if (/^(yandex\.(ru|com|by|kz)|ya\.ru)$/.test(dom)) return MAIL_PRESETS.yandex;
+  if (/^(gmail|googlemail)\.com$/.test(dom)) return MAIL_PRESETS.gmail;
+  if (/^(rambler|lenta|ro|autorambler|myrambler)\.ru$/.test(dom)) return MAIL_PRESETS.rambler;
+  try {
+    const mx = (await require('dns').promises.resolveMx(dom)).map(x => x.exchange.toLowerCase()).join(' ');
+    if (/mail\.ru/.test(mx)) return MAIL_PRESETS.mailru;
+    if (/yandex/.test(mx)) return MAIL_PRESETS.yandex;
+    if (/google/.test(mx)) return MAIL_PRESETS.gmail;
+    if (/1gb\.ru/.test(mx)) return { imapHost: IMAP_HOST, imapPort: IMAP_PORT, smtpHost: SMTP_HOST, smtpPort: SMTP_PORT };
+  } catch (e) { /* нет MX — спросим серверы у человека */ }
+  return null;
+}
+// ящик из запроса (?box=…): основной или один из своих дополнительных
+function boxKey(user, box) {
+  const b = String(box || '').trim().toLowerCase();
+  if (!b || b === user.email) return user.email;
+  if ((loadAccounts()[user.userId] || []).some(x => x.email === b)) return user.userId + '|' + b;
+  throw new ApiError(403, 'NO_BOX', 'Этот ящик не подключён к вашей учётной записи');
+}
+async function boxesAdd(user, b) {
+  const email = String(b.email || '').trim().toLowerCase(), pass = String(b.password || '');
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) throw new ApiError(400, 'BAD_EMAIL', 'Проверьте адрес');
+  if (!pass) throw new ApiError(400, 'NO_PASSWORD', 'Введите пароль');
+  if (email === user.email) throw new ApiError(400, 'PRIMARY', 'Это ваш основной ящик — он уже подключён');
+  const all = loadAccounts(), mine = all[user.userId] || [];
+  if (mine.some(x => x.email === email)) throw new ApiError(400, 'EXISTS', 'Этот ящик уже подключён');
+  if (mine.length >= 10) throw new ApiError(400, 'TOO_MANY', 'Можно подключить до 10 ящиков');
+  let h = b.imapHost ? { imapHost: String(b.imapHost).trim(), imapPort: Number(b.imapPort) || 993, smtpHost: String(b.smtpHost || b.imapHost).trim(), smtpPort: Number(b.smtpPort) || 465 } : await guessHosts(email);
+  if (!h) throw new ApiError(422, 'NEED_HOSTS', 'Не знаем серверы этой почты — укажите их вручную');
+  // проверить вход до сохранения: IMAP и SMTP
+  const c = new ImapFlow({ host: h.imapHost, port: h.imapPort, secure: true, auth: { user: email, pass: pass }, logger: false, emitLogs: false });
+  c.on('error', () => {});
+  try { await c.connect(); await c.logout(); }
+  catch (err) { throw isAuthError(err) ? new ApiError(412, 'BAD_PASSWORD', 'Почта не приняла пароль. Для Mail.ru, Яндекса и Gmail нужен «пароль для внешних приложений» из настроек ящика') : new ApiError(502, 'IMAP_DOWN', 'Не удалось подключиться к ' + h.imapHost); }
+  try { await nodemailer.createTransport({ host: h.smtpHost, port: h.smtpPort, secure: h.smtpPort === 465, auth: { user: email, pass: pass } }).verify(); }
+  catch (err) { throw new ApiError(412, 'SMTP_FAIL', 'Входящие работают, а отправка (' + h.smtpHost + ') не приняла пароль или недоступна'); }
+  mine.push({ email: email, imapHost: h.imapHost, imapPort: h.imapPort, smtpHost: h.smtpHost, smtpPort: h.smtpPort, added: new Date().toISOString() });
+  all[user.userId] = mine; saveAccounts(all);
+  setPassword(user.userId + '|' + email, pass);
+  patchState(user.userId + '|' + email, { userId: user.userId });
+  return boxesList(user);
+}
+function boxesRemove(user, b) {
+  const email = String(b.email || '').trim().toLowerCase(), all = loadAccounts(), mine = all[user.userId] || [];
+  if (!mine.some(x => x.email === email)) throw new ApiError(404, 'NO_BOX', 'Ящик не найден');
+  all[user.userId] = mine.filter(x => x.email !== email); saveAccounts(all);
+  const key = user.userId + '|' + email;
+  const cr = loadCreds(); delete cr[key]; saveCreds(cr);
+  const st = loadState(); delete st[key]; saveState(st);
+  const e = pool.get(key); if (e && e.client) e.client.logout().catch(() => {}); pool.delete(key);
+  unreadNow.delete(key);
+  schedList(key).forEach(j => schedDelete(j.id));
+  return boxesList(user);
+}
+function boxesList(user) {
+  const u = function(k) { const x = unreadNow.get(k); return x ? x.unseen : null; };
+  return { boxes: [{ email: user.email, primary: true, configured: !!getPassword(user.email), unseen: u(user.email) }]
+    .concat((loadAccounts()[user.userId] || []).map(a => ({ email: a.email, primary: false, host: a.imapHost, configured: !!getPassword(user.userId + '|' + a.email), unseen: u(user.userId + '|' + a.email) }))) };
+}
+
 // ---------- настройки ящика: имя отправителя и подпись ----------
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 function loadSettings() { try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { return {}; } }
@@ -110,7 +195,8 @@ class ApiError extends Error { constructor(status, code, message) { super(messag
 const pool = new Map();
 function isAuthError(e) { return !!(e && (e.authenticationFailed || /AUTHENTICATIONFAILED|authentication failed|Invalid credentials|LOGIN failed/i.test(String(e.responseText || e.message || '')))); }
 function newClient(email, pass) {
-  const c = new ImapFlow({ host: IMAP_HOST, port: IMAP_PORT, secure: true, auth: { user: email, pass: pass }, logger: false, emitLogs: false });
+  const h = boxHosts(email);
+  const c = new ImapFlow({ host: h.imapHost, port: h.imapPort, secure: true, auth: { user: boxAddr(email), pass: pass }, logger: false, emitLogs: false });
   c.on('error', () => {});
   return c;
 }
@@ -338,7 +424,8 @@ async function readMessage(client, folder, uid) {
 const uploads = new Map();   // id -> { owner, filename, contentType, content, exp }
 function cleanUploads() { const now = Date.now(); for (const [k, u] of uploads) if (u.exp < now) uploads.delete(k); }
 function transportFor(email) {
-  return nodemailer.createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, auth: { user: email, pass: getPassword(email) } });
+  const h = boxHosts(email);
+  return nodemailer.createTransport({ host: h.smtpHost, port: h.smtpPort, secure: h.smtpPort === 465, auth: { user: boxAddr(email), pass: getPassword(email) } });
 }
 function cleanAddrs(v) {
   const list = Array.isArray(v) ? v : String(v || '').split(/[,;]/);
@@ -369,12 +456,12 @@ async function composeMail(user, body, client) {
   });
   const st = settingsOf(user.email);
   const opts = {
-    from: { name: st.name || user.name || '', address: user.email }, to, cc, bcc,
+    from: { name: st.name || user.name || '', address: boxAddr(user.email) }, to, cc, bcc,
     subject: String(body.subject || ''), html: html, text: body.text ? String(body.text) : undefined,
     attachments, date: body.sendAt ? new Date(body.sendAt) : new Date(), headers: {}
   };
   if (body.important) Object.assign(opts.headers, { 'X-Priority': '1 (Highest)', 'X-MSMail-Priority': 'High', 'Importance': 'High' });
-  if (body.readReceipt) opts.headers['Disposition-Notification-To'] = user.email;
+  if (body.readReceipt) opts.headers['Disposition-Notification-To'] = boxAddr(user.email);
   if (body.inReplyTo) { opts.inReplyTo = body.inReplyTo; opts.references = [].concat(body.references || [], body.inReplyTo).filter(Boolean).join(' '); }
   const raw = await new MailComposer(opts).compile().build();
   return { raw, rcpt: [...to, ...cc, ...bcc], opts };
@@ -605,7 +692,7 @@ function schedList(email) {
 function schedSave(job) { fs.mkdirSync(SCHED_DIR, { recursive: true }); const f = path.join(SCHED_DIR, job.id + '.json'); fs.writeFileSync(f + '.tmp', JSON.stringify(job), { mode: 0o600 }); fs.renameSync(f + '.tmp', f); }
 function schedDelete(id) { try { fs.unlinkSync(path.join(SCHED_DIR, String(id).replace(/[^a-f0-9]/g, '') + '.json')); } catch (e) { /* уже нет */ } }
 async function deliver(email, raw, rcpt, replyTo, forward) {
-  await transportFor(email).sendMail({ envelope: { from: email, to: rcpt }, raw: raw });
+  await transportFor(email).sendMail({ envelope: { from: boxAddr(email), to: rcpt }, raw: raw });
   await withImap(email, async c => {
     const sent = await specialPath(c, email, '\\Sent');
     if (sent) { try { await c.append(sent, raw, ['\\Seen']); } catch (e) { /* письмо ушло, копия не сохранилась */ } }
@@ -717,17 +804,22 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    const user = await whoami(token);
+    let user = await whoami(token);
     if (!user) throw new ApiError(401, 'NO_SESSION', 'Войдите в NocoBase заново');
     // звонки мессенджера — всем вошедшим (не только тем, кому включена почта)
     if (p === '/rtc/stream') return rtcStream(req, res, user, origin);
     if (p === '/rtc/send' && req.method === 'POST') return send(res, 200, rtcSend(user, await readJson(req)), origin);
     if (p === '/rtc/ice') return send(res, 200, rtcIce(user), origin);
     if (!mailEnabled(user.email)) throw new ApiError(403, 'NOT_ENABLED', 'Почта для вашей учётной записи пока не подключена');
-    const email = user.email;
+    if (p === '/api/boxes') {
+      if (req.method === 'POST') { const b = await readJson(req); return send(res, 200, b.remove ? boxesRemove(user, b) : await boxesAdd(user, b), origin); }
+      return send(res, 200, boxesList(user), origin);
+    }
+    const email = boxKey(user, url.searchParams.get('box'));
+    user = Object.assign({}, user, { email: email });   // дальше «email» — ключ выбранного ящика (у основного — сам адрес)
 
     if ((loadState()[email] || {}).userId !== user.userId) patchState(email, { userId: user.userId });
-    if (p === '/api/me') return send(res, 200, { email, name: user.name, configured: !!getPassword(email) }, origin);
+    if (p === '/api/me') return send(res, 200, { email: boxAddr(email), name: user.name, configured: !!getPassword(email) }, origin);
     if (p === '/api/unread') {
       const u = unreadNow.get(email);
       if (u && Date.now() - u.at < 120000) return send(res, 200, { unseen: u.unseen }, origin);
@@ -935,7 +1027,7 @@ const server = http.createServer(async (req, res) => {
         }
         if (p === '/api/send') {
           if (!m.rcpt.length) throw new ApiError(400, 'NO_RCPT', 'Укажите получателя');
-          try { await transportFor(email).sendMail({ envelope: { from: email, to: m.rcpt }, raw: m.raw }); }
+          try { await transportFor(email).sendMail({ envelope: { from: boxAddr(email), to: m.rcpt }, raw: m.raw }); }
           catch (e) { console.error('send', email, e.message); throw new ApiError(502, 'SMTP', 'Письмо не отправлено: ' + (e.response || e.message)); }
           const sent = await specialPath(c, email, '\\Sent');
           if (sent) { try { await c.append(sent, m.raw, ['\\Seen']); } catch (e) { /* письмо ушло, копия не сохранилась */ } }

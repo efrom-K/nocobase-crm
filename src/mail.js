@@ -47,6 +47,7 @@ async function api(path, opts) {
   let body = opts.body;
   if (opts.json !== undefined) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(opts.json); }
   let res;
+  if (S.box && path.indexOf('/boxes') !== 0) path += (path.indexOf('?') === -1 ? '?' : '&') + 'box=' + encodeURIComponent(S.box);   // выбранный дополнительный ящик
   try { res = await fetch(API + path, { method: opts.method || (body ? 'POST' : 'GET'), headers: headers, body: body }); }
   catch (e) { const err = new Error('Почтовый сервис недоступен'); err.code = 'OFFLINE'; throw err; }
   if (opts.raw && res.ok) return res;
@@ -80,6 +81,14 @@ async function api(path, opts) {
     .ml-folder-add { color: var(--ml-gray); font-size: 13.5px; }
     .ml-folder-add:hover { color: var(--ml-blue); background: transparent; }
     .ml-side-sep { height: 1px; background: #e2e4e9; margin: 8px 10px; flex-shrink: 0; }
+    .ml-box { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 10px; border-radius: 10px; cursor: pointer; font-size: 13px; user-select: none; flex-shrink: 0; }
+    .ml-box:hover { background: #e9ebef; }
+    .ml-box.active { background: #fff; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+    .ml-box-ava { width: 22px; height: 22px; border-radius: 50%; background: var(--ml-blue); color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+    .ml-box-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ml-box-x { border: none; background: none; color: var(--ml-gray); cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 6px; visibility: hidden; }
+    .ml-box:hover .ml-box-x { visibility: visible; } .ml-box-x:hover { background: #dfe2e7; color: #e0342c; }
+    .ml-box-add { color: var(--ml-gray); font-weight: 400; } .ml-box-add:hover { color: var(--ml-text); }
     .ml-side-foot { margin-top: auto; padding: 10px 6px 2px 12px; font-size: 12px; color: var(--ml-gray); display: flex; align-items: center; gap: 6px; }
     .ml-side-foot span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .ml-gear { border: none; background: transparent; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; color: #6f7278; display: inline-flex; align-items: center; justify-content: center; }
@@ -231,7 +240,11 @@ async function api(path, opts) {
     .ml-modal-body { padding: 16px 18px; overflow: auto; flex: 1; min-height: 0; }
     .ml-modal-body label { display: block; font-size: 13px; color: var(--ml-gray); margin: 0 0 6px; }
     .ml-modal-body input[type=text] { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 12px; font-size: 14px; outline: none; font-family: inherit; margin-bottom: 14px; }
-    .ml-modal-body input[type=text]:focus { border-color: var(--ml-blue); }
+    .ml-modal-body input[type=text]:focus, .ml-modal-body input[type=password]:focus, .ml-modal-body input[type=number]:focus { border-color: var(--ml-blue); }
+    .ml-modal-body input[type=password], .ml-modal-body input[type=number] { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 12px; font-size: 14px; outline: none; font-family: inherit; margin-bottom: 4px; }
+    .ml-hint { font-size: 12.5px; color: var(--ml-gray); line-height: 1.45; }
+    a.ml-hint { color: var(--ml-blue); text-decoration: none; } a.ml-hint:hover { text-decoration: underline; }
+    .ml-modal-body .ml-err { color: #e0342c; font-size: 13px; min-height: 18px; margin-top: 8px; }
     .ml-sig-edit { min-height: 110px; border: 1px solid #d5d8de; border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none; margin-bottom: 12px; line-height: 1.5; }
     .ml-sig-edit:focus { border-color: var(--ml-blue); }
     .ml-modal-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--ml-line); }
@@ -449,7 +462,7 @@ function closeMenus() { const m = document.getElementById('ml-menu'); if (m) m.r
 // ---------- состояние ----------
 const root = document.getElementById('ml-root');
 const SCHED = '__scheduled__';   // псевдопапка «Запланированные» (отложенные письма хранит почтовый сервис)
-const S = { me: null, settings: { name: '', signature: '', sigOnReply: true, threads: true }, sched: [], folders: [], folder: 'INBOX', filter: '', items: [], total: 0, page: 0, q: '', sel: new Set(), open: null, loading: false, contacts: null };
+const S = { box: (function() { try { return localStorage.getItem('ml-box') || ''; } catch (e) { return ''; } })(), boxes: [], me: null, settings: { name: '', signature: '', sigOnReply: true, threads: true }, sched: [], folders: [], folder: 'INBOX', filter: '', items: [], total: 0, page: 0, q: '', sel: new Set(), open: null, loading: false, contacts: null };
 
 function fitHeight() {
   const app = root.querySelector('.ml-app');
@@ -465,7 +478,9 @@ function showCard(html) { root.innerHTML = '<div class="ml-card">' + html + '</d
 function showSetup(email, badPassword) {
   showCard('<h2>Подключение почты</h2><p>' + (badPassword ? 'Пароль от ящика <b>' + esc(email) + '</b> больше не подходит — видимо, его сменили. Введите новый.' : 'Введите пароль от почтового ящика <b>' + esc(email) + '</b>. Это нужно сделать один раз — дальше почта будет открываться сама, вместе с NocoBase.') + '</p>'
     + '<input type="password" id="ml-pass" placeholder="Пароль от почты" autocomplete="off"><div class="ml-err" id="ml-err"></div>'
-    + '<button class="ml-btn ml-btn-primary" id="ml-pass-ok" style="width:100%;height:42px;justify-content:center;">Подключить</button>');
+    + '<button class="ml-btn ml-btn-primary" id="ml-pass-ok" style="width:100%;height:42px;justify-content:center;">Подключить</button>'
+    + (S.box ? '<button class="ml-btn" id="ml-back-primary" style="width:100%;height:38px;justify-content:center;margin-top:8px;">← К основному ящику</button>' : ''));
+  const bp = root.querySelector('#ml-back-primary'); if (bp) bp.addEventListener('click', function() { switchBox(''); });
   const inp = root.querySelector('#ml-pass'), btn = root.querySelector('#ml-pass-ok'), err = root.querySelector('#ml-err');
   async function go() {
     if (!inp.value) { err.textContent = 'Введите пароль'; return; }
@@ -489,15 +504,71 @@ function handleFatal(e) {
 // ---------- каркас и папки ----------
 function renderShell() {
   root.innerHTML = '<div class="ml-app">'
-    + '<div class="ml-side"><button class="ml-compose-btn" id="ml-compose">' + IC.pen + '<span>Написать письмо</span></button><div id="ml-folders"></div>'
+    + '<div class="ml-side"><button class="ml-compose-btn" id="ml-compose">' + IC.pen + '<span>Написать письмо</span></button><div id="ml-boxes"></div><div id="ml-folders"></div>'
     + '<div class="ml-folder ml-folder-add" id="ml-folder-add">' + IC.plus + '<span>Новая папка</span></div>'
     + '<div class="ml-side-foot"><span title="' + esc(S.me.email) + '">' + esc(S.me.email) + '</span><button class="ml-gear" id="ml-settings" title="Настройки почты: имя и подпись">' + IC.gear + '</button></div></div>'
     + '<div class="ml-main" id="ml-main"></div></div>';
   root.querySelector('#ml-compose').addEventListener('click', function() { openCompose({}); });
   root.querySelector('#ml-folder-add').addEventListener('click', createFolder);
   root.querySelector('#ml-settings').addEventListener('click', openSettings);
+  renderBoxes();
   fitHeight();
   setTimeout(fitHeight, 300);
+}
+// ---------- несколько ящиков: основной (почта учётки) + подключённые человеком ----------
+function switchBox(email) {
+  S.box = email || '';
+  try { if (S.box) localStorage.setItem('ml-box', S.box); else localStorage.removeItem('ml-box'); } catch (e) { /* ignore */ }
+  S.folder = 'INBOX'; S.q = ''; S.filter = ''; S.open = null; S.items = []; S.folders = []; S.sched = []; S.contacts = null;
+  start();
+}
+function renderBoxes() {
+  const el = root.querySelector('#ml-boxes');
+  if (!el) return;
+  const cur = S.box || (S.boxes[0] && S.boxes[0].email);
+  el.innerHTML = (S.boxes.length > 1 ? S.boxes.map(function(b) {
+    return '<div class="ml-box' + (b.email === cur ? ' active' : '') + '" data-box="' + esc(b.primary ? '' : b.email) + '" title="' + esc(b.email + (b.primary ? ' — основной ящик' : '')) + '">'
+      + '<span class="ml-box-ava">' + esc(b.email[0].toUpperCase()) + '</span><span class="ml-box-name">' + esc(b.email) + '</span>'
+      + (b.unseen ? '<span class="ml-folder-count">' + b.unseen + '</span>' : '')
+      + (b.primary ? '' : '<button class="ml-box-x" data-box-rm="' + esc(b.email) + '" title="Отключить ящик">✕</button>') + '</div>';
+  }).join('') : '')
+    + '<div class="ml-box ml-box-add" data-box-add>' + IC.plus + '<span>Подключить ещё ящик</span></div><div class="ml-side-sep"></div>';
+  el.querySelectorAll('[data-box]').forEach(function(d) { d.addEventListener('click', function(e) { if (e.target.closest('[data-box-rm]')) return; const b = d.getAttribute('data-box'); if (b !== S.box) switchBox(b); }); });
+  el.querySelectorAll('[data-box-rm]').forEach(function(x) { x.addEventListener('click', function(e) { e.stopPropagation(); removeBox(x.getAttribute('data-box-rm')); }); });
+  el.querySelector('[data-box-add]').addEventListener('click', addBoxDialog);
+}
+function addBoxDialog() {
+  const w = modal('Подключить ещё ящик', '<label>Адрес почты</label><input type="text" id="ml-bx-mail" placeholder="name@example.ru" autocomplete="off">'
+    + '<label style="margin-top:10px;">Пароль</label><input type="password" id="ml-bx-pass" autocomplete="new-password">'
+    + '<div class="ml-hint" style="margin-top:6px;">Для Mail.ru, Яндекса и Gmail нужен не обычный пароль, а «пароль для внешних приложений» — он создаётся в настройках безопасности самого ящика.</div>'
+    + '<div id="ml-bx-adv" style="display:none;margin-top:10px;"><div class="ml-hint" style="margin-bottom:6px;">Серверы почты (спросите у того, кто выдал ящик):</div>'
+    + '<div style="display:flex;gap:6px;align-items:flex-start;"><input type="text" id="ml-bx-ih" placeholder="IMAP-сервер, напр. imap.example.ru" style="flex:1;"><input type="number" id="ml-bx-ip" value="993" style="width:80px;"></div>'
+    + '<div style="display:flex;gap:6px;margin-top:6px;"><input type="text" id="ml-bx-sh" placeholder="SMTP-сервер, напр. smtp.example.ru" style="flex:1;"><input type="number" id="ml-bx-sp" value="465" style="width:80px;"></div></div>'
+    + '<a href="#" id="ml-bx-advl" class="ml-hint" style="display:inline-block;margin-top:8px;">Указать серверы вручную</a><div class="ml-err" id="ml-bx-err"></div>',
+    { foot: '<button class="ml-btn" data-no>Отмена</button><button class="ml-btn ml-btn-primary" data-ok>Подключить</button>' });
+  const q = function(x) { return w.querySelector(x); }, adv = q('#ml-bx-adv'), err = q('#ml-bx-err'), ok = q('[data-ok]');
+  q('#ml-bx-advl').addEventListener('click', function(e) { e.preventDefault(); adv.style.display = ''; q('#ml-bx-advl').style.display = 'none'; });
+  q('[data-no]').addEventListener('click', function() { w.__close(); });
+  const go = async function() {
+    const body = { email: q('#ml-bx-mail').value.trim(), password: q('#ml-bx-pass').value };
+    if (adv.style.display !== 'none' && q('#ml-bx-ih').value.trim()) Object.assign(body, { imapHost: q('#ml-bx-ih').value.trim(), imapPort: q('#ml-bx-ip').value, smtpHost: q('#ml-bx-sh').value.trim(), smtpPort: q('#ml-bx-sp').value });
+    ok.disabled = true; ok.textContent = 'Проверяем вход…'; err.textContent = '';
+    try {
+      const r = await api('/boxes', { json: body });
+      S.boxes = r.boxes || S.boxes; w.remove(); toast('Ящик ' + body.email + ' подключён'); switchBox(body.email.toLowerCase());
+    } catch (e) {
+      err.textContent = e.message; ok.disabled = false; ok.textContent = 'Подключить';
+      if (e.code === 'NEED_HOSTS') { adv.style.display = ''; q('#ml-bx-advl').style.display = 'none'; }
+    }
+  };
+  ok.addEventListener('click', go);
+  q('#ml-bx-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') go(); });
+  setTimeout(function() { q('#ml-bx-mail').focus(); }, 30);
+}
+async function removeBox(email) {
+  if (!(await askConfirm('Отключить ящик?', 'Ящик <b>' + esc(email) + '</b> пропадёт из почты CRM, сохранённый пароль удалится. Сами письма останутся на почтовом сервере — ящик можно подключить снова.', 'Отключить', true))) return;
+  try { const r = await api('/boxes', { json: { remove: true, email: email } }); S.boxes = r.boxes || []; toast('Ящик отключён'); if (S.box === email) switchBox(''); else renderBoxes(); }
+  catch (e) { toast(e.message); }
 }
 function currentFolder() {
   if (S.folder === SCHED) return { path: SCHED, name: 'Запланированные', special: 'scheduled', unseen: 0, total: S.sched.length };
@@ -549,7 +620,7 @@ function renderFolders() {
     });
   });
   const inbox = folderBySpecial('\\Inbox');
-  if (inbox && window.__mlBadgePaint) window.__mlBadgePaint(inbox.unseen);
+  if (inbox && window.__mlBadgePaint && !S.box) window.__mlBadgePaint(inbox.unseen);   // в меню — основной ящик
   try { document.title = (inbox && inbox.unseen ? '(' + inbox.unseen + ') ' : '') + 'Почта'; } catch (e) { /* ignore */ }
 }
 function folderMenu(path, x, y) {
@@ -1458,6 +1529,8 @@ window.__mlOpenTimer = setInterval(function() { if (!root.isConnected) { clearIn
 async function start() {
   root.innerHTML = '<div class="ml-loading">Открываем почту…</div>';
   try {
+    try { S.boxes = (await api('/boxes')).boxes || []; } catch (e) { S.boxes = []; }
+    if (S.box && !S.boxes.some(function(b) { return b.email === S.box && !b.primary; })) { S.box = ''; try { localStorage.removeItem('ml-box'); } catch (e) { /* ignore */ } }
     S.me = await api('/me');
     if (!S.me.configured) { showSetup(S.me.email, false); return; }
     try { const r = await api('/settings'); S.settings = r.settings || S.settings; } catch (e) { /* без подписи */ }

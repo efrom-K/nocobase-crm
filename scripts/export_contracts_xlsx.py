@@ -2,17 +2,20 @@
 """Аварийная копия всех договоров в плоской таблице Excel: одна строка — один договор
 (действующие, в оформлении, архив, черновики), всё текстом, читается любым компьютером без NocoBase.
 В строке — все поля договора плюс контакты, сотрудники, доп. соглашения, периоды цены и имена файлов.
+Сами файлы договоров (сканы, доп. соглашения) копируются рядом в «Файлы/<номер в системе> <номер договора>/»;
+ячейки «Файлы», «Скан договора», «Скан акта» — относительные ссылки на них (каталог можно унести целиком).
 
     export_contracts_xlsx.py [каталог]     # по умолчанию ~/nb_backup/excel
 Пишет «Договоры_ГГГГ-ММ-ДД.xlsx» и копию «Договоры_последние.xlsx»; файлы старше 60 дней удаляет.
 Запуск: cron на svc ежедневно 03:30; DC забирает «последние» к себе в 03:45 (E:\\IT$\\NocoBase-Договоры, дальше — Veeam).
 """
-import datetime, json, os, shutil, subprocess, sys
+import datetime, json, os, re, shutil, subprocess, sys
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 OUT = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else '~/nb_backup/excel')
+UPLOADS = os.path.expanduser('~/nocobase/storage/uploads')  # local storage NocoBase: файл = uploads/<filename>
 PSQL = ['sudo', '-n', 'docker', 'exec', '-i', 'nocobase-postgres-1', 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
 def rows(sql):
@@ -81,10 +84,12 @@ def num(v):
 users = {u['id']: u['nickname'] or u['username'] for u in rows('select id, nickname, username from users')}
 side = lambda table, extra='': rows("select * from %s %s" % (table, extra))
 contacts, addendums, periods = side('contract_contacts', 'order by id'), side('contract_addendums', 'order by id'), side('contract_price_periods', 'order by date_from')
-files = {a['id']: (a['title'] or '') + (a['extname'] or '') for a in rows('select id, title, extname from attachments')}
-add_files = {}
+att = {a['id']: a for a in rows('select id, title, extname, filename from attachments')}
+files = {i: (a['title'] or '') + (a['extname'] or '') for i, a in att.items()}
+add_files, add_ids = {}, {}
 for x in rows('select addendum_id, attachment_id from contract_addendum_files order by attachment_id'):
     add_files.setdefault(x['addendum_id'], []).append(files.get(x['attachment_id'], '#%s' % x['attachment_id']))
+    add_ids.setdefault(x['addendum_id'], []).append(x['attachment_id'])
 
 def by_ref(items, t, i): return [x for x in items if x['contract_type'] == t and x['contract_ref_id'] == i]
 def fmt_period(p):
@@ -99,12 +104,14 @@ def fmt_period(p):
     return span + ': ' + (', '.join(parts) or '—') + (' (%s)' % p['note'] if p.get('note') else '')
 
 data = []
-for coll, t, kind, mem, att in KINDS:
+for coll, t, kind, mem, at in KINDS:
     members = {}
     if mem:
         for m in rows('select "%s" as c, "%s" as u from "%s"' % (mem[1], mem[2], mem[0])): members.setdefault(m['c'], []).append(users.get(m['u'], '#%s' % m['u']))
-    fl = {}
-    for a in rows('select "%s" as c, "%s" as f from "%s"' % (att[1], att[2], att[0])): fl.setdefault(a['c'], []).append(files.get(a['f'], '#%s' % a['f']))
+    fl, fl_ids = {}, {}
+    for a in rows('select "%s" as c, "%s" as f from "%s"' % (at[1], at[2], at[0])):
+        fl.setdefault(a['c'], []).append(files.get(a['f'], '#%s' % a['f']))
+        fl_ids.setdefault(a['c'], []).append(a['f'])
     for r in rows('select * from %s order by id' % coll):
         i = r['id']
         r['_kind'], r['_type'] = kind, t
@@ -114,12 +121,39 @@ for coll, t, kind, mem, att in KINDS:
                                     + (' [файлы: %s]' % ', '.join(add_files[a['id']]) if add_files.get(a['id']) else ' [без скана]') for a in by_ref(addendums, t, i)) or None
         r['_periods'] = '; '.join(fmt_period(p) for p in by_ref(periods, t, i)) or None
         r['_files'] = ', '.join(fl.get(i, [])) or None
+        r['_att_ids'] = fl_ids.get(i, []) + [f for a in by_ref(addendums, t, i) for f in add_ids.get(a['id'], [])]
         data.append(r)
+
+def safe(name): return re.sub(r'[\\/:*?"<>|\x00-\x1f]+', '_', name).strip(' .')[:100] or '_'
+
+# Файлы/: пересобирается каждый раз в Файлы.new; неизменившийся файл берётся хардлинком из прошлой сборки (без копирования)
+FILES, NEW = os.path.join(OUT, 'Файлы'), os.path.join(OUT, 'Файлы.new')
+shutil.rmtree(NEW, ignore_errors=True)
+copied = missing = 0
+for r in data:
+    r['_dir'], r['_links'] = None, {}
+    ids = list(dict.fromkeys(x for x in r['_att_ids'] if x in att))
+    if not ids: continue
+    d = safe('%s-%s %s' % (r['_type'], r['id'], r.get('contract_number') or ''))
+    os.makedirs(os.path.join(NEW, d))
+    for x in ids:
+        a, name = att[x], safe(files[x])
+        if name in r['_links'].values(): name = safe('%s (%s)%s' % (a['title'] or '', x, a['extname'] or ''))
+        src, old, dst = os.path.join(UPLOADS, a['filename'] or ''), os.path.join(FILES, d, name), os.path.join(NEW, d, name)
+        if not os.path.isfile(src): missing += 1; continue
+        if os.path.isfile(old) and os.path.getsize(old) == os.path.getsize(src): os.link(old, dst)
+        else: shutil.copyfile(src, dst); copied += 1
+        r['_links'][files[x]] = name
+    r['_dir'] = d
+if os.path.isdir(FILES): os.rename(FILES, FILES + '.old')
+os.rename(NEW, FILES)
+shutil.rmtree(FILES + '.old', ignore_errors=True)
 
 wb = Workbook()
 ws = wb.active
 ws.title = 'Все договоры'
 ws.append([c[0] for c in COLS])
+COL_IDX = {c[0]: n for n, c in enumerate(COLS, 1)}
 for r in data:
     line = []
     for title, fn in COLS:
@@ -129,6 +163,12 @@ for r in data:
         elif title in MONEY or title == 'Площадь, м²': line.append(float(v) if isinstance(v, (int, float)) else v)
         else: line.append(str(v))
     ws.append(line)
+    for title, target in (('Файлы', r['_dir'] and 'Файлы/%s/' % r['_dir']),
+                          ('Скан договора', r['_links'].get(r.get('contract_scan_url')) and 'Файлы/%s/%s' % (r['_dir'], r['_links'][r['contract_scan_url']])),
+                          ('Скан акта', r['_links'].get(r.get('act_scan_url')) and 'Файлы/%s/%s' % (r['_dir'], r['_links'][r['act_scan_url']]))):
+        if target:
+            c = ws.cell(row=ws.max_row, column=COL_IDX[title])
+            c.hyperlink, c.font = target, Font(color='0563C1', underline='single')
 for cell in ws[1]:
     cell.font = Font(bold=True)
     cell.fill = PatternFill('solid', fgColor='E6F4FF')
@@ -148,7 +188,8 @@ for line in [['Аварийная копия договоров из NocoBase (�
              ['Сформировано', now.strftime('%d.%m.%Y %H:%M')],
              ['Всего договоров', len(data)]] + [[k, sum(1 for r in data if r['_kind'] == k)] for _, _, k, _, _ in KINDS] + [
              [], ['Одна строка — один договор. Списки (контакты, доп. соглашения, периоды цены, файлы) — через «;».'],
-             ['Сами файлы (сканы) здесь не лежат — только их имена; файлы — в ночном бэкапе сервера NocoBase (uploads).']]:
+             ['Файлы договоров — в папке «Файлы» рядом с этой таблицей; синие ячейки открывают папку договора или скан.'],
+             ['Переносить таблицу только вместе с папкой «Файлы», иначе ссылки не откроются.']]:
     info.append(line)
 info.column_dimensions['A'].width = 30
 info['A1'].font = Font(bold=True)
@@ -161,4 +202,4 @@ shutil.copyfile(path, os.path.join(OUT, 'Договоры_последние.xls
 for f in os.listdir(OUT):
     p = os.path.join(OUT, f)
     if f.startswith('Договоры_20') and now.timestamp() - os.path.getmtime(p) > 60 * 86400: os.remove(p)
-print('%s ok: %d договоров -> %s' % (now.strftime('%F %T'), len(data), path))
+print('%s ok: %d договоров -> %s; файлов скопировано %d, не найдено %d' % (now.strftime('%F %T'), len(data), path, copied, missing))

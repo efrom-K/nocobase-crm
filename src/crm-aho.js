@@ -218,6 +218,7 @@ if (!document.getElementById('crm-aho-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-xlsx.js
 const AHO_PAGE = '/admin/ahodash01', AHO_MAIL_PAGE = '/admin/mailpage01';
 const A_PERIOD = cfg('aho.period');
 const A_WEEKDAYS = ['', 'по понедельникам', 'по вторникам', 'по средам', 'по четвергам', 'по пятницам', 'по субботам', 'по воскресеньям'];
@@ -1101,7 +1102,7 @@ async function aRenderAtt() {
   const nav = a.view === 'cards' ? '' : '<button class="hr-btn" data-act="attd" data-d="-1">‹</button>'
     + (a.view === 'day' ? '<input type="date" data-f="attDay" value="' + a.day + '">' : '<b>' + ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'][Number(a.day.slice(5, 7)) - 1] + ' ' + a.day.slice(0, 4) + '</b>')
     + '<button class="hr-btn" data-act="attd" data-d="1">›</button>';
-  const head = '<div class="hr-bar">' + seg + nav + (a.view === 'month' ? '<button class="hr-btn" data-act="attcsv">Скачать таблицу (CSV для Excel)</button>' : '')
+  const head = '<div class="hr-bar">' + seg + nav + (a.view === 'month' ? '<button class="hr-btn" data-act="attcsv">⬇ Выгрузить в Excel</button>' : '')
     + '<span class="hr-hint" style="margin:0 0 0 auto;">данные СКУД: ' + hEsc(aSkudAge()) + '</span></div>'
     + '<div class="hr-hint" style="margin-bottom:10px;">СКУД видит только вход по карте (выход — кнопкой), поэтому «приход» — первый проход за день, «последний» — последний вход (например, после обеда), а не уход. '
     + 'Начало дня — из «Графика работы» в карточке сотрудника (иначе ' + hEsc(ah.d.skud.skud_work_start || '09:00') + '), опоздание — больше ' + hEsc(ah.d.skud.skud_grace_min || '10') + ' мин; удалённые дни и отпуска учитываются.</div>';
@@ -1146,15 +1147,30 @@ function aRenderAttMonth(head) {
     + md.rows.map(function(r) { return '<tr><td>' + hEsc(r.p.name) + '</td>' + r.cells.map(function(c, i) { return cell(c, md.days[i]); }).join('') + '<td class="n"><b>' + r.came + '</b></td><td class="n"' + (r.late ? ' style="color:#cf1322;"' : '') + '>' + r.late + '</td><td class="n">' + r.absent + '</td></tr>'; }).join('')
     + '</tbody></table></div>';
 }
-function aAttCsv() {
-  const md = aAttMonthData(), sep = ';';
-  const lines = [['Сотрудник'].concat(md.days.map(function(d) { return d.slice(8) + '.' + d.slice(5, 7); }), ['Дней', 'Опозданий', 'Без прохода']).join(sep)];
-  md.rows.forEach(function(r) {
-    lines.push(['"' + r.p.name.replace(/"/g, '""') + '"'].concat(r.cells.map(function(c) { return c.n ? c.first.slice(0, 5) + (c.st === 'late' ? ' оп.' : '') : ({ vac: 'О', remote: 'У', absent: '—' }[c.st] || ''); }), [r.came, r.late, r.absent]).join(sep));
+// табель СКУД за месяц в Excel — общий вид выгрузок CRM (src/_crm-xlsx.js)
+function aAttXlsx() {
+  const md = aAttMonthData(), m = ah.att.day.slice(0, 7);
+  const mon = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'][Number(m.slice(5, 7)) - 1] + ' ' + m.slice(0, 4);
+  const lates = [];
+  md.rows.forEach(function(r) { r.cells.forEach(function(c, i) { if (c.st === 'late') lates.push([md.days[i], r.p.name, r.p.emp ? r.p.emp.position || '' : '', c.start || '', c.first.slice(0, 5), c.lateMin]); }); });
+  lates.sort(function(x, y) { return x[0].localeCompare(y[0]) || x[1].localeCompare(y[1], 'ru'); });
+  crmXlsx('Табель СКУД ' + m, {
+    title: 'Приходы по СКУД — ' + mon, filters: [['Месяц', mon], ['Данные СКУД', aSkudAge()]],
+    notes: [['Время в ячейке', 'Первый проход по карте за день; «оп.» — опоздание'], ['О', 'Отпуск'], ['У', 'Удалённый день'], ['—', 'Рабочий день без прохода'],
+      ['Начало дня', 'Из «Графика работы» в карточке сотрудника, иначе ' + (ah.d.skud.skud_work_start || '09:00') + '; опоздание — больше ' + (ah.d.skud.skud_grace_min || '10') + ' мин'],
+      ['Ограничение СКУД', 'Видно только вход по карте (выход — кнопкой), поэтому время ухода не считается']],
+    sheets: [
+      { name: 'Табель', title: 'Табель приходов по СКУД — ' + mon, total: true, freezeCols: 1,
+        cols: [{ h: 'Сотрудник', total: 'Итого' }].concat(md.days.map(function(d) { const wd = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'][new Date(d + 'T00:00:00').getDay()]; return { h: Number(d.slice(8)) + ' ' + wd, w: 8, total: false }; }),
+          [{ h: 'Дней с проходом', t: 'int' }, { h: 'Опозданий', t: 'int' }, { h: 'Без прохода', t: 'int' }]),
+        rows: md.rows.map(function(r) {
+          return [r.p.name].concat(r.cells.map(function(c) { return c.n ? c.first.slice(0, 5) + (c.st === 'late' ? ' оп.' : '') : ({ vac: 'О', remote: 'У', absent: '—' }[c.st] || ''); }), [r.came, r.late, r.absent]);
+        }) },
+      { name: 'Опоздания', title: 'Опоздания — ' + mon, total: true,
+        cols: [{ h: 'Дата', t: 'date', total: 'Итого' }, { h: 'Сотрудник', w: 30 }, { h: 'Должность', w: 30 }, { h: 'Начало дня' }, { h: 'Пришёл' }, { h: 'Опоздание, мин', t: 'int' }],
+        rows: lates }
+    ]
   });
-  const url = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })), l = document.createElement('a');
-  l.href = url; l.download = 'Приходы ' + ah.att.day.slice(0, 7) + '.csv'; document.body.appendChild(l); l.click(); l.remove();
-  setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
 }
 function aRenderCards(head) {
   const cards = (ah.d.cards || []).filter(function(c) { return !ah.att.cardsOnlyFree || (!c.employee_id && !c.ignore); });
@@ -1204,7 +1220,7 @@ aRoot().addEventListener('click', function(e) {
     if (a === 'copymails') return aCopy((ah.mailList || []).join(', '));
     if (a === 'attv') { ah.att.view = act.getAttribute('data-v'); return aRenderAtt(); }
     if (a === 'attd') { return aAttShift(Number(act.getAttribute('data-d'))); }
-    if (a === 'attcsv') return aAttCsv();
+    if (a === 'attcsv') { try { aAttXlsx(); } catch (err) { console.error(err); } return; }
     return;
   }
   const go = c('[data-go]');

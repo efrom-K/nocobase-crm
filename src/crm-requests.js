@@ -206,6 +206,7 @@ if (!document.getElementById('crm-req-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-xlsx.js
 const RQ_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
 const RQ_ST = cfg('requests.status');
 const RQ_OPEN = ['new', 'in_work', 'waiting'];
@@ -885,96 +886,44 @@ async function rqRenderStats() {
     + '</div>';
 }
 
-// ---------- выгрузка статистики в Excel (.xlsx собирается прямо в браузере: zip без сжатия + XML листов) ----------
-function rqXlsxBlob(sheets) {
-  const enc = typeof TextEncoder !== 'undefined' ? new TextEncoder() : { encode: function(str) {   // запасной UTF-8, если в песочнице нет TextEncoder
-    const out = [];
-    for (let i = 0; i < str.length; i++) {
-      let c = str.codePointAt(i); if (c > 0xffff) i++;
-      if (c < 0x80) out.push(c);
-      else if (c < 0x800) out.push(0xc0 | c >> 6, 0x80 | c & 63);
-      else if (c < 0x10000) out.push(0xe0 | c >> 12, 0x80 | c >> 6 & 63, 0x80 | c & 63);
-      else out.push(0xf0 | c >> 18, 0x80 | c >> 12 & 63, 0x80 | c >> 6 & 63, 0x80 | c & 63);
-    }
-    return new Uint8Array(out);
-  } };
-  const x = function(v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ''); };
-  const col = function(i) { let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
-  const files = [];
-  files.push(['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
-    + sheets.map(function(s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') + '</Types>']);
-  files.push(['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>']);
-  files.push(['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
-    + sheets.map(function(s, i) { return '<sheet name="' + x(s.name.slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets></workbook>']);
-  files.push(['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-    + sheets.map(function(s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('')
-    + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>']);
-  files.push(['xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEEF1F8"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="3"><xf/><xf fontId="1" fillId="2" applyFont="1" applyFill="1"><alignment wrapText="1" vertical="center"/></xf><xf><alignment wrapText="1" vertical="top"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>']);
-  sheets.forEach(function(sh, si) {
-    const widths = sh.rows[0].map(function(_, c) { return Math.min(60, Math.max(8, Math.max.apply(null, sh.rows.map(function(r) { return String(r[c] == null ? '' : r[c]).length; })) + 2)); });
-    files.push(['xl/worksheets/sheet' + (si + 1) + '.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'
-      + widths.map(function(w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols><sheetData>'
-      + sh.rows.map(function(r, ri) {
-          return '<row r="' + (ri + 1) + '">' + r.map(function(v, ci) {
-            const ref = col(ci) + (ri + 1), st = ri === 0 ? ' s="1"' : (typeof v === 'string' && v.length > 60 ? ' s="2"' : '');
-            if (v === null || v === undefined || v === '') return '';
-            return typeof v === 'number' && isFinite(v) ? '<c r="' + ref + '"' + st + '><v>' + v + '</v></c>' : '<c r="' + ref + '" t="inlineStr"' + st + '><is><t xml:space="preserve">' + x(v) + '</t></is></c>';
-          }).join('') + '</row>';
-        }).join('') + '</sheetData><autoFilter ref="A1:' + col(sh.rows[0].length - 1) + sh.rows.length + '"/></worksheet>']);
-  });
-  // zip (метод store): локальные заголовки + центральный каталог
-  const crcT = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcT[n] = c >>> 0; }
-  const crc = function(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
-  const parts = [], central = []; let off = 0;
-  files.forEach(function(f) {
-    const name = enc.encode(f[0]), data = enc.encode(f[1]), c = crc(data);
-    const h = new DataView(new ArrayBuffer(30));
-    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
-    h.setUint32(14, c, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
-    parts.push(new Uint8Array(h.buffer), name, data);
-    const d = new DataView(new ArrayBuffer(46));
-    d.setUint32(0, 0x02014b50, true); d.setUint16(4, 20, true); d.setUint16(6, 20, true); d.setUint16(8, 0x0800, true);
-    d.setUint32(16, c, true); d.setUint32(20, data.length, true); d.setUint32(24, data.length, true); d.setUint16(28, name.length, true); d.setUint32(42, off, true);
-    central.push(new Uint8Array(d.buffer), name);
-    off += 30 + name.length + data.length;
-  });
-  const cdSize = central.reduce(function(n, b) { return n + b.length; }, 0);
-  const e = new DataView(new ArrayBuffer(22));
-  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
-  return new Blob(parts.concat(central, [new Uint8Array(e.buffer)]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-}
+// ---------- выгрузка статистики в Excel: общий вид всех выгрузок CRM (src/_crm-xlsx.js) ----------
+// Цифры — из rqStats(), как на экране; «Итого» в разрезах — общие показатели (одна заявка может быть у нескольких ответственных).
+const RQ_COL_T = { ontime: 'pct', med: 'days' };
 function rqExportStats() {
   const st = rqStats(), per = (RQ_PERIODS.find(function(p) { return p[0] === rq.statsDays; }) || [0, ''])[1];
-  const head = RQ_COLS_STAT.map(function(c) { return c[1]; });
-  const num = function(x, k) { const v = x[k]; return v === null || v === undefined ? '' : k === 'med' ? Math.round(v * 10) / 10 : v; };
-  const tab = function(first, rows, extra) {
-    return [[first].concat(extra ? extra.h : [], head)].concat(rows.map(function(x) { return [x.label].concat(extra ? extra.v(x) : [], RQ_COLS_STAT.map(function(c) { return num(x, c[0]); })); }));
+  const val = function(x, k) { const v = x[k]; return v === null || v === undefined ? null : k === 'med' ? Math.round(v * 10) / 10 : v; };
+  const statCols = RQ_COLS_STAT.map(function(c) { return { h: c[1], t: RQ_COL_T[c[0]] || 'int', total: val(st.all, c[0]) }; });
+  const cut = function(name, first, rows, extra) {
+    return { name: name, title: 'Заявки по объектам — ' + name.toLowerCase(), total: true, freezeCols: 1,
+      cols: [{ h: first, total: 'Итого' }].concat(extra ? extra.cols : [], statCols),
+      rows: rows.map(function(x) { return [x.label].concat(extra ? extra.v(x) : [], RQ_COLS_STAT.map(function(c) { return val(x, c[0]); })); }) };
   };
   const a = st.all;
-  const summary = [['Показатель', 'Значение', 'Пояснение'],
-    ['Период', per, 'для «поступило, выполнено, в срок, медиана, переносы, эскалации, возвраты»'], ['Дата выгрузки', rqDate(rqToday()), '']]
-    .concat(RQ_COLS_STAT.map(function(c) { return [c[1], num(a, c[0]), RQ_COLS_HINT[c[0]]]; }));
-  const list = [['№', 'Создана', 'Объект', 'Управляющий', 'Тип', 'Суть', 'Арендатор', 'Срочность', 'Статус', 'Ответственный', 'Автор', 'Срок', 'Просрочено, дн.', 'Переносов срока', 'Выполнена', 'Закрыта', 'Результат']]
-    .concat(rq.data.reqs.slice().sort(function(x, y) { return y.id - x.id; }).map(function(r) {
-      const o = (rq.data.objects || []).find(function(z) { return z.name === r.object_name; });
-      return [r.id, rqDate(r.createdAt), r.object_name || '', rqMgrKey(o) ? rqMgrLabel(rqMgrKey(o)) : '', r.kind || '', r.title || '', r.tenant_label || '', (RQ_URG[r.urgency] || RQ_URG.normal).l,
-        (RQ_ST[r.status] || { l: r.status }).l, rqUser(r.responsible_id), rqUser(r.author_id), rqDate(r.due_date),
-        rqLate(r) ? rqDays(String(r.due_date).slice(0, 10), rqToday()) : '', Number(r.due_moved) || '', rqDate(r.done_at), rqDate(r.closed_at), r.result || ''];
-    }));
-  const blob = rqXlsxBlob([
-    { name: 'Сводка', rows: summary },
-    { name: 'По управляющим', rows: tab('Управляющий', st.byMgr, { h: ['Объекты'], v: function(x) { return [x.objects.join(', ')]; } }) },
-    { name: 'По объектам', rows: tab('Объект', st.byObj) },
-    { name: 'По ответственным', rows: tab('Ответственный', st.byResp) },
-    { name: 'По типам', rows: tab('Тип', st.byKind) },
-    { name: 'По неделям', rows: [['Неделя с', 'Поступило', 'Выполнено', 'Очередь за неделю (+ растёт)', 'Открыто на конец недели', 'Из них в срок', 'В срок, %']].concat(st.weeks.map(function(w) { return [rqDate(w.from), w.created, w.done, w.created - w.done, w.openEnd, w.ontime, w.done ? Math.round(100 * w.ontime / w.done) : '']; })) },
-    { name: 'Заявки', rows: list }
-  ]);
-  const l = document.createElement('a');
-  l.href = URL.createObjectURL(blob);
-  l.download = 'Заявки — статистика ' + rqDate(rqToday()) + '.xlsx';
-  document.body.appendChild(l); l.click(); l.remove();
-  setTimeout(function() { URL.revokeObjectURL(l.href); }, 2000);
+  const list = rq.data.reqs.slice().sort(function(x, y) { return y.id - x.id; }).map(function(r) {
+    const o = (rq.data.objects || []).find(function(z) { return z.name === r.object_name; });
+    return [r.id, r.createdAt, r.object_name || '', rqMgrKey(o) ? rqMgrLabel(rqMgrKey(o)) : '', r.kind || '', r.title || '', r.tenant_label || '', (RQ_URG[r.urgency] || RQ_URG.normal).l,
+      (RQ_ST[r.status] || { l: r.status }).l, rqUser(r.responsible_id), rqUser(r.author_id), r.due_date || null,
+      rqLate(r) ? rqDays(String(r.due_date).slice(0, 10), rqToday()) : null, Number(r.due_moved) || null, r.done_at || null, r.closed_at || null, r.result || ''];
+  });
+  crmXlsx('Заявки по объектам — статистика', {
+    title: 'Заявки по объектам — статистика', filters: [['Период', per]],
+    notes: RQ_COLS_STAT.map(function(c) { return [c[1], RQ_COLS_HINT[c[0]]]; }),
+    sheets: [
+      { name: 'Сводка', title: 'Заявки по объектам — сводка за период: ' + per, cols: [{ h: 'Показатель', w: 26 }, { h: 'Значение', t: 'num', w: 14 }, { h: 'Что это', t: 'long', w: 70 }],
+        rows: RQ_COLS_STAT.map(function(c) { const v = val(a, c[0]); return [c[1], c[0] === 'ontime' && v !== null ? v + '%' : v, RQ_COLS_HINT[c[0]]]; }) },
+      cut('По управляющим', 'Управляющий', st.byMgr, { cols: [{ h: 'Объекты', t: 'long', w: 34, total: false }], v: function(x) { return [x.objects.join(', ')]; } }),
+      cut('По объектам', 'Объект', st.byObj),
+      cut('По ответственным', 'Ответственный', st.byResp),
+      cut('По типам', 'Тип заявки', st.byKind),
+      { name: 'По неделям', title: 'Заявки по объектам — динамика по неделям', total: true,
+        cols: [{ h: 'Неделя с', t: 'date', total: 'Итого' }, { h: 'Поступило', t: 'int' }, { h: 'Выполнено', t: 'int' }, { h: 'Очередь за неделю (+ растёт)', t: 'int' }, { h: 'Открыто на конец недели', t: 'int', total: false }, { h: 'Из них в срок', t: 'int' }, { h: 'В срок, %', t: 'pct', total: a.ontime == null ? false : a.ontime }],
+        rows: st.weeks.map(function(w) { return [w.from, w.created, w.done, w.created - w.done, w.openEnd, w.ontime, w.done ? Math.round(100 * w.ontime / w.done) : null]; }) },
+      { name: 'Все заявки', title: 'Заявки по объектам — все заявки', freezeCols: 1,
+        cols: [{ h: '№', t: 'int', w: 7 }, { h: 'Создана', t: 'date' }, { h: 'Объект' }, { h: 'Управляющий' }, { h: 'Тип' }, { h: 'Суть', t: 'long', w: 40 }, { h: 'Арендатор' }, { h: 'Срочность' }, { h: 'Статус' },
+          { h: 'Ответственный' }, { h: 'Автор' }, { h: 'Срок', t: 'date' }, { h: 'Просрочено, дн.', t: 'int' }, { h: 'Переносов срока', t: 'int' }, { h: 'Выполнена', t: 'date' }, { h: 'Закрыта', t: 'date' }, { h: 'Результат', t: 'long', w: 40 }],
+        rows: list }
+    ]
+  });
 }
 
 // ---------- управляющие объектов (кому по умолчанию уходят заявки и кому эскалация) ----------

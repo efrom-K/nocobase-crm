@@ -6,6 +6,7 @@
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-xlsx.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
 if (!document.getElementById('crm-controls-style')) {
@@ -549,7 +550,7 @@ function onDashClick(e) {
     if (a === 'all') dashSetObject('');
     if (a === 'contracts') window.location.href = REGISTRY_URL + '?obj=' + encodeURIComponent(dashState.obj) + kindParam();
     if (a === 'kind') { dashState.kind = act.getAttribute('data-kind') || ''; renderDashboard(); }
-    if (a === 'csv') dashExportCsv();
+    if (a === 'csv') { try { dashExportXlsx(); } catch (err) { console.error(err); } }
     return;
   }
   const ed = c('[data-edit-area]');
@@ -591,27 +592,58 @@ function dashEditArea(el) {
   inp.addEventListener('blur', function() { save(true); });
 }
 
-// выгрузка сводки по объектам в CSV (открывается в Excel: разделитель «;», BOM для кириллицы)
-function dashExportCsv() {
+// выгрузка дашборда в Excel — общий вид выгрузок CRM (src/_crm-xlsx.js); цифры те же, что на экране (копейки → рубли без округлений)
+function dashExportXlsx() {
   const d = dv();
   if (!d) return;
+  const rub = function(k) { return k === null || k === undefined ? null : k / 100; };
+  const kindLbl = dashState.kind ? (DASH_KINDS.find(function(k) { return kindKey(k.v) === dashState.kind; }) || { many: dashState.kind }).many : 'Все виды объектов';
   const stats = objectStats(d).sort(function(a, b) { return a.name.localeCompare(b.name, 'ru'); });
-  const f2 = function(k) { return k === null || k === undefined ? '' : (k / 100).toFixed(2).replace('.', ','); };
-  const q = function(x) { return '"' + String(x).replace(/"/g, '""') + '"'; };
-  const cnt = function(o, v) { return o.active.filter(function(r) { return (r.contract_status || '') === v; }).length; };
-  const head = ['Объект', 'Действующие договоры', 'Оформляются', 'В архиве', 'Общая площадь, м²', 'Сдано помещений, м²', 'Свободно, м²', 'В месяц, ₽', 'Обеспечительные, ₽']
-    .concat(DASH_STATUS.map(function(x) { return x.label; })).concat(DASH_KINDS.map(function(k) { return k.many; }));
-  const lines = [head.map(q).join(';')];
-  stats.forEach(function(o) {
-    lines.push([q(o.name), o.active.length, o.forming, o.completed, f2(o.totalKop), f2(o.areaKop), o.totalKop === null ? '' : f2(o.totalKop - o.areaKop), f2(o.monthly), f2(o.deposit)]
-      .concat(DASH_STATUS.map(function(x) { return cnt(o, x.v); }))
-      .concat(DASH_KINDS.map(function(k) { return o.active.filter(function(r) { return kindOf(r) === k.v; }).length; })).join(';'));
+  const sm = summary(d.active, d.objects);
+  const totalKop = stats.reduce(function(n, o) { return n + (o.totalKop || 0); }, 0), areaKop = stats.reduce(function(n, o) { return n + o.areaKop; }, 0);
+  const cnt = function(list, v) { return list.filter(function(r) { return (r.contract_status || '') === v; }).length; };
+  const attention = d.active.filter(function(r) { return (r.contract_status || '') !== '3_ok'; });
+  const contractRow = function(r) {
+    const m = monthlyKop(r);
+    return [objOf(r), r.contract_number || '', r.tenant_name || '', kindOf(r) || '—', dStatus(r.contract_status).label, r.status_reason || '',
+      rub(dKop(r.area_sqm)), rub(dKop(r.rent_amount)), rub(dKop(r.utility_amount)), rub(m), rub(dKop(r.deposit_amount)), r.date_signed || null, r.termination_date || null];
+  };
+  const contractCols = [{ h: 'Объект' }, { h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Вид' }, { h: 'Статус' }, { h: 'Причина статуса', t: 'long', w: 34, total: false },
+    { h: 'Площадь', t: 'area' }, { h: 'Аренда в месяц', t: 'money' }, { h: 'Эксплуатационный сбор в месяц', t: 'money' }, { h: 'Итого в месяц', t: 'money' }, { h: 'Обеспечительный платёж', t: 'money' },
+    { h: 'Дата заключения', t: 'date' }, { h: 'Дата расторжения', t: 'date' }];
+  const terms = d.active.map(function(r) { return { r: r, t: termInfo(r) }; }).filter(function(x) { return x.t; }).sort(function(a, b) { return a.t.days - b.t.days; });
+  crmXlsx('Дашборд — объекты аренды', {
+    title: 'Объекты аренды — сводка', filters: [['Вид объектов', kindLbl]],
+    notes: [['Площадь', 'В м²; складываются помещения (и договоры без вида), при фильтре «Земельные участки» — участки'], ['Итого в месяц', 'Аренда + эксплуатационный сбор по договору'],
+      ['Занятость, %', 'Сдано / общая площадь объекта'], ['Статус', 'Статус договора в реестре; «Требуют внимания» — все, кроме «В порядке»']],
+    sheets: [
+      { name: 'Сводка', title: 'Объекты аренды — главные цифры', cols: [{ h: 'Показатель', w: 34 }, { h: 'Значение', w: 22 }, { h: 'Комментарий', t: 'long', w: 60 }],
+        rows: [
+          ['Общая площадь объектов, м²', totalKop ? dFmt2(totalKop) : '—', ''],
+          ['Сдано, м²', dFmt2(areaKop), 'по действующим договорам'],
+          ['Свободно, м²', totalKop ? dFmt2(totalKop - areaKop) : '—', ''],
+          ['Занятость', totalKop ? Math.round(1000 * areaKop / totalKop) / 10 + '%' : '—', ''],
+          ['Доход в месяц, ₽', dFmt2(sm.rentKop + sm.utilKop), 'аренда ' + dFmt2(sm.rentKop) + ' ₽ + эксплуатационный сбор ' + dFmt2(sm.utilKop) + ' ₽' + (sm.noPrice ? '; без цены: ' + dContracts(sm.noPrice) : '')],
+          ['Обеспечительные платежи, ₽', dFmt2(sm.depKop), 'указаны у ' + sm.depN + ' из ' + dOfContracts(sm.n)],
+          ['Действующие договоры', String(d.active.length), ''], ['Оформляются', String(d.forming.length), ''], ['В архиве', String(d.completed.length), ''],
+          ['Требуют внимания', String(attention.length), DASH_STATUS.filter(function(x) { return x.v !== '3_ok' && cnt(d.active, x.v); }).map(function(x) { return x.label + ': ' + cnt(d.active, x.v); }).join('; ')]
+        ] },
+      { name: 'По объектам', title: 'Объекты аренды — по объектам', total: true, freezeCols: 1,
+        cols: [{ h: 'Объект' }, { h: 'Действующие договоры', t: 'int' }, { h: 'Оформляются', t: 'int' }, { h: 'В архиве', t: 'int' }, { h: 'Общая площадь', t: 'area' }, { h: 'Сдано', t: 'area' }, { h: 'Свободно', t: 'area' },
+          { h: 'Занятость, %', t: 'pct', total: totalKop ? Math.round(1000 * areaKop / totalKop) / 10 : false }, { h: 'В месяц', t: 'money' }, { h: 'Обеспечительные', t: 'money' }]
+          .concat(DASH_STATUS.map(function(x) { return { h: x.label, t: 'int' }; })).concat(DASH_KINDS.map(function(k) { return { h: k.many, t: 'int' }; })),
+        rows: stats.map(function(o) {
+          return [o.name, o.active.length, o.forming, o.completed, rub(o.totalKop), rub(o.areaKop), o.totalKop === null ? null : rub(o.totalKop - o.areaKop),
+            o.totalKop ? Math.round(1000 * o.areaKop / o.totalKop) / 10 : null, rub(o.monthly), rub(o.deposit)]
+            .concat(DASH_STATUS.map(function(x) { return cnt(o.active, x.v); })).concat(DASH_KINDS.map(function(k) { return o.active.filter(function(r) { return kindOf(r) === k.v; }).length; }));
+        }) },
+      { name: 'Действующие договоры', title: 'Действующие договоры', total: true, freezeCols: 1, cols: contractCols,
+        rows: d.active.slice().sort(function(a, b) { return objOf(a).localeCompare(objOf(b), 'ru') || String(a.contract_number || '').localeCompare(String(b.contract_number || ''), 'ru'); }).map(contractRow) },
+      { name: 'Требуют внимания', title: 'Договоры, требующие внимания', total: true, freezeCols: 1, cols: contractCols,
+        rows: attention.slice().sort(function(a, b) { return String(a.contract_status || '').localeCompare(String(b.contract_status || '')); }).map(contractRow) },
+      { name: 'Ближайшие расторжения', title: 'Расторжения в ближайшие 90 дней (и уже прошедшие у действующих)',
+        cols: [{ h: 'Дата расторжения', t: 'date' }, { h: 'Через, дней', t: 'int' }, { h: 'Объект' }, { h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Площадь', t: 'area' }, { h: 'Итого в месяц', t: 'money' }],
+        rows: terms.map(function(x) { return [x.r.termination_date, x.t.days, objOf(x.r), x.r.contract_number || '', x.r.tenant_name || '', rub(dKop(x.r.area_sqm)), rub(monthlyKop(x.r))]; }) }
+    ]
   });
-  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  const t = new Date();
-  a.href = URL.createObjectURL(blob);
-  a.download = 'Объекты ' + ('0' + t.getDate()).slice(-2) + '.' + ('0' + (t.getMonth() + 1)).slice(-2) + '.' + t.getFullYear() + '.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
 }

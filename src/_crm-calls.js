@@ -30,7 +30,7 @@ if (!document.getElementById('crm-call-style')) {
     .rtc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:6px; padding:6px; flex:1; min-height:150px; }
     .rtc-win.big .rtc-grid { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
     .rtc-tile { position:relative; background:#0b0f1a; border-radius:10px; overflow:hidden; min-height:140px; display:flex; align-items:center; justify-content:center; }
-    .rtc-tile video { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; }
+    .rtc-tile video { width:100%; height:100%; object-fit:contain; position:absolute; inset:0; }
     .rtc-tile.screen video { object-fit:contain; }
     .rtc-tile.novideo video { opacity:0; }
     .rtc-tile .rtc-ava { position:relative; z-index:1; width:58px; height:58px; font-size:18px; }
@@ -117,6 +117,10 @@ if (!window.__crmRtc) {
     const pc = new PC({ iceServers: c.ice });
     const p = c.peers[uid] = { pc: pc, q: [], stream: null, screenSender: null };
     c.local.getTracks().forEach(function(t) { pc.addTrack(t, c.local); });
+    if (c.screen) {   // экран уже показывают — новому участнику сразу экран
+      const st = c.screen.getVideoTracks()[0], cam = c.local.getVideoTracks()[0];
+      if (cam) { const vs = pc.getSenders().find(function(x) { return x.track === cam; }); if (vs) vs.replaceTrack(st); } else p.screenSender = pc.addTrack(st, c.screen);
+    }
     pc.onicecandidate = function(e) { if (e.candidate) sendCall(c.id, [uid], 'ice', e.candidate.toJSON ? e.candidate.toJSON() : e.candidate); };
     pc.ontrack = function(e) { p.stream = e.streams[0] || new W.MediaStream([e.track]); e.track.onunmute = render; e.track.onmute = render; render(); };
     pc.onconnectionstatechange = function() {
@@ -144,13 +148,18 @@ if (!window.__crmRtc) {
     ids = (ids || []).map(Number).filter(function(x) { return x && x !== R.me; });
     if (!ids.length) return;
     Object.assign(R.names, o.names || {});
-    let local;
-    try { local = await getMedia(!!o.video); } catch (e) { rtcToast(e.message); return; }
+    let local, screen = null;
+    if (o.screen) {   // экран спрашиваем первым: браузер разрешает его только сразу после клика
+      if (!MD || !MD.getDisplayMedia) { rtcToast('Этот браузер не умеет показывать экран'); return; }
+      try { screen = await MD.getDisplayMedia({ video: true, audio: false }); } catch (e) { return; }   // отменил выбор окна
+    }
+    try { local = await getMedia(!!o.video && !o.screen); } catch (e) { if (screen) screen.getTracks().forEach(function(t) { t.stop(); }); rtcToast(e.message); return; }
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    R.call = { id: id, title: o.title || '', video: !!o.video, members: [R.me].concat(ids), peers: {}, local: local, ice: await iceServers(), state: 'calling', startedAt: 0, out: true, left: {} };
+    R.call = { id: id, title: o.title || '', video: !!o.video, members: [R.me].concat(ids), peers: {}, local: local, ice: await iceServers(), state: 'calling', startedAt: 0, out: true, left: {}, screen: screen };
+    if (screen) screen.getVideoTracks()[0].onended = stopScreen;
     render();
     tone('back');
-    const res = await sendCall(id, ids, 'ring', { members: R.call.members, title: R.call.title, video: R.call.video, names: Object.assign({}, R.names, R.me ? { [R.me]: R.myName || '' } : {}) });
+    const res = await sendCall(id, ids, 'ring', { members: R.call.members, title: R.call.title, video: R.call.video, screen: !!screen, names: Object.assign({}, R.names, R.me ? { [R.me]: R.myName || '' } : {}) });
     const online = ids.filter(function(u) { return (res.delivered || {})[u]; });
     if (!online.length) { end(ids.length === 1 ? (R.names[ids[0]] || 'Собеседник') + ' сейчас не в CRM — позвонить не получится' : 'Никого из участников сейчас нет в CRM'); return; }
     R.call.ringTimer = setTimeout(function() {
@@ -252,7 +261,7 @@ if (!window.__crmRtc) {
     R.incoming = m; R.names[m.from] = m.fromName;
     const d = m.data || {}, group = (d.members || []).length > 2;
     const el = document.createElement('div'); el.className = 'rtc-in';
-    el.innerHTML = '<div class="rtc-ava">' + rtcEsc(rtcIni(m.fromName)) + '</div><div class="rtc-in-t"><b>' + rtcEsc(m.fromName) + '</b><span>' + (d.video ? 'Видеозвонок' : 'Звонок') + (group ? ' · ' + rtcEsc(d.title || 'группа') + ', ' + d.members.length + ' участн.' : '') + '</span></div>'
+    el.innerHTML = '<div class="rtc-ava">' + rtcEsc(rtcIni(m.fromName)) + '</div><div class="rtc-in-t"><b>' + rtcEsc(m.fromName) + '</b><span>' + (d.screen ? 'Показывает экран' : d.video ? 'Видеозвонок' : 'Звонок') + (group ? ' · ' + rtcEsc(d.title || 'группа') + ', ' + d.members.length + ' участн.' : '') + '</span></div>'
       + '<button class="rtc-b ok" data-a="audio" title="Ответить">' + RTC_ICON.phone + '</button>'
       + (d.video ? '<button class="rtc-b ok" data-a="video" title="Ответить с видео">' + RTC_ICON.video + '</button>' : '')
       + '<button class="rtc-b no" data-a="no" title="Отклонить">' + RTC_ICON.hang + '</button>';
@@ -263,7 +272,7 @@ if (!window.__crmRtc) {
     });
     document.body.appendChild(el);
     tone('ring'); flashTitle('📞 ' + m.fromName);
-    try { if (W.Notification && W.Notification.permission === 'granted' && document.hidden) new W.Notification('Звонок в CRM', { body: m.fromName + (d.video ? ' — видеозвонок' : ' — звонок') }); } catch (e) { /* */ }
+    try { if (W.Notification && W.Notification.permission === 'granted' && document.hidden) new W.Notification('Звонок в CRM', { body: m.fromName + (d.screen ? ' — показывает экран' : d.video ? ' — видеозвонок' : ' — звонок') }); } catch (e) { /* */ }
     m.timer = setTimeout(function() { if (R.incoming === m) { closeIncoming(); rtcToast('Пропущенный звонок: ' + m.fromName); } }, 50000);
   };
   const closeIncoming = function() { const m = R.incoming; if (m) clearTimeout(m.timer); R.incoming = null; const el = document.querySelector('.rtc-in'); if (el) el.remove(); stopTone(); stopFlash(); };
@@ -348,7 +357,8 @@ if (!window.__crmRtc) {
 // кнопки «позвонить» для шапки чата: data-call-ids="1,2" data-call-video="1"
 function crmCallButtons(ids, title, names) {
   const d = ' data-call-ids="' + rtcEsc(ids.join(',')) + '" data-call-title="' + rtcEsc(title || '') + '" data-call-names="' + rtcEsc(JSON.stringify(names || {})) + '"';
-  return '<button class="msgr-call-btn" title="Позвонить" data-call-go' + d + '>' + RTC_ICON.phone + '</button><button class="msgr-call-btn" title="Видеозвонок" data-call-go data-call-video="1"' + d + '>' + RTC_ICON.video + '</button>';
+  return '<button class="msgr-call-btn" title="Позвонить" data-call-go' + d + '>' + RTC_ICON.phone + '</button><button class="msgr-call-btn" title="Видеозвонок" data-call-go data-call-video="1"' + d + '>' + RTC_ICON.video + '</button>'
+    + '<button class="msgr-call-btn" title="Показать свой экран" data-call-go data-call-screen="1"' + d + '>' + RTC_ICON.screen + '</button>';
 }
 if (!window.__crmRtcBtn) {
   window.__crmRtcBtn = true;
@@ -356,7 +366,7 @@ if (!window.__crmRtcBtn) {
     const b = e.target.closest && e.target.closest('[data-call-go]'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
     let names = {}; try { names = JSON.parse(b.getAttribute('data-call-names') || '{}'); } catch (x) { /* */ }
-    window.crmCall(b.getAttribute('data-call-ids').split(',').map(Number), { video: b.hasAttribute('data-call-video'), title: b.getAttribute('data-call-title'), names: names });
+    window.crmCall(b.getAttribute('data-call-ids').split(',').map(Number), { video: b.hasAttribute('data-call-video'), screen: b.hasAttribute('data-call-screen'), title: b.getAttribute('data-call-title'), names: names });
   }, true);
 }
 // ===== конец фрагмента звонков =====

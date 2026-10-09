@@ -266,6 +266,29 @@ if (!document.getElementById('crm-hr-style')) {
     .hr tbody tr:nth-child(even) td, .hr-modal tbody tr:nth-child(even) td { background:#f8f9fb; }
     .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr tr[data-go]:hover td, .hr-modal tr[data-task]:hover td { background:#eaf0ff; }
     .hr-empty { color:#595959; }
+      /* телефон: список сотрудников — карточки (имя / должность / телефон), график отпусков листается вбок с закреплёнными именами */
+    @media (max-width: 700px) {
+      .hr-list { padding:0; }
+      .hr-list table, .hr-list tbody { display:block; }
+      .hr-list thead { display:none; }
+      .hr-list tr.hr-dept, .hr-list tr.hr-dept td { display:block; }
+      .hr-list tr[data-emp] { display:flex; flex-wrap:wrap; align-items:center; column-gap:12px; row-gap:2px; padding:10px 12px 10px 50px; position:relative; border-bottom:1px solid #eef0f3; }
+      .hr-list tr[data-emp] td { display:block; padding:0 !important; border:none !important; background:none !important; }
+      .hr-list td.nm { width:100%; white-space:normal; }
+      .hr-list td.nm .hr-ava { position:absolute; left:12px; top:12px; margin:0; }
+      .hr-list td.nm b { font-size:15px; }
+      .hr-list tr[data-emp] td:nth-child(2) { width:100%; color:#595959; font-size:13.5px; }
+      .hr-list tr[data-emp] td:nth-child(3), .hr-list tr[data-emp] td:nth-child(5) { display:none; }
+      .hr-list tr[data-emp] td .hr-none { display:none; }
+      .hr-list td.ph a { font-size:14.5px; }
+      .hr-card:has(> .hr-tl) { overflow-x:auto; padding:10px 0; }
+      .hr-tl { min-width:780px; }
+      .hr-tl td.nm { width:120px; position:sticky; left:0; z-index:1; background:#fff; }
+      .hr-tl td.rest { width:64px; }
+      .hr-head { flex-wrap:wrap; gap:8px; }
+      .hr-tabs { overflow-x:auto; flex-wrap:nowrap; scrollbar-width:none; }
+      .hr-tab { flex:none; white-space:nowrap; }
+    }
   `;
   document.head.appendChild(st);
 }

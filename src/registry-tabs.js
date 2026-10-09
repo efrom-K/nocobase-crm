@@ -439,6 +439,10 @@ if (!document.getElementById('cm-reg-look-style')) {
     [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row > td { color:#1f1f1f; font-size:13.5px; border-bottom-color:#e8ebf0 !important; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td { background:#f8f9fb; }
     .main-registry-clickable-rows .ant-table-tbody > tr.ant-table-row:not(.cm-notif-row):hover > td { background:#eaf0ff !important; }
+      /* телефон: в карточках реестра — только главное, остальное в карточке договора */
+    @media (max-width: 700px) {
+      .ant-table tbody > tr > td[data-l="Электронная почта"], .ant-table tbody > tr > td[data-l="Фамилия, имя, отчество по договору"], .ant-table tbody > tr > td[data-l="Дата подписания акта приёма-передачи"] { display:none !important; }
+    }
   `;
   document.head.appendChild(lst);
 }

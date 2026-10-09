@@ -276,6 +276,37 @@ async function api(path, opts) {
     .ml-send-group .ml-btn-primary + .ml-btn-primary { border-radius: 0 10px 10px 0; border-left: 1px solid rgba(255,255,255,.35); padding: 0 10px; }
     .ml-when input { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 12px; font-size: 14px; font-family: inherit; }
     @media (max-width: 900px) { .ml-side { width: 64px; flex-basis: 64px; } .ml-folder-name, .ml-folder-count, .ml-compose-btn span, .ml-side-foot span, .ml-folder-add span { display: none; } .ml-from { width: 120px; flex-basis: 120px; } .ml-snip { display: none; } }
+    /* телефон: папки — полоска сверху, письмо — две строки (кто · дата / тема), «Написать» — круглая кнопка внизу, новое письмо — на весь экран над клавиатурой */
+    @media (max-width: 700px) {
+      .ml-app { flex-direction: column; border: none; border-radius: 0; min-height: 0; }
+      .ml-side { width: auto; flex: none; flex-direction: row; align-items: center; overflow-x: auto; padding: 6px 4px; gap: 4px; scrollbar-width: none; }
+      .ml-side::-webkit-scrollbar { display: none; }
+      #ml-boxes, #ml-folders { display: flex; gap: 4px; flex: none; }
+      .ml-side-sep, .ml-side-foot span { display: none; }
+      .ml-side-foot { margin: 0; padding: 0 6px; }
+      .ml-folder, .ml-box { height: 36px; padding: 0 12px; flex: none; white-space: nowrap; }
+      .ml-folder-name { display: inline; flex: none; }
+      .ml-folder-count { display: inline; }
+      .ml-compose-btn { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); width: 58px; height: 58px; margin: 0; border-radius: 50%; z-index: 900; box-shadow: 0 6px 18px rgba(0,95,249,.4); }
+      .ml-toolbar { flex-wrap: wrap; height: auto; min-height: 52px; padding: 6px 8px; row-gap: 6px; }
+      .ml-search { order: 9; width: 100%; margin: 0; }
+      .ml-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av from date" "av line icons"; column-gap: 10px; row-gap: 2px; height: auto; padding: 10px 12px; }
+      .ml-sel-cell, .ml-unread-dot { display: none; }
+      .ml-avatar-wrap { grid-area: av; align-self: start; }
+      .ml-from { grid-area: from; width: auto; flex: none; font-size: 15px; }
+      .ml-date { grid-area: date; width: auto; }
+      .ml-line { grid-area: line; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
+      .ml-snip { display: inline; }
+      .ml-icons { grid-area: icons; align-self: start; }
+      .ml-row:not(:hover) .ml-flag:not(.on) { display: none; }
+      .ml-read { padding: 12px 14px 90px; }
+      .ml-read h1 { font-size: 19px; }
+      .ml-read-head { flex-wrap: wrap; }
+      .ml-read-date { width: 100%; padding-left: 52px; order: 3; }
+      .ml-compose, .ml-compose.full { top: var(--crm-vvt, 0); left: 0; right: 0; bottom: auto; width: 100%; height: var(--crm-vvh, 100dvh); border-radius: 0; }
+      .ml-compose.min { height: 48px; top: auto; bottom: 0; }
+      .ml-compose-head { border-radius: 0; }
+    }
   `;
   document.head.appendChild(st);
 })();

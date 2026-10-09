@@ -7,7 +7,7 @@ if (!document.getElementById('crm-call-style')) {
   const st = document.createElement('style');
   st.id = 'crm-call-style';
   st.textContent = `
-    .rtc-in { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:1200; background:#fff; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.25);
+    .rtc-in { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:3200; background:#fff; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.25);
       padding:16px 18px; display:flex; align-items:center; gap:14px; min-width:340px; max-width:92vw; font-size:14px; color:#1f1f1f; animation:rtcDrop .25s ease-out; }
     @keyframes rtcDrop { from { transform:translate(-50%,-20px); opacity:0; } to { transform:translate(-50%,0); opacity:1; } }
     .rtc-ava { width:46px; height:46px; border-radius:50%; background:#1c2d58; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; flex:none; }
@@ -19,7 +19,7 @@ if (!document.getElementById('crm-call-style')) {
     .rtc-b.no { background:#cf1322; } .rtc-b.no:hover { background:#a8071a; }
     .rtc-b.tool { background:rgba(255,255,255,.14); } .rtc-b.tool:hover { background:rgba(255,255,255,.24); }
     .rtc-b.tool.off { background:#fff; color:#262626; }
-    .rtc-win { position:fixed; right:18px; bottom:18px; z-index:1150; width:380px; max-width:94vw; background:#141a2a; color:#fff; border-radius:16px; box-shadow:0 14px 44px rgba(0,0,0,.35);
+    .rtc-win { position:fixed; right:18px; bottom:18px; z-index:3100; width:380px; max-width:94vw; background:#141a2a; color:#fff; border-radius:16px; box-shadow:0 14px 44px rgba(0,0,0,.35);
       display:flex; flex-direction:column; overflow:hidden; font-size:13.5px; }
     .rtc-win.big { right:3vw; bottom:3vh; width:94vw; height:90vh; }
     .rtc-top { display:flex; align-items:center; gap:10px; padding:10px 14px; background:rgba(255,255,255,.05); }
@@ -44,6 +44,7 @@ if (!document.getElementById('crm-call-style')) {
     .rtc-msg { padding:18px; text-align:center; color:#a7b0c4; }
     .msgr-call-btn { border:none; background:transparent; color:#1c2d58; width:34px; height:34px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex:none; }
     .msgr-call-btn:hover { background:#eef1f8; }
+    /* окно звонка и входящий — поверх окна чата (z-index 3001) */
     /* телефон: окно звонка на весь экран (без «Развернуть»), крупные кнопки, входящий — во всю ширину */
     @media (max-width: 700px) {
       .rtc-win, .rtc-win.big { top:var(--crm-vvt, 0); left:0; right:0; bottom:auto; width:100%; max-width:none; height:var(--crm-vvh, 100dvh); border-radius:0; }
@@ -74,7 +75,7 @@ function rtcEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').re
 function rtcIni(n) { const p = String(n || '?').trim().split(/\s+/); return (((p[0] || '')[0] || '') + ((p[1] || '')[0] || '')).toUpperCase() || '?'; }
 function rtcToast(t) {
   const el = document.createElement('div'); el.textContent = t;
-  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#262626;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:1300;max-width:90vw;';
+  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#262626;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:3300;max-width:90vw;';
   document.body.appendChild(el); setTimeout(function() { el.remove(); }, 4000);
 }
 

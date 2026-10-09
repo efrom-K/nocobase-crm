@@ -50,7 +50,7 @@ if (!document.getElementById('crm-cfg-style')) {
     .cs-p-n { display:flex; align-items:center; gap:10px; min-width:0; }
     .cs-ava { width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; color:#fff; }
     .cs-p-n b { font-weight:600; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .cs-p-n span { display:block; font-size:12.5px; color:#8c8c8c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .cs-p-n > div > span { display:block; font-size:12.5px; color:#8c8c8c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .cs-p-a { font-size:13px; min-width:0; }
     .cs-p-a code { font-family:inherit; font-weight:600; color:#262626; }
     .cs-p-act { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
@@ -103,6 +103,7 @@ if (!document.getElementById('crm-cfg-style')) {
     .cs-acc { border:1px solid #e3e7ee; border-radius:10px; padding:10px 12px; margin:10px 0; background:#fafbfc; }
     .cs-acc-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; }
     .cs-acc-h .cs-btn { margin-left:auto; }
+    .cs-acc code { font-family:inherit; }
   `;
   document.head.appendChild(st);
 }

@@ -35,4 +35,5 @@ ln -sf "db_$T.sql.gz" "$DIR/db_latest.sql.gz"
 ln -sf "uploads_$T.tar.gz" "$DIR/uploads_latest.tar.gz"
 find "$DIR" -name 'db_20*.sql.gz' -mtime +30 -delete
 find "$DIR" -name 'uploads_20*.tar.gz' -mtime +30 -delete
+/home/ubuntu/nb_bik/encrypt_latest.sh || fail "не удалось зашифровать копию для DC"
 echo "$(date '+%F %T') ok $(du -h "$DIR/db_$T.sql.gz" | cut -f1) db, $(du -h "$DIR/uploads_$T.tar.gz" | cut -f1) uploads"

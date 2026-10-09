@@ -644,6 +644,49 @@ async function schedLoop() {
 }
 setInterval(schedLoop, 30 * 1000);
 
+// ---------- звонки мессенджера: сигнализация и ключи TURN ----------
+// Браузер держит поток /rtc/stream (text/event-stream, авторизация заголовком — токен не попадает в логи прокси),
+// события звонка (вызов, ответ, SDP, ICE) шлёт POST /rtc/send адресатам-пользователям NocoBase. Медиа идёт напрямую
+// между браузерами (WebRTC, шифруется DTLS-SRTP); если напрямую нельзя — через coturn на svc (/opt/coturn).
+// Ключ TURN временный (12 ч): имя «срок:пользователь», пароль — HMAC-SHA1 общим секретом coturn (TURN_SECRET в .env).
+const rtcStreams = new Map();   // userId → Set(res)
+const RTC_TYPES = ['ring', 'accept', 'decline', 'cancel', 'busy', 'join', 'offer', 'answer', 'ice', 'hangup', 'media'];
+function rtcPush(uid, msg) {
+  const set = rtcStreams.get(Number(uid)); if (!set || !set.size) return 0;
+  const line = 'data: ' + JSON.stringify(msg) + '\n\n';
+  for (const r of set) { try { r.write(line); } catch (e) { /* закрытый поток уберёт 'close' */ } }
+  return set.size;
+}
+function rtcStream(req, res, user, origin) {
+  res.writeHead(200, Object.assign({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' }, corsHeaders(origin)));
+  res.write('retry: 3000\n\ndata: ' + JSON.stringify({ type: 'hello', me: user.userId }) + '\n\n');
+  const uid = Number(user.userId);
+  if (!rtcStreams.has(uid)) rtcStreams.set(uid, new Set());
+  rtcStreams.get(uid).add(res);
+  const ping = setInterval(function() { try { res.write(': ping\n\n'); } catch (e) { /* */ } }, 25000);
+  req.on('close', function() { clearInterval(ping); const set = rtcStreams.get(uid); if (set) { set.delete(res); if (!set.size) rtcStreams.delete(uid); } });
+}
+function rtcSend(user, b) {
+  const type = String(b.type || '');
+  if (RTC_TYPES.indexOf(type) === -1) throw new ApiError(400, 'BAD_TYPE');
+  const to = uidList(b.to).filter(function(x) { return x !== Number(user.userId); }).slice(0, 20);
+  const call = String(b.call || '').slice(0, 64);
+  if (!call) throw new ApiError(400, 'NO_CALL');
+  const msg = { type: type, call: call, from: Number(user.userId), fromName: user.name, data: b.data == null ? null : b.data };
+  const delivered = {};
+  to.forEach(function(u) { delivered[u] = rtcPush(u, msg); });
+  return { delivered: delivered };
+}
+function rtcIce(user) {
+  const host = env.TURN_HOST || 'crm.ykinvest.ru', servers = [{ urls: ['stun:' + host + ':3478'] }];
+  if (env.TURN_SECRET) {
+    const username = (Math.floor(Date.now() / 1000) + 12 * 3600) + ':' + user.userId;
+    const credential = crypto.createHmac('sha1', env.TURN_SECRET).update(username).digest('base64');
+    servers.push({ urls: ['turn:' + host + ':3478?transport=udp', 'turn:' + host + ':3478?transport=tcp'], username: username, credential: credential });
+  }
+  return { iceServers: servers };
+}
+
 // ---------- HTTP ----------
 function send(res, status, obj, origin) {
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
@@ -676,6 +719,10 @@ const server = http.createServer(async (req, res) => {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const user = await whoami(token);
     if (!user) throw new ApiError(401, 'NO_SESSION', 'Войдите в NocoBase заново');
+    // звонки мессенджера — всем вошедшим (не только тем, кому включена почта)
+    if (p === '/rtc/stream') return rtcStream(req, res, user, origin);
+    if (p === '/rtc/send' && req.method === 'POST') return send(res, 200, rtcSend(user, await readJson(req)), origin);
+    if (p === '/rtc/ice') return send(res, 200, rtcIce(user), origin);
     if (!mailEnabled(user.email)) throw new ApiError(403, 'NOT_ENABLED', 'Почта для вашей учётной записи пока не подключена');
     const email = user.email;
 

@@ -3,6 +3,7 @@
 // Какие разделы показывать по умолчанию — по роли (CAL_DEFAULTS), человек может включить/выключить, выбор запоминается.
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
+// @include src/_crm-calls.js
 const CAL_GROUPS = {
   contracts: { l: 'Договоры', c: '#1c2d58' }, requests: { l: 'Заявки', c: '#d46b08' }, tasks: { l: 'Задачи', c: '#13a8a8' },
   aho: { l: 'АХО', c: '#722ed1' }, hr: { l: 'Кадры', c: '#389e0d' }

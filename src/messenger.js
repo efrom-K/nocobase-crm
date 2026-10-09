@@ -1,6 +1,7 @@
 // плавающая кнопка «Открыть ИИ-чат» плагина AI не используется — прячем (выключать сам плагин нельзя: на нём держится клиент NocoBase)
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
+// @include src/_crm-calls.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
 if (!document.getElementById('crm-controls-style')) {
@@ -648,6 +649,7 @@ async function openChatWindow(rootPage, convId) {
         avatarHtml(conv.title, conv.id, 40) +
         '<div class="msgr-chat-head-info"><div class="msgr-chat-title">' + esc(conv.title) + '</div>' +
         '<div class="msgr-chat-sub" id="msgr-chat-sub">' + (conv.is_group ? (conv.members.length + ' участников') : '') + '</div></div>' +
+        crmCallButtons(conv.others.map(function (m) { return m.user_id; }), conv.is_group ? conv.title : '', conv.others.reduce(function (o, m) { o[m.user_id] = userLabel(m.user); return o; }, {})) +
         '<span class="msgr-chat-close" id="msgr-chat-close">&times;</span>' +
       '</div>' +
       '<div class="msgr-thread" id="msgr-thread"><div class="msgr-empty">Загрузка…</div></div>' +

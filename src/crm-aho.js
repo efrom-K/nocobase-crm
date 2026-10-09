@@ -217,6 +217,7 @@ if (!document.getElementById('crm-aho-style')) {
 // ---------- справочники ----------
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
+// @include src/_crm-calls.js
 const AHO_PAGE = '/admin/ahodash01', AHO_MAIL_PAGE = '/admin/mailpage01';
 const A_PERIOD = cfg('aho.period');
 const A_WEEKDAYS = ['', 'по понедельникам', 'по вторникам', 'по средам', 'по четвергам', 'по пятницам', 'по субботам', 'по воскресеньям'];

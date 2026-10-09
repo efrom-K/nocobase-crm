@@ -5,6 +5,7 @@
 // Доступ к странице — через права ролей на пункт меню (сейчас только admin).
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
+// @include src/_crm-calls.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
 if (!document.getElementById('crm-controls-style')) {

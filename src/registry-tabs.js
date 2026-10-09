@@ -441,6 +441,7 @@ if (!document.getElementById('cm-reg-look-style')) {
     .main-registry-clickable-rows .ant-table-tbody > tr.ant-table-row:not(.cm-notif-row):hover > td { background:#eaf0ff !important; }
       /* телефон: в карточках реестра — только главное, остальное в карточке договора */
     @media (max-width: 700px) {
+      .ant-table tbody > tr.ant-table-row.cm-notif-row { background:#fff7e6; }
       .ant-table tbody > tr > td[data-l="Электронная почта"], .ant-table tbody > tr > td[data-l="Фамилия, имя, отчество по договору"], .ant-table tbody > tr > td[data-l="Дата подписания акта приёма-передачи"] { display:none !important; }
     }
   `;

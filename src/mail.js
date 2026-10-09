@@ -282,6 +282,9 @@ async function api(path, opts) {
       .ml-side { width: auto; flex: none; flex-direction: row; align-items: center; overflow-x: auto; padding: 6px 4px; gap: 4px; scrollbar-width: none; }
       .ml-side::-webkit-scrollbar { display: none; }
       #ml-boxes, #ml-folders { display: flex; gap: 4px; flex: none; }
+      #ml-boxes { order: 2; }
+      .ml-toolbar:has([data-ract]) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+      .ml-toolbar:has([data-ract]) .ml-tbtn { flex: none; }
       .ml-side-sep, .ml-side-foot span { display: none; }
       .ml-side-foot { margin: 0; padding: 0 6px; }
       .ml-folder, .ml-box { height: 36px; padding: 0 12px; flex: none; white-space: nowrap; }

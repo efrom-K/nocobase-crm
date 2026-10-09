@@ -288,6 +288,7 @@ if (!document.getElementById('crm-hr-style')) {
       .hr-head { flex-wrap:wrap; gap:8px; }
       .hr-tabs { overflow-x:auto; flex-wrap:nowrap; scrollbar-width:none; }
       .hr-tab { flex:none; white-space:nowrap; }
+      .hr-tiles:not(.hr-tiles-home) { grid-template-columns:repeat(2, minmax(0, 1fr)); }
     }
   `;
   document.head.appendChild(st);

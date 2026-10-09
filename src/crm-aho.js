@@ -581,7 +581,7 @@ async function aStart() {
 async function aReload() { await aLoad(); aRender(); }
 function aRender() {
   const head = ah.tab === 'home'
-    ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div>' + crmSettingsGear('АХО') + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
+    ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div>' + crmSettingsGear('АХО') + '<button class="hr-btn" data-act="ahoxlsx">⬇ Выгрузить в Excel</button>' + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
     : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд АХО</button><div class="hr-title">' + A_SECTIONS[ah.tab] + '</div></div>';
   aRoot().innerHTML = head + '<div data-hr-body></div>';
   ({ home: aRenderHome, routines: aRenderRoutines, money: aRenderMoney, poa: aRenderPoa, fire: aRenderFire, mail: aRenderMail, cars: aRenderCars, mailing: aRenderMailing, att: aRenderAtt })[ah.tab]();
@@ -1172,6 +1172,44 @@ function aAttXlsx() {
     ]
   });
 }
+// выгрузка дашборда АХО в Excel: колонки и подписи — как в таблицах разделов
+function aExportXlsx() {
+  const d = ah.d, sheets = [], dt = function(v) { return hD(v) || null; };
+  const exps = d.exps.slice().sort(function(a, b) { return String(a.due_on || '9').localeCompare(String(b.due_on || '9')); });
+  if (exps.length) sheets.push({ name: 'Счета и расходы', title: 'Счета и расходы', total: true, freezeCols: 1,
+    cols: [{ h: 'Что', w: 36, total: 'Итого' }, { h: 'Поставщик', w: 28 }, { h: 'Статья', w: 24 }, { h: 'Юрлицо / объект', w: 32 }, { h: 'Сумма', t: 'money' }, { h: 'Оплатить до', t: 'date' }, { h: 'Статус' }],
+    rows: exps.map(function(x) { const a = aArt(x.article_id); return [x.title || '', x.supplier || '', a ? a.name : '', [aLeName(x.legal_entity_id), x.object_name].filter(Boolean).join(' · '), Number(x.amount) || 0, dt(x.due_on), A_EXP_ST[x.status || 'new'] || 'Новый']; }) });
+  if (d.routines.length) sheets.push({ name: 'Регулярные дела', title: 'Регулярные дела', freezeCols: 1,
+    cols: [{ h: 'Что', w: 40 }, { h: 'Как часто', w: 24 }, { h: 'Следующий срок', t: 'date' }, { h: 'Последний раз', t: 'date' }, { h: 'Действует' }],
+    rows: d.routines.slice().sort(function(a, b) { return (a.active === false) - (b.active === false) || String(a.next_on || '9').localeCompare(String(b.next_on || '9')); })
+      .map(function(r) { return [r.title || '', aRoutineWhen(r), dt(r.next_on), dt(r.last_done_on), r.active === false ? 'нет' : 'да']; }) });
+  const poaSt = function(p) {
+    if (p.status === 'revoked') return 'отозвана';
+    if (!p.valid_until) return 'срок не указан';
+    const n = hDays(hToday(), p.valid_until);
+    return n < 0 ? 'истекла' : n <= 30 ? 'скоро истекает (' + n + ' дн.)' : 'действует';
+  };
+  if (d.poa.length) sheets.push({ name: 'Доверенности', title: 'Доверенности', freezeCols: 1,
+    cols: [{ h: 'На кого', w: 30 }, { h: 'Юрлицо', w: 28 }, { h: 'Для чего', w: 30 }, { h: 'Номер' }, { h: 'Выдана', t: 'date' }, { h: 'Действует до', t: 'date' }, { h: 'Состояние' }],
+    rows: d.poa.map(function(p) { return [p.to_whom || '', aLeName(p.legal_entity_id), p.purpose || '', p.number || '', dt(p.issued_on), dt(p.valid_until), poaSt(p)]; }) });
+  if (d.fire.length) sheets.push({ name: 'Пожарная безопасность', title: 'Пожарная безопасность у арендаторов', freezeCols: 1,
+    cols: [{ h: 'Объект', w: 26 }, { h: 'Арендатор', w: 30 }, { h: 'Вручено', t: 'date' }, { h: 'Устранить до', t: 'date' }, { h: 'Статус' }, { h: 'Устранено', t: 'date' }, { h: 'Недочёты', t: 'long', w: 50 }],
+    rows: d.fire.slice().sort(function(a, b) { return String(a.object_name || '').localeCompare(String(b.object_name || ''), 'ru'); })
+      .map(function(f) { return [f.object_name || '', f.tenant || '', dt(f.issued_on), dt(f.deadline_on), A_FIRE_ST[f.status] || '', dt(f.fixed_on), f.issues || '']; }) });
+  if (d.cars.length) sheets.push({ name: 'Машины', title: 'Машины', freezeCols: 1,
+    cols: [{ h: 'Машина', w: 28 }, { h: 'Госномер' }, { h: 'Собственник', w: 26 }, { h: 'Кто ездит', w: 26 }, { h: 'Неоплаченных штрафов', t: 'int' }, { h: 'Используется' }],
+    rows: d.cars.map(function(c) { return [c.name || '', c.plate || '', c.owner || '', c.driver || '', d.fines.filter(function(f) { return Number(f.car_id) === c.id && !f.paid_on; }).length, c.active === false ? 'нет' : 'да']; }) });
+  if (d.fines.length) sheets.push({ name: 'Штрафы', title: 'Штрафы', total: true, freezeCols: 1,
+    cols: [{ h: 'Машина', w: 28, total: 'Итого' }, { h: 'Дата', t: 'date' }, { h: 'Сумма', t: 'money' }, { h: 'Скидка 50% до', t: 'date' }, { h: 'Оплачен', t: 'date' }],
+    rows: d.fines.map(function(f) { const c = aCar(f.car_id); return [c ? c.name : '', dt(f.issued_on), Number(f.amount) || 0, dt(f.discount_until), dt(f.paid_on)]; }) });
+  if (!sheets.length) return;
+  crmXlsx('Дашборд АХО', {
+    title: 'Дашборд АХО', filters: [],
+    notes: [['Счета и расходы', 'Все счета, по сроку оплаты; сумма — в рублях'], ['Регулярные дела', 'Следующий срок считается по периоду после отметки «Сделано»'], ['Доверенности', '«Скоро истекает» — меньше 30 дней до конца срока'],
+      ['Пожарная безопасность', 'Требования арендаторам по объектам'], ['Машины и штрафы', 'Штраф без оплаты считается неоплаченным']],
+    sheets: sheets
+  });
+}
 function aRenderCards(head) {
   const cards = (ah.d.cards || []).filter(function(c) { return !ah.att.cardsOnlyFree || (!c.employee_id && !c.ignore); });
   const free = (ah.d.cards || []).filter(function(c) { return !c.employee_id && !c.ignore; }).length;
@@ -1201,6 +1239,7 @@ aRoot().addEventListener('click', function(e) {
     e.stopPropagation();
     const id = Number(act.getAttribute('data-id'));
     if (a === 'done') return aDone(id);
+    if (a === 'ahoxlsx') { try { aExportXlsx(); } catch (err) { console.error(err); } return; }
     if (a === 'subpaid') return aSubPaid(id);
     if (a === 'newroutine') return aOpenRoutine(null);
     if (a === 'newexp') return aOpenExp(null);

@@ -622,7 +622,7 @@ function dashExportXlsx() {
           ['Общая площадь объектов, м²', totalKop ? dFmt2(totalKop) : '—', ''],
           ['Сдано, м²', dFmt2(areaKop), 'по действующим договорам'],
           ['Свободно, м²', totalKop ? dFmt2(totalKop - areaKop) : '—', ''],
-          ['Занятость', totalKop ? Math.round(1000 * areaKop / totalKop) / 10 + '%' : '—', ''],
+          ['Занятость', totalKop ? String(Math.round(1000 * areaKop / totalKop) / 10).replace('.', ',') + '%' : '—', ''],
           ['Доход в месяц, ₽', dFmt2(sm.rentKop + sm.utilKop), 'аренда ' + dFmt2(sm.rentKop) + ' ₽ + эксплуатационный сбор ' + dFmt2(sm.utilKop) + ' ₽' + (sm.noPrice ? '; без цены: ' + dContracts(sm.noPrice) : '')],
           ['Обеспечительные платежи, ₽', dFmt2(sm.depKop), 'указаны у ' + sm.depN + ' из ' + dOfContracts(sm.n)],
           ['Действующие договоры', String(d.active.length), ''], ['Оформляются', String(d.forming.length), ''], ['В архиве', String(d.completed.length), ''],

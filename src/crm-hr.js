@@ -273,6 +273,7 @@ if (!document.getElementById('crm-hr-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-xlsx.js
 const HR_TASKS_PAGE = '/admin/tskpage01';
 const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/hrdash01';
 const HR_MODE = location.pathname.indexOf(HR_DASH_PAGE) !== -1 ? 'hr' : 'staff';
@@ -838,7 +839,7 @@ function hRender() {
     hr.staffView = hr.tab === 'org' ? 'org' : 'list';
   } else {                     // дашборд HR: без вкладок, раздел открывается с главного экрана
     head = hr.tab === 'home'
-      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div>' + crmSettingsGear('HR') + '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
+      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div>' + crmSettingsGear('HR') + (hCan() ? '<button class="hr-btn" data-act="hrxlsx">⬇ Выгрузить в Excel</button>' : '') + '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
       : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд HR</button><div class="hr-title">' + HR_SECTIONS[hr.tab] + '</div>'
         + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button>' : '') + '</div>';
   }
@@ -872,6 +873,42 @@ function hOnChange(e) {
   const am = e.target.getAttribute('data-act-m');
   if (am) { const p = am.split('|'); hSaveAct(Number(p[0]), p[1], e.target.checked); return; }
 }
+// выгрузка дашборда HR в Excel: сотрудники, отпуска текущего года, охрана труда, подбор
+function hrExportXlsx() {
+  const d = hr.d, y = new Date().getFullYear(), sheets = [];
+  const emps = d.emps.slice().sort(function(a, b) { return (a.status === 'fired' ? 1 : 0) - (b.status === 'fired' ? 1 : 0) || String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
+  if (emps.length) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: 1,
+    cols: [{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Юрлицо', w: 28 }, { h: 'Тип занятости' }, { h: 'Принят', t: 'date' }, { h: 'Статус' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }],
+    rows: emps.map(function(e) {
+      return [e.full_name || '', e.position || '', e.department || '', hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', '), HR_EMP_TYPE[e.employment_type || 'staff'] || '',
+        hD(e.hired_on) || null, HR_EMP_ST[e.status] || HR_EMP_ST.active, e.phone || '', e.email || ''];
+    }) });
+  const vacs = d.vacs.filter(function(v) { return hD(v.start_date).slice(0, 4) === String(y) && hEmp(v.employee_id); })
+    .sort(function(a, b) { return hD(a.start_date).localeCompare(hD(b.start_date)); });
+  if (vacs.length) sheets.push({ name: 'Отпуска', title: 'Отпуска ' + y + ' года', total: true, freezeCols: 1,
+    cols: [{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Вид', w: 24 }, { h: 'Оформление' }],
+    rows: vacs.map(function(v) { return [hEmp(v.employee_id).full_name, hD(v.start_date) || null, hD(v.end_date) || null, Number(v.days) || 0, v.kind || HR_VAC_KINDS[0], HR_VAC_ST[v.status] || '']; }) });
+  const ot = [], stL = { none: 'нет записи', ok: 'в порядке', soon: 'скоро', late: 'просрочено' };
+  hStaff().sort(function(a, b) { return String(a.full_name).localeCompare(String(b.full_name), 'ru'); }).forEach(function(e) {
+    HR_SAFETY.forEach(function(k) { const r = hSafetyLast(e.id, k[0]); ot.push([e.full_name, k[0], r ? hD(r.done_on) || null : null, r ? hD(r.next_on) || null : null, stL[r ? hDue(r.next_on) : 'none']]); });
+  });
+  if (ot.length && d.safety.length) sheets.push({ name: 'Охрана труда', title: 'Охрана труда и ПБ — штатные сотрудники', freezeCols: 1,
+    cols: [{ h: 'Сотрудник', w: 32 }, { h: 'Инструктаж / обучение', w: 34 }, { h: 'Проведён', t: 'date' }, { h: 'Следующий до', t: 'date' }, { h: 'Состояние' }], rows: ot });
+  if (d.vacancies.length) sheets.push({ name: 'Подбор', title: 'Подбор: вакансии', total: true, freezeCols: 1,
+    cols: [{ h: 'Вакансия', w: 32, total: 'Итого' }, { h: 'Юрлицо', w: 24 }, { h: 'Отдел', w: 24 }, { h: 'Объект', w: 24 }, { h: 'Открыта', t: 'date' }, { h: 'Закрыть до', t: 'date' },
+      { h: 'Кандидатов', t: 'int' }, { h: 'На собеседовании', t: 'int' }, { h: 'Оффер', t: 'int' }, { h: 'Статус' }],
+    rows: d.vacancies.map(function(x) {
+      const cs = d.cands.filter(function(c) { return c.vacancy_id === x.id; }), n = function(st) { return cs.filter(function(c) { return c.stage === st; }).length; };
+      return [x.title || '', hLe(x.legal_entity_id) ? hLe(x.legal_entity_id).name : '', x.department || '', x.object_name || '', hD(x.opened_on) || null, hD(x.due_on) || null, cs.length, n('interview'), n('offer'), HR_VACANCY_ST[x.status] || x.status || ''];
+    }) });
+  if (!sheets.length) return;
+  crmXlsx('Дашборд HR', {
+    title: 'Дашборд HR', filters: [['Год', y]],
+    notes: [['Сотрудники', 'Работающие сверху, уволенные ниже; юрлицо — основное и дополнительные'], ['Отпуска', 'Все отпуска, начавшиеся в ' + y + ' году; «Дней» — как указано в записи'],
+      ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'], ['Подбор', 'Кандидаты считаются по стадиям: все / собеседование / оффер']],
+    sheets: sheets
+  });
+}
 function hOnClick(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
   if (c('a[href^="tel:"], a[href^="mailto:"], a[target], a[data-hrfile], a.hr-cb')) return;
@@ -879,6 +916,7 @@ function hOnClick(e) {
   if (tab) { hr.tab = tab.getAttribute('data-tab'); hr.only = null; hRender(); try { window.scrollTo(0, 0); } catch (err) { /* песочница */ } return; }
   const act = c('[data-act]'), a = act && act.getAttribute('data-act');
   if (a === 'newemp') return hOpenNewEmp();
+  if (a === 'hrxlsx') { try { hrExportXlsx(); } catch (err) { console.error(err); } return; }
   if (a === 'unonly') { hr.only = null; hRenderStaff(); return; }
   if (a === 'sv') { hr.staffView = act.getAttribute('data-v'); hRenderStaff(); return; }
   if (a === 'newdep') return hEditDept(null, hDepTop(), function(x) { if (x) hOpenDept(x.id); });

@@ -2,6 +2,7 @@
 // Сроки берутся из разделов через API с правами пользователя: нет доступа к разделу — его сроков просто нет.
 // Какие разделы показывать по умолчанию — по роли (CAL_DEFAULTS), человек может включить/выключить, выбор запоминается.
 // @include src/_crm-config.js
+// @include src/_crm-settings-ui.js
 const CAL_GROUPS = {
   contracts: { l: 'Договоры', c: '#1c2d58' }, requests: { l: 'Заявки', c: '#d46b08' }, tasks: { l: 'Задачи', c: '#13a8a8' },
   aho: { l: 'АХО', c: '#722ed1' }, hr: { l: 'Кадры', c: '#389e0d' }
@@ -168,7 +169,7 @@ function cMonth(list) {
 function cRender(slot) {
   if (!cal.items) { slot.innerHTML = '<div class="cal"><div class="cal-empty">Загрузка календаря…</div></div>'; return; }
   const list = cVisible(), avail = Object.keys(CAL_GROUPS).filter(function(g) { return cal.avail[g]; });
-  slot.innerHTML = '<div class="cal"><div class="cal-head"><div class="cal-title">Календарь сроков</div>'
+  slot.innerHTML = '<div class="cal"><div class="cal-head"><div class="cal-title">Календарь сроков</div>' + crmSettingsGear('Календарь') + ''
     + '<div class="cal-chips">' + avail.map(function(g) {
         const on = cal.groups.indexOf(g) !== -1;
         return '<button class="cal-chip' + (on ? ' on' : '') + '" data-group="' + g + '" style="--c:' + CAL_GROUPS[g].c + ';">' + CAL_GROUPS[g].l + '</button>';

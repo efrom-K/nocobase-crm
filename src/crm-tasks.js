@@ -241,6 +241,7 @@ if (!document.getElementById('crm-tk-style')) {
 }
 
 // @include src/_crm-config.js
+// @include src/_crm-settings-ui.js
 const TK_PAGE = '/admin/tskpage01';   // «Задачи (тест)»
 const TK_HR_PAGE = '/admin/hrpage01'; // «Персонал (тест)»: сотрудники, структура, кадры
 const TK_ST = cfg('tasks.status');
@@ -438,7 +439,7 @@ tkStart();
 function tkRender() {
   const open = tk.data.tasks.filter(tkIsOpen).length;
   const tabs = [['list', 'Задачи', open], ['stats', 'Отчёты', '']];
-  tkRoot().innerHTML = '<div class="tk-head"><div class="tk-title">Задачи</div><button class="tk-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Поставить задачу</button></div>'
+  tkRoot().innerHTML = '<div class="tk-head"><div class="tk-title">Задачи</div>' + crmSettingsGear('Задачи') + '<button class="tk-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Поставить задачу</button></div>'
     + '<div class="tk-sub">Поставьте задачу → исполнитель получит уведомление → отметит «Выполнена» → вы проверите и закроете.</div>'
     + '<div class="tk-tabs">' + tabs.map(function(t) { return '<button class="tk-tab' + (tk.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + (t[2] !== '' ? '<b>' + t[2] + '</b>' : '') + '</button>'; }).join('') + '</div>'
     + '<div data-tk-body></div>';

@@ -3,6 +3,8 @@
 // Всё считается в браузере из тех же коллекций, что и реестр (права те же). Суммы — в целых копейках, без округлений и средних:
 // правило владельца «ни одного примерного числа». Шкала — только там, где есть доля от целого (сдано из общей площади).
 // Доступ к странице — через права ролей на пункт меню (сейчас только admin).
+// @include src/_crm-config.js
+// @include src/_crm-settings-ui.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
 if (!document.getElementById('crm-controls-style')) {
@@ -347,7 +349,7 @@ function kindSelect() {
 }
 function headHtml(title, extra) {
   const upd = dashState.loadedAt ? new Date(dashState.loadedAt) : null;
-  return '<div class="dash-head">' + extra.before + '<div class="dash-title">' + dEsc(title) + '</div>' + kindSelect() + extra.after
+  return '<div class="dash-head">' + extra.before + '<div class="dash-title">' + dEsc(title) + '</div>' + crmSettingsGear('Договоры') + kindSelect() + extra.after
     + '<div class="dash-sub">обновлено ' + (upd ? ('0' + upd.getHours()).slice(-2) + ':' + ('0' + upd.getMinutes()).slice(-2) : '') + '</div>'
     + '<button class="dash-link" data-act="refresh">↻ Обновить</button></div>';
 }

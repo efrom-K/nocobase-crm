@@ -271,6 +271,7 @@ if (!document.getElementById('crm-hr-style')) {
 }
 
 // @include src/_crm-config.js
+// @include src/_crm-settings-ui.js
 const HR_TASKS_PAGE = '/admin/tskpage01';
 const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/hrdash01';
 const HR_MODE = location.pathname.indexOf(HR_DASH_PAGE) !== -1 ? 'hr' : 'staff';
@@ -831,12 +832,12 @@ function hRender() {
   let head;
   if (HR_MODE === 'staff') {   // общий раздел: три вкладки
     const t = [['staff', 'Список', '<b>' + hActive().length + '</b>'], ['org', 'Структура', ''], ['vac', 'Отпуска', '']];
-    head = '<div class="hr-head"><div class="hr-title">Сотрудники</div>' + (hHasHr() ? '<a class="hr-btn" href="' + HR_DASH_PAGE + '" style="margin-left:auto;">Дашборд HR →</a>' : '') + '</div>'
+    head = '<div class="hr-head"><div class="hr-title">Сотрудники</div>' + crmSettingsGear('Компания') + '' + (hHasHr() ? '<a class="hr-btn" href="' + HR_DASH_PAGE + '" style="margin-left:auto;">Дашборд HR →</a>' : '') + '</div>'
       + '<div class="hr-tabs">' + t.map(function(x) { return '<button class="hr-tab' + (hr.tab === x[0] ? ' on' : '') + '" data-tab="' + x[0] + '">' + x[1] + x[2] + '</button>'; }).join('') + '</div>';
     hr.staffView = hr.tab === 'org' ? 'org' : 'list';
   } else {                     // дашборд HR: без вкладок, раздел открывается с главного экрана
     head = hr.tab === 'home'
-      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div><button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
+      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div>' + crmSettingsGear('HR') + '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
       : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд HR</button><div class="hr-title">' + HR_SECTIONS[hr.tab] + '</div>'
         + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button>' : '') + '</div>';
   }
@@ -1384,6 +1385,7 @@ function hRenderEmp(m, id) {
       })()
     + '</div><button class="hr-x">✕</button></div>'
     + '<div class="hr-box-b"><div class="hr-secs">'
+    + (document.documentElement.classList.contains('crm-admin') ? '<div class="hr-sec full" style="padding:0;border:none;">' + crmAccountBox(e, e.user_id ? (hr.d.users || []).find(function(x) { return x.id === Number(e.user_id); }) : null) + '</div>' : '')
     + (HR_MODE !== 'hr' && hHasHr() ? '<div class="hr-sec full" style="background:#f3f5fa;border-color:#d6e4ff;">Кадровые данные (отпуска, охрана труда, воинский учёт, личное дело) — <a href="' + HR_DASH_PAGE + '?open=emp:' + e.id + '" style="color:#1c2d58;">открыть в дашборде HR →</a></div>' : '')
     + sec('main', HR_MODE === 'hr' ? 'Основное' : 'Контакты и работа', H_MAIN, e, false, mainView)
     + sec('vac', 'Отпуска', null, null, false, vacView)

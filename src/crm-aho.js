@@ -216,6 +216,7 @@ if (!document.getElementById('crm-aho-style')) {
 
 // ---------- справочники ----------
 // @include src/_crm-config.js
+// @include src/_crm-settings-ui.js
 const AHO_PAGE = '/admin/ahodash01', AHO_MAIL_PAGE = '/admin/mailpage01';
 const A_PERIOD = cfg('aho.period');
 const A_WEEKDAYS = ['', 'по понедельникам', 'по вторникам', 'по средам', 'по четвергам', 'по пятницам', 'по субботам', 'по воскресеньям'];
@@ -578,7 +579,7 @@ async function aStart() {
 async function aReload() { await aLoad(); aRender(); }
 function aRender() {
   const head = ah.tab === 'home'
-    ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div><button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
+    ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div>' + crmSettingsGear('АХО') + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
     : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд АХО</button><div class="hr-title">' + A_SECTIONS[ah.tab] + '</div></div>';
   aRoot().innerHTML = head + '<div data-hr-body></div>';
   ({ home: aRenderHome, routines: aRenderRoutines, money: aRenderMoney, poa: aRenderPoa, fire: aRenderFire, mail: aRenderMail, cars: aRenderCars, mailing: aRenderMailing, att: aRenderAtt })[ah.tab]();

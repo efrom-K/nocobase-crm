@@ -1,3 +1,5 @@
+// @include src/_crm-config.js
+// @include src/_crm-settings-ui.js
 // фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
 // иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
 function nbSessionAlive() {

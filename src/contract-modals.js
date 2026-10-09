@@ -296,6 +296,17 @@ if (!document.getElementById('contract-modal-style')) {
       #contract-modal-root .cm-data-col, #forming-modal-root .cm-data-col { padding: 14px 14px !important; }
       #contract-modal-root .cm-members-footer, #forming-modal-root .cm-members-footer { padding: 12px 14px !important; }
     }
+    /* телефон: карточка на весь экран одной прокруткой — сначала данные договора, под ними переписка и сотрудники */
+    @media (max-width: 700px) {
+      #contract-modal-root .ant-modal-wrap, #forming-modal-root .ant-modal-wrap { padding: 0 !important; }
+      #contract-modal-root .ant-modal, #forming-modal-root .ant-modal { max-width: none !important; }
+      #contract-modal-root .ant-modal-content, #forming-modal-root .ant-modal-content { max-height: none !important; min-height: 100vh; border-radius: 0 !important; }
+      #contract-modal-root .cm-body-flex, #forming-modal-root .cm-body-flex { display: flex; flex-direction: column; }
+      #contract-modal-root .cm-data-col, #forming-modal-root .cm-data-col { order: 1; overflow: visible !important; max-height: none !important; }
+      #contract-modal-root .cm-info-panel, #forming-modal-root .cm-info-panel { order: 2; }
+      #contract-modal-root .cm-chat-col, #forming-modal-root .cm-chat-col { order: 3; max-height: 70vh; border-bottom: none; border-top: 1px solid #f0f0f0; }
+      #contract-modal-root .cm-modal-toolbar, #forming-modal-root .cm-modal-toolbar { position: sticky !important; top: 0; background: #fff; z-index: 5; padding: 8px 12px !important; }
+    }
 
     .cm-stage-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
     .cm-stage-pill { font-size: 11.5px; padding: 4px 10px; border-radius: 12px; background: #f5f5f5; color: #999; white-space: nowrap; }

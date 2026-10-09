@@ -442,7 +442,9 @@ if (!document.getElementById('cm-reg-look-style')) {
       /* телефон: в карточках реестра — только главное, остальное в карточке договора */
     @media (max-width: 700px) {
       .ant-table tbody > tr.ant-table-row.cm-notif-row { background:#fff7e6; }
-      .ant-table tbody > tr > td[data-l="Электронная почта"], .ant-table tbody > tr > td[data-l="Фамилия, имя, отчество по договору"], .ant-table tbody > tr > td[data-l="Дата подписания акта приёма-передачи"] { display:none !important; }
+      div:has(> #global-search-input) { flex-wrap:wrap !important; }
+      #global-search-input { flex:1 1 100% !important; max-width:none !important; height:42px; }
+      .ant-layout-content .ant-table tbody > tr > td[data-l="Электронная почта"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Фамилия, имя, отчество по договору"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Дата подписания акта приёма-передачи"]:not(.crm-m-title) { display:none !important; }
     }
   `;
   document.head.appendChild(lst);

@@ -4,8 +4,13 @@
 if (location.port) {
   ctx.render('<div style="padding:40px;text-align:center;color:#262626;">Пароли открываются на <a href="https://crm.ykinvest.ru/vault/" target="_blank" rel="noopener">crm.ykinvest.ru/vault</a></div>');
 } else {
-  ctx.render('<iframe class="vw-frame" src="/vault/" title="Пароли" style="width:100%;border:0;display:block;background:#fff;"></iframe>');
-  const vwFrame = ctx.element && ctx.element.querySelector('.vw-frame');
+  ctx.render('<div class="vw-wrap"></div>');
+  // iframe — через createElement: строковый HTML в ctx.render вырезает <iframe>
+  const vwFrame = document.createElement('iframe');
+  vwFrame.src = '/vault/'; vwFrame.title = 'Пароли';
+  vwFrame.style.cssText = 'width:100%;border:0;display:block;background:#fff;';
+  const vwWrap = ctx.element && ctx.element.querySelector('.vw-wrap');
+  if (vwWrap) vwWrap.appendChild(vwFrame);
   const vwFit = function() { if (vwFrame) vwFrame.style.height = Math.max(480, window.innerHeight - vwFrame.getBoundingClientRect().top - 24) + 'px'; };
   vwFit(); setTimeout(vwFit, 300);
   window.addEventListener('resize', vwFit);

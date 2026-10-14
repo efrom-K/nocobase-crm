@@ -3599,11 +3599,12 @@ function renderFormingSideSections(r, currentUser, beforeHistory) {
 
 // «Срочный договор»: те же блоки, что в карточке активного договора (без «Статусов»), но поля черновика:
 // цены — текущие rent_*/utility_*/deposit_amount (при публикации становятся base_*), комментарий — comment_stage4 (→ calc_comment).
-// Дата расторжения, ссылки, комментарии этапов, способ подписания и сканы в карточке не показываются — в срочной форме их тоже нет.
+// Ссылки, комментарии этапов, способ подписания и сканы в карточке не показываются — в срочной форме их тоже нет.
+// Дата расторжения есть (14.10, владелец): forming_contracts.termination_date → переносится в rental_contracts при публикации.
 const QUICK_FIELD_MAP = { base_rent_per_sqm: 'rent_per_sqm', base_rent_amount: 'rent_amount', base_utility_per_sqm: 'utility_per_sqm',
   base_utility_amount: 'utility_amount', base_deposit_amount: 'deposit_amount', calc_comment: 'comment_stage4' };
 const QUICK_BLOCK_DEFS = ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(b) {
-  return { key: b.key, title: b.title, fields: b.fields.filter(function(f) { return f.name !== 'termination_date'; }).map(function(f) {
+  return { key: b.key, title: b.title, fields: b.fields.map(function(f) {
     if (f.name === 'object_name') return Object.assign({}, f, { type: 'combo' });   // объект — выбор из справочника, как в «Создать договор»
     return QUICK_FIELD_MAP[f.name] ? Object.assign({}, f, { name: QUICK_FIELD_MAP[f.name] }) : f;
   }) };
@@ -4208,7 +4209,7 @@ async function finalizeContract(id, members, contractNumber, fromDraft) {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
     object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm, area_lines: f.area_lines || null,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
-    end_date: f.end_date, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
+    end_date: f.end_date, termination_date: f.termination_date || null, purpose: f.purpose, rent_per_sqm: f.rent_per_sqm, utility_per_sqm: f.utility_per_sqm,
     base_rent_per_sqm: f.rent_per_sqm, base_rent_amount: f.rent_amount, base_area_sqm: f.area_sqm,
     base_utility_per_sqm: f.utility_per_sqm, base_utility_amount: f.utility_amount, base_deposit_amount: f.deposit_amount,
     calc_comment: f.comment_stage4, comment_stage0: f.comment_stage0, comment_stage2: f.comment_stage2,

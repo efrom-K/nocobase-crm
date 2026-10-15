@@ -4,12 +4,14 @@
 Создаёт:
   - коллекцию crm_config (key → value JSON): изменённые справочники и параметры модулей; значения по умолчанию — в src/_crm-config.js;
   - права: читать crm_config могут все роли (модулям нужны настройки), менять — только admin и root;
+    исключение MOD_ROLES: роль отдела меняет только ключи своего модуля (update со scope по префиксу ключа; строки ключей заводятся
+    заранее со значением null = «по умолчанию», поэтому create ей не нужен);
   - страницу меню «Настройки CRM» (/admin/crmcfg01, JS-блок crmblock006 ← src/crm-settings.js), видна только admin; стоит перед «Почтой».
 Повторный запуск безопасен.
 
     NB_URL=http://localhost:13000 NB_TOKEN=<токен root> NB_SSH=user@server python3 setup_crm_settings.py
 """
-import json, os, subprocess, sys, urllib.parse, urllib.request, urllib.error
+import json, os, re, subprocess, sys, urllib.parse, urllib.request, urllib.error
 
 BASE = os.environ.get('NB_URL', 'http://localhost:13000').rstrip('/')
 TOKEN = os.environ.get('NB_TOKEN') or sys.exit('NB_TOKEN is required')
@@ -42,9 +44,25 @@ if not call('collections:get?filterByTk=crm_config').get('data'):
     ]})))
 
 # 2. права: все читают, меняют только администраторы
+MOD_ROLES = {'hr': 'hr.'}   # роль → префикс ключей её модуля (в интерфейсе — CS_MOD_ROLES в src/_crm-settings-ui.js)
+CFG_SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', '_crm-config.js'), encoding='utf-8').read()
+def mod_scope(role):
+    pre = MOD_ROLES[role]
+    keys = sorted(set(re.findall(r"^\s*'(%s[^']+)':" % re.escape(pre), CFG_SRC, re.M)))
+    for k in keys:   # строки-заготовки: value null = значение по умолчанию
+        psql("insert into crm_config(key, value, \"createdAt\", \"updatedAt\") values ('%s', null, now(), now()) on conflict (key) do nothing;" % k)
+    name = 'Ключи модуля ' + pre
+    have = [x for x in call('dataSourcesRolesResourcesScopes:list?paginate=false&filter=' + q({'resourceName': 'crm_config', 'name': name})).get('data', [])]
+    # ponytail: ограничение «содержит префикс», а не «начинается с» — у NocoBase нет $startsWith; префиксы вида «hr.» в чужих ключах не встречаются
+    vals = {'dataSourceKey': 'main', 'resourceName': 'crm_config', 'name': name, 'scope': {'key': {'$includes': pre}}}
+    sc = call('dataSourcesRolesResourcesScopes:update?filterByTk=%s' % have[0]['id'], vals) if have else call('dataSourcesRolesResourcesScopes:create', vals)
+    print('scope', role, len(keys), 'keys', ok(sc))
+    return have[0]['id'] if have else sc['data']['id']
 for role in [r['name'] for r in call('roles:list?paginate=false').get('data', []) if r['name'] not in ('admin', 'root')]:
     have = {r['name']: r for r in call('roles/%s/resources:list?paginate=false' % role).get('data', [])}
     body = {'name': 'crm_config', 'usingActionsConfig': True, 'actions': [{'name': 'view', 'fields': ['id', 'key', 'value']}]}
+    if role in MOD_ROLES:
+        body['actions'].append({'name': 'update', 'fields': ['value', 'updated_by'], 'scopeId': mod_scope(role)})
     r = call('roles/%s/resources:update?filterByTk=%s' % (role, have['crm_config']['id']), body) if 'crm_config' in have else call('roles/%s/resources:create' % role, body)
     print('acl', role, ok(r))
 

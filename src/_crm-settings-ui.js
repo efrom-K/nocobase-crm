@@ -4,6 +4,7 @@
 //   • значком ⚙ в шапке модуля (Заявки, Задачи, HR, АХО, Календарь, Дашборд) — сразу справочники этого модуля;
 //   • в карточке сотрудника (дашборд HR) — учётка CRM этого человека.
 // Видно только администратору: класс crm-admin на <html> ставится после проверки ролей, без него значки скрыты стилями.
+// Исключение — CS_MOD_ROLES: роль отдела видит ⚙ своего модуля и меняет только его справочники (шторка без остальных вкладок).
 // Коллекции и права — scripts/setup_crm_settings.py. Каталог настроек — CRM_SETTINGS в src/_crm-config.js.
 if (!document.getElementById('crm-cfg-style')) {
   const st = document.createElement('style');
@@ -12,7 +13,7 @@ if (!document.getElementById('crm-cfg-style')) {
     .crm-gear { display:none; align-items:center; justify-content:center; width:30px; height:30px; flex:none; border:1px solid #dfe3ea; border-radius:8px;
       background:#fff; color:#595959; cursor:pointer; padding:0; transition:border-color .2s, color .2s, background .2s; }
     .crm-gear:hover { border-color:#1c2d58; color:#1c2d58; background:#f3f5fa; }
-    html.crm-admin .crm-gear { display:inline-flex; }
+    html.crm-admin .crm-gear, html.crm-mod-HR .crm-gear[data-crm-settings="HR"] { display:inline-flex; }
     .cs-drawer { position:fixed; inset:0; z-index:1000; display:flex; justify-content:flex-end; background:rgba(0,0,0,.35); }
     .cs-panel { width:min(1080px, 100vw); height:100%; background:#f5f7fa; display:flex; flex-direction:column; box-shadow:-6px 0 24px rgba(0,0,0,.12);
       color:#1f1f1f; font-size:14px; animation:csIn .18s ease-out; }
@@ -159,10 +160,14 @@ async function csMe() {
     .then(function(r) { return r.json(); }).then(function(j) { return (j && j.data) || null; }).catch(function() { window.__crmMe = null; return null; });
   return window.__crmMe;
 }
+// модуль → роль, которой можно менять его справочники (сервер пускает её только к своим ключам — scripts/setup_crm_settings.py)
+const CS_MOD_ROLES = { HR: 'hr' };
+function csMyMods(me) { return Object.keys(CS_MOD_ROLES).filter(function(m) { return !!(me && (me.roles || []).some(function(r) { return r.name === CS_MOD_ROLES[m]; })); }); }
 function csIsAdmin(me) { return !!(me && (me.roles || []).some(function(r) { return r.name === 'admin' || r.name === 'root'; })); }
 
 async function csLoad() {
   const L = function(c, p) { return ctx.api.resource(c).list(Object.assign({ paginate: false }, p || {})).then(csRows); };
+  if (crmS.only) { crmS.d = { emps: [], users: [], roles: [], cfg: await L('crm_config'), depts: [], app: [] }; window.__crmCfg = null; return; }
   const r = await Promise.all([
     L('crm_employees', { sort: ['last_name', 'first_name'], fields: ['id', 'full_name', 'last_name', 'first_name', 'position', 'department', 'email', 'status', 'user_id'] }),
     L('users', { appends: ['roles'], fields: ['id', 'username', 'nickname', 'email'] }),
@@ -177,6 +182,7 @@ function csUser(id) { return crmS.d.users.find(function(u) { return u.id === Num
 function csRoleTitle(n) { const r = crmS.d.roles.find(function(x) { return x.name === n; }); return r ? (r.title || n).replace(/^\{\{t\("(.+)"\)\}\}$/, '$1') : n; }
 function csIsTest(u) { return !!(u && /^test\./.test(u.username || '')); }
 function csCfgRow(key) { return crmS.d.cfg.find(function(x) { return x.key === key; }) || null; }
+function csCfgSet(key) { const r = csCfgRow(key); return r && r.value != null ? r : null; }   // value null = «по умолчанию»
 function csApp(name) { const x = crmS.d.app.find(function(a) { return a.name === name; }); return x ? x.value : null; }
 function csDeptName(e) { const d = crmS.d.depts.find(function(x) { return String(x.id) === String(e.department); }); return d ? d.name : (e.department && isNaN(Number(e.department)) ? e.department : ''); }
 function csRefresh() { if (crmS.el && document.body.contains(crmS.el)) csRender(); if (typeof window.__crmAfterSettings === 'function') try { window.__crmAfterSettings(); } catch (e) {} }
@@ -185,7 +191,8 @@ function csRefresh() { if (crmS.el && document.body.contains(crmS.el)) csRender(
 async function crmSettingsOpen(opts) {
   opts = opts || {};
   const me = await csMe();
-  if (!csIsAdmin(me)) { csToast('Настройки CRM доступны администратору'); return; }
+  crmS.only = csIsAdmin(me) ? null : csMyMods(me).indexOf(opts.mod) !== -1 ? opts.mod : '';
+  if (crmS.only === '') { csToast('Настройки CRM доступны администратору'); return; }
   crmS.me = me;
   if (opts.tab) crmS.tab = opts.tab;
   if (opts.mod) { crmS.tab = 'dict'; crmS.mod = opts.mod; }
@@ -209,6 +216,11 @@ async function crmSettingsOpen(opts) {
   catch (e) { crmS.el.innerHTML = '<div class="cs-empty" style="color:#cf1322;">Не удалось загрузить настройки. Обновите страницу.</div>'; }
 }
 function csRender() {
+  if (crmS.only) {   // сотрудник отдела: только справочники своего модуля
+    crmS.el.innerHTML = '<div class="cs-top" style="padding-bottom:12px;"><div class="cs-top-h"><div><div class="cs-title">Настройки модуля «' + csEsc(crmS.only) + '»</div><div class="cs-sub">Esc — закрыть</div></div><button class="cs-close" title="Закрыть">✕</button></div></div>'
+      + '<div class="cs-scroll" data-cs-body></div>';
+    return csRenderDict();
+  }
   const fired = crmS.d.emps.filter(function(e) { const u = csUser(e.user_id); return e.status === 'fired' && u && (u.roles || []).length; }).length;
   const t = [['users', 'Сотрудники и доступ', fired ? '<b title="Уволены, а доступ в CRM есть">' + fired + '</b>' : ''], ['dict', 'Справочники и сроки', ''], ['svc', 'Уведомления и интеграции', ''], ['links', 'Структура и права', '']];
   crmS.el.innerHTML = '<div class="cs-top"><div class="cs-top-h"><div><div class="cs-title">Настройки CRM</div><div class="cs-sub">видны только администратору · Esc — закрыть</div></div><button class="cs-close" title="Закрыть">✕</button></div>'
@@ -442,11 +454,11 @@ function csRead(box, key) {
   return x;
 }
 function csRenderDict() {
-  const mods = csMods(); if (!crmS.mod || mods.indexOf(crmS.mod) === -1) crmS.mod = mods[0];
+  const mods = crmS.only ? [crmS.only] : csMods(); if (!crmS.mod || mods.indexOf(crmS.mod) === -1) crmS.mod = mods[0];
   const keys = Object.keys(CRM_SETTINGS).filter(function(k) { return CRM_SETTINGS[k].m === crmS.mod; });
-  csBody().innerHTML = '<div class="cs-mods">' + mods.map(function(m) { const n = Object.keys(CRM_SETTINGS).filter(function(k) { return CRM_SETTINGS[k].m === m && csCfgRow(k); }).length; return '<button data-mod="' + csEsc(m) + '"' + (m === crmS.mod ? ' class="on"' : '') + '>' + csEsc(m) + (n ? ' · ' + n : '') + '</button>'; }).join('') + '</div>'
+  csBody().innerHTML = '<div class="cs-mods">' + mods.map(function(m) { const n = Object.keys(CRM_SETTINGS).filter(function(k) { return CRM_SETTINGS[k].m === m && csCfgSet(k); }).length; return '<button data-mod="' + csEsc(m) + '"' + (m === crmS.mod ? ' class="on"' : '') + '>' + csEsc(m) + (n ? ' · ' + n : '') + '</button>'; }).join('') + '</div>'
     + keys.map(function(k) {
-      const r = csCfgRow(k);
+      const r = csCfgSet(k);
       return '<div class="cs-set" data-key="' + csEsc(k) + '"><div class="cs-set-h">' + csEsc(CRM_SETTINGS[k].t) + (r ? ' <span class="cs-chip orange">изменено' + (r.updated_by ? ' · ' + csEsc(r.updated_by) : '') + '</span>' : '')
         + '<span class="cs-acts">' + (r ? '<button class="cs-btn" data-reset>По умолчанию</button>' : '') + '<button class="cs-btn pri" data-savekey>Сохранить</button></span></div>' + csEditor(k) + '</div>';
     }).join('');
@@ -518,7 +530,7 @@ function csOnClick(e) {
   }
   if (set && c('[data-reset]')) {
     const b = c('[data-reset]'); if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Точно вернуть?'; return; }
-    ctx.api.resource('crm_config').destroy({ filterByTk: csCfgRow(key).id }).then(csLoad).then(function() { csRenderDict(); csToast('Вернули значение по умолчанию'); }).catch(function(err) { csToast(csErr(err)); });
+    ctx.api.resource('crm_config').update({ filterByTk: csCfgRow(key).id, values: { value: null, updated_by: crmS.me ? (crmS.me.nickname || crmS.me.username) : '' } }).then(csLoad).then(function() { csRenderDict(); csToast('Вернули значение по умолчанию'); }).catch(function(err) { csToast(csErr(err)); });
     return;
   }
   if (c('[data-notifysave]')) {
@@ -559,7 +571,7 @@ function csGearMenu() {
 }
 if (!window.__crmSettingsInit) {
   window.__crmSettingsInit = true;
-  csMe().then(function(me) { document.documentElement.classList.toggle('crm-admin', csIsAdmin(me)); });
+  csMe().then(function(me) { document.documentElement.classList.toggle('crm-admin', csIsAdmin(me)); csMyMods(me).forEach(function(m) { document.documentElement.classList.add('crm-mod-' + m); }); });
   // меню раскрывается при наведении на шестерёнку — дорисовать пункт, когда оно появится (MutationObserver в песочнице нет)
   const wake = function(e) { if (e.target.closest && e.target.closest('[data-testid="plugin-settings-button"]')) [60, 200, 500, 1000].forEach(function(t) { setTimeout(csGearMenu, t); }); };
   document.addEventListener('mouseover', wake, true);

@@ -160,7 +160,7 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-tl td { padding:3px 6px; border-bottom:1px solid #f5f5f5; }
     .hr-tl td.nm { width:210px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
     .hr-tl td.nm:hover { color:#1c2d58; }
-    .hr-tl td.rest { width:80px; text-align:right; font-size:12.5px; }
+    .hr-tl td.rest { width:96px; white-space:nowrap; text-align:right; font-size:12.5px; }
     .hr-track { position:relative; height:22px; display:flex; cursor:copy; }
     .hr-track > i { display:block; height:100%; border-left:1px solid #f0f0f0; box-sizing:border-box; }
     .hr-track > i.odd { background:#fafafa; }
@@ -649,7 +649,7 @@ const H_MAIN = [
   ['last_name', 'Фамилия', 'text', null, 1], ['first_name', 'Имя', 'text'], ['middle_name', 'Отчество', 'text'], ['position', 'Должность', 'text'],
   ['department', 'Отдел', 'select', function() { return hDeptNames(); }], ['legal_entity_id', 'Основное юрлицо', 'select', hLeOpts],
   ['employment_type', 'Тип занятости', 'select', HR_EMP_TYPE], ['rate', 'Ставка', 'select', ['1', '0.75', '0.5', '0.25']],
-  ['object_name', 'Объект', 'list', function() { return (hr.d.objects || []).map(function(o) { return o.name; }); }], ['contract_until', 'Договор ГПХ / с самозанятым до', 'date'],
+  ['object_name', 'Объект', 'list', function() { return (hr.d.objects || []).map(function(o) { return o.name; }); }], ['contract_until', 'Договор с внештатным / самозанятым до', 'date'],
   ['hired_on', 'Принят', 'date'], ['fired_on', 'Уволен', 'date'], ['status', 'Статус', 'select', HR_EMP_ST],
   ['vacation_days', 'Дней отпуска в год', 'num'], ['sout_id', 'Рабочее место (СОУТ)', 'select', function() { return hr.d.sout.map(function(s) { return [s.id, s.workplace + (s.work_class ? ' — класс ' + s.work_class : '')]; }); }],
   ['phone', 'Телефон', 'text'], ['email', 'Почта', 'text'], ['work_schedule', 'График работы', 'text'], ['birthday', 'День рождения', 'date'],
@@ -864,7 +864,7 @@ function hRender() {
     hr.staffView = hr.tab === 'org' ? 'org' : 'list';
   } else {                     // дашборд HR: без вкладок, раздел открывается с главного экрана
     head = hr.tab === 'home'
-      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div>' + crmSettingsGear('HR') + (hCan() ? '<button class="hr-btn" data-act="hrxlsx">⬇ Выгрузить в Excel</button>' : '') + '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
+      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div>' + crmSettingsGear('HR') + (hCan() ? '<button class="hr-btn" data-act="hrxlsx">⬇ Выгрузить в Excel по юрлицам</button>' : '') + '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
       : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд HR</button><div class="hr-title">' + HR_SECTIONS[hr.tab] + '</div>'
         + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button>' : '') + '</div>';
   }
@@ -898,41 +898,132 @@ function hOnChange(e) {
   const am = e.target.getAttribute('data-act-m');
   if (am) { const p = am.split('|'); hSaveAct(Number(p[0]), p[1], e.target.checked); return; }
 }
-// выгрузка дашборда HR в Excel: сотрудники, отпуска текущего года, охрана труда, подбор
-function hrExportXlsx() {
-  const d = hr.d, y = new Date().getFullYear(), sheets = [];
-  const emps = d.emps.slice().sort(function(a, b) { return (a.status === 'fired' ? 1 : 0) - (b.status === 'fired' ? 1 : 0) || String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
-  if (emps.length) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: 1,
-    cols: [{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Юрлицо', w: 28 }, { h: 'Тип занятости' }, { h: 'Принят', t: 'date' }, { h: 'Статус' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }],
-    rows: emps.map(function(e) {
-      return [e.full_name || '', e.position || '', e.department || '', hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', '), HR_EMP_TYPE[e.employment_type || 'staff'] || '',
-        hD(e.hired_on) || null, HR_EMP_ST[e.status] || HR_EMP_ST.active, e.phone || '', e.email || ''];
-    }) });
-  const vacs = d.vacs.filter(function(v) { return hD(v.start_date).slice(0, 4) === String(y) && hEmp(v.employee_id); })
-    .sort(function(a, b) { return hD(a.start_date).localeCompare(hD(b.start_date)); });
-  if (vacs.length) sheets.push({ name: 'Отпуска', title: 'Отпуска ' + y + ' года', total: true, freezeCols: 1,
-    cols: [{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Вид', w: 24 }, { h: 'Оформление' }],
-    rows: vacs.map(function(v) { return [hEmp(v.employee_id).full_name, hD(v.start_date) || null, hD(v.end_date) || null, Number(v.days) || 0, v.kind || HR_VAC_KINDS[0], HR_VAC_ST[v.status] || '']; }) });
-  const ot = [], stL = { none: 'нет записи', ok: 'в порядке', soon: 'скоро', late: 'просрочено' };
-  hStaff().sort(function(a, b) { return String(a.full_name).localeCompare(String(b.full_name), 'ru'); }).forEach(function(e) {
-    HR_SAFETY.forEach(function(k) { const r = hSafetyLast(e.id, k[0]); ot.push([e.full_name, k[0], r ? hD(r.done_on) || null : null, r ? hD(r.next_on) || null : null, stL[r ? hDue(r.next_on) : 'none']]); });
+// ---------- выгрузка в Excel по юрлицам: окно выбора (год, юрлица, разделы, типы занятости, один файл или по файлу на юрлицо) ----------
+const HR_XLS_PARTS = [['sum', 'Сводная статистика по юрлицам'], ['emp', 'Сотрудники'], ['vac', 'Отпуска и остатки дней'], ['ot', 'Охрана труда'],
+  ['mil', 'Воинский учёт'], ['pos', 'Штатное расписание'], ['hire', 'Подбор (вакансии)']];
+function hOpenExport() {
+  const y = new Date().getFullYear(), d = hr.d;
+  const parts = HR_XLS_PARTS.filter(function(p) { return p[0] !== 'mil' || hHasHr(); });
+  const chk = function(attr, v, label, on) { return '<label style="display:block;margin:3px 0;"><input type="checkbox" ' + attr + '="' + hEsc(v) + '"' + (on ? ' checked' : '') + '> ' + hEsc(label) + '</label>'; };
+  const col = function(t, html) { return '<div style="flex:1 1 240px;min-width:220px;"><div style="font-weight:600;margin-bottom:6px;">' + t + '</div>' + html + '</div>'; };
+  const m = hModal('<div class="hr-box-h"><div class="hr-box-t">Выгрузка в Excel по юрлицам</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
+    + '<div style="display:flex;flex-wrap:wrap;gap:22px;">'
+    + col('Юрлица <a data-lall style="font-weight:400;color:#1c2d58;cursor:pointer;margin-left:8px;">все</a> <a data-lnone style="font-weight:400;color:#1c2d58;cursor:pointer;margin-left:6px;">ни одного</a>',
+        d.les.map(function(l) { return chk('data-xle', l.id, l.name, true); }).join('') + chk('data-xle', 0, 'Без юрлица', false))
+    + col('Что выгрузить', parts.map(function(p) { return chk('data-xpart', p[0], p[1], p[0] !== 'hire'); }).join('')
+        + '<div style="font-weight:600;margin:14px 0 6px;">Кого учитывать</div>' + Object.keys(HR_EMP_TYPE).map(function(k) { return chk('data-xtype', k, HR_EMP_TYPE[k], true); }).join('')
+        + chk('data-xfired', 1, 'Уволенных в этом году', true))
+    + col('Период и файлы', '<label>Год <select data-xyear>' + [y - 2, y - 1, y, y + 1].map(function(v) { return '<option' + (v === y ? ' selected' : '') + '>' + v + '</option>'; }).join('') + '</select></label>'
+        + '<label style="display:block;margin-top:12px;"><input type="radio" name="xmode" value="one" checked> Один файл, юрлицо — колонкой</label>'
+        + '<label style="display:block;margin:3px 0;"><input type="radio" name="xmode" value="each"> Отдельный файл на каждое юрлицо</label>'
+        + '<div class="hr-hint" style="margin-top:6px;">При отдельных файлах браузер может один раз спросить разрешение скачать несколько файлов.</div>')
+    + '</div><div class="hr-actions"><button class="hr-btn pri" data-go-x>⬇ Выгрузить</button><button class="hr-btn hr-x">Отмена</button></div></div>', true);
+  const all = function(v) { m.querySelectorAll('[data-xle]').forEach(function(x) { x.checked = v && x.getAttribute('data-xle') !== '0'; }); };
+  m.querySelector('[data-lall]').addEventListener('click', function() { all(true); });
+  m.querySelector('[data-lnone]').addEventListener('click', function() { all(false); });
+  m.querySelector('[data-go-x]').addEventListener('click', function() {
+    const got = function(a) { return Array.prototype.map.call(m.querySelectorAll('[' + a + ']:checked'), function(x) { return x.getAttribute(a); }); };
+    const o = { year: Number(m.querySelector('[data-xyear]').value), les: got('data-xle').map(Number), parts: got('data-xpart'), types: got('data-xtype'),
+      fired: !!m.querySelector('[data-xfired]:checked'), each: m.querySelector('[name="xmode"]:checked').value === 'each' };
+    if (!o.les.length) return hToast('Отметьте хотя бы одно юрлицо');
+    if (!o.parts.length) return hToast('Отметьте, что выгрузить');
+    if (!o.types.length) return hToast('Отметьте, кого учитывать');
+    try {
+      if (!o.each) crmXlsx('HR по юрлицам ' + o.year, hXlsSpec(o, o.les));
+      else o.les.forEach(function(id, i) { setTimeout(function() { crmXlsx('HR ' + (id ? hLe(id).name : 'без юрлица') + ' ' + o.year, hXlsSpec(o, [id])); }, i * 700); });
+      m.remove();
+    } catch (err) { console.error(err); hToast('Не удалось собрать файл'); }
   });
-  if (ot.length && d.safety.length) sheets.push({ name: 'Охрана труда', title: 'Охрана труда и ПБ — штатные сотрудники', freezeCols: 1,
-    cols: [{ h: 'Сотрудник', w: 32 }, { h: 'Инструктаж / обучение', w: 34 }, { h: 'Проведён', t: 'date' }, { h: 'Следующий до', t: 'date' }, { h: 'Состояние' }], rows: ot });
-  if (d.vacancies.length) sheets.push({ name: 'Подбор', title: 'Подбор: вакансии', total: true, freezeCols: 1,
-    cols: [{ h: 'Вакансия', w: 32, total: 'Итого' }, { h: 'Юрлицо', w: 24 }, { h: 'Отдел', w: 24 }, { h: 'Объект', w: 24 }, { h: 'Открыта', t: 'date' }, { h: 'Закрыть до', t: 'date' },
-      { h: 'Кандидатов', t: 'int' }, { h: 'На собеседовании', t: 'int' }, { h: 'Оффер', t: 'int' }, { h: 'Статус' }],
-    rows: d.vacancies.map(function(x) {
-      const cs = d.cands.filter(function(c) { return c.vacancy_id === x.id; }), n = function(st) { return cs.filter(function(c) { return c.stage === st; }).length; };
-      return [x.title || '', hLe(x.legal_entity_id) ? hLe(x.legal_entity_id).name : '', x.department || '', x.object_name || '', hD(x.opened_on) || null, hD(x.due_on) || null, cs.length, n('interview'), n('offer'), HR_VACANCY_ST[x.status] || x.status || ''];
-    }) });
-  if (!sheets.length) return;
-  crmXlsx('Дашборд HR', {
-    title: 'Дашборд HR', filters: [['Год', y]],
-    notes: [['Сотрудники', 'Работающие сверху, уволенные ниже; юрлицо — основное и дополнительные'], ['Отпуска', 'Все отпуска, начавшиеся в ' + y + ' году; «Дней» — как указано в записи'],
-      ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'], ['Подбор', 'Кандидаты считаются по стадиям: все / собеседование / оффер']],
-    sheets: sheets
-  });
+}
+// одна книга: выбранные юрлица × выбранные разделы; человек в нескольких юрлицах попадает в каждое (совместительство, директор)
+function hXlsSpec(o, leIds) {
+  const d = hr.d, y = o.year, ys = String(y), sheets = [], one = leIds.length === 1;
+  const leName = function(id) { return id ? (hLe(id) || {}).name || '' : 'Без юрлица'; };
+  const inLe = function(e, id) { return id ? hInLe(e, id) : !hLes(e).length; };
+  const typ = function(e) { return e.employment_type || 'staff'; };
+  const people = function(id) {   // работающие + уволенные в выбранном году
+    return d.emps.filter(function(e) {
+      return inLe(e, id) && o.types.indexOf(typ(e)) !== -1 && (e.status !== 'fired' || (o.fired && hD(e.fired_on).slice(0, 4) === ys));
+    }).sort(function(a, b) { return String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
+  };
+  const staffOf = function(id) { return people(id).filter(function(e) { return e.status !== 'fired' && typ(e) === 'staff'; }); };
+  const lc = one ? [] : [{ h: 'Юрлицо', w: 28 }], lv = function(id) { return one ? [] : [leName(id)]; };
+  const vacOf = function(e) { return d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.start_date).slice(0, 4) === ys; }); };
+  const has = function(p) { return o.parts.indexOf(p) !== -1; };
+  const otSt = { none: 'нет записи', ok: 'в порядке', soon: 'скоро', late: 'просрочено' };
+  const otOf = function(e) { return HR_SAFETY.map(function(k) { const r = hSafetyLast(e.id, k[0]); return { k: k[0], r: r, st: r ? hDue(r.next_on) : 'none' }; }); };
+  const posOf = function(id) { return d.pos.filter(function(p) { return Number(p.legal_entity_id || 0) === id; }); };
+  const liable = function(e) { const p = hPriv(e.id); return !!(p && p.mil_status === 'liable'); };
+
+  if (has('sum')) {
+    const cols = [{ h: 'Юрлицо', w: 30, total: 'Итого' }, { h: 'ИНН', w: 14 }, { h: 'Работает', t: 'int' }]
+      .concat(Object.keys(HR_EMP_TYPE).filter(function(k) { return o.types.indexOf(k) !== -1; }).map(function(k) { return { h: HR_EMP_TYPE[k], t: 'int' }; }))
+      .concat([{ h: 'Принято в ' + y, t: 'int' }, { h: 'Уволено в ' + y, t: 'int' }]);
+    if (has('vac')) cols.push({ h: 'Отпуск: норма, дн.', t: 'int' }, { h: 'Ежегодный запланирован, дн.', t: 'int' }, { h: 'Осталось запланировать, дн.', t: 'int' }, { h: 'За свой счёт, дн.', t: 'int' }, { h: 'Другие отпуска, дн.', t: 'int' });
+    if (has('ot')) cols.push({ h: 'ОТ: просрочено', t: 'int' }, { h: 'ОТ: скоро (30 дн.)', t: 'int' }, { h: 'ОТ: нет записи', t: 'int' });
+    if (has('mil')) cols.push({ h: 'Военнообязанных', t: 'int' }, { h: 'Сверка с военкоматом', t: 'date', total: false });
+    if (has('pos')) cols.push({ h: 'Ставок по штату', t: 'num' }, { h: 'Свободно ставок', t: 'num' });
+    if (has('hire')) cols.push({ h: 'Открытых вакансий', t: 'int' });
+    const rows = leIds.map(function(id) {
+      const all = people(id), act = all.filter(function(e) { return e.status !== 'fired'; }), st = staffOf(id), l = hLe(id) || {};
+      const r = [leName(id), l.inn || '', act.length]
+        .concat(Object.keys(HR_EMP_TYPE).filter(function(k) { return o.types.indexOf(k) !== -1; }).map(function(k) { return act.filter(function(e) { return typ(e) === k; }).length; }))
+        .concat([all.filter(function(e) { return hD(e.hired_on).slice(0, 4) === ys; }).length, all.filter(function(e) { return e.status === 'fired'; }).length]);
+      if (has('vac')) {
+        const vs = [].concat.apply([], st.map(vacOf)), sum = function(f) { return vs.filter(f).reduce(function(n, v) { return n + (Number(v.days) || 0); }, 0); };
+        const norm = st.reduce(function(n, e) { return n + (Number(e.vacation_days) || 28); }, 0), used = sum(function(v) { return v.kind === HR_VAC_KINDS[0]; });
+        r.push(norm, used, st.reduce(function(n, e) { return n + Math.max(0, hVacLeft(e, y)); }, 0), sum(function(v) { return v.kind === HR_VAC_KINDS[1]; }), sum(function(v) { return v.kind && v.kind !== HR_VAC_KINDS[0] && v.kind !== HR_VAC_KINDS[1]; }));
+      }
+      if (has('ot')) { const a = [].concat.apply([], st.map(otOf)); r.push(a.filter(function(x) { return x.st === 'late'; }).length, a.filter(function(x) { return x.st === 'soon'; }).length, a.filter(function(x) { return x.st === 'none'; }).length); }
+      if (has('mil')) r.push(act.filter(liable).length, hD(l.mil_check_on) || null);
+      if (has('pos')) { const ps = posOf(id); r.push(ps.reduce(function(n, p) { return n + (Number(p.units) || 0); }, 0), ps.reduce(function(n, p) { return n + Math.max(0, hPosFree(p)); }, 0)); }
+      if (has('hire')) r.push(d.vacancies.filter(function(v) { return Number(v.legal_entity_id || 0) === id && v.status === 'open'; }).length);
+      return r;
+    });
+    sheets.push({ name: 'Сводка', title: 'Сводка по юрлицам за ' + y + ' год', total: !one, freezeCols: 1, cols: cols, rows: rows });
+  }
+  const rowsBy = function(f) { return [].concat.apply([], leIds.map(f)); };
+  if (has('emp')) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: one ? 1 : 2,
+    cols: lc.concat([{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Тип занятости' }, { h: 'Ставка', t: 'num', total: false }, { h: 'Принят', t: 'date' }, { h: 'Уволен', t: 'date' },
+      { h: 'Статус' }, { h: 'Объект', w: 22 }, { h: 'Договор до', t: 'date' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }]),
+    rows: rowsBy(function(id) { return people(id).map(function(e) {
+      return lv(id).concat([e.full_name || '', e.position || '', e.department || '', HR_EMP_TYPE[typ(e)] || '', typ(e) === 'staff' ? Number(e.rate || 1) : null, hD(e.hired_on) || null, hD(e.fired_on) || null,
+        HR_EMP_ST[e.status] || HR_EMP_ST.active, e.object_name || '', hD(e.contract_until) || null, e.phone || '', e.email || '']);
+    }); }) });
+  if (has('vac')) {
+    sheets.push({ name: 'Остатки отпусков', title: 'Ежегодный отпуск ' + y + ': норма и остаток (штатные)', total: true, freezeCols: one ? 1 : 2,
+      cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'Отдел', w: 24 }, { h: 'Норма, дн.', t: 'int' }, { h: 'Запланировано, дн.', t: 'int' }, { h: 'Осталось, дн.', t: 'int' }]),
+      rows: rowsBy(function(id) { return staffOf(id).map(function(e) { const n = Number(e.vacation_days) || 28, l = hVacLeft(e, y); return lv(id).concat([e.full_name, e.department || '', n, n - l, l]); }); }) });
+    sheets.push({ name: 'Отпуска', title: 'Отпуска, начинающиеся в ' + y + ' году', total: true, freezeCols: one ? 1 : 2,
+      cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Вид', w: 24 }, { h: 'По графику' }, { h: 'Оформление' }]),
+      rows: rowsBy(function(id) { return [].concat.apply([], people(id).map(function(e) { return vacOf(e).map(function(v) {
+        return lv(id).concat([e.full_name, hD(v.start_date) || null, hD(v.end_date) || null, Number(v.days) || 0, v.kind || HR_VAC_KINDS[0], hVacCls(v) === 'sched' ? 'да' : hVacCls(v) === 'unsched' ? 'нет' : '', HR_VAC_ST[v.status] || '']);
+      }); })).sort(function(a, b) { return String(a[one ? 1 : 2]).localeCompare(String(b[one ? 1 : 2])); }); }) });
+  }
+  if (has('ot') && d.safety.length) sheets.push({ name: 'Охрана труда', title: 'Охрана труда и ПБ — штатные сотрудники', freezeCols: one ? 1 : 2,
+    cols: lc.concat([{ h: 'Сотрудник', w: 32 }, { h: 'Инструктаж / обучение', w: 34 }, { h: 'Проведён', t: 'date' }, { h: 'Следующий до', t: 'date' }, { h: 'Состояние' }]),
+    rows: rowsBy(function(id) { return [].concat.apply([], staffOf(id).map(function(e) { return otOf(e).map(function(x) { return lv(id).concat([e.full_name, x.k, x.r ? hD(x.r.done_on) || null : null, x.r ? hD(x.r.next_on) || null : null, otSt[x.st]]); }); })); }) });
+  if (has('mil') && hHasHr()) sheets.push({ name: 'Воинский учёт', title: 'Воинский учёт: военнообязанные', freezeCols: one ? 1 : 2,
+    cols: lc.concat([{ h: 'Сотрудник', w: 32 }, { h: 'Звание', w: 18 }, { h: 'ВУС', w: 16 }, { h: 'Категория годности' }, { h: 'Категория запаса' }, { h: 'Военкомат', w: 28 }, { h: 'Сведения отправлены', t: 'date' }]),
+    rows: rowsBy(function(id) { return people(id).filter(liable).map(function(e) { const p = hPriv(e.id); return lv(id).concat([e.full_name, p.mil_rank || '', p.mil_vus || '', p.mil_fitness || '', p.mil_category || '', p.mil_office || '', hD(p.mil_sent_on) || null]); }); }) });
+  if (has('pos')) sheets.push({ name: 'Штатное расписание', title: 'Штатное расписание', total: true, freezeCols: one ? 1 : 2,
+    cols: lc.concat([{ h: 'Отдел', w: 24, total: 'Итого' }, { h: 'Должность', w: 30 }, { h: 'Ставок', t: 'num' }, { h: 'Занято', t: 'num' }, { h: 'Свободно', t: 'num' }, { h: 'Оклад', t: 'money', total: false }]),
+    rows: rowsBy(function(id) { return posOf(id).map(function(p) { const f = hPosFree(p), u = Number(p.units) || 0; return lv(id).concat([p.department || '', p.position || '', u, u - f, Math.max(0, f), Number(p.salary) || null]); }); }) });
+  if (has('hire')) sheets.push({ name: 'Подбор', title: 'Подбор: вакансии', total: true, freezeCols: one ? 1 : 2,
+    cols: lc.concat([{ h: 'Вакансия', w: 32, total: 'Итого' }, { h: 'Отдел', w: 24 }, { h: 'Объект', w: 24 }, { h: 'Открыта', t: 'date' }, { h: 'Закрыть до', t: 'date' }, { h: 'Кандидатов', t: 'int' }, { h: 'На собеседовании', t: 'int' }, { h: 'Оффер', t: 'int' }, { h: 'Статус' }]),
+    rows: rowsBy(function(id) { return d.vacancies.filter(function(x) { return Number(x.legal_entity_id || 0) === id; }).map(function(x) {
+      const cs = d.cands.filter(function(c) { return c.vacancy_id === x.id; }), n = function(s) { return cs.filter(function(c) { return c.stage === s; }).length; };
+      return lv(id).concat([x.title || '', x.department || '', x.object_name || '', hD(x.opened_on) || null, hD(x.due_on) || null, cs.length, n('interview'), n('offer'), HR_VACANCY_ST[x.status] || x.status || '']);
+    }); }) });
+  return {
+    title: one ? 'HR — ' + leName(leIds[0]) : 'HR по юрлицам',
+    filters: [['Год', y], ['Юрлица', leIds.map(leName).join(', ')], ['Кого учитывать', o.types.map(function(k) { return HR_EMP_TYPE[k]; }).join(', ') + (o.fired ? '; уволенные в ' + y : '')]],
+    notes: [['Юрлицо', 'Человек, оформленный в нескольких юрлицах (совместительство, директор), учитывается в каждом'],
+      ['Отпуска', 'Норма — «дней отпуска в год» из карточки; остаток = норма − ежегодные отпуска, начинающиеся в ' + y + ' году; перенос с прошлых лет не учитывается'],
+      ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'],
+      ['Штатное расписание', 'Занято — работающие штатные с той же должностью в этом юрлице, по ставкам']],
+    sheets: sheets.length ? sheets : [{ name: 'Пусто', cols: [{ h: 'Нет данных' }], rows: [] }]
+  };
 }
 function hOnClick(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
@@ -941,7 +1032,7 @@ function hOnClick(e) {
   if (tab) { hr.tab = tab.getAttribute('data-tab'); hr.only = null; hRender(); try { window.scrollTo(0, 0); } catch (err) { /* песочница */ } return; }
   const act = c('[data-act]'), a = act && act.getAttribute('data-act');
   if (a === 'newemp') return hOpenNewEmp();
-  if (a === 'hrxlsx') { try { hrExportXlsx(); } catch (err) { console.error(err); } return; }
+  if (a === 'hrxlsx') return hOpenExport();
   if (a === 'unonly') { hr.only = null; hRenderStaff(); return; }
   if (a === 'sv') { hr.staffView = act.getAttribute('data-v'); hRenderStaff(); return; }
   if (a === 'newdep') return hEditDept(null, hDepTop(), function(x) { if (x) hOpenDept(x.id); });
@@ -962,6 +1053,8 @@ function hOnClick(e) {
   if (go) return hGo(JSON.parse(go.getAttribute('data-go')));
   const le = c('[data-le]');
   if (le) return hOpenLe(hLe(le.getAttribute('data-le')));
+  const vdc = c('[data-vdays]');
+  if (vdc) return hEditVacDays(hEmp(vdc.getAttribute('data-vdays')));
   const vb = c('[data-vac]');
   if (vb) { e.stopPropagation(); return hOpenVac(hr.d.vacs.find(function(v) { return v.id === Number(vb.getAttribute('data-vac')); })); }
   const tr = c('[data-track]');
@@ -1017,7 +1110,7 @@ function hRenderHome() {
     return '<tr data-go="' + hEsc(JSON.stringify({ tab: 'staff', le: x[0] === '' ? '-' : String(x[0]), type: '' })) + '" style="cursor:pointer;"><td>' + hEsc(x[1]) + '</td><td class="n">' + n('staff') + '</td><td class="n">' + n('external') + '</td><td class="n">' + n('self') + '</td><td class="n"><b>' + l.length + '</b></td></tr>';
   }).join('');
   hBody().innerHTML = '<div class="hr-tiles hr-tiles-home" style="--tiles:6;">'
-    + tile('staff', act.length, 'штат ' + byType('staff') + ' · ГПХ ' + byType('external') + ' · самозанятые ' + byType('self'))
+    + tile('staff', act.length, 'штат ' + byType('staff') + ' · внештатные ' + byType('external') + ' · самозанятые ' + byType('self'))
     + tile('hire', d.vacancies.filter(function(v) { return v.status === 'open'; }).length + ' <small style="font-size:13px;font-weight:400;">вакансий</small>',
         'кандидатов в работе ' + d.cands.filter(function(c) { return ['new', 'interview', 'offer'].indexOf(c.stage) !== -1; }).length
         + ' · собеседований на неделе ' + d.cands.filter(function(c) { return c.stage === 'interview' && c.interview_on && hDays(t, c.interview_on) >= 0 && hDays(t, c.interview_on) <= 7; }).length
@@ -1031,7 +1124,7 @@ function hRenderHome() {
     + (al.length ? al.map(function(x) {
         return '<div class="hr-al" data-go="' + hEsc(JSON.stringify(x.go)) + '"><span class="hr-dot" style="background:' + lvlC[x.lvl] + ';"></span><div class="hr-al-t">' + hEsc(x.text) + (x.sub ? '<div class="hr-al-s">' + hEsc(x.sub) + '</div>' : '') + '</div></div>';
       }).join('') : '<div class="hr-hint">Всё в порядке</div>') + '</div></div><div>'
-    + '<div class="hr-card"><div class="hr-card-t">По юрлицам</div><table><thead><tr><th></th><th class="n">Штат</th><th class="n">ГПХ</th><th class="n">Самоз.</th><th class="n">Всего</th></tr></thead><tbody>' + leRows + '</tbody></table>'
+    + '<div class="hr-card"><div class="hr-card-t">По юрлицам</div><table><thead><tr><th></th><th class="n">Штат</th><th class="n">Внешт.</th><th class="n">Самоз.</th><th class="n">Всего</th></tr></thead><tbody>' + leRows + '</tbody></table>'
     + (d.les.length ? '' : '<div class="hr-hint">Юрлица пока не заведены: «Воинский учёт» → «+ Юрлицо».</div>') + '</div>'
     + '<div class="hr-card"><div class="hr-card-t">Отпуска в ближайший месяц</div>' + (soon.length || onVac.length ? '<div class="hr-lines">'
       + onVac.map(function(e) { const v = hVacNow(e); return '<div data-go="' + hEsc(JSON.stringify({ vac: v.id })) + '" style="cursor:pointer;"><span>' + hEsc(e.full_name) + '</span><span class="hr-chip green">в отпуске до ' + hDate(v.end_date).slice(0, 5) + '</span></div>'; }).join('')
@@ -1136,7 +1229,7 @@ function hRenderHrTable(box) {
         const so = hSout(e.sout_id), v = hVacNow(e), st = e.employment_type || 'staff';
         return '<tr data-emp="' + e.id + '"' + (e.status === 'fired' ? ' style="opacity:.55;"' : '') + '><td><b style="font-weight:600;">' + hEsc(e.full_name) + '</b><div class="hr-hint" style="margin:0;">' + hEsc([e.position, e.department].filter(Boolean).join(' · ')) + '</div></td>'
           + '<td>' + (hEsc(hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', ')) || '<span class="hr-none">—</span>') + '</td>'
-          + '<td>' + (st === 'staff' ? 'штат' + (e.rate && e.rate !== '1' ? ', ' + hEsc(e.rate) : '') : st === 'self' ? 'самозанятый' : 'ГПХ') + '</td>'
+          + '<td>' + (st === 'staff' ? 'штат' + (e.rate && e.rate !== '1' ? ', ' + hEsc(e.rate) : '') : st === 'self' ? 'самозанятый' : 'внештатный') + '</td>'
           + '<td class="n">' + (st === 'staff' ? (v ? '<span class="hr-chip green">в отпуске</span> ' : '') + hVacLeft(e, y) + ' дн.' : '') + '</td>'
           + '<td>' + cellOt(e) + '</td><td>' + cellMil(e) + '</td><td>' + cellFile(e) + '</td>'
           + '<td>' + (so ? hEsc(so.work_class || '—') : '<span class="hr-none">—</span>') + '</td></tr>';
@@ -1146,7 +1239,7 @@ function hRenderHrTable(box) {
 function hEmpChips(e) {
   const out = [], v = hVacNow(e), t = e.employment_type || 'staff';
   if (e.status === 'fired') out.push('<span class="hr-chip">уволен</span>');
-  if (t !== 'staff') out.push('<span class="hr-chip purple">' + (t === 'self' ? 'самозанятый' : 'ГПХ') + (e.contract_until ? ' до ' + hDate(e.contract_until) : '') + '</span>');
+  if (t !== 'staff') out.push('<span class="hr-chip purple">' + (t === 'self' ? 'самозанятый' : 'внештатный') + (e.contract_until ? ' до ' + hDate(e.contract_until) : '') + '</span>');
   if (v) out.push('<span class="hr-chip green">в отпуске до ' + hDate(v.end_date).slice(0, 5) + '</span>');
   hLes(e).map(hLe).filter(Boolean).forEach(function(l) { out.push('<span class="hr-chip blue">' + hEsc(l.name) + '</span>'); });
   if (e.object_name) out.push('<span class="hr-chip">' + hEsc(e.object_name) + '</span>');
@@ -1167,7 +1260,7 @@ function hRenderStaffList() {
     return '<tr class="hr-dept"><td colspan="5">' + hEsc(n) + ' <span>' + people.length + '</span></td></tr>' + people.map(function(e) {
       const v = hVacNow(e), t = e.employment_type || 'staff';
       const tags = (heads[e.id] ? '<span class="hr-chip blue">руководитель</span>' : '') + (v ? '<span class="hr-chip green">в отпуске до ' + hDate(v.end_date).slice(0, 5) + '</span>' : '')
-        + (t !== 'staff' ? '<span class="hr-chip purple">' + (t === 'self' ? 'самозанятый' : 'ГПХ') + '</span>' : '') + (e.status === 'fired' ? '<span class="hr-chip">уволен</span>' : '');
+        + (t !== 'staff' ? '<span class="hr-chip purple">' + (t === 'self' ? 'самозанятый' : 'внештатный') + '</span>' : '') + (e.status === 'fired' ? '<span class="hr-chip">уволен</span>' : '');
       return '<tr data-emp="' + e.id + '"' + (e.status === 'fired' ? ' style="opacity:.55;"' : '') + '><td class="nm">' + hAva(e.full_name) + '<b>' + hEsc(e.full_name) + '</b>' + tags + '</td>'
         + '<td>' + (hEsc(e.position) || '<span class="hr-none">—</span>') + '</td>'
         + '<td>' + (hEsc(hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', ')) || '<span class="hr-none">—</span>') + '</td>'
@@ -1382,7 +1475,7 @@ function hOpenEmp(id) {
 function hRenderEmp(m, id) {
   const e = hEmp(id), can = hCan(), p = hPriv(id) || {}, box = m.querySelector('[data-hr-emp]'), t = hToday(), y = new Date().getFullYear();
   const staff = (e.employment_type || 'staff') === 'staff', ed = m.__edit;
-  const fileList = e.employment_type === 'self' ? HR_FILE_DOCS_SELF : staff ? HR_FILE_DOCS : ['Договор ГПХ', 'Копия паспорта', 'СНИЛС и ИНН', 'Согласие на обработку персональных данных'];
+  const fileList = e.employment_type === 'self' ? HR_FILE_DOCS_SELF : staff ? HR_FILE_DOCS : ['Договор с внештатным сотрудником', 'Копия паспорта', 'СНИЛС и ИНН', 'Согласие на обработку персональных данных'];
   const H_FILE = [['file_docs', 'Есть в личном деле', 'multi', fileList]];
   const sec = function(key, title, spec, rec, full, view) {
     const editing = ed === key;
@@ -1401,7 +1494,7 @@ function hRenderEmp(m, id) {
     + (e.note && HR_MODE === 'hr' ? '<div class="hr-hint" style="white-space:pre-wrap;margin-top:8px;">' + hEsc(e.note) + '</div>' : '');
   // отпуска
   const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.end_date).slice(0, 4) >= String(y); });
-  const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + '</div>' : '')
+  const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + (can ? ' <a data-vdays style="color:#1c2d58;cursor:pointer;margin-left:6px;">✎ изменить норму</a>' : '') + '</div>' : '')
     + lines(vacs.map(function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; }), 'Отпусков не запланировано')
     + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button></div>' : '');
   // охрана труда
@@ -1523,12 +1616,30 @@ function hRenderEmp(m, id) {
     });
   });
   if (can) hWireFiles(m, 'emp', function() { return id; });
+  const vd = box.querySelector('[data-vdays]');
+  if (vd) vd.addEventListener('click', function() { hEditVacDays(hEmp(id), function() { hRenderEmp(m, id); }); });
   const nv = box.querySelector('[data-newvac]');
   if (nv) nv.addEventListener('click', function() { hOpenVac(null, { employee_id: id }, function() { hRenderEmp(m, id); }); });
 }
 
 // ---------- отпуска ----------
 function hVacDays(v) { return hDays(v.start_date, v.end_date) + 1; }
+// норма ежегодного отпуска сотрудника (28 по ТК; больше — ненормированный день, северные, вредность)
+function hEditVacDays(e, after) {
+  const m = hModal('<div class="hr-box-h"><div class="hr-box-t">Дней отпуска в год — ' + hEsc(e.full_name) + '</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
+    + '<div class="hr-hint" style="margin-bottom:8px;">По закону — 28 календарных дней; больше — за ненормированный день, вредные условия и т. п.</div>'
+    + '<input type="number" min="0" max="365" step="1" data-n value="' + (Number(e.vacation_days) || 28) + '" style="width:120px;font-size:16px;padding:6px 10px;">'
+    + '<div class="hr-actions"><button class="hr-btn pri" data-ok>Сохранить</button><button class="hr-btn hr-x">Отмена</button></div></div>');
+  const inp = m.querySelector('[data-n]'); inp.focus(); inp.select();
+  const save = async function() {
+    const n = Math.round(Number(inp.value));
+    if (!(n >= 0 && n <= 365)) { hToast('Укажите число дней от 0 до 365'); return; }
+    try { await ctx.api.resource('crm_employees').update({ filterByTk: e.id, values: { vacation_days: n } }); m.remove(); await hReload(); hToast('Сохранено'); if (after) after(); }
+    catch (err) { hToast('Не удалось сохранить'); }
+  };
+  m.querySelector('[data-ok]').addEventListener('click', save);
+  inp.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') save(); });
+}
 function hOpenVac(v, preset, after) {
   if (!hCan()) { if (v) hOpenEmp(v.employee_id); return; }
   hEdit({ coll: 'crm_vacations', rec: v, files: 'vac', preset: Object.assign({ kind: HR_VAC_KINDS[0], status: 'plan' }, preset || {}), spec: H_VAC,
@@ -1573,13 +1684,13 @@ function hRenderVac() {
     const grp = e.department !== lastDept ? '<tr><td colspan="3" style="font-weight:600;padding-top:12px;">' + hEsc(e.department || 'Без отдела') + '</td></tr>' : '';
     lastDept = e.department;
     return grp + '<tr><td class="nm" data-emp="' + e.id + '">' + hEsc(e.full_name) + '</td><td><div class="hr-track"' + (can ? ' data-track="' + e.id + '"' : '') + '>' + bg + bars + now + '</div></td>'
-      + '<td class="rest' + (left < 0 ? ' hr-late' : left > 0 && y <= new Date().getFullYear() ? '' : ' hr-ok') + '" title="осталось из ' + (e.vacation_days || 28) + '">' + left + ' дн.</td></tr>';
+      + '<td class="rest' + (left < 0 ? ' hr-late' : left > 0 && y <= new Date().getFullYear() ? '' : ' hr-ok') + '"' + (can ? ' data-vdays="' + e.id + '" style="cursor:pointer;"' : '') + ' title="осталось из ' + (e.vacation_days || 28) + (can ? ' — нажмите, чтобы изменить норму' : '') + '">' + left + ' <span class="hr-hint">из ' + (e.vacation_days || 28) + '</span></td></tr>';
   }).join('');
   hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1">‹</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
       + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — приказа ещё нет</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
     + (can ? '<button class="hr-new" data-act="newvac"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button>' : '') + '</div>'
-    + (can ? '<div class="hr-hint" style="margin-bottom:8px;">Нажмите на пустое место в строке сотрудника — откроется новый отпуск с этой даты. Нажмите на отпуск — изменить. Справа — сколько дней ежегодного отпуска осталось запланировать.</div>' : '')
+    + (can ? '<div class="hr-hint" style="margin-bottom:8px;">Нажмите на пустое место в строке сотрудника — откроется новый отпуск с этой даты. Нажмите на отпуск — изменить. Справа — сколько дней ежегодного отпуска осталось запланировать и из скольких; нажмите на число, чтобы изменить норму дней в году.</div>' : '')
     + (function() {   // итог года по видам: сколько дней и у скольких людей
         const yv = hr.d.vacs.filter(function(v) { const e = hEmp(v.employee_id); return e && e.status !== 'fired' && hD(v.start_date).slice(0, 4) === String(y); });
         return '<div class="hr-tiles">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) {

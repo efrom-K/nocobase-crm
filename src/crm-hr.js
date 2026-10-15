@@ -476,7 +476,7 @@ function hOpts(o) {
 function hField(f, val) {
   const k = f[0], t = f[2], v = val == null ? '' : val;
   let inp;
-  if (t === 'select') inp = '<select data-v="' + k + '"><option value="">—</option>' + hOpts(f[3]).map(function(p) { return '<option value="' + hEsc(p[0]) + '"' + (String(p[0]) === String(v) ? ' selected' : '') + '>' + hEsc(p[1]) + '</option>'; }).join('') + '</select>';
+  if (t === 'select') inp = '<select data-v="' + k + '">' + (hOpts(f[3]).some(function(p) { return p[1] === '—'; }) ? '' : '<option value="">—</option>') + hOpts(f[3]).map(function(p) { return '<option value="' + hEsc(p[0]) + '"' + (String(p[0]) === String(v) ? ' selected' : '') + '>' + hEsc(p[1]) + '</option>'; }).join('') + '</select>';
   else if (t === 'textarea') inp = '<textarea data-v="' + k + '">' + hEsc(v) + '</textarea>';
   else if (t === 'date') inp = '<input type="date" data-v="' + k + '" min="1900-01-01" max="2099-12-31" value="' + hEsc(hD(v)) + '">';
   else if (t === 'multi') { const cur = (Array.isArray(v) ? v : []).map(String); inp = '<div class="hr-pick" data-v="' + k + '" data-multi style="max-height:150px;">' + hOpts(f[3]).map(function(p) { return '<label><input type="checkbox" value="' + hEsc(p[0]) + '"' + (cur.indexOf(String(p[0])) !== -1 ? ' checked' : '') + '> ' + hEsc(p[1]) + '</label>'; }).join('') + '</div>'; }

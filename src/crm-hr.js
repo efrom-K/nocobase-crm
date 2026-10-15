@@ -1033,7 +1033,7 @@ function hXlsSpec(o, leIds) {
     sheets.push({ name: 'Отпуска', title: 'Отпуска, начинающиеся в ' + y + ' году', total: true, freezeCols: one ? 1 : 2,
       cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Вид', w: 24 }, { h: 'По графику' }, { h: 'Оформление' }]),
       rows: rowsBy(function(id) { return [].concat.apply([], people(id).map(function(e) { return vacOf(e).map(function(v) {
-        return lv(id).concat([e.full_name, hD(v.start_date) || null, hD(v.end_date) || null, Number(v.days) || 0, v.kind || HR_VAC_KINDS[0], hVacCls(v) === 'sched' ? 'да' : hVacCls(v) === 'unsched' ? 'нет' : '', HR_VAC_ST[v.status] || '']);
+        return lv(id).concat([e.full_name, hD(v.start_date) || null, hD(v.end_date) || null, Number(v.days) || 0, v.kind || HR_VAC_KINDS[0], hVacCls(v) === 'sched' ? 'да' : hVacCls(v) === 'unsched' ? 'нет' : '—', HR_VAC_ST[v.status] || '—']);
       }); })).sort(function(a, b) { return String(a[one ? 1 : 2]).localeCompare(String(b[one ? 1 : 2])); }); }) });
   }
   if (has('ot') && d.safety.length) sheets.push({ name: 'Охрана труда', title: 'Охрана труда и ПБ — штатные сотрудники', freezeCols: one ? 1 : 2,
@@ -1725,7 +1725,7 @@ function hRenderVac() {
   }).join('');
   hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1">‹</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
-      + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — приказа ещё нет</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
+      + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — оформление «—» (приказа пока нет)</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
     + (can ? '<button class="hr-new" data-act="newvac"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button>' : '') + '</div>'
     + (can ? '<div class="hr-hint" style="margin-bottom:8px;">Нажмите на пустое место в строке сотрудника — откроется новый отпуск с этой даты. Нажмите на отпуск — изменить. Справа — сколько дней ежегодного отпуска осталось запланировать и из скольких; нажмите на число, чтобы изменить норму дней в году.</div>' : '')
     + (function() {   // итог года по видам: сколько дней и у скольких людей

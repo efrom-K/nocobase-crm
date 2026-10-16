@@ -15,5 +15,6 @@
   "crmblock008": "src/crm-aho.js",
   "calpageblk1": "src/calendar.js",
   "crmblock006": "src/crm-settings.js",
-  "vaultblock01": "src/vault.js"
+  "vaultblock01": "src/vault.js",
+  "objplanblk01": "src/objects-plans.js"
 }

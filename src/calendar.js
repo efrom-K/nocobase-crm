@@ -13,7 +13,7 @@ const CAL_DEFAULTS = { hr: ['hr', 'tasks'], aho: ['aho', 'tasks', 'requests'] };
 const CAL_AHEAD = cfg('calendar.ahead');           // «Ближайшие»: на сколько дней вперёд (дальше — «Месяц»)
 const CAL_DAY_MAX = cfg('calendar.dayMax');          // строк в дне, остальное — по клику «ещё N»
 const CAL_REFRESH_MS = 5 * 60 * 1000;
-const P_REG = '/admin/b5znz7yxpy3', P_REQ = '/admin/j3a32zo1jzo', P_TSK = '/admin/tskpage01', P_AHO = '/admin/dashpage01/tabs/hometabaho1', P_HRD = '/admin/dashpage01/tabs/hometabhr01', P_HR = '/admin/hrpage01';
+const P_REG = '/admin/b5znz7yxpy3', P_REQ = '/admin/j3a32zo1jzo', P_TSK = '/admin/tskpage01', P_AHO = '/admin/dashpage01/tab/hometabaho1', P_HRD = '/admin/dashpage01/tab/hometabhr01', P_HR = '/admin/hrpage01';
 
 function cEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function cIso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }

@@ -20,7 +20,7 @@ cron на svc:  0 9 * * * /usr/bin/python3 /home/ubuntu/nb_bik/hr_reminders.py >
 import datetime, json, os, subprocess, sys
 
 DRY = '--dry' in sys.argv
-PAGE = '/admin/dashpage01/tabs/hometabhr01'   # «Главная» → вкладка «Кадры»
+PAGE = '/admin/dashpage01/tab/hometabhr01'   # «Главная» → вкладка «Кадры»
 PSQL = ['sudo', '-n', 'docker', 'exec', '-i', os.environ.get('NB_PG_CONTAINER', 'nocobase-postgres-1'), 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
 def psql(sql):

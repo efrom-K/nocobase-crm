@@ -18,7 +18,7 @@ cron на svc:  0 9 * * 1-5 /usr/bin/python3 /home/ubuntu/nb_bik/aho_reminders.p
 import datetime, json, os, subprocess, sys
 
 DRY = '--dry' in sys.argv
-PAGE = '/admin/dashpage01/tabs/hometabaho1'   # «Главная» → вкладка «АХО»
+PAGE = '/admin/dashpage01/tab/hometabaho1'   # «Главная» → вкладка «АХО»
 PSQL = ['sudo', '-n', 'docker', 'exec', '-i', os.environ.get('NB_PG_CONTAINER', 'nocobase-postgres-1'), 'psql', '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
 
 def psql(sql):

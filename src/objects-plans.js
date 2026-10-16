@@ -1616,7 +1616,8 @@ function op3dDispose() {
 async function op3dLib() {
   if (op.THREE) return op.THREE;
   let T = null;
-  try { T = await ctx.requireAsync(OP_THREE_URL); } catch (e) { console.log('[objplan] three', e && e.message); }
+  // полный адрес: относительный путь requireAsync считает пакетом с esm.sh
+  try { T = await ctx.requireAsync(document.location.origin + OP_THREE_URL); } catch (e) { console.log('[objplan] three', e && e.message); }
   if (!T || !T.Scene) T = (typeof window !== 'undefined' && window.THREE) || null;
   op.THREE = T && T.Scene ? T : null; return op.THREE;
 }

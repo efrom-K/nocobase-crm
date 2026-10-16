@@ -430,13 +430,15 @@ function opRender() {
 function opSideOut() { const h = opSideHtml(), i = h.indexOf('</h4>'); return i < 0 ? '<div class="op-sb">' + h + '</div>' : h.slice(0, i + 5) + '<div class="op-sb">' + h.slice(i + 5) + '</div>'; }
 function opStatus() {
   const z = opRoot().querySelector('[data-st="zoom"]'), p = opPlan(); if (!z || !p || !op.view) return;
-  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40;
-  z.textContent = Math.round((W + 2 * Math.max(W, H) * 0.04) / op.view.w * 100) + '%';
+  z.textContent = Math.round((op.fitW || op.view.w) / op.view.w * 100) + '%';
 }
 function opFit() {
   const p = opPlan(); if (!p) return;
-  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, pad = Math.max(W, H) * 0.04;
-  op.view = { x: -pad, y: -pad, w: W + 2 * pad, h: H + 2 * pad };
+  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, svg = opSvg(), b = svg ? svg.getBoundingClientRect() : null;
+  if (!b || !b.width || !b.height) { const pad = Math.max(W, H) * 0.04; op.view = { x: -pad, y: -pad, w: W + 2 * pad, h: H + 2 * pad }; op.fitW = op.view.w; return; }
+  // поля под палитру инструментов (слева), масштаб (сверху) и легенду (снизу), план — по центру остального
+  const L = op.edit ? 70 : 34, R = 30, T = 56, B = 52, aw = Math.max(50, b.width - L - R), ah = Math.max(50, b.height - T - B), k = Math.max(W / aw, H / ah);
+  op.view = { x: -L * k - (aw * k - W) / 2, y: -T * k - (ah * k - H) / 2, w: b.width * k, h: b.height * k }; op.fitW = op.view.w;
 }
 function opSvg() { const c = opRoot().querySelector('.op-canvas svg'); return c; }
 function opLenLbl(a, b, px, txt) {

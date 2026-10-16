@@ -39,3 +39,12 @@ console.log('OK');
   if (W.some(w => Math.hypot(w.x2 - w.x1, w.y2 - w.y1) < 0.01)) throw new Error('zero wall');
   console.log('clean: changed', ch, 'walls', ws.length, '→', W.length, 'OK');
 }
+// примыкание: перегородка упирается в середину стены — стена режется на две в точке примыкания, дверь уезжает во вторую часть
+{
+  const f = new Function(['opR', 'opWallLen', 'opArc', 'opWallSplit', 'opSplitJunctions'].map(pick).join('\n') + "\nconst OP_OPEN={door:1,window:1,gate:1}; let n=0; function opNewId(){return 'n'+(n++)}\nreturn opSplitJunctions;")();
+  const dw = { items: [{ id: 'a', k: 'wall', x1: 0, y1: 0, x2: 10, y2: 0, t: 0.5 }, { id: 'b', k: 'wall', x1: 4, y1: 0, x2: 4, y2: 6, t: 0.12 }, { id: 'd', k: 'door', wid: 'a', u: 7, w: 0.9 }] };
+  const n = f(dw), A = dw.items.filter(w => w.k === 'wall' && w.y1 === 0 && w.y2 === 0), D = dw.items.find(o => o.k === 'door');
+  if (n !== 1 || A.length !== 2 || A[0].x2 !== 4 || A[1].x1 !== 4 || A[1].x2 !== 10 || D.wid !== A[1].id || D.u !== 3) throw new Error('split ' + JSON.stringify(dw.items));
+  if (f(dw) !== 0) throw new Error('split twice');
+  console.log('split OK');
+}

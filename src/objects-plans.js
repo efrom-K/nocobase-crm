@@ -179,7 +179,7 @@ if (!document.getElementById('crm-objplan-style')) {
 const OP_KINDS = { rent: 'Под аренду', tech: 'Техническое', common: 'Общего пользования' };
 const OP_COLORS = { rented: ['#dbe4ff', '#1c2d58'], free: ['#d9f7be', '#389e0d'], tech: ['#ececec', '#8c8c8c'], common: ['#fff1d6', '#d48806'] };
 const OP_SNAP = 0.5;   // шаг стрелок, м (с Alt — 0,1); мышь — шаг по масштабу (opStep)
-const OP_TOOLS = [['sel', 'Выбор', 'V'], ['wall', 'Стена', 'W'], ['room', 'Помещение по углам', 'P'], ['rect', 'Прямоугольник', 'R'],
+const OP_TOOLS = [['sel', 'Выбор', 'V'], ['wall', 'Стена', 'W'], ['cut', 'Разрезать стену', 'X'], ['room', 'Помещение по углам', 'P'], ['rect', 'Прямоугольник', 'R'],
   ['door', 'Дверь', 'D'], ['window', 'Окно', 'O'], ['gate', 'Ворота', 'G'], ['stair', 'Лестница', 'S'], ['col', 'Колонна', 'C'], ['dim', 'Размер', 'M'], ['text', 'Подпись', 'T']];
 // инструменты без кнопки в палитре — с ленты «Подложка»
 const OP_XTOOLS = { calib: 'Масштаб подложки', bgmove: 'Сдвиг подложки' };
@@ -426,6 +426,7 @@ const OP_HINTS = {
   dim: 'Два клика — размерная линия с длиной между точками. Привязывается к углам.',
   text: 'Клик — подпись на плане, текст — в панели справа.',
   col: 'Клик — колонна в этой точке (центр прилипает к углам и другим колоннам). Сетку колонн — «Размножить» в панели выбранной колонны.',
+  cut: 'Клик по стене — разрезать её в этой точке на две (точка прилипает к углам и примыканиям других стен). Стены, в которые упирается новая стена, режутся сами.',
   calib: 'Масштаб подложки: кликните две точки на чертеже, расстояние между которыми знаете (например, концы размерной линии или наружной стены), и введите это расстояние справа. Колесо — крупнее, чтобы попасть точнее.',
   bgmove: 'Тащите подложку мышью, чтобы совместить её с нарисованным (или с этажом ниже). Ctrl+Z — отменить.',
   stair: 'Протяните прямоугольник лестницы от нижней ступени к верхней — стрелка покажет подъём. Ширина, ступени и этаж, куда ведёт, — в панели справа.'
@@ -442,6 +443,7 @@ const OP_ICO = {
   dim: '<path d="M4 7v10M20 7v10M4 12h16"/><path d="M7.5 9.5L5 12l2.5 2.5M16.5 9.5L19 12l-2.5 2.5"/>',
   text: '<path d="M5 7V5h14v2M12 5v14M9 19h6"/>',
   stair: '<path d="M3 20h5v-4h4v-4h4V8h5"/><path d="M3 20V4" stroke-opacity=".35"/>',
+  cut: '<circle cx="6" cy="18" r="2.6"/><circle cx="18" cy="18" r="2.6"/><path d="M8 16.2L17 4M16 16.2L7 4"/>',
   col: '<rect x="8" y="8" width="8" height="8" fill="currentColor"/><path d="M3 3v4M3 17v4M21 3v4M21 17v4" stroke-opacity=".45"/>',
   calib: '<path d="M3 16l13-13 5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/>',
   bgmove: '<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>',
@@ -488,7 +490,7 @@ function opRender() {
         + '<button class="op-btn' + (op.tool === 'bgmove' ? ' on' : '') + '" data-tool="bgmove" title="Совместить подложку с чертежом">' + opIco('bgmove') + 'Сдвинуть</button>' : '') + '</div></div>'
     + '</div>' : '';
   const palette = ed && plan ? '<div class="op-float op-palette">' + OP_TOOLS.map(function(t, i) {
-    return (i === 1 || i === 4 || i === 9 ? '<i></i>' : '') + '<button class="op-tb' + (op.tool === t[0] ? ' on' : '') + '" data-tool="' + t[0] + '" data-tip="' + t[1] + ' · ' + t[2] + '">' + opIco(t[0]) + '</button>';
+    return (i === 1 || i === 5 || i === 10 ? '<i></i>' : '') + '<button class="op-tb' + (op.tool === t[0] ? ' on' : '') + '" data-tool="' + t[0] + '" data-tip="' + t[1] + ' · ' + t[2] + '">' + opIco(t[0]) + '</button>';
   }).join('') + '</div>' : '';
   const tname = ed ? opToolName(op.tool) : 'Просмотр';
   const menu = '<div class="op-float op-menu">' + OP_FMT.map(function(f) { return '<button data-act="exp" data-fmt="' + f[0] + '"><span class="op-fmt" style="background:' + f[2] + '">' + f[1] + '</span><span><b>' + f[3] + '</b><small>' + f[4] + '</small></span></button>'; }).join('') + '</div>';
@@ -800,6 +802,14 @@ function opBuild(p, px, exp) {
     op.cal.forEach(function(q) { g += '<path d="M' + (q.x - 8 * px) + ' ' + q.y + 'H' + (q.x + 8 * px) + 'M' + q.x + ' ' + (q.y - 8 * px) + 'V' + (q.y + 8 * px) + '" stroke="#cf1322" stroke-width="' + 1.6 * px + '"/>'; });
   }
   // 5) рисуемое сейчас
+  if (ed && !sel0 && hv && op.tool === 'cut') {
+    const nw = opNearWall(hv, 10 * px);
+    if (nw && !opArc(nw.wall)) {
+      const w = nw.wall, ux = (w.x2 - w.x1) / nw.L, uy = (w.y2 - w.y1) / nw.L, cx = w.x1 + ux * nw.u, cy = w.y1 + uy * nw.u, r = (Number(w.t) || 0.2) / 2 + 6 * px;
+      g += '<path d="M' + (cx + uy * r) + ' ' + (cy - ux * r) + 'L' + (cx - uy * r) + ' ' + (cy + ux * r) + '" stroke="#cf1322" stroke-width="' + 2.5 * px + '"/>'
+        + opLenLbl({ x: w.x1, y: w.y1 }, { x: cx, y: cy }, px, opM(opR(nw.u)) + ' м | ' + opM(opR(nw.L - nw.u)) + ' м').replace('#1c2d58', '#cf1322');
+    }
+  }
   if (ed && !sel0 && hv && op.tool === 'col') g += opColSvg({ x: hv.x, y: hv.y, s: op.def.col, sh: op.def.colsh }, px, false, true);
   if (ed && !sel0 && hv && op.tool !== 'calib' && op.tool !== 'bgmove') {
     const t = op.tool, from = opToolFrom(), typed = op.typed ? op.typed.replace('.', ',') + ' м ⏎' : '';
@@ -870,6 +880,7 @@ function opItemHtml(it) {
     h += opF('Концы, м', '<div class="op-g4">' + opII('x1', opM(it.x1), 'X начала') + opII('y1', opM(it.y1), 'Y начала') + opII('x2', opM(it.x2), 'X конца') + opII('y2', opM(it.y2), 'Y конца') + '</div>', 'X, Y начала → X, Y конца, от левого верхнего угла плана');
     if (it.k === 'dim') h += opF('Отступ линии, м', opII('off', opM(it.off === undefined ? -0.8 : it.off)), 'со знаком минус — по другую сторону');
     if (it.k === 'wall') { const n = opItems().filter(function(x) { return x.wid === it.id; }).length; if (n) h += '<div class="op-hint">В стене проёмов: ' + n + ' — удалятся вместе со стеной.</div>'; }
+    if (it.k === 'wall' && !opArc(it)) h += '<div class="op-acts"><button class="op-btn" data-act="w-half">Разрезать пополам</button><button class="op-btn" data-tool="cut" title="Инструмент X: клик по стене — разрез в этой точке">Разрезать в точке…</button></div>';
   } else if (OP_OPEN[it.k]) {
     h += opF('Ширина, м', opII('w', opM(it.w)));
     const G = opOpG(it);
@@ -991,7 +1002,8 @@ async function opToolClick(pt) {
   if (t === 'wall') {
     if (ch.length) {
       const a = ch[ch.length - 1]; if (opDist(a, pt) < 0.01) return;
-      opAddItem({ k: 'wall', x1: a.x, y1: a.y, x2: pt.x, y2: pt.y, t: op.def.wall, wt: op.def.wt });
+      const before = opDrawSnap(), dw = opDw(opPlan());
+      dw.items.push({ id: opNewId(), k: 'wall', x1: a.x, y1: a.y, x2: pt.x, y2: pt.y, t: op.def.wall, wt: op.def.wt }); opSplitJunctions(dw); opDrawCommit(before);
       if (ch.length > 1 && opDist(ch[0], pt) < 0.01) { op.chain = []; opRefresh(); return; }   // замкнули контур
     }
     ch.push(pt); op.typed = ''; opRefresh(); return;
@@ -1007,6 +1019,13 @@ async function opToolClick(pt) {
     opAddItem({ k: 'dim', x1: ch[0].x, y1: ch[0].y, x2: pt.x, y2: pt.y, off: -0.8 }); op.chain = []; op.typed = ''; opRefresh(); return;
   }
   if (OP_OPEN[t]) { const it = opAddItem(opOpPlace(t, pt)); op.selItem = it.id; opRefresh(); return; }
+  if (t === 'cut') {
+    const nw = opNearWall(pt, 10 * op.vb.px);
+    if (!nw || opArc(nw.wall)) { opToast(nw ? 'Дуговую стену разрезать нельзя' : 'Кликните по стене'); return; }
+    const before = opDrawSnap(), b = opWallSplit(opDw(opPlan()), nw.wall, nw.u);
+    if (!b) { opToast('Слишком близко к концу стены'); return; }
+    opDrawCommit(before); opRefresh(); opToast('Стена разрезана: ' + opM(opR(nw.u)) + ' + ' + opM(opR(nw.L - nw.u)) + ' м'); return;
+  }
   if (t === 'col') { opAddItem({ k: 'col', x: pt.x, y: pt.y, s: op.def.col, sh: op.def.colsh }); opRefresh(); return; }
   if (t === 'calib') { if (op.cal.length >= 2) op.cal = []; op.cal.push(pt); opDraw(); opRenderSide(); const f = opRoot().querySelector('[data-cal]'); if (f) f.focus(); return; }
   if (t === 'text') {
@@ -1262,6 +1281,36 @@ async function opDelRoom(id) {
   try { await opApi('destroy', 'crm_rooms', id); op.rooms = op.rooms.filter(function(x) { return x.id !== id; }); op.sel = null; op.undo.push({ t: 'del', vals: keep }); opRefresh(); opToast('Удалено — можно отменить'); }
   catch (e) { opToast('Не удалось удалить'); }
 }
+// разрез прямой стены в u метрах от начала: первая часть сохраняет id, проёмы дальше разреза переезжают во вторую
+function opWallSplit(dw, w, u) {
+  const L = opWallLen(w); if (opArc(w) || u < 0.05 || u > L - 0.05) return null;
+  const x = opR(w.x1 + (w.x2 - w.x1) * u / L), y = opR(w.y1 + (w.y2 - w.y1) * u / L), b = Object.assign({}, w, { id: opNewId(), x1: x, y1: y });
+  dw.items.forEach(function(o) { if (OP_OPEN[o.k] && o.wid === w.id && (Number(o.u) || 0) > u) { o.wid = b.id; o.u = opR((Number(o.u) || 0) - u); } });
+  w.x2 = x; w.y2 = y; dw.items.splice(dw.items.indexOf(w) + 1, 0, b); return b;
+}
+// примыкания: конец одной стены лежит на середине другой — та режется в этой точке (узел становится общим: тянется вместе, стык чище)
+function opSplitJunctions(dw) {
+  let n = 0, again = true;
+  while (again) {
+    again = false;
+    const walls = dw.items.filter(function(w) { return w.k === 'wall'; });
+    for (const w of walls) {
+      if (opArc(w)) continue;
+      const L = opWallLen(w); if (L < 0.1) continue;
+      const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
+      let cut = null;
+      walls.forEach(function(o) {
+        if (o === w || cut !== null) return;
+        [[o.x1, o.y1], [o.x2, o.y2]].forEach(function(q) {
+          const u = (q[0] - w.x1) * ux + (q[1] - w.y1) * uy, d = Math.abs((q[0] - w.x1) * uy - (q[1] - w.y1) * ux);
+          if (cut === null && d < 0.02 && u > 0.05 && u < L - 0.05) cut = u;
+        });
+      });
+      if (cut !== null && opWallSplit(dw, w, cut)) { n++; again = true; break; }
+    }
+  }
+  return n;
+}
 // наложения стен: прямые стены на одной линии, перекрывающие друг друга, режем — перекрытый участок остаётся у толстой стены (при равной — у той, что раньше).
 // Стены нулевой длины убираем. Проёмы в изменённых стенах переезжают на стену, где оказалась их середина. Возвращает число изменённых стен.
 function opWallsClean(dw) {
@@ -1304,6 +1353,7 @@ function opRoomWalls(r) {
   const pts = opRoomPts(r), before = opDrawSnap(), dw = opDw(opPlan());
   pts.forEach(function(a, i) { const b = pts[(i + 1) % pts.length]; if (Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.01) dw.items.push({ id: opNewId(), k: 'wall', x1: opR(a[0]), y1: opR(a[1]), x2: opR(b[0]), y2: opR(b[1]), t: op.def.wall, wt: op.def.wt }); });
   opWallsClean(dw);   // общие с соседями стороны не дублируем: участок, где стена уже есть, отрезается
+  opSplitJunctions(dw);
   const n = dw.items.filter(function(w) { return w.k === 'wall'; }).length - before.items.filter(function(w) { return w.k === 'wall'; }).length;
   if (JSON.stringify(dw.items) === JSON.stringify(before.items)) { dw.items = before.items; opToast('Стены по контуру уже есть'); return; }
   opDrawCommit(before); opRefresh(); opToast('Стены по контуру: ' + (n > 0 ? '+' + n : 'перестроены') + ' (общие с соседями стороны не задваиваются)');
@@ -1847,8 +1897,9 @@ opRoot().addEventListener('click', async function(e) {
   if (act === 'room-area') { const r = opRoom(op.sel); if (r) { await opSaveRoom(r.id, { area_sqm: opR(opPolyArea(opRoomPts(r))) }); opRefresh(); } return; }
   if (act === 'it-del') return opDelItem(op.selItem);
   if (act === 'cal-go') return opCalApply();
+  if (act === 'w-half') { const it = opItem(op.selItem); if (it) { const before = opDrawSnap(); if (opWallSplit(opDw(opPlan()), it, opWallLen(it) / 2)) { opDrawCommit(before); opRefresh(); opToast('Стена разрезана пополам'); } } return; }
   if (act === 'walls-clean') {
-    const before = opDrawSnap(), n = opWallsClean(opDw(opPlan()));
+    const before = opDrawSnap(), dw0 = opDw(opPlan()), n = opWallsClean(dw0) + opSplitJunctions(dw0);
     if (!n) { opToast('Наложений стен нет'); return; }
     op.selItem = null; opDrawCommit(before); opRefresh(); opToast('Исправлено стен: ' + n + ' — Ctrl+Z, чтобы вернуть'); return;
   }

@@ -10,641 +10,105 @@ function nbSessionAlive() {
 }
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #f0f0f0;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
-
-const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
-const DRAFTS_TAB = "cm-drafts-tab"; // не нативная NocoBase-таблица — личный список черновиков, рисуется contract-modals.js
-
-function paintActive(uid) {
-  document.querySelectorAll('.registry-local-tab').forEach(function(t) {
-    const isActive = t.getAttribute('data-table') === uid;
-    t.classList.toggle('ant-tabs-tab-active', isActive);
-    t.style.borderBottomColor = isActive ? '#1c2d58' : 'transparent';
-    t.style.color = isActive ? '#1c2d58' : 'rgba(0,0,0,0.88)';
-    t.style.fontWeight = isActive ? '600' : '400';
-  });
-}
-
-function applyVisibility(uid) {
-  let allFound = true;
-  TABLES.forEach(function(t) {
-    const el = document.querySelector('[data-uid="' + t + '"]');
-    const card = el ? el.closest('.ant-card') : null;
-    if (card) {
-      card.style.display = (uid === DRAFTS_TAB) ? 'none' : ((t === uid) ? '' : 'none');
-    } else {
-      allFound = false;
-    }
-  });
-  if (window.__cmShowDraftsPanel) window.__cmShowDraftsPanel(uid === DRAFTS_TAB);
-  return allFound;
-}
-
-function switchRegistryTable(uid) {
-  window.__activeRegistryTable = uid;
-  applyVisibility(uid);
-  paintActive(uid);
-  const search = document.getElementById('global-search-input');
-  if (search) search.value = '';
-  const colsPanel = document.getElementById('cm-cols-panel');
-  if (colsPanel && colsPanel.style.display === 'block' && typeof renderColsPanel === 'function') renderColsPanel();
-}
-window.switchRegistryTable = switchRegistryTable;
-
-document.querySelectorAll('.registry-local-tab').forEach(function(tab) {
-  tab.addEventListener('click', function() {
-    switchRegistryTable(tab.getAttribute('data-table'));
-  });
-});
-
-if (!window.__activeRegistryTable) {
-  window.__activeRegistryTable = "ozazmpm4o4v";
-}
-paintActive(window.__activeRegistryTable); // при первой загрузке страницы подсветку иначе никто не проставляет — она только по клику
-if (!window.__registryVisibilityRetry) {
-  window.__registryVisibilityRetry = setInterval(function() {
-    const done = applyVisibility(window.__activeRegistryTable);
-    if (done) {
-      clearInterval(window.__registryVisibilityRetry);
-      window.__registryVisibilityRetry = null;
-    }
-  }, 200);
-}
-
-// ---------- личная настройка столбцов таблиц ----------
-// У каждого пользователя свой набор и порядок столбцов; хранится в user_table_settings (и дублируется в localStorage).
-const COL_DEFAULT_HIDDEN = ['termination_date', 'rent_amount', 'deposit_amount', 'inn'];
-const colDefaults = {};   // uid -> { order: [...], hidden: [...] } (как настроено администратором)
-const colCfg = {};        // uid -> текущая конфигурация пользователя { order, hidden }
-const colRowIds = {};     // uid -> id строки в user_table_settings
-let colUserId = null;
-let colSync = true;
-let colSaveTimers = {};
-
-function colAuthHeaders() {
-  let t = null;
-  try { t = localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { /* ignore */ }
-  return { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' };
-}
-function colTable(uid) {
-  const e = window.__cmEngine;
-  return e && e.getModel ? e.getModel(uid) : null;
-}
-function colModels(uid) {
-  const t = colTable(uid);
-  const cols = t && t.subModels && t.subModels.columns ? t.subModels.columns : [];
-  return cols.filter(function(c) { return c && c.props && c.props.dataIndex; });
-}
-function colName(c) { return c.props.dataIndex; }
-
-function captureColDefaults(uid) {
-  if (colDefaults[uid]) return;
-  const cols = colModels(uid).slice().sort(function(a, b) { return (a.sortIndex || 0) - (b.sortIndex || 0); });
-  colDefaults[uid] = {
-    order: cols.map(colName),
-    hidden: cols.map(colName).filter(function(n) { return COL_DEFAULT_HIDDEN.indexOf(n) !== -1; })
-  };
-}
-function effectiveCfg(uid) {
-  return colCfg[uid] || colDefaults[uid] || { order: [], hidden: [] };
-}
-// применяет конфигурацию к столбцам таблицы (только в браузере, в настройки страницы ничего не пишется)
-function applyColCfg(uid, cfg) {
-  const cols = colModels(uid);
-  if (!cols.length) return false;
-  const def = colDefaults[uid] || { order: [] };
-  const order = (cfg.order || []).filter(function(n) { return cols.some(function(c) { return colName(c) === n; }); });
-  // столбцы, которых нет в сохранённом порядке пользователя (добавлены позже), встают после ближайшего предшествующего
-  // им столбца по умолчанию, а не уезжают в конец таблицы
-  (def.order || []).forEach(function(n, i) {
-    if (order.indexOf(n) !== -1 || !cols.some(function(c) { return colName(c) === n; })) return;
-    let at = 0;
-    for (let j = i - 1; j >= 0; j--) { const k = order.indexOf(def.order[j]); if (k !== -1) { at = k + 1; break; } }
-    order.splice(at, 0, n);
-  });
-  const known = {};
-  order.forEach(function(n, i) { known[n] = i; });
-  const hidden = {};
-  (cfg.hidden || []).forEach(function(n) { hidden[n] = true; });
-  cols.forEach(function(c) {
-    const n = colName(c);
-    const idx = known.hasOwnProperty(n) ? known[n] : (order.length + Math.max(def.order.indexOf(n), 0));
-    c.sortIndex = idx;
-  });
-  cols.forEach(function(c) { c.setHidden(!!hidden[colName(c)]); });
-  cols.forEach(function(c) { if (c.rerender) c.rerender(); });
-  const t = colTable(uid);
-  if (t && t.rerender) t.rerender();
-  return true;
-}
-function colLsKey(uid) { return 'cm-cols-' + colUserId + '-' + uid; }
-function rememberCfg(uid, cfg) {
-  colCfg[uid] = { order: (cfg.order || []).slice(), hidden: (cfg.hidden || []).slice() };
-  try { localStorage.setItem(colLsKey(uid), JSON.stringify(colCfg[uid])); } catch (e) { /* ignore */ }
-}
-function saveColCfgRemote(uid) {
-  clearTimeout(colSaveTimers[uid]);
-  colSaveTimers[uid] = setTimeout(async function() {
-    if (colUserId === null) return;
-    try {
-      const values = { user_id: colUserId, table_uid: uid, config: colCfg[uid] };
-      if (colRowIds[uid]) {
-        await ctx.api.resource('user_table_settings').update({ filterByTk: colRowIds[uid], values: values });
-      } else {
-        const res = await ctx.api.resource('user_table_settings').create({ values: values });
-        const rec = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : null;
-        if (rec && rec.id) colRowIds[uid] = rec.id;
-      }
-    } catch (e) { /* нет прав или сеть: настройка остаётся в этом браузере (localStorage) */ }
-  }, 500);
-}
-function setColCfg(uid, cfg, persist) {
-  rememberCfg(uid, cfg);
-  applyColCfg(uid, colCfg[uid]);
-  if (persist) saveColCfgRemote(uid);
-}
-
-// ---------- сколько договоров на странице: личная настройка, общая для трёх вкладок ----------
-// Выбрал 50/100 в пагинации — запоминается (user_table_settings, table_uid PS_UID — идёт за человеком на любой ПК; копия в localStorage)
-// и применяется к «Активным», «Формирующимся» и «Архиву» сразу и при следующих заходах.
-const PS_UID = 'registry:pageSize';
-let psRowId = null, psCur = 0;
-function psLsKey() { return 'cm-pagesize-' + colUserId; }
-function psRes(uid) { const m = colTable(uid); return m && m.resource && m.resource.setPageSize ? m.resource : null; }
-// применить ко всем таблицам; ждём, пока таблица загрузит первую страницу — иначе её собственная инициализация вернёт 20
-function psApply(n, except) {
-  n = Number(n);
-  if (!n) return;
-  psCur = n;
-  TABLES.forEach(function(u) {
-    if (u === except) return;
-    let tries = 0;
-    const t = setInterval(function() {
-      const r = psRes(u);
-      tries++;
-      if (!r || (r.getMeta && r.getMeta('count') === undefined)) { if (tries > 100) clearInterval(t); return; }
-      clearInterval(t);
-      if (Number(r.getPageSize()) === n) return;
-      r.__psSilent = true; r.setPageSize(n); r.__psSilent = false;
-      r.setPage(1);
-      r.refresh();
-    }, 100);
-  });
-}
-async function psSave(n) {
-  try { localStorage.setItem(psLsKey(), String(n)); } catch (e) { /* ignore */ }
-  if (colUserId === null) return;
-  const api = ctx.api.resource('user_table_settings'), values = { user_id: colUserId, table_uid: PS_UID, config: { pageSize: n } };
-  const one = function(res) { const d = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : null; return Array.isArray(d) ? d[0] : d; };
-  try {
-    if (!psRowId) { const ex = one(await api.list({ filter: { user_id: colUserId, table_uid: PS_UID }, pageSize: 1 })); if (ex && ex.id) psRowId = ex.id; }   // запись уже есть — обновляем, иначе сервер ругается «уже существует»
-    if (psRowId) await api.update({ filterByTk: psRowId, values: values });
-    else { const rec = one(await api.create({ values: values })); if (rec && rec.id) psRowId = rec.id; }
-  } catch (e) { /* нет прав или сеть: остаётся в этом браузере */ }
-}
-// перехват смены размера страницы. Таблица сама зовёт setPageSize при загрузке (20) — это не выбор человека,
-// поэтому сохраняем только сразу после клика по пункту «N / стр.» в выпадающем списке пагинации.
-let psPickAt = 0;
-if (!window.__psPickListener) {
-  window.__psPickListener = true;
-  document.addEventListener('click', function(e) {
-    const o = e.target.closest ? e.target.closest('.ant-select-item-option') : null;
-    if (o && /\/\s*стр/.test(o.textContent || '')) window.__psPickAt = Date.now();
-  }, true);
-}
-function psWrap() {
-  TABLES.forEach(function(u) {
-    const r = psRes(u);
-    if (!r || r.__psWrapped) return;
-    r.__psWrapped = true;
-    const orig = r.setPageSize.bind(r);
-    r.setPageSize = function(n) {
-      const user = !r.__psSilent && Date.now() - (window.__psPickAt || psPickAt) < 3000;
-      if (!user && psCur && Number(n) !== psCur) return orig(psCur);   // таблица сама сбрасывает (загрузка, перерисовка) — держим выбор человека
-      const out = orig(n);
-      if (user && Number(n) && Number(n) !== psCur) { psCur = Number(n); psSave(psCur); psApply(psCur, u); }
-      return out;
-    };
-  });
-}
-
-async function initColumnSettings() {
-  // ждём, пока модели таблиц и столбцы появятся
-  let tries = 0;
-  await new Promise(function(resolve) {
-    const timer = setInterval(function() {
-      tries++;
-      const ready = TABLES.every(function(u) { return colModels(u).length > 0; });
-      if (ready || tries > 300) { clearInterval(timer); resolve(); }
-    }, 50);
-  });
-  TABLES.forEach(function(u) { captureColDefaults(u); });
-  // настройка администратора: запасные столбцы скрыты сразу, до загрузки личных настроек
-  TABLES.forEach(function(u) { applyColCfg(u, colDefaults[u]); });
-  try {
-    const r = await fetch('/api/auth:check', { headers: colAuthHeaders() });
-    const j = await r.json();
-    colUserId = j && j.data ? j.data.id : null;
-  } catch (e) { colUserId = null; }
-  if (colUserId === null) return;
-  try { colSync = localStorage.getItem('cm-cols-sync-' + colUserId) !== '0'; } catch (e) { /* ignore */ }
-  // быстрый путь: копия из localStorage
-  TABLES.forEach(function(u) {
-    try {
-      const raw = localStorage.getItem(colLsKey(u));
-      if (raw) { colCfg[u] = JSON.parse(raw); applyColCfg(u, colCfg[u]); }
-    } catch (e) { /* ignore */ }
-  });
-  psWrap();
-  try { const ls = Number(localStorage.getItem(psLsKey())); if (ls) psApply(ls); } catch (e) { /* ignore */ }
-  // основной источник: личные настройки из БД
-  try {
-    const res = await ctx.api.resource('user_table_settings').list({ filter: { user_id: colUserId }, pageSize: 20 });
-    const rows = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
-    (Array.isArray(rows) ? rows : []).forEach(function(row) {
-      if (row.table_uid === PS_UID && row.config && row.config.pageSize) { psRowId = row.id; psApply(row.config.pageSize); return; }
-      if (TABLES.indexOf(row.table_uid) === -1 || !row.config) return;
-      colRowIds[row.table_uid] = row.id;
-      rememberCfg(row.table_uid, row.config);
-      applyColCfg(row.table_uid, colCfg[row.table_uid]);
-    });
-  } catch (e) { /* остаёмся на localStorage/умолчаниях */ }
-}
-
-// ----- панель «Столбцы» -----
-if (!document.getElementById('cm-cols-style')) {
-  const st = document.createElement('style');
-  st.id = 'cm-cols-style';
-  st.textContent = `
-    #cm-cols-btn { border: 1px solid #d9d9d9; background: #fff; color: #262626; border-radius: 6px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
-    #cm-cols-btn:hover { border-color: #1c2d58; color: #1c2d58; }
-    #cm-cols-panel { position: fixed; z-index: 1100; width: 340px; max-height: 70vh; overflow: auto; background: #fff; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 14px 16px; display: none; }
-    #cm-cols-panel .cm-cols-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-    #cm-cols-panel .cm-cols-hint { color: #8c8c8c; font-size: 12px; margin-bottom: 10px; }
-    #cm-cols-panel .cm-cols-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
-    #cm-cols-panel .cm-cols-row label { flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-    #cm-cols-panel .cm-cols-move { border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; color: #595959; line-height: 1; }
-    #cm-cols-panel .cm-cols-move:hover:not(:disabled) { border-color: #1c2d58; color: #1c2d58; }
-    #cm-cols-panel .cm-cols-move:disabled { opacity: 0.3; cursor: default; }
-    #cm-cols-panel .cm-cols-foot { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
-    #cm-cols-panel .cm-cols-btns { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
-    #cm-cols-panel .cm-cols-sync { font-size: 12px; color: #595959; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-    #cm-cols-panel button.cm-cols-act { border: 1px solid #d9d9d9; background: #fff; border-radius: 6px; padding: 5px 16px; font-size: 13px; cursor: pointer; white-space: nowrap; }
-    #cm-cols-panel button.cm-cols-act.primary { background: #1c2d58; border-color: #1c2d58; color: #fff; }
-  `;
-  document.head.appendChild(st);
-}
-function colTitleOf(c) { return c.props.title || colName(c); }
-function currentOrderNames(uid) {
-  const cols = colModels(uid).slice().sort(function(a, b) { return (a.sortIndex || 0) - (b.sortIndex || 0); });
-  return cols.map(colName);
-}
-function tableTitle(uid) {
-  const tab = document.querySelector('.registry-local-tab[data-table="' + uid + '"]');
-  return tab ? tab.innerText.trim() : '';
-}
-function renderColsPanel() {
-  const panel = document.getElementById('cm-cols-panel');
-  if (!panel) return;
-  const uid = window.__activeRegistryTable || TABLES[0];
-  const names = currentOrderNames(uid);
-  const cfg = effectiveCfg(uid);
-  const hidden = {};
-  (cfg.hidden || []).forEach(function(n) { hidden[n] = true; });
-  const models = {};
-  colModels(uid).forEach(function(c) { models[colName(c)] = c; });
-  const visibleCount = names.filter(function(n) { return !hidden[n]; }).length;
-  panel.innerHTML = '<div class="cm-cols-title">Столбцы таблицы «' + tableTitle(uid) + '»</div>'
-    + '<div class="cm-cols-hint">Отметьте нужные и расставьте порядок стрелками. Настройка личная, у других пользователей своя.</div>'
-    + names.map(function(n, i) {
-        const onlyOne = !hidden[n] && visibleCount <= 1;
-        return '<div class="cm-cols-row"><label><input type="checkbox" data-col="' + n + '"' + (hidden[n] ? '' : ' checked') + (onlyOne ? ' disabled' : '') + '> ' + colTitleOf(models[n]) + '</label>'
-          + '<button class="cm-cols-move" data-move="up" data-col="' + n + '"' + (i === 0 ? ' disabled' : '') + ' title="Выше">↑</button>'
-          + '<button class="cm-cols-move" data-move="down" data-col="' + n + '"' + (i === names.length - 1 ? ' disabled' : '') + ' title="Ниже">↓</button></div>';
-      }).join('')
-    + '<div class="cm-cols-foot"><label class="cm-cols-sync"><input type="checkbox" id="cm-cols-sync"' + (colSync ? ' checked' : '') + '> Одинаково для всех вкладок</label>'
-    + '<div class="cm-cols-btns"><button class="cm-cols-act" id="cm-cols-reset">Сбросить</button><button class="cm-cols-act primary" id="cm-cols-done">Готово</button></div></div>';
-
-  function commit(newCfg) {
-    const targets = colSync ? TABLES : [uid];
-    targets.forEach(function(u) {
-      // порядок и скрытые столбцы переносятся на другие вкладки по именам полей
-      setColCfg(u, { order: newCfg.order.slice(), hidden: newCfg.hidden.slice() }, true);
-    });
-    renderColsPanel();
-  }
-  panel.querySelectorAll('input[data-col]').forEach(function(cb) {
-    cb.addEventListener('change', function() {
-      const n = cb.getAttribute('data-col');
-      const h = (effectiveCfg(uid).hidden || []).filter(function(x) { return x !== n; });
-      if (!cb.checked) h.push(n);
-      commit({ order: currentOrderNames(uid), hidden: h });
-    });
-  });
-  panel.querySelectorAll('button[data-move]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      const n = btn.getAttribute('data-col');
-      const order = currentOrderNames(uid);
-      const i = order.indexOf(n);
-      const j = btn.getAttribute('data-move') === 'up' ? i - 1 : i + 1;
-      if (i < 0 || j < 0 || j >= order.length) return;
-      const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
-      commit({ order: order, hidden: (effectiveCfg(uid).hidden || []).slice() });
-    });
-  });
-  panel.querySelector('#cm-cols-sync').addEventListener('change', function(e) {
-    colSync = e.target.checked;
-    try { localStorage.setItem('cm-cols-sync-' + colUserId, colSync ? '1' : '0'); } catch (err) { /* ignore */ }
-    if (colSync) commit({ order: currentOrderNames(uid), hidden: (effectiveCfg(uid).hidden || []).slice() });
-  });
-  panel.querySelector('#cm-cols-reset').addEventListener('click', function() {
-    (colSync ? TABLES : [uid]).forEach(function(u) {
-      const d = colDefaults[u];
-      setColCfg(u, { order: d.order.slice(), hidden: d.hidden.slice() }, true);
-    });
-    renderColsPanel();
-  });
-  panel.querySelector('#cm-cols-done').addEventListener('click', closeColsPanel);
-}
-function openColsPanel() {
-  let panel = document.getElementById('cm-cols-panel');
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'cm-cols-panel';
-    document.body.appendChild(panel);
-  }
-  const btn = document.getElementById('cm-cols-btn');
-  const r = btn.getBoundingClientRect();
-  panel.style.top = (r.bottom + 6) + 'px';
-  panel.style.left = Math.max(8, Math.min(r.right - 340, window.innerWidth - 348)) + 'px';
-  panel.style.display = 'block';
-  renderColsPanel();
-}
-function closeColsPanel() {
-  const panel = document.getElementById('cm-cols-panel');
-  if (panel) panel.style.display = 'none';
-}
-(function bindColsButton() {
-  const btn = document.getElementById('cm-cols-btn');
-  if (!btn || btn.__cmBound) return;
-  btn.__cmBound = true;
-  btn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    const panel = document.getElementById('cm-cols-panel');
-    if (panel && panel.style.display === 'block') closeColsPanel(); else openColsPanel();
-  });
-})();
-if (!window.__cmColsDocBound) {
-  window.__cmColsDocBound = true;
-  document.addEventListener('click', function(e) {
-    const panel = document.getElementById('cm-cols-panel');
-    if (!panel || panel.style.display !== 'block') return;
-    // путь события считается в момент клика: кнопка внутри панели могла быть уже перерисована и оторвана от DOM
-    const path = e.composedPath ? e.composedPath() : [];
-    if (path.indexOf(panel) !== -1 || panel.contains(e.target) || (e.target.closest && e.target.closest('#cm-cols-btn'))) return;
-    closeColsPanel();
-  });
-  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeColsPanel(); });
-}
-initColumnSettings();
-
-// ---------- подсветка договоров, по которым есть непрочитанные уведомления ----------
-// Ссылка в сообщении вида ...?open=<active|forming|completed>:<id> показывает, к какому договору оно относится;
-// строка договора в таблице подсвечивается, на вкладке видно число таких договоров. Пока сообщение не прочитано в колокольчике.
-const NOTIF_TABLE_BY_SOURCE = { active: 'ozazmpm4o4v', forming: 'formtbl000001', completed: 'ipb7gfluldk' };
-window.__cmNotifRows = window.__cmNotifRows || {};
-if (!document.getElementById('cm-notif-style')) {
-  const nst = document.createElement('style');
-  nst.id = 'cm-notif-style';
-  nst.textContent = `
-    @keyframes cm-notif-pulse { 0%, 100% { box-shadow: inset 4px 0 0 #fa8c16; } 50% { box-shadow: inset 4px 0 0 #ffd591; } }
-    .ant-table-tbody > tr.cm-notif-row > td { background: #fff7e6 !important; }
-    .main-registry-clickable-rows .ant-table-tbody > tr.cm-notif-row:hover > td { background: #ffe7ba !important; }
-    .ant-table-tbody > tr.cm-notif-row > td:first-child { animation: cm-notif-pulse 2s ease-in-out infinite; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag { border-radius: 6px; padding: 3px 12px; margin: 0; font-size: 12px; line-height: 18px; font-weight: 500; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-gold { background: #fffbe6; border-color: #ffe58f; color: #d48806; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-red { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }
-    .cm-tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; margin-left: 6px; background: #fa8c16; color: #fff; font-size: 11px; font-weight: 600; text-align: center; vertical-align: 1px; }
-  `;
-  document.head.appendChild(nst);
-}
-// вид таблиц реестра — как в статистике и на дашбордах (уведомления .cm-notif-row важнее: у них свой фон)
-if (!document.getElementById('cm-reg-look-style')) {
-  const lst = document.createElement('style');
-  lst.id = 'cm-reg-look-style';
-  lst.textContent = `
-    /* реестр в стиле остальных таблиц CRM: тёмная шапка на голубом, строки через одну, тёмный текст */
-    [data-uid="ozazmpm4o4v"] .ant-table-thead > tr > th, [data-uid="formtbl000001"] .ant-table-thead > tr > th, [data-uid="ipb7gfluldk"] .ant-table-thead > tr > th { background:#eef1f6 !important; color:#262626 !important; font-weight:600 !important; font-size:12.5px; border-bottom:2px solid #c9d1df !important; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row > td { color:#1f1f1f; font-size:13.5px; border-bottom-color:#e8ebf0 !important; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td { background:#f8f9fb; }
-    .main-registry-clickable-rows .ant-table-tbody > tr.ant-table-row:not(.cm-notif-row):hover > td { background:#eaf0ff !important; }
-      /* телефон: в карточках реестра — только главное, остальное в карточке договора */
-    @media (max-width: 700px) {
-      .ant-table tbody > tr.ant-table-row.cm-notif-row { background:#fff7e6; }
-      div:has(> #global-search-input) { flex-wrap:wrap !important; }
-      #global-search-input { flex:1 1 100% !important; max-width:none !important; height:42px; }
-      .ant-layout-content .ant-table tbody > tr > td[data-l="Электронная почта"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Фамилия, имя, отчество по договору"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Дата подписания акта приёма-передачи"]:not(.crm-m-title) { display:none !important; }
-    }
-  `;
-  document.head.appendChild(lst);
-}
-// Договоры с непрочитанными уведомлениями всегда наверху — при любой сортировке, фильтре, поиске и странице.
-// Делается на уровне данных: ответ сервера на список договоров перехватывается, на первую страницу подставляются
-// эти договоры (отдельным запросом по id, в обход фильтров), а их дубли убираются со всех страниц.
-// Ниже — страховочная перестановка уже отрисованных строк (на случай, если таблица перерисовалась из кэша).
-const PIN_TABLE_BY_COLLECTION = { rental_contracts: 'ozazmpm4o4v', forming_contracts: 'formtbl000001', completed_contracts: 'ipb7gfluldk' };
-function pinnedIdsFor(uid) {
-  return Object.keys((window.__cmNotifRows || {})[uid] || {}).map(Number).filter(function(n) { return n > 0; }).sort(function(a, b) { return b - a; });
-}
-// договоры с «Дополнительными расчётами аренды» — наверх, только если включена кнопка «Доп. расчёты сверху»
-function extraFirstIdsFor(uid) {
-  if (!window.__cmExtraFirst) return [];
-  return Object.keys((window.__cmExtraRows || {})[uid] || {}).map(Number).filter(function(n) { return n > 0; });
-}
-function pinKey(uid) { return pinnedIdsFor(uid).join(',') + '|' + extraFirstIdsFor(uid).join(','); }
-function installPinInterceptor() {
-  const api = window.__cmEngine && window.__cmEngine.context && window.__cmEngine.context.api;
-  if (!api || !api.axios) return false;
-  if (window.__cmPinInterceptor !== undefined && window.__cmPinApi === api) api.axios.interceptors.response.eject(window.__cmPinInterceptor);
-  window.__cmPinApi = api;
-  window.__cmPinSeen = window.__cmPinSeen || {};
-  window.__cmPinInterceptor = api.axios.interceptors.response.use(async function(resp) {
-    try {
-      const cfg = resp && resp.config;
-      if (!cfg || cfg.__cmPinned || String(cfg.method || '').toLowerCase() !== 'get') return resp;
-      const m = String(cfg.url || '').match(/^\/?(?:api\/)?(rental_contracts|forming_contracts|completed_contracts):list$/);
-      if (!m || !resp.data || !Array.isArray(resp.data.data)) return resp;
-      const uid = PIN_TABLE_BY_COLLECTION[m[1]];
-      const ids = pinnedIdsFor(uid);
-      const extra = extraFirstIdsFor(uid).filter(function(i) { return ids.indexOf(i) === -1; });
-      window.__cmPinSeen[uid] = pinKey(uid);
-      if (!ids.length && !extra.length) return resp;
-      const params0 = cfg.params || {};
-      let userFilter = params0.filter;
-      if (typeof userFilter === 'string') { try { userFilter = JSON.parse(userFilter); } catch (e) { userFilter = null; } }
-      // уведомления — в обход фильтров; доп. расчёты — только те, что подходят под текущий поиск/фильтр, в текущей сортировке
-      async function fetchIds(list, keepFilter) {
-        if (!list.length) return [];
-        const byId = { id: { $in: list } };
-        const filter = keepFilter && userFilter && Object.keys(userFilter).length ? { $and: [userFilter, byId] } : byId;
-        const params = Object.assign({}, params0, { filter: filter, page: 1, pageSize: list.length, sort: keepFilter && params0.sort ? params0.sort : ['-id'] });
-        const pr = await api.axios.request({ url: cfg.url, method: 'get', params: params, headers: cfg.headers, __cmPinned: true });
-        return (pr && pr.data && Array.isArray(pr.data.data)) ? pr.data.data : [];
-      }
-      const pinned = {};
-      ids.concat(extra).forEach(function(i) { pinned[i] = true; });
-      const rest = resp.data.data.filter(function(r) { return !pinned[r.id]; });
-      if (Number(params0.page || 1) !== 1) { resp.data.data = rest; return resp; }
-      const top = await fetchIds(ids, false);
-      const topExtra = await fetchIds(extra, true);
-      resp.data.data = top.concat(topExtra, rest);
-    } catch (e) { /* при любой ошибке — обычный ответ без закрепления */ }
-    return resp;
-  });
-  return true;
-}
-// набор закреплённых договоров поменялся (пришло новое уведомление / прочитали) — перезапросить таблицу
-function refreshPinnedTables() {
-  Object.keys(PIN_TABLE_BY_COLLECTION).forEach(function(coll) {
-    const uid = PIN_TABLE_BY_COLLECTION[coll];
-    const now = pinKey(uid);
-    if (window.__cmPinSeen && (window.__cmPinSeen[uid] || '') !== now) {
-      window.__cmPinSeen[uid] = now;
-      const model = colTable(uid);
-      if (model && model.resource && model.resource.refresh) { try { model.resource.refresh(); } catch (e) { /* ignore */ } }
-    }
-  });
-}
-if (!installPinInterceptor()) {
-  const pinRetry = setInterval(function() { if (installPinInterceptor()) clearInterval(pinRetry); }, 500);
-}
-function reorderNotifRows(uid) {
-  const tbody = document.querySelector('[data-uid="' + uid + '"] .ant-table-tbody');
-  if (!tbody) return;
-  const rows = Array.from(tbody.querySelectorAll('tr[data-row-key]'));
-  if (!rows.length) return;
-  const flagged = rows.filter(function(tr) { return tr.classList.contains('cm-notif-row'); });
-  if (!flagged.length) return;
-  const alreadyOnTop = rows.slice(0, flagged.length).every(function(tr, i) { return tr === flagged[i]; });
-  if (alreadyOnTop) return;
-  const rest = rows.filter(function(tr) { return !tr.classList.contains('cm-notif-row'); });
-  flagged.concat(rest).forEach(function(tr) { tbody.appendChild(tr); });
-}
-function paintNotifRows() {
-  const map = window.__cmNotifRows || {};
-  TABLES.forEach(function(uid) {
-    const ids = map[uid] || {};
-    document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-tbody > tr[data-row-key]').forEach(function(tr) {
-      const msgs = ids[tr.getAttribute('data-row-key')];
-      if (msgs) {
-        if (!tr.classList.contains('cm-notif-row')) tr.classList.add('cm-notif-row');
-        const tip = 'Непрочитанные уведомления по этому договору:\n' + msgs.slice(0, 4).join('\n') + (msgs.length > 4 ? '\n…' : '');
-        if (tr.title !== tip) tr.title = tip;
-      } else if (tr.classList.contains('cm-notif-row')) {
-        tr.classList.remove('cm-notif-row');
-        tr.removeAttribute('title');
-      }
-    });
-    reorderNotifRows(uid);
-    const tab = document.querySelector('.registry-local-tab[data-table="' + uid + '"] .ant-tabs-tab-btn');
-    if (tab) {
-      let badge = tab.querySelector('.cm-tab-badge');
-      const n = Object.keys(ids).length;
-      if (n) {
-        if (!badge) { badge = document.createElement('span'); badge.className = 'cm-tab-badge'; tab.appendChild(badge); }
-        if (badge.textContent !== String(n)) badge.textContent = String(n);
-        badge.title = 'Договоров с непрочитанными уведомлениями: ' + n;
-      } else if (badge) badge.remove();
-    }
-  });
-}
-async function refreshNotifRows() {
-  try {
-    const r = await fetch('/api/myInAppMessages:list?filter[status]=unread&pageSize=200', { headers: colAuthHeaders() });
-    const j = await r.json();
-    const list = (j && j.data && j.data.messages) ? j.data.messages : [];
-    const map = {};
-    list.forEach(function(m) {
-      const url = m.options && m.options.url ? String(m.options.url) : '';
-      const mm = url.match(/[?&]open=(forming|active|completed):(\d+)/);
-      if (!mm) return;
-      const uid = NOTIF_TABLE_BY_SOURCE[mm[1]];
-      map[uid] = map[uid] || {};
-      map[uid][mm[2]] = (map[uid][mm[2]] || []).concat([(m.title ? m.title + ': ' : '') + (m.content || '')]);
-    });
-    window.__cmNotifRows = map;
-    refreshPinnedTables();
-  } catch (e) { /* остаёмся на прошлом состоянии */ }
-  paintNotifRows();
-}
-window.__cmRefreshNotifRows = refreshNotifRows; // вызывается из карточки договора сразу после прочтения, чтобы не ждать интервал
-if (!window.__cmNotifTimers) {
-  window.__cmNotifTimers = true;
-  refreshNotifRows();
-  setInterval(function() { if (nbSessionAlive()) refreshNotifRows(); }, 8000);      // подтягиваем новые/прочитанные сообщения
-  setInterval(paintNotifRows, 600);         // строки таблицы пересоздаются при сортировке и листании — перекрашиваем
-  window.addEventListener('focus', function() { if (nbSessionAlive()) refreshNotifRows(); });
-}
-
 // ---------- договоры с нестандартной ценой («Дополнительные расчёты аренды») ----------
 // Признак — есть хотя бы один период в contract_price_periods. Только чтение: договоры и их таблицы не меняются.
-// В строке — метка «доп. расчёт» у номера договора; кнопка «Доп. расчёты сверху» поднимает такие договоры наверх (выбор запоминается).
+// Рядом с ценой (столбцы «Сумма договора» / «Арендная плата в месяц») — та же плашка, что в карточке: «с 01.02.2027: 420 554,00 ₽»
+// (ближайшее изменение считает карточка — window.__cmNextFieldChange из contract-modals.js). Нет будущих изменений — «по периоду».
+// Кнопка «Доп. расчёты сверху» поднимает такие договоры наверх (выбор запоминается в браузере).
 const EXTRA_TABLE_BY_TYPE = { active: 'ozazmpm4o4v', forming: 'formtbl000001', completed: 'ipb7gfluldk' };
+const EXTRA_PRICE_COLS = /^(Сумма договора|Арендная плата в месяц)/;
 try { window.__cmExtraFirst = localStorage.getItem('cm-extra-first') === '1'; } catch (e) { window.__cmExtraFirst = false; }
 if (!document.getElementById('cm-extracalc-style')) {
   const est = document.createElement('style');
   est.id = 'cm-extracalc-style';
   est.textContent = `
-    .cm-extra-tag { display:inline-block; margin-left:8px; padding:0 7px; border-radius:6px; border:1px solid #adc6ff; background:#f0f5ff; color:#1d39c4; font-size:11.5px; line-height:18px; font-weight:600; white-space:nowrap; vertical-align:1px; }
+    .cm-xc-badge { display:inline-block; font-size:11px; line-height:18px; color:#ad6800; background:#fff7e6; border:1px solid #ffd591; border-radius:4px; padding:0 6px; margin-left:6px; font-weight:500; white-space:nowrap; vertical-align:1px; }
+    td.cm-xc-cell { white-space:nowrap; }
     #cm-extra-btn { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:4px 12px; font-size:13px; cursor:pointer; }
     #cm-extra-btn:hover { border-color:#1c2d58; color:#1c2d58; }
     #cm-extra-btn.on { background:#1c2d58; border-color:#1c2d58; color:#fff; }
   `;
   document.head.appendChild(est);
 }
+function xcMoney(v) { return Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽'; }
+function xcDate(iso) { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(iso || ''); }
+function xcToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function paintExtraBtn() {
   const b = document.getElementById('cm-extra-btn');
   if (!b) return;
   b.classList.toggle('on', !!window.__cmExtraFirst);
   b.textContent = (window.__cmExtraFirst ? '✓ ' : '') + 'Доп. расчёты сверху';
 }
-function numberColIndex(uid) {
+// плашка для договора: ближайшее изменение арендной платы (иначе сбора) — как в карточке; без будущих изменений — «по периоду»
+function xcBadgeFor(uid, id) {
+  const info = ((window.__cmExtraRows || {})[uid] || {})[id];
+  if (!info) return null;
+  const fn = window.__cmNextFieldChange;
+  if (uid === EXTRA_TABLE_BY_TYPE.active && info.rec && typeof fn === 'function') {
+    const today = xcToday();
+    for (const f of ['rent_amount', 'utility_amount']) {
+      let ch = null;
+      try { ch = fn(info.periods, info.rec, today, f); } catch (e) { ch = null; }
+      if (ch && ch.value !== null && ch.value !== undefined) {
+        const what = f === 'rent_amount' ? 'Арендная плата' : 'Эксплуатационный сбор';
+        return { text: (f === 'rent_amount' ? '' : 'сбор ') + 'с ' + xcDate(ch.date) + ': ' + xcMoney(ch.value),
+                 title: what + ' с ' + xcDate(ch.date) + ' — ' + xcMoney(ch.value) + ' в месяц (дополнительные расчёты аренды)' };
+      }
+    }
+  }
+  return { text: 'по периоду', title: 'Нестандартная цена: в договоре есть дополнительные расчёты аренды' };
+}
+function extraCols(uid) {
   const ths = Array.from(document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-thead > tr:first-child > th'));
-  const i = ths.findIndex(function(th) { return /^Номер договора/.test((th.textContent || '').trim()); });
-  if (i !== -1) return i;
-  return ths.findIndex(function(th) { return !th.classList.contains('ant-table-selection-column'); });
+  const idx = [];
+  ths.forEach(function(th, i) { if (EXTRA_PRICE_COLS.test((th.textContent || '').trim())) idx.push(i); });
+  if (idx.length) return idx;
+  const n = ths.findIndex(function(th) { return /^Номер договора/.test((th.textContent || '').trim()); });   // столбцы цены скрыты — у номера
+  return n !== -1 ? [n] : [];
 }
 function paintExtraRows() {
-  const map = window.__cmExtraRows || {};
   TABLES.forEach(function(uid) {
-    const ids = map[uid] || {};
-    const col = numberColIndex(uid);
+    const cols = extraCols(uid);
     document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-tbody > tr[data-row-key]').forEach(function(tr) {
-      const want = !!ids[tr.getAttribute('data-row-key')];
-      const td = col >= 0 ? tr.children[col] : null;
-      const tag = tr.querySelector('.cm-extra-tag');
-      if (want && td && (!tag || tag.parentNode !== td)) {
+      const b = xcBadgeFor(uid, tr.getAttribute('data-row-key'));
+      Array.from(tr.children).forEach(function(td, i) {
+        const tag = td.querySelector(':scope > .cm-xc-badge');
+        const want = b && cols.indexOf(i) !== -1;
+        if (!want) { if (tag) tag.remove(); td.classList.remove('cm-xc-cell'); return; }
+        if (tag && tag.textContent === b.text) return;
         if (tag) tag.remove();
         const t = document.createElement('span');
-        t.className = 'cm-extra-tag';
-        t.textContent = 'доп. расчёт';
-        t.title = 'Нестандартная цена: в договоре есть дополнительные расчёты аренды';
+        t.className = 'cm-xc-badge';
+        t.textContent = b.text;
+        t.title = b.title;
         td.appendChild(t);
-      } else if (!want && tag) tag.remove();
+        td.classList.add('cm-xc-cell');
+      });
     });
   });
 }
+async function xcGet(url) {
+  const r = await fetch(url, { headers: colAuthHeaders() });
+  const j = await r.json();
+  return j && Array.isArray(j.data) ? j.data : null;
+}
 async function refreshExtraRows() {
   try {
-    const r = await fetch('/api/contract_price_periods:list?fields=contract_type,contract_ref_id&paginate=false', { headers: colAuthHeaders() });
-    const j = await r.json();
-    if (!j || !Array.isArray(j.data)) return;
+    const periods = await xcGet('/api/contract_price_periods:list?paginate=false&sort=date_from&sort=id');
+    if (!periods) return;
     const map = {};
-    j.data.forEach(function(p) {
+    periods.forEach(function(p) {
       const uid = EXTRA_TABLE_BY_TYPE[p.contract_type];
-      if (uid && p.contract_ref_id) { map[uid] = map[uid] || {}; map[uid][p.contract_ref_id] = true; }
+      if (!uid || !p.contract_ref_id) return;
+      map[uid] = map[uid] || {};
+      (map[uid][p.contract_ref_id] = map[uid][p.contract_ref_id] || { periods: [] }).periods.push(p);
     });
+    // для активных — сам договор (основные цены, площадь) нужен для расчёта ближайшего изменения
+    const act = Object.keys(map[EXTRA_TABLE_BY_TYPE.active] || {});
+    if (act.length) {
+      const recs = await xcGet('/api/rental_contracts:list?paginate=false&filter=' + encodeURIComponent(JSON.stringify({ id: { $in: act.map(Number) } })));
+      (recs || []).forEach(function(r) { const x = map[EXTRA_TABLE_BY_TYPE.active][r.id]; if (x) x.rec = r; });
+    }
     window.__cmExtraRows = map;
     refreshPinnedTables();
   } catch (e) { /* остаёмся на прошлом состоянии */ }

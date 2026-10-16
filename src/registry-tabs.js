@@ -589,7 +589,7 @@ if (!window.__cmNotifTimers) {
 
 // ---------- договоры с нестандартной ценой («Дополнительные расчёты аренды») ----------
 // Признак — есть хотя бы один период в contract_price_periods. Только чтение: договоры и их таблицы не меняются.
-// Рядом с ценой (столбцы «Сумма договора» / «Арендная плата в месяц») — та же плашка, что в карточке: «с 01.02.2027: 420 554,00 ₽»
+// Рядом с ценой — плашка «с 01.02.27: 420 554 ₽»: в «Сумме договора» — будущая сумма (аренда + сбор), в «Арендной плате в месяц» — аренда
 // (ближайшее изменение считает карточка — window.__cmNextFieldChange из contract-modals.js). Нет будущих изменений — «по периоду».
 // Кнопка «Доп. расчёты сверху» поднимает такие договоры наверх (выбор запоминается в браузере).
 const EXTRA_TABLE_BY_TYPE = { active: 'ozazmpm4o4v', forming: 'formtbl000001', completed: 'ipb7gfluldk' };
@@ -618,41 +618,54 @@ function paintExtraBtn() {
   b.classList.toggle('on', !!window.__cmExtraFirst);
   b.textContent = (window.__cmExtraFirst ? '✓ ' : '') + 'Доп. расчёты сверху';
 }
-// плашка для договора: ближайшее изменение арендной платы (иначе сбора) — как в карточке; без будущих изменений — «по периоду»
+// плашки для договора (как в карточке): в «Сумме договора» — сумма (аренда + сбор) с даты ближайшего изменения любой из них,
+// в «Арендной плате в месяц» — ближайшее изменение аренды; без будущих изменений — «по периоду»
+function xcNum(v) { return v === null || v === undefined || v === '' || isNaN(Number(v)) ? null : Number(v); }
 function xcBadgeFor(uid, id) {
   const info = ((window.__cmExtraRows || {})[uid] || {})[id];
   if (!info) return null;
+  const plain = { text: 'по периоду', title: 'Нестандартная цена: в договоре есть дополнительные расчёты аренды' };
+  const out = { total: plain, rent: plain };
   const fn = window.__cmNextFieldChange;
   if (uid === EXTRA_TABLE_BY_TYPE.active && info.rec && typeof fn === 'function') {
-    const today = xcToday();
-    for (const f of ['rent_amount', 'utility_amount']) {
-      let ch = null;
-      try { ch = fn(info.periods, info.rec, today, f); } catch (e) { ch = null; }
-      if (ch && ch.value !== null && ch.value !== undefined) {
-        const what = f === 'rent_amount' ? 'Арендная плата' : 'Эксплуатационный сбор';
-        return { text: (f === 'rent_amount' ? '' : 'сбор ') + 'с ' + xcDateShort(ch.date) + ': ' + xcMoneyShort(ch.value),
-                 title: what + ' с ' + xcDate(ch.date) + ' — ' + xcMoney(ch.value) + ' в месяц (дополнительные расчёты аренды)' };
+    const today = xcToday(), ch = {};
+    ['rent_amount', 'utility_amount'].forEach(function(f) { try { ch[f] = fn(info.periods, info.rec, today, f); } catch (e) { ch[f] = null; } });
+    const r = ch.rent_amount;
+    if (r && xcNum(r.value) !== null)
+      out.rent = { text: 'с ' + xcDateShort(r.date) + ': ' + xcMoneyShort(r.value), title: 'Арендная плата с ' + xcDate(r.date) + ' — ' + xcMoney(r.value) + ' в месяц (дополнительные расчёты аренды)' };
+    const dates = [r, ch.utility_amount].filter(function(c) { return c && c.date; }).map(function(c) { return c.date; }).sort();
+    if (dates.length) {
+      const d = dates[0];
+      const at = function(f) { return xcNum(ch[f] && ch[f].date === d ? ch[f].value : info.rec[f]); };
+      const rent = at('rent_amount'), util = at('utility_amount');
+      if (rent !== null || util !== null) {
+        const total = Math.round(((rent || 0) + (util || 0)) * 100) / 100;
+        out.total = { text: 'с ' + xcDateShort(d) + ': ' + xcMoneyShort(total),
+                      title: 'Сумма договора с ' + xcDate(d) + ' — ' + xcMoney(total) + ' в месяц: арендная плата ' + xcMoney(rent || 0) + ' + эксплуатационный сбор ' + xcMoney(util || 0) + ' (дополнительные расчёты аренды)' };
       }
     }
   }
-  return { text: 'по периоду', title: 'Нестандартная цена: в договоре есть дополнительные расчёты аренды' };
+  return out;
 }
+// столбцы для плашки: [{ i, kind: 'total' | 'rent' }]
 function extraCols(uid) {
   const ths = Array.from(document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-thead > tr:first-child > th'));
   const idx = [];
-  ths.forEach(function(th, i) { if (EXTRA_PRICE_COLS.test((th.textContent || '').trim())) idx.push(i); });
+  ths.forEach(function(th, i) { const m = (th.textContent || '').trim().match(EXTRA_PRICE_COLS); if (m) idx.push({ i: i, kind: m[1] === 'Сумма договора' ? 'total' : 'rent' }); });
   if (idx.length) return idx;
   const n = ths.findIndex(function(th) { return /^Номер договора/.test((th.textContent || '').trim()); });   // столбцы цены скрыты — у номера
-  return n !== -1 ? [n] : [];
+  return n !== -1 ? [{ i: n, kind: 'total' }] : [];
 }
 function paintExtraRows() {
   TABLES.forEach(function(uid) {
     const cols = extraCols(uid);
     document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-tbody > tr[data-row-key]').forEach(function(tr) {
-      const b = xcBadgeFor(uid, tr.getAttribute('data-row-key'));
+      const bs = xcBadgeFor(uid, tr.getAttribute('data-row-key'));
       Array.from(tr.children).forEach(function(td, i) {
         const tag = td.querySelector(':scope > .cm-xc-badge');
-        const want = b && cols.indexOf(i) !== -1;
+        const col = cols.find(function(c) { return c.i === i; });
+        const b = bs && col ? bs[col.kind] : null;
+        const want = !!b;
         if (!want) { if (tag) tag.remove(); return; }
         if (tag && tag.textContent === b.text) return;
         if (tag) tag.remove();

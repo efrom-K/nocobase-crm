@@ -95,6 +95,13 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-legend { left:10px; bottom:10px; display:flex; flex-wrap:wrap; gap:6px 14px; padding:6px 12px; font-size:12px; color:var(--muted); font-weight:500; }
     #crm-objplan .op-stage.edit .op-legend { left:62px; }
     #crm-objplan .op-legend i { display:inline-block; width:12px; height:12px; border-radius:3px; border:1.5px solid; vertical-align:-2px; margin-right:5px; }
+    #crm-objplan .op-3d { position:absolute; inset:0; touch-action:none; background:linear-gradient(#f4f6fa, #e3e8f0); }
+    #crm-objplan .op-3d canvas { display:block; width:100%; height:100%; cursor:grab; }
+    #crm-objplan .op-3d canvas:active { cursor:grabbing; }
+    #crm-objplan .op-3d-msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-weight:600; }
+    #crm-objplan .op-3dbar { left:10px; top:10px; display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:6px; max-width:calc(100% - 20px); }
+    #crm-objplan .op-3dbar label { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:600; padding:0 4px; }
+    #crm-objplan .op-3dbar input { width:56px; height:30px; border:1px solid #cdd3df; border-radius:7px; padding:0 8px; font:inherit; font-size:13px; }
     /* строка состояния */
     #crm-objplan .op-status { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; padding:8px 2px 0; font-size:12.5px; color:var(--muted); line-height:1.45; }
     #crm-objplan .op-status b { color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
@@ -446,6 +453,7 @@ const OP_ICO = {
   roomadd: '<rect x="3" y="6" width="13" height="13" rx="1"/><path d="M19.5 2.5v6M16.5 5.5h6"/>',
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  cube: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
 };
 function opIco(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (OP_ICO[n] || '') + '</svg>'; }
@@ -454,6 +462,7 @@ const OP_FMT = [['png', 'PNG', '#0e7c86', 'Картинка PNG', 'для соо
   ['xlsx', 'XLSX', '#237804', 'Экспликация в Excel', 'все помещения объекта: площади, договоры, арендаторы']];
 function opRender() {
   const root = opRoot(); if (!root) return;
+  op3dDispose();
   const plan = opPlan(), o = op.objs.find(function(x) { return x.id === op.objId; });
   const can = opCanEdit(), ed = can && op.edit, ps = op.plans.filter(function(p) { return p.object_id === op.objId; });
   if (!op.edit) op.tool = 'sel';
@@ -483,12 +492,16 @@ function opRender() {
     + '<div class="op-objs op-card"><div class="op-cap">Объекты</div><input class="op-search" data-q placeholder="Найти объект" value="' + opEsc(op.q || '') + '">' + objList + '</div>'
     + '<div class="op-main">'
     + '<div class="op-head"><div class="op-title">' + opEsc(o ? o.name : 'Объекты') + '<small>Планы и помещения</small></div>' + tabs + '<span class="op-grow"></span>'
-    + (can ? '<div class="op-seg"><button data-act="mode-view" class="' + (op.edit ? '' : 'on') + '">' + opIco('eye') + 'Просмотр</button><button data-act="mode-edit" class="' + (op.edit ? 'on' : '') + '">' + opIco('edit') + 'Редактирование</button></div>' : '')
+    + (plan ? '<div class="op-seg"><button data-act="mode-view" class="' + (op.edit || op.v3 ? '' : 'on') + '">' + opIco('eye') + 'Просмотр</button><button data-act="mode-3d" class="' + (op.v3 ? 'on' : '') + '">' + opIco('cube') + '3D</button>'
+      + (can ? '<button data-act="mode-edit" class="' + (op.edit ? 'on' : '') + '">' + opIco('edit') + 'Редактирование</button>' : '') + '</div>' : '')
     + (plan ? '<div class="op-menu-w"><button class="op-btn" data-act="exp-toggle">' + opIco('download') + 'Экспорт</button>' + menu + '</div>' : '')
     + '</div>'
     + (plan && plan.schematic ? '<div class="op-warn"><b>Схема, не по чертежу.</b> Площади помещений — из договоров, расположение и форма — условные. Загрузите чертёж подложкой («Настройки и подложка») и обведите помещения по нему.</div>' : '')
     + ribbon
-    + (plan ? '<div class="op-stage' + (op.edit ? ' edit' : '') + '"><div class="op-canvas' + (op.edit ? ' edit' : '') + (op.edit && op.tool !== 'sel' ? ' tool' : '') + '" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg"></svg></div>'
+    + (plan && op.v3 ? '<div class="op-stage"><div class="op-3d"><div class="op-3d-msg">Загружаю 3D…</div></div>' + op3dBar(can) + '<div class="op-float op-legend">' + legend + '</div></div>'
+      + '<div class="op-status"><span class="op-pill">' + opIco('cube') + '3D</span><span data-st="hint">Левая кнопка — вращать, правая (или Shift) — двигать, колесо — ближе / дальше. Клик по полу помещения — подробности. Правка — в «Редактировании», 3D строится по чертежу.</span></div>'
+      + '<div class="op-tbl op-card">' + opTableHtml() + '</div>'
+      : plan ? '<div class="op-stage' + (op.edit ? ' edit' : '') + '"><div class="op-canvas' + (op.edit ? ' edit' : '') + (op.edit && op.tool !== 'sel' ? ' tool' : '') + '" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg"></svg></div>'
       + palette
       + '<div class="op-float op-zoom"><button class="op-tb" data-act="zout" data-tip="Мельче">' + opIco('minus') + '</button><span data-st="zoom">100%</span><button class="op-tb" data-act="zin" data-tip="Крупнее">' + opIco('plus') + '</button><button class="op-tb" data-act="zfit" data-tip="Весь план">' + opIco('fit') + '</button></div>'
       + '<div class="op-float op-legend">' + legend + '</div></div>'
@@ -500,7 +513,7 @@ function opRender() {
     + '</div>'
     + '<div class="op-side op-card">' + opSideOut() + '</div>'
     + '</div>';
-  if (plan) { opDraw(); opBindCanvas(); }
+  if (plan && op.v3) op3dMount(); else if (plan) { opDraw(); opBindCanvas(); }
 }
 // инспектор: заголовок отдельной полосой, содержимое — с отступами
 function opSideOut() { const h = opSideHtml(), i = h.indexOf('</h4>'); return i < 0 ? '<div class="op-sb">' + h + '</div>' : h.slice(0, i + 5) + '<div class="op-sb">' + h.slice(i + 5) + '</div>'; }
@@ -960,7 +973,7 @@ function opPlanFormHtml(p) {
 }
 function opRenderSide() { const s = opRoot().querySelector('.op-side'); if (s) s.innerHTML = opSideOut(); }
 function opRenderTable() { const t = opRoot().querySelector('.op-tbl'); if (t) t.innerHTML = opTableHtml(); }
-function opRefresh() { opDraw(); opRenderTable(); opRenderSide(); const u = opRoot().querySelector('[data-act="undo"]'); if (u) u.disabled = !op.undo.length; const d = opRoot().querySelector('[data-act="sel-del"]'); if (d) d.disabled = !(op.sel || op.selItem); }
+function opRefresh() { if (op.r3) op3dMark(); opDraw(); opRenderTable(); opRenderSide(); const u = opRoot().querySelector('[data-act="undo"]'); if (u) u.disabled = !op.undo.length; const d = opRoot().querySelector('[data-act="sel-del"]'); if (d) d.disabled = !(op.sel || op.selItem); }
 
 // ---------- инструменты ----------
 function opSetTool(t) {
@@ -1581,6 +1594,181 @@ async function opExport(fmt) {
   } catch (e) { console.log('[objplan] export', fmt, e && e.message); opToast('Не удалось выгрузить ' + fmt.toUpperCase()); }
 }
 
+// ---------- 3D: только просмотр, строится из того же чертежа ----------
+// three.js 0.149 (UMD) лежит у нас: storage/uploads/vendor (копия — deploy/vendor), без внешних CDN.
+// Ось X — X плана, Z — Y плана, Y — высота. Стены — те же многоугольники со стыками (opWallPolys), проёмы — разрезом стены по длине
+// с перемычкой и подоконником. Высота стен — drawing.h3 (по умолчанию 3 м). Все этажи — стопкой по порядку этажей.
+// ponytail: проёмы в дуговых стенах в 3D не вырезаются; помещения с дугой — прямыми сторонами. Нужно — CSG.
+const OP_THREE_URL = '/storage/uploads/vendor/three-0.149.0.min.js';
+function op3dH(p) { const h = p && p.drawing && Number(p.drawing.h3); return h >= 2 ? h : 3; }
+function op3dBar(can) {
+  const p = opPlan(), many = opObjPlans().length > 1;
+  return '<div class="op-float op-3dbar"><button class="op-btn" data-act="3d-reset">' + opIco('cube') + 'Вид 3D</button><button class="op-btn" data-act="3d-top">' + opIco('fit') + 'Сверху</button>'
+    + (many ? '<button class="op-btn' + (op.v3all ? ' on' : '') + '" data-act="3d-all">' + opIco('layers') + 'Все этажи</button>' : '')
+    + (can ? '<label>Высота стен, м <input data-h3 value="' + opM(op3dH(p)) + '" inputmode="decimal"></label>' : '')
+    + '<button class="op-btn" data-act="3d-shot">' + opIco('download') + 'Снимок PNG</button></div>';
+}
+function op3dDispose() {
+  const r = op.r3; op.r3 = null; if (!r) return;
+  r.scene.traverse(function(o) { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(function(m) { if (m.map) m.map.dispose(); m.dispose(); }); });
+  r.renderer.dispose(); try { r.renderer.forceContextLoss(); } catch (e) { /* нет */ }
+}
+async function op3dLib() {
+  if (op.THREE) return op.THREE;
+  let T = null;
+  try { T = await ctx.requireAsync(OP_THREE_URL); } catch (e) { console.log('[objplan] three', e && e.message); }
+  if (!T || !T.Scene) T = (typeof window !== 'undefined' && window.THREE) || null;
+  op.THREE = T && T.Scene ? T : null; return op.THREE;
+}
+async function op3dMount() {
+  const box = opRoot().querySelector('.op-3d'), T = await op3dLib();
+  if (!box || !box.isConnected || !op.v3) return;
+  if (!T) { box.innerHTML = '<div class="op-3d-msg">Не удалось загрузить 3D. Обновите страницу.</div>'; return; }
+  op3dDispose();
+  const plan = opPlan(), plans = op.v3all ? opObjPlans() : [plan];
+  const renderer = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+  box.innerHTML = ''; box.appendChild(renderer.domElement);
+  const scene = new T.Scene(), rooms = [];
+  let oy = 0, W = 0, D = 0;
+  plans.forEach(function(p) {
+    const h = op3dH(p), g = op3dPlan(T, p, h, p.id === plan.id || !op.v3all, rooms);
+    g.position.y = oy; scene.add(g); W = Math.max(W, Number(p.width_m) || 60); D = Math.max(D, Number(p.height_m) || 40);
+    oy += h + (op.v3all ? 2.5 : 0);   // этажи стопкой с зазором — видно, что над чем
+  });
+  const S = Math.max(W, D);
+  scene.add(new T.HemisphereLight(0xffffff, 0xc9d1de, 0.75));
+  const sun = new T.DirectionalLight(0xffffff, 0.8); sun.position.set(W * 0.5 - S * 0.6, S * 1.2 + oy, D * 0.5 - S * 0.9); sun.target.position.set(W / 2, 0, D / 2);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005;
+  Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 0.5, far: S * 4 + oy * 2 }); sun.shadow.camera.updateProjectionMatrix();
+  scene.add(sun, sun.target);
+  const ground = new T.Mesh(new T.PlaneGeometry(S * 4, S * 4), new T.MeshStandardMaterial({ color: 0xe6eaf1, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, -0.02, D / 2); ground.receiveShadow = true; scene.add(ground);
+  const cam = new T.PerspectiveCamera(42, 1, 0.1, S * 20);
+  const r = op.r3 = { T: T, renderer: renderer, scene: scene, cam: cam, rooms: rooms, c: { tx: W / 2, ty: op.v3all ? oy / 3 : 0, tz: D / 2, th: -0.6, ph: 0.95, dist: S * 1.25 }, S: S, oy: oy };
+  r.draw = function() {
+    const c = r.c; cam.position.set(c.tx + c.dist * Math.sin(c.ph) * Math.sin(c.th), c.ty + c.dist * Math.cos(c.ph), c.tz + c.dist * Math.sin(c.ph) * Math.cos(c.th));
+    cam.lookAt(c.tx, c.ty, c.tz); renderer.render(scene, cam);
+  };
+  r.resize = function() { const b = box.getBoundingClientRect(); if (!b.width) return; renderer.setSize(b.width, b.height, false); cam.aspect = b.width / b.height; cam.updateProjectionMatrix(); r.draw(); };
+  r.home = Object.assign({}, r.c);
+  op3dBind(r, renderer.domElement); op3dMark(); r.resize();
+}
+function op3dView(top) { const r = op.r3; if (!r) return; r.c = Object.assign({}, r.home, top ? { th: 0, ph: 0.001, dist: r.S * 1.15 } : {}); r.draw(); }
+// подсветка выбранного помещения
+function op3dMark() { const r = op.r3; if (!r) return; r.rooms.forEach(function(m) { m.material.emissive.setHex(m.userData.room === op.sel ? 0x3a1010 : 0x000000); }); r.draw(); }
+function op3dBind(r, el) {
+  let d = null;
+  el.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+  el.addEventListener('pointerdown', function(e) { d = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey, moved: false }; try { el.setPointerCapture(e.pointerId); } catch (x) { /* нет */ } });
+  el.addEventListener('pointermove', function(e) {
+    if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y, c = r.c; if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
+    d.x = e.clientX; d.y = e.clientY;
+    if (d.pan) {   // двигаем точку взгляда в плоскости экрана (по горизонтали — по земле)
+      const k = c.dist / el.clientHeight * 0.8, cs = Math.cos(c.th), sn = Math.sin(c.th);
+      c.tx -= (dx * cs - dy * sn * Math.cos(c.ph)) * k; c.tz -= (-dx * sn - dy * cs * Math.cos(c.ph)) * k; c.ty += dy * Math.sin(c.ph) * k * 0.5;
+    } else { c.th -= dx * 0.008; c.ph = Math.max(0.001, Math.min(1.52, c.ph - dy * 0.008)); }
+    r.draw();
+  });
+  el.addEventListener('pointerup', function(e) {
+    const was = d; d = null; if (!was || was.moved) return;
+    const b = el.getBoundingClientRect(), ray = new r.T.Raycaster(), m = new r.T.Vector2((e.clientX - b.left) / b.width * 2 - 1, -(e.clientY - b.top) / b.height * 2 + 1);
+    ray.setFromCamera(m, r.cam);
+    const hit = ray.intersectObjects(r.rooms, false)[0];
+    op.sel = hit ? hit.object.userData.room : null; op.selItem = null; op.panel = 'room'; opRenderSide(); opRenderTable(); op3dMark();
+  });
+  el.addEventListener('wheel', function(e) { e.preventDefault(); r.c.dist = Math.max(2, Math.min(r.S * 6, r.c.dist * (e.deltaY > 0 ? 1.12 : 1 / 1.12))); r.draw(); }, { passive: false });
+}
+// один этаж: пол помещений, стены с проёмами, колонны, лестницы, подписи
+function op3dPlan(T, p, h, full, rooms) {
+  const grp = new T.Group(), W = Number(p.width_m) || 60, D = Number(p.height_m) || 40, items = opDw(p).items;
+  const mat = function(c, o) { return new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85, metalness: 0 }, o || {})); };
+  const add = function(geo, m, sh) { const x = new T.Mesh(geo, m); x.castShadow = sh !== false; x.receiveShadow = true; grp.add(x); return x; };
+  // многоугольник плана → призма от y0 до y1
+  const prism = function(pts, y0, y1, m) {
+    const s = new T.Shape(pts.map(function(q) { return new T.Vector2(q[0], -q[1]); }));
+    const g = new T.ExtrudeGeometry(s, { depth: y1 - y0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, y0, 0); return add(g, m);
+  };
+  // плита этажа
+  const slab = new T.Mesh(new T.BoxGeometry(W, 0.12, D), mat(0xf7f8fa)); slab.position.set(W / 2, -0.06, D / 2); slab.receiveShadow = true; grp.add(slab);
+  // помещения: пол цветом состояния и подпись «номер / площадь»
+  op.rooms.filter(function(r) { return r.plan_id === p.id; }).forEach(function(r) {
+    const pts = opRoomPts(r), s = new T.Shape(pts.map(function(q) { return new T.Vector2(q[0], -q[1]); }));
+    const g = new T.ShapeGeometry(s); g.rotateX(-Math.PI / 2); g.translate(0, 0.01, 0);
+    const m = new T.Mesh(g, mat(OP_COLORS[opState(r)][0], { roughness: 0.95 })); m.receiveShadow = true; m.userData.room = r.id; grp.add(m); rooms.push(m);
+    if (!full) return;
+    const bb = opBBox(pts), c = opIsPoly(r) ? opCentroid(pts) : [bb.x + bb.w / 2, bb.y + bb.h / 2], k = Math.max(0.5, Math.min(2.4, Math.min(bb.w, bb.h) * 0.3));
+    const sp = op3dLabel(T, r.code || '', r.area_sqm ? opArea(r.area_sqm) : ''); sp.scale.set(k * 2, k, 1); sp.position.set(c[0], 0.15 + k / 2, c[1]); grp.add(sp);
+  });
+  // стены: цельные многоугольники, где есть проёмы — режем стену по длине
+  const top = { ext: 0x4d4d4d, bear: 0x8c8c8c, part: 0xb8b8b8 }, side = mat(0xf3f0ea), wm = {};
+  Object.keys(top).forEach(function(k) { wm[k] = [mat(top[k]), side]; });   // ExtrudeGeometry: группа 0 — торцы (верх/низ), 1 — бока
+  const walls = items.filter(function(it) { return it.k === 'wall'; }), WP = opWallPolys(walls), glass = mat(0x9fc3e6, { transparent: true, opacity: 0.45, roughness: 0.1 });
+  const lintelH = function(k) { return k === 'gate' ? Math.min(h - 0.3, Math.max(2.4, h * 0.8)) : Math.min(h - 0.2, 2.1); };
+  WP.polys.forEach(function(q) {
+    const w = q.w, m = wm[opWT(w)], ops = opArc(w) ? [] : items.filter(function(o) { return OP_OPEN[o.k] && o.wid === w.id; });
+    if (!ops.length) { prism(q.pts, 0, h, m); return; }
+    const L = opWallLen(w), ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L, hh = Math.max(0.03, Number(w.t) || 0.2) / 2, nx = -uy * hh, ny = ux * hh;
+    const ax = function(u, sd) { return [w.x1 + ux * u + sd * nx, w.y1 + uy * u + sd * ny]; };
+    // q.pts прямой стены: [начало слева, конец слева, конец справа, начало справа] — у концов «усы» стыков
+    const piece = function(u0, u1) { return [u0 <= 1e-6 ? q.pts[0] : ax(u0, 1), u1 >= L - 1e-6 ? q.pts[1] : ax(u1, 1), u1 >= L - 1e-6 ? q.pts[2] : ax(u1, -1), u0 <= 1e-6 ? q.pts[3] : ax(u0, -1)]; };
+    const iv = ops.map(function(o) { const G = opOpG(o), ww = Number(o.w) || 0.9; return { o: o, G: G, a: Math.max(0, G.u - ww / 2), b: Math.min(L, G.u + ww / 2) }; }).sort(function(a, b) { return a.a - b.a; });
+    let u = 0;
+    iv.forEach(function(x) {
+      if (x.a - u > 1e-3) prism(piece(u, x.a), 0, h, m);
+      const rect = piece(x.a, x.b), lt = lintelH(x.o.k);
+      prism(rect, lt, h, m);   // перемычка
+      if (x.o.k === 'window') {
+        prism(rect, 0, 0.9, m);   // подоконная часть
+        const gp = new T.Mesh(new T.BoxGeometry(x.b - x.a, lt - 0.9, 0.03), glass); gp.position.set(x.G.x, (lt + 0.9) / 2, x.G.y); gp.rotation.y = -x.G.a * Math.PI / 180; grp.add(gp);
+      } else if (x.o.k === 'door') op3dDoor(T, grp, x.o, x.G, lt, mat(0xa47551));
+      u = Math.max(u, x.b);
+    });
+    if (L - u > 1e-3) prism(piece(u, L), 0, h, m);
+  });
+  WP.hubs.forEach(function(q) { prism(q.pts, 0, h, wm[opWT(q.w)]); });
+  // колонны и лестницы
+  const colm = mat(0x9a9a9a);
+  items.forEach(function(it) {
+    if (it.k === 'col') {
+      const sz = Math.max(0.1, Number(it.s) || 0.4), g = it.sh === 'round' ? new T.CylinderGeometry(sz / 2, sz / 2, h, 20) : new T.BoxGeometry(sz, h, sz);
+      const m = add(g, colm); m.position.set(it.x, h / 2, it.y);
+    }
+    if (it.k === 'stair') {
+      const l = Math.max(0.3, Number(it.l) || 3), w = Math.max(0.3, Number(it.w) || 1.2), n = Math.max(2, Math.round(Number(it.n) || 10)), a = (Number(it.a) || 0) * Math.PI / 180, st = l / n, rise = h / n, sm = mat(0xd9d4cc);
+      for (let i = 0; i < n; i++) {
+        const lx = -l / 2 + st * (i + 0.5), m = add(new T.BoxGeometry(st, rise * (i + 1), w), sm);
+        m.position.set(it.x + lx * Math.cos(a), rise * (i + 1) / 2, it.y + lx * Math.sin(a)); m.rotation.y = -a;
+      }
+    }
+  });
+  return grp;
+}
+// дверное полотно приоткрыто на 60° от петли в сторону открывания; двупольная — два полотна
+function op3dDoor(T, grp, o, G, lt, m) {
+  const dt = OP_DT[o.dt] ? o.dt : 'one'; if (dt === 'open') return;
+  const w = Number(o.w) || 0.9, hw = w / 2, f = o.flip || 0, sd = (f & 2) ? -1 : 1, a = G.a * Math.PI / 180, ph = 60 * Math.PI / 180;
+  const leaf = function(hx, lw) {
+    const dir = -Math.sign(hx), lx = dir * Math.cos(ph), ly = sd * Math.sin(ph);   // направление полотна в осях проёма
+    const px = G.x + hx * Math.cos(a), py = G.y + hx * Math.sin(a), vx = lx * Math.cos(a) - ly * Math.sin(a), vy = lx * Math.sin(a) + ly * Math.cos(a);
+    const b = new T.Mesh(new T.BoxGeometry(lw, lt - 0.02, 0.04), m); b.castShadow = true;
+    b.position.set(px + vx * lw / 2, (lt - 0.02) / 2, py + vy * lw / 2); b.rotation.y = -Math.atan2(vy, vx); grp.add(b);
+  };
+  if (dt === 'two') { leaf(-hw, hw); leaf(hw, hw); } else leaf((f & 1) ? hw : -hw, w);
+}
+function op3dLabel(T, code, area) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = 'rgba(255,255,255,0.88)'; g.strokeStyle = '#1c2d58'; g.lineWidth = 4;
+  const rr = function(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  rr(8, 8, 496, 240, 28); g.fill(); g.stroke();
+  g.fillStyle = '#1f2433'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'bold 92px Arial'; g.fillText(code, 256, area ? 84 : 128, 470);
+  if (area) { g.fillRect(96, 130, 320, 5); g.font = '64px Arial'; g.fillText(area, 256, 190, 470); }
+  const t = new T.CanvasTexture(c); t.anisotropy = 4;
+  return new T.Sprite(new T.SpriteMaterial({ map: t, depthTest: true }));
+}
+
 // ---------- события ----------
 opRoot().addEventListener('click', async function(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
@@ -1591,7 +1779,13 @@ opRoot().addEventListener('click', async function(e) {
   if (tr) { op.sel = Number(tr.getAttribute('data-room')); op.selItem = null; op.panel = 'room'; opRefresh(); return; }
   if (!a) return;
   const act = a.getAttribute('data-act');
-  if (act === 'edit' || act === 'mode-view' || act === 'mode-edit') { const v = act === 'edit' ? !op.edit : act === 'mode-edit'; if (v === op.edit) return; op.edit = v; op.panel = 'room'; op.selItem = null; op.chain = []; opRender(); return; }
+  if (act === 'edit' || act === 'mode-view' || act === 'mode-edit' || act === 'mode-3d') {
+    const v = act === 'edit' ? !op.edit : act === 'mode-edit', v3 = act === 'mode-3d'; if (v === op.edit && v3 === !!op.v3) return;
+    op.edit = v; op.v3 = v3; op.panel = 'room'; op.selItem = null; op.chain = []; opRender(); return;
+  }
+  if (act === '3d-all') { op.v3all = !op.v3all; opRender(); return; }
+  if (act === '3d-top' || act === '3d-reset') { op3dView(act === '3d-top'); return; }
+  if (act === '3d-shot') { const c = op.r3 && op.r3.renderer.domElement; if (c) { op.r3.draw(); c.toBlob(function(b) { if (b) opSaveBlob(b, 'png'); }, 'image/png'); } return; }
   if (act === 'exp-toggle') { const m = opRoot().querySelector('.op-menu'); if (m) m.classList.toggle('open'); return; }
   if (act === 'exp') return opExport(a.getAttribute('data-fmt'));
   if (act === 'sel-del') { if (op.selItem) return opDelItem(op.selItem); if (op.sel) return opDelRoom(op.sel); return; }
@@ -1654,6 +1848,10 @@ opRoot().addEventListener('change', function(e) {
     if (v && v > 0) { op.def[k] = opR(v); try { localStorage.setItem('crm-objplan-def', JSON.stringify(op.def)); } catch (x) { /* нет */ } opDraw(); } else el.value = opM(op.def[k]);
   }
   if (el.matches && el.matches('[data-p="bg_opacity"]')) { const p = opPlan(); if (p) { p.bg_opacity = Number(el.value); opDraw(); } }
+  if (el.matches && el.matches('[data-h3]')) {
+    const p = opPlan(), v = opNum(el.value); if (!p || !v || v < 2 || v > 20) { el.value = opM(op3dH(p)); return; }
+    opDw(p).h3 = opR(v); opPushDrawing(p); opRender();
+  }
 });
 opRoot().addEventListener('input', function(e) {
   const el = e.target;
@@ -1667,7 +1865,7 @@ opRoot().addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && e.target.matches && e.target.matches('input[data-f], input[data-i], input[data-d]')) { e.preventDefault(); e.target.blur(); }
   if (e.key === 'Enter' && e.target.matches && e.target.matches('input[data-cal]')) { e.preventDefault(); opCalApply(); }
 });
-window.addEventListener('resize', function() { if (opSvg()) opDraw(); });
+window.addEventListener('resize', function() { if (op.r3) op.r3.resize(); else if (opSvg()) opDraw(); });
 document.addEventListener('click', function(e) { const m = opRoot() && opRoot().querySelector('.op-menu.open'); if (m && !e.target.closest('.op-menu-w')) m.classList.remove('open'); });
 
 (async function opStart() {

@@ -588,7 +588,7 @@ function opWallsSvg(walls, px, sid) {
   });
   G.hubs.forEach(function(q) { fill[opWT(q.w)] += D(q.pts); });
   if (!o) return '';
-  let s = '<path d="' + o + '" fill="#141414" stroke="#141414" stroke-width="' + 2 * lw + '" stroke-linejoin="miter" stroke-miterlimit="6"/>';
+  let s = '<path d="' + o + '" fill="#141414" stroke="#141414" stroke-width="' + 2 * lw + '" stroke-linejoin="round"/>';   // round: у острых вершин «уса» миттер дал бы шип наружу
   ['part', 'bear', 'ext'].forEach(function(k) { if (fill[k]) s += '<path d="' + fill[k] + '" fill="' + OP_WT[k][2] + '" stroke="' + OP_WT[k][2] + '" stroke-width="' + 0.4 * px + '"/>'; });
   return s + sel + h;
 }

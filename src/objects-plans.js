@@ -237,12 +237,12 @@ function opDraw() {
     g += '<g class="op-room" data-room="' + r.id + '"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + c[0] + '" fill-opacity="' + (p.bg_url ? 0.75 : 1) + '" stroke="' + (sel ? '#cf1322' : c[1]) + '" stroke-width="' + (sel ? 3 : 1.3) * px + '"/>';
     // подписи — только если влезают
     const code = String(r.code || ''), cx = x + w / 2;
-    const fit = function(txt, f) { return txt.length * f * 0.58 < w - 4 * px; };
+    const fit = function(txt, f) { return txt.length * f * 0.68 < w - 4 * px; };
     let lines = [];
     if (fit(code, fs * 1.15) && h > fs * 1.6) lines.push(['<tspan font-weight="700">' + opEsc(code) + '</tspan>', fs * 1.15]);
     if (lines.length && h > fs * 3.1 && r.area_sqm && fit(opArea(r.area_sqm), fs)) lines.push([opEsc(opArea(r.area_sqm)), fs]);
     if (lines.length === 2 && h > fs * 4.6 && r.title) {
-      let t = String(r.title); const max = Math.floor((w - 4 * px) / (fs * 0.92 * 0.58));
+      let t = String(r.title); const max = Math.floor((w - 6 * px) / (fs * 0.92 * 0.68));
       if (max >= 4) { if (t.length > max) t = t.slice(0, max - 1) + '…'; lines.push([opEsc(t), fs * 0.92]); }
     }
     const tot = lines.reduce(function(a, l) { return a + l[1] * 1.25; }, 0);

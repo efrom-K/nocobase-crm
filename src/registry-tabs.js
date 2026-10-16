@@ -10,7 +10,7 @@ function nbSessionAlive() {
 }
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #f0f0f0;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;"><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
+ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #f0f0f0;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
 
 const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
 const DRAFTS_TAB = "cm-drafts-tab"; // не нативная NocoBase-таблица — личный список черновиков, рисуется contract-modals.js
@@ -457,6 +457,12 @@ const PIN_TABLE_BY_COLLECTION = { rental_contracts: 'ozazmpm4o4v', forming_contr
 function pinnedIdsFor(uid) {
   return Object.keys((window.__cmNotifRows || {})[uid] || {}).map(Number).filter(function(n) { return n > 0; }).sort(function(a, b) { return b - a; });
 }
+// договоры с «Дополнительными расчётами аренды» — наверх, только если включена кнопка «Доп. расчёты сверху»
+function extraFirstIdsFor(uid) {
+  if (!window.__cmExtraFirst) return [];
+  return Object.keys((window.__cmExtraRows || {})[uid] || {}).map(Number).filter(function(n) { return n > 0; });
+}
+function pinKey(uid) { return pinnedIdsFor(uid).join(',') + '|' + extraFirstIdsFor(uid).join(','); }
 function installPinInterceptor() {
   const api = window.__cmEngine && window.__cmEngine.context && window.__cmEngine.context.api;
   if (!api || !api.axios) return false;
@@ -471,16 +477,28 @@ function installPinInterceptor() {
       if (!m || !resp.data || !Array.isArray(resp.data.data)) return resp;
       const uid = PIN_TABLE_BY_COLLECTION[m[1]];
       const ids = pinnedIdsFor(uid);
-      window.__cmPinSeen[uid] = ids.join(',');
-      if (!ids.length) return resp;
+      const extra = extraFirstIdsFor(uid).filter(function(i) { return ids.indexOf(i) === -1; });
+      window.__cmPinSeen[uid] = pinKey(uid);
+      if (!ids.length && !extra.length) return resp;
+      const params0 = cfg.params || {};
+      let userFilter = params0.filter;
+      if (typeof userFilter === 'string') { try { userFilter = JSON.parse(userFilter); } catch (e) { userFilter = null; } }
+      // уведомления — в обход фильтров; доп. расчёты — только те, что подходят под текущий поиск/фильтр, в текущей сортировке
+      async function fetchIds(list, keepFilter) {
+        if (!list.length) return [];
+        const byId = { id: { $in: list } };
+        const filter = keepFilter && userFilter && Object.keys(userFilter).length ? { $and: [userFilter, byId] } : byId;
+        const params = Object.assign({}, params0, { filter: filter, page: 1, pageSize: list.length, sort: keepFilter && params0.sort ? params0.sort : ['-id'] });
+        const pr = await api.axios.request({ url: cfg.url, method: 'get', params: params, headers: cfg.headers, __cmPinned: true });
+        return (pr && pr.data && Array.isArray(pr.data.data)) ? pr.data.data : [];
+      }
       const pinned = {};
-      ids.forEach(function(i) { pinned[i] = true; });
+      ids.concat(extra).forEach(function(i) { pinned[i] = true; });
       const rest = resp.data.data.filter(function(r) { return !pinned[r.id]; });
-      if (Number((cfg.params && cfg.params.page) || 1) !== 1) { resp.data.data = rest; return resp; }
-      const params = Object.assign({}, cfg.params || {}, { filter: { id: { $in: ids } }, page: 1, pageSize: ids.length, sort: ['-id'] });
-      const pr = await api.axios.request({ url: cfg.url, method: 'get', params: params, headers: cfg.headers, __cmPinned: true });
-      const top = (pr && pr.data && Array.isArray(pr.data.data)) ? pr.data.data : [];
-      resp.data.data = top.concat(rest);
+      if (Number(params0.page || 1) !== 1) { resp.data.data = rest; return resp; }
+      const top = await fetchIds(ids, false);
+      const topExtra = await fetchIds(extra, true);
+      resp.data.data = top.concat(topExtra, rest);
     } catch (e) { /* при любой ошибке — обычный ответ без закрепления */ }
     return resp;
   });
@@ -490,7 +508,7 @@ function installPinInterceptor() {
 function refreshPinnedTables() {
   Object.keys(PIN_TABLE_BY_COLLECTION).forEach(function(coll) {
     const uid = PIN_TABLE_BY_COLLECTION[coll];
-    const now = pinnedIdsFor(uid).join(',');
+    const now = pinKey(uid);
     if (window.__cmPinSeen && (window.__cmPinSeen[uid] || '') !== now) {
       window.__cmPinSeen[uid] = now;
       const model = colTable(uid);
@@ -567,4 +585,87 @@ if (!window.__cmNotifTimers) {
   setInterval(function() { if (nbSessionAlive()) refreshNotifRows(); }, 8000);      // подтягиваем новые/прочитанные сообщения
   setInterval(paintNotifRows, 600);         // строки таблицы пересоздаются при сортировке и листании — перекрашиваем
   window.addEventListener('focus', function() { if (nbSessionAlive()) refreshNotifRows(); });
+}
+
+// ---------- договоры с нестандартной ценой («Дополнительные расчёты аренды») ----------
+// Признак — есть хотя бы один период в contract_price_periods. Только чтение: договоры и их таблицы не меняются.
+// В строке — метка «доп. расчёт» у номера договора; кнопка «Доп. расчёты сверху» поднимает такие договоры наверх (выбор запоминается).
+const EXTRA_TABLE_BY_TYPE = { active: 'ozazmpm4o4v', forming: 'formtbl000001', completed: 'ipb7gfluldk' };
+try { window.__cmExtraFirst = localStorage.getItem('cm-extra-first') === '1'; } catch (e) { window.__cmExtraFirst = false; }
+if (!document.getElementById('cm-extra-style')) {
+  const est = document.createElement('style');
+  est.id = 'cm-extra-style';
+  est.textContent = `
+    .cm-extra-tag { display:inline-block; margin-left:8px; padding:0 7px; border-radius:6px; border:1px solid #adc6ff; background:#f0f5ff; color:#1d39c4; font-size:11.5px; line-height:18px; font-weight:600; white-space:nowrap; vertical-align:1px; }
+    #cm-extra-btn { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:4px 12px; font-size:13px; cursor:pointer; }
+    #cm-extra-btn:hover { border-color:#1c2d58; color:#1c2d58; }
+    #cm-extra-btn.on { background:#1c2d58; border-color:#1c2d58; color:#fff; }
+  `;
+  document.head.appendChild(est);
+}
+function paintExtraBtn() {
+  const b = document.getElementById('cm-extra-btn');
+  if (!b) return;
+  b.classList.toggle('on', !!window.__cmExtraFirst);
+  b.textContent = (window.__cmExtraFirst ? '✓ ' : '') + 'Доп. расчёты сверху';
+}
+function numberColIndex(uid) {
+  const ths = Array.from(document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-thead > tr:first-child > th'));
+  const i = ths.findIndex(function(th) { return /^Номер договора/.test((th.textContent || '').trim()); });
+  if (i !== -1) return i;
+  return ths.findIndex(function(th) { return !th.classList.contains('ant-table-selection-column'); });
+}
+function paintExtraRows() {
+  const map = window.__cmExtraRows || {};
+  TABLES.forEach(function(uid) {
+    const ids = map[uid] || {};
+    const col = numberColIndex(uid);
+    document.querySelectorAll('[data-uid="' + uid + '"] .ant-table-tbody > tr[data-row-key]').forEach(function(tr) {
+      const want = !!ids[tr.getAttribute('data-row-key')];
+      const td = col >= 0 ? tr.children[col] : null;
+      const tag = tr.querySelector('.cm-extra-tag');
+      if (want && td && (!tag || tag.parentNode !== td)) {
+        if (tag) tag.remove();
+        const t = document.createElement('span');
+        t.className = 'cm-extra-tag';
+        t.textContent = 'доп. расчёт';
+        t.title = 'Нестандартная цена: в договоре есть дополнительные расчёты аренды';
+        td.appendChild(t);
+      } else if (!want && tag) tag.remove();
+    });
+  });
+}
+async function refreshExtraRows() {
+  try {
+    const r = await fetch('/api/contract_price_periods:list?fields=contract_type,contract_ref_id&paginate=false', { headers: colAuthHeaders() });
+    const j = await r.json();
+    if (!j || !Array.isArray(j.data)) return;
+    const map = {};
+    j.data.forEach(function(p) {
+      const uid = EXTRA_TABLE_BY_TYPE[p.contract_type];
+      if (uid && p.contract_ref_id) { map[uid] = map[uid] || {}; map[uid][p.contract_ref_id] = true; }
+    });
+    window.__cmExtraRows = map;
+    refreshPinnedTables();
+  } catch (e) { /* остаёмся на прошлом состоянии */ }
+  paintExtraRows();
+}
+(function initExtraBtn() {
+  const b = document.getElementById('cm-extra-btn');
+  if (!b || b.__cmBound) return;
+  b.__cmBound = true;
+  b.addEventListener('click', function() {
+    window.__cmExtraFirst = !window.__cmExtraFirst;
+    try { localStorage.setItem('cm-extra-first', window.__cmExtraFirst ? '1' : '0'); } catch (e) { /* ignore */ }
+    paintExtraBtn();
+    refreshPinnedTables();
+  });
+  paintExtraBtn();
+})();
+if (!window.__cmExtraTimers) {
+  window.__cmExtraTimers = true;
+  refreshExtraRows();
+  setInterval(function() { if (nbSessionAlive()) refreshExtraRows(); }, 60000);   // периоды меняются редко
+  setInterval(paintExtraRows, 600);          // строки пересоздаются при сортировке и листании
+  window.addEventListener('focus', function() { if (nbSessionAlive()) refreshExtraRows(); });
 }

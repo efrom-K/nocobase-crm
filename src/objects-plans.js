@@ -156,6 +156,8 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan svg .op-h.v { cursor:move; }
     #crm-objplan svg .op-h.m { cursor:copy; }
     #crm-objplan .edit svg .op-it { cursor:move; }
+    #crm-objplan .op-canvas.edit:not(.tool) svg path.op-it[data-it]:hover { stroke:rgba(207,19,34,.16); }
+    #crm-objplan .op-canvas.edit:not(.tool) svg .op-it:hover > rect:last-child { fill:rgba(207,19,34,.10); }
     #crm-objplan .op-canvas:not(.edit) svg .op-it { pointer-events:none; }
     #crm-objplan .op-canvas:not(.edit) svg .op-stair[data-go] { pointer-events:auto; cursor:pointer; }
     #crm-objplan .op-canvas.tool, #crm-objplan .op-canvas.tool svg .op-room, #crm-objplan .op-canvas.tool svg .op-it { cursor:crosshair; }
@@ -281,10 +283,10 @@ function opOpG(it) {
   }
   return { x: Number(it.x) || 0, y: Number(it.y) || 0, a: Number(it.a) || 0, t: Number(it.t) || 0.2 };
 }
-function opNearWall(pt, maxD) {
+function opNearWall(pt, maxD, excl) {
   let best = null;
   opItems().forEach(function(w) {
-    if (w.k !== 'wall') return;
+    if (w.k !== 'wall' || (excl && excl.indexOf(w.id) !== -1)) return;
     const A = opArc(w);
     if (A) {   // дуга: расстояние до окружности, если точка напротив дуги; иначе — до ближнего конца
       let t = (Math.atan2(pt.y - A.cy, pt.x - A.cx) - A.a1) * Math.sign(A.d); t = ((t % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
@@ -321,11 +323,28 @@ function opSnapCands(skip) {
 }
 // привязка точки: к углам стен и помещений (10 px), иначе шаг сетки; от предыдущей точки — углы 0/45/90° (магнит 6°, Shift — всегда), Alt — без привязки
 function opSnapPt(raw, e, from, skip) {
-  const px = op.vb.px, free = e && e.altKey;
+  const px = op.vb.px, free = e && e.altKey, s0 = skip || [];
   if (!free) {
     let best = null, bd = 10 * px;
     opSnapCands(skip).forEach(function(c) { const d = Math.hypot(c[0] - raw.x, c[1] - raw.y); if (d < bd) { bd = d; best = c; } });
     if (best) return { x: best[0], y: best[1], snap: true };
+    // точка на оси прямой стены (Т-примыкание): от предыдущей точки — пересечение луча 0/45/90° со стеной, иначе — проекция
+    const ws = opNearWall(raw, 8 * px, s0.map(function(k) { return k.split(':')[0]; }));
+    if (ws && !opArc(ws.wall)) {
+      const w = ws.wall, ux = (w.x2 - w.x1) / ws.L, uy = (w.y2 - w.y1) / ws.L;
+      let q = { x: w.x1 + ux * ws.u, y: w.y1 + uy * ws.u };
+      if (from) {
+        let a = Math.atan2(raw.y - from.y, raw.x - from.x); const n = Math.round(a / (Math.PI / 4)) * Math.PI / 4;
+        if ((e && e.shiftKey) || Math.abs(a - n) < 6 * Math.PI / 180) {
+          a = n; const dx = Math.cos(a), dy = Math.sin(a), cr = dx * uy - dy * ux;
+          if (Math.abs(cr) > 1e-6) {
+            const k = ((w.x1 - from.x) * uy - (w.y1 - from.y) * ux) / cr, X = { x: from.x + dx * k, y: from.y + dy * k };
+            if (k > 0 && Math.hypot(X.x - raw.x, X.y - raw.y) < 14 * px) q = X; else q = null;
+          } else q = null;
+        }
+      }
+      if (q) return { x: opR(q.x), y: opR(q.y), snap: true };
+    }
   }
   const step = free ? 0.01 : opStep();
   if (from) {
@@ -503,17 +522,77 @@ function opLenLbl(a, b, px, txt) {
   return '<text x="' + (a.x + b.x) / 2 + '" y="' + ((a.y + b.y) / 2 - 8 * px) + '" font-size="' + 12 * px + '" font-weight="700" fill="#1c2d58" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">'
     + opEsc(txt || opM(opR(L)) + ' м') + '</text>';
 }
-// стены в два прохода: сначала все контуры (чёрная линия толще стены), потом заливки от тонких к толстым — стыки сливаются, как на плане БТИ
-function opWallsSvg(walls, px, sid) {
-  const lw = 1.3 * px, T = function(w) { return Math.max(0.03, Number(w.t) || 0.2); };
-  let o = '', f = '', h = '';
-  walls.forEach(function(w) { o += '<path d="' + opWallD(w) + '" fill="none" stroke="' + (w.id === sid ? '#cf1322' : '#141414') + '" stroke-width="' + (T(w) + 2 * lw) + '" stroke-linecap="' + (opArc(w) ? 'butt' : 'square') + '"/>'; });
-  walls.slice().sort(function(a, b) { return T(a) - T(b); }).forEach(function(w) {
-    f += '<path d="' + opWallD(w) + '" fill="none" stroke="' + (w.id === sid ? '#ffccc7' : OP_WT[opWT(w)][2]) + '" stroke-width="' + T(w) + '" stroke-linecap="' + (opArc(w) ? 'butt' : 'square') + '"/>';
-    h += '<path class="op-it" data-it="' + w.id + '" d="' + opWallD(w) + '" fill="none" stroke="transparent" stroke-width="' + Math.max(T(w), 12 * px) + '"/>';
+// стены — многоугольники со стыками «на ус»: в узле, где сходятся концы стен, грани продлеваются до пересечения с гранями соседей
+// (по кругу: левая грань стены встречает правую грань следующей по углу); в узле из 3+ стен — серединка-заплатка; свободный конец — торец.
+// Конец стены, упёртый в середину другой (Т-примыкание), — торец по оси: его закрывает заливка толстой стены.
+function opWallPolys(walls) {
+  const key = function(x, y) { return Math.round(x * 1000) + ',' + Math.round(y * 1000); }, nodes = {}, ends = {};
+  walls.forEach(function(w) {
+    const L = opWallLen(w); if (L < 1e-6) return;
+    const h = Math.max(0.03, Number(w.t) || 0.2) / 2, t0 = opWallAt(w, 0).a * Math.PI / 180, t1 = opWallAt(w, opWallArcLen(w)).a * Math.PI / 180;
+    [[1, w.x1, w.y1, Math.cos(t0), Math.sin(t0)], [2, w.x2, w.y2, -Math.cos(t1), -Math.sin(t1)]].forEach(function(q) {
+      const e = { w: w, s: q[0], x: q[1], y: q[2], dx: q[3], dy: q[4], h: h, ang: Math.atan2(q[4], q[3]) }, k = key(q[1], q[2]);
+      (nodes[k] = nodes[k] || []).push(e); ends[w.id + ':' + q[0]] = e;
+    });
   });
-  return o + f + h;
+  // грань: точка P + n·side·h, n — нормаль (-dy, dx) к направлению «от узла»
+  const corner = function(a, sa, b, sb) {
+    const ax = a.x - a.dy * sa * a.h, ay = a.y + a.dx * sa * a.h, bx = b.x - b.dy * sb * b.h, by = b.y + b.dx * sb * b.h;
+    const cr = a.dx * b.dy - a.dy * b.dx; if (Math.abs(cr) < 1e-6) return [ax, ay];
+    const k = ((bx - ax) * b.dy - (by - ay) * b.dx) / cr;
+    return Math.abs(k) > 6 * Math.max(a.h, b.h) ? [ax, ay] : [ax + a.dx * k, ay + a.dy * k];   // слишком острый угол — без уса
+  };
+  const hubs = [];
+  Object.keys(nodes).forEach(function(k) {
+    const es = nodes[k];
+    es.forEach(function(e) {
+      if (es.length < 2) { e.p = [e.x - e.dy * e.h, e.y + e.dx * e.h]; e.m = [e.x + e.dy * e.h, e.y - e.dx * e.h]; return; }
+      let nx = null, pv = null, dn = 9, dp = 9;
+      es.forEach(function(f) {
+        if (f === e) return;
+        const a = ((f.ang - e.ang) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI); if (a < 1e-6) return;
+        if (a < dn) { dn = a; nx = f; } if (2 * Math.PI - a < dp) { dp = 2 * Math.PI - a; pv = f; }
+      });
+      e.p = nx ? corner(e, 1, nx, -1) : [e.x - e.dy * e.h, e.y + e.dx * e.h];
+      e.m = pv ? corner(e, -1, pv, 1) : [e.x + e.dy * e.h, e.y - e.dx * e.h];
+    });
+    if (es.length >= 3) {
+      const pts = []; es.forEach(function(e) { pts.push(e.p, e.m); });
+      const c = es[0]; pts.sort(function(a, b) { return Math.atan2(a[1] - c.y, a[0] - c.x) - Math.atan2(b[1] - c.y, b[0] - c.x); });
+      hubs.push({ pts: pts, w: es.reduce(function(m, e) { return Number(e.w.t) > Number(m.t) ? e.w : m; }, es[0].w) });
+    }
+  });
+  const polys = [];
+  walls.forEach(function(w) {
+    const a = ends[w.id + ':1'], b = ends[w.id + ':2']; if (!a || !b) return;
+    const L = [a.p], R = [a.m];
+    if (opArc(w)) {   // дуга — промежуточные точки граней по 24 отрезкам
+      const La = opWallArcLen(w);
+      for (let i = 1; i < 24; i++) { const q = opWallAt(w, La * i / 24), g = q.a * Math.PI / 180; L.push([q.x - Math.sin(g) * a.h, q.y + Math.cos(g) * a.h]); R.push([q.x + Math.sin(g) * a.h, q.y - Math.cos(g) * a.h]); }
+    }
+    L.push(b.m); R.push(b.p);
+    polys.push({ w: w, pts: L.concat(R.reverse()) });
+  });
+  return { polys: polys, hubs: hubs };
 }
+// два прохода: контуры всех стен (чёрная линия по граням), затем заливки от тонких к толстым — общие грани и стыки закрываются, шва нет.
+// Одна заливка — один path на тип: соседние многоугольники в одном path сглаживаются без светлой «волосинки» на стыке.
+function opWallsSvg(walls, px, sid) {
+  const G = opWallPolys(walls), D = function(pts) { return 'M' + pts.map(function(q) { return opR3(q[0]) + ' ' + opR3(q[1]); }).join('L') + 'Z'; }, lw = 1.3 * px;
+  const fill = { part: '', bear: '', ext: '' };
+  let o = '', h = '', sel = '';
+  G.polys.forEach(function(q) {
+    o += D(q.pts); fill[opWT(q.w)] += D(q.pts);
+    if (q.w.id === sid) sel = '<path d="' + D(q.pts) + '" fill="#ffccc7" stroke="#cf1322" stroke-width="' + 2 * px + '" stroke-linejoin="miter"/>';
+    h += '<path class="op-it" data-it="' + q.w.id + '" d="' + opWallD(q.w) + '" fill="none" stroke="transparent" stroke-width="' + Math.max(Number(q.w.t) || 0.2, 12 * px) + '"/>';
+  });
+  G.hubs.forEach(function(q) { fill[opWT(q.w)] += D(q.pts); });
+  if (!o) return '';
+  let s = '<path d="' + o + '" fill="#141414" stroke="#141414" stroke-width="' + 2 * lw + '" stroke-linejoin="miter" stroke-miterlimit="6"/>';
+  ['part', 'bear', 'ext'].forEach(function(k) { if (fill[k]) s += '<path d="' + fill[k] + '" fill="' + OP_WT[k][2] + '" stroke="' + OP_WT[k][2] + '" stroke-width="' + 0.4 * px + '"/>'; });
+  return s + sel + h;
+}
+function opR3(n) { return Math.round(n * 1000) / 1000; }
 function opColSvg(it, px, sel, ghost) {
   const s = Math.max(0.1, Number(it.s) || 0.4), col = sel ? '#cf1322' : '#141414', a = ghost ? ' opacity="0.55"' : ' class="op-it" data-it="' + it.id + '"';
   const fill = sel ? '#ff7875' : '#595959', sw = 1.3 * px;
@@ -523,7 +602,7 @@ function opColSvg(it, px, sel, ghost) {
 function opOpenSvg(it, px, ghost, sel) {
   const G = opOpG(it), w = Number(it.w) || 0.9, hw = w / 2, t = Math.max(0.05, G.t), col = sel ? '#cf1322' : '#262626', sw = 1.4 * px;
   let s = '<g transform="translate(' + G.x + ' ' + G.y + ') rotate(' + G.a + ')"' + (ghost ? ' opacity="0.55"' : ' class="op-it" data-it="' + it.id + '"') + '>';
-  s += '<rect x="' + -hw + '" y="' + (-t / 2 - px) + '" width="' + w + '" height="' + (t + 2 * px) + '" fill="#fff"/>';   // проём «вырезает» стену
+  s += '<rect x="' + -hw + '" y="' + (-t / 2 - 2 * px) + '" width="' + w + '" height="' + (t + 4 * px) + '" fill="#fff"/>';   // проём «вырезает» стену
   const jambs = '<path d="M' + -hw + ' ' + -t / 2 + 'V' + t / 2 + 'M' + hw + ' ' + -t / 2 + 'V' + t / 2 + '" stroke="' + col + '" stroke-width="' + 2 * sw + '"/>';
   if (it.k === 'door') {
     // полотно (линия) и траектория (дуга) по ГОСТ 21.201; двупольная — два полотна по половине; проём — только откосы
@@ -1424,18 +1503,13 @@ function opDxf() {
     text('ROOM_ID', c[0], c[1] - h * 0.7, h, r.code || '');
     if (r.area_sqm) text('ROOM_ID', c[0], c[1] + h * 0.7, h * 0.75, opM(r.area_sqm) + ' m2');
   });
+  opWallPolys(opItems().filter(function(it) { return it.k === 'wall'; })).polys.forEach(function(q) { poly('WALLS', q.pts, true); });
   const loc = function(G) { const a = G.a * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a); return function(lx, ly) { return [G.x + lx * cs - ly * sn, G.y + lx * sn + ly * cs]; }; };
   opItems().forEach(function(it) {
-    if (it.k === 'wall' && opArc(it)) {   // дуга — ломаной по 24 отрезкам: грани и ось
-      const t2 = (Number(it.t) || 0.2) / 2, La = opWallArcLen(it), A = [], B = [], C = [];
-      for (let i = 0; i <= 24; i++) { const q = opWallAt(it, La * i / 24), a = q.a * Math.PI / 180, nx = -Math.sin(a) * t2, ny = Math.cos(a) * t2; A.push([q.x + nx, q.y + ny]); B.unshift([q.x - nx, q.y - ny]); C.push([q.x, q.y]); }
-      poly('WALLS', A.concat(B), true); poly('WALL_AXIS', C, false);
-    } else if (it.k === 'wall') {
-      const L = opWallLen(it); if (L < 1e-6) return;
-      const t2 = (Number(it.t) || 0.2) / 2, ux = (it.x2 - it.x1) / L, uy = (it.y2 - it.y1) / L, nx = -uy * t2, ny = ux * t2;
-      const ax = it.x1 - ux * t2, ay = it.y1 - uy * t2, bx = it.x2 + ux * t2, by = it.y2 + uy * t2;
-      poly('WALLS', [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax - nx, ay - ny]], true);
-      line('WALL_AXIS', [it.x1, it.y1], [it.x2, it.y2]);
+    if (it.k === 'wall') {   // грани — общими многоугольниками со стыками (ниже), здесь — ось
+      const La = opWallArcLen(it), C = []; if (La < 1e-6) return;
+      for (let i = 0, n = opArc(it) ? 24 : 1; i <= n; i++) { const q = opWallAt(it, La * i / n); C.push([q.x, q.y]); }
+      poly('WALL_AXIS', C, false);
     } else if (OP_OPEN[it.k]) {
       const G = opOpG(it), f = loc(G), w = Number(it.w) || 0.9, hw = w / 2, t = Math.max(0.05, G.t), L = { door: 'DOORS', window: 'WINDOWS', gate: 'GATES' }[it.k];
       poly(L, [f(-hw, -t / 2), f(hw, -t / 2), f(hw, t / 2), f(-hw, t / 2)], true);

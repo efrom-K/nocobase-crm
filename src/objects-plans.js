@@ -320,6 +320,14 @@ function opOpPlace(kind, pt, base) {
   if (near) return { k: kind, wid: near.wall.id, u: opR(near.L < w ? near.L / 2 : Math.min(near.L - w / 2, Math.max(w / 2, opSnap(near.u, opStep() / 2)))), w: w, flip: flip };
   return { k: kind, x: opR(opSnap(pt.x, opStep())), y: opR(opSnap(pt.y, opStep())), a: base && !base.wid ? base.a || 0 : 0, t: op.def.wall, w: w, flip: flip };
 }
+// положение точки вдоль конкретной стены, м от начала (с обрезкой по концам)
+function opWallU(w, pt) { const n = opNearWall(pt, 1e9, opItems().filter(function(x) { return x.k === 'wall' && x.id !== w.id; }).map(function(x) { return x.id; })); return n ? n.u : 0; }
+// проём растягиванием: от точки нажатия a до точки b вдоль стены под a; null — не на стене или уже 0,3 м
+function opOpSpan(kind, a, b) {
+  const near = opNearWall(a, Math.max(0.8, 20 * op.vb.px)); if (!near) return null;
+  const u0 = near.u, u1 = opWallU(near.wall, b), w = opR(Math.abs(u1 - u0));
+  return w < 0.3 ? null : { k: kind, wid: near.wall.id, u: opR((u0 + u1) / 2), w: w, flip: 0 };
+}
 function opSnapCands(skip) {
   const s = skip || [], out = [];
   opItems().forEach(function(it) {
@@ -420,9 +428,9 @@ const OP_HINTS = {
   wall: 'Тип стены (наружная, несущая, перегородка) — в панели справа. Клик — начало стены, следующие клики — продолжение. Длину можно набрать цифрами и нажать Enter. Углы прилипают к 0/45/90° (Shift — строго, Alt — без привязки). Enter, двойной клик или правая кнопка — закончить, Esc — отменить.',
   room: 'Кликайте по углам помещения по порядку; клик по первому углу, Enter или двойной клик — замкнуть контур. Длину стороны можно набрать цифрами + Enter. Esc — отменить.',
   rect: 'Протяните мышью прямоугольник помещения от угла до угла.',
-  door: 'Наведите на стену — дверь встанет в неё. Клик — поставить. Ширина, сторона открывания, однопольная / двупольная / проём — в панели справа.',
-  window: 'Наведите на стену — окно встанет в неё. Клик — поставить. Ширина — в панели справа.',
-  gate: 'Наведите на стену — ворота встанут в неё. Клик — поставить. Ширина — в панели справа.',
+  door: 'Наведите на стену — дверь встанет в неё. Клик — поставить стандартной ширины, протяжка вдоль стены — от и до (как стену). Ширина, сторона открывания, однопольная / двупольная / проём — в панели справа.',
+  window: 'Наведите на стену — окно встанет в неё. Клик — поставить стандартной ширины, протяжка вдоль стены — от и до. Ширина — в панели справа.',
+  gate: 'Наведите на стену — ворота встанут в неё. Клик — поставить стандартной ширины, протяжка вдоль стены — от и до. Ширина — в панели справа.',
   dim: 'Два клика — размерная линия с длиной между точками. Привязывается к углам.',
   text: 'Клик — подпись на плане, текст — в панели справа.',
   col: 'Клик — колонна в этой точке (центр прилипает к углам и другим колоннам). Сетку колонн — «Размножить» в панели выбранной колонны.',
@@ -789,6 +797,10 @@ function opBuild(p, px, exp) {
     }
   }
   const si = opItem(op.selItem);
+  if (ed && sel0 && si && OP_OPEN[si.k] && si.wid) {   // края проёма — тянуть, как концы стены
+    const G = opOpG(si), a = G.a * Math.PI / 180, hw = (Number(si.w) || 0.9) / 2, p1 = { x: G.x - Math.cos(a) * hw, y: G.y - Math.sin(a) * hw }, p2 = { x: G.x + Math.cos(a) * hw, y: G.y + Math.sin(a) * hw };
+    g += opLenLbl(p1, p2, px).replace('#1c2d58', '#cf1322') + opHandle(p1.x, p1.y, 'o1', px, 'v') + opHandle(p2.x, p2.y, 'o2', px, 'v');
+  }
   if (ed && sel0 && si && (si.k === 'wall' || si.k === 'dim')) {
     g += opLenLbl({ x: si.x1, y: si.y1 }, { x: si.x2, y: si.y2 }, px).replace('#1c2d58', '#cf1322');
     g += opHandle(si.x1, si.y1, 'p1', px, 'v') + opHandle(si.x2, si.y2, 'p2', px, 'v');
@@ -829,7 +841,11 @@ function opBuild(p, px, exp) {
         + opLenLbl({ x: x, y: y + h / 2 }, { x: x + w, y: y + h / 2 }, px, opM(opR(w)) + ' × ' + opM(opR(h)) + ' м = ' + opArea(opR(w * h)));
     }
     if (t === 'dim' && from) g += opDimSvg({ x1: from.x, y1: from.y, x2: hv.x, y2: hv.y }, px, '#1c2d58', false);
-    if (OP_OPEN[t]) g += opOpenSvg(opOpPlace(t, hv), px, true, false);
+    if (OP_OPEN[t]) {
+      const dd = op.drag, sp = dd && dd.kind === 'opdraw' && dd.moved && dd.b ? opOpSpan(t, dd.a, dd.b) : null;
+      if (sp) { const G = opOpG(sp), a = G.a * Math.PI / 180, hw = sp.w / 2; g += opOpenSvg(sp, px, true, false) + opLenLbl({ x: G.x - Math.cos(a) * hw, y: G.y - Math.sin(a) * hw }, { x: G.x + Math.cos(a) * hw, y: G.y + Math.sin(a) * hw }, px); }
+      else g += opOpenSvg(opOpPlace(t, hv), px, true, false);
+    }
     g += '<circle cx="' + hv.x + '" cy="' + hv.y + '" r="' + 4 * px + '" fill="none" stroke="' + (hv.snap ? '#389e0d' : '#1c2d58') + '" stroke-width="' + 1.8 * px + '"/>';
   }
   return g;
@@ -1095,6 +1111,7 @@ function opBindCanvas() {
       const pt = OP_OPEN[op.tool] || op.tool === 'calib' ? raw : opSnapPt(raw, e, opToolFrom());
       if (op.tool === 'bgmove') { const p = opPlan(); op.drag = { kind: 'bgmove', p0: raw, b0: Object.assign({}, opBgRect(p)), before: opDrawSnap(), moved: false }; }
       else if (op.tool === 'rect' || op.tool === 'stair') { op.drag = { kind: 'rect', p0: pt }; op.hover = pt; }
+      else if (OP_OPEN[op.tool]) { op.drag = { kind: 'opdraw', p0: raw, a: opSnapPt(raw, e), sx: e.clientX, sy: e.clientY }; op.hover = raw; }   // клик — проём по умолчанию, протяжка — от и до
       else opToolClick(pt);
     } else {
       const go = op.edit ? null : e.target.closest('[data-go]');
@@ -1102,6 +1119,11 @@ function opBindCanvas() {
       const hEl = e.target.closest('.op-h'), iEl = op.edit ? e.target.closest('[data-it]') : null, gEl = e.target.closest('.op-room');
       const it = op.edit && op.selItem ? opItem(op.selItem) : null, r = opRoom(op.sel);
       if (hEl && it && hEl.getAttribute('data-h') === 'bm') op.drag = { kind: 'bulge', it: it, before: opDrawSnap(), moved: false };
+      else if (hEl && it && OP_OPEN[it.k] && /^o[12]$/.test(hEl.getAttribute('data-h'))) {
+        // край проёма: второй край стоит на месте
+        const G = opOpG(it), hw = (Number(it.w) || 0.9) / 2;
+        op.drag = { kind: 'opend', it: it, fixed: hEl.getAttribute('data-h') === 'o1' ? G.u + hw : G.u - hw, before: opDrawSnap(), moved: false };
+      }
       else if (hEl && it) {
         // конец стены: тянем вместе с ним все концы стен в этой же точке (угол не разваливается)
         const end = hEl.getAttribute('data-h'), px0 = it[end === 'p1' ? 'x1' : 'x2'], py0 = it[end === 'p1' ? 'y1' : 'y2'], ends = [];
@@ -1135,7 +1157,8 @@ function opBindCanvas() {
   cv.addEventListener('pointermove', function(e) {
     const d = op.drag, raw = opPt(e), xy = opRoot().querySelector('[data-st="xy"]');
     if (xy) xy.innerHTML = 'X <b>' + opM(opR(raw.x)) + '</b> · Y <b>' + opM(opR(raw.y)) + '</b> м' + (op.edit ? ' · шаг <b>' + opM(opStep()) + '</b> м' : '');
-    if (op.edit && op.tool !== 'sel' && op.tool !== 'bgmove' && (!d || d.kind === 'rect')) {
+    if (op.edit && op.tool !== 'sel' && op.tool !== 'bgmove' && (!d || d.kind === 'rect' || d.kind === 'opdraw')) {
+      if (d && d.kind === 'opdraw') { d.b = opSnapPt(raw, e); if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 6) d.moved = true; }
       op.hover = OP_OPEN[op.tool] || op.tool === 'calib' ? raw : opSnapPt(raw, e, d ? null : opToolFrom()); opDraw(); return;
     }
     if (!d) return;
@@ -1145,6 +1168,12 @@ function opBindCanvas() {
       op.view.x = d.v0.x - (e.clientX - d.p0.x) * s; op.view.y = d.v0.y - (e.clientY - d.p0.y) * s; opDraw(); return;
     }
     const st = opStep();
+    if (d.kind === 'opend') {
+      const w = opItem(d.it.wid); if (!w) return;
+      const u = opWallU(w, opSnapPt(raw, e)), L = opWallArcLen(w), lo = Math.max(0, Math.min(u, d.fixed)), hi = Math.min(L, Math.max(u, d.fixed));
+      if (hi - lo < 0.3) return;
+      d.it.w = opR(hi - lo); d.it.u = opR((lo + hi) / 2); d.moved = true; opDraw(); return;
+    }
     if (d.kind === 'bgmove') { const b = opDw(opPlan()).bg = Object.assign({}, d.b0); b.x = opR(d.b0.x + raw.x - d.p0.x); b.y = opR(d.b0.y + raw.y - d.p0.y); d.moved = true; opDraw(); return; }
     if (d.kind === 'bulge') {
       // стрелка прогиба = расстояние мыши от хорды по нормали; у самой хорды — прямая
@@ -1180,6 +1209,11 @@ function opBindCanvas() {
       if (d.btn === 0 && (op.sel || op.selItem)) { op.sel = null; op.selItem = null; opRefresh(); }   // клик по пустому — снять выбор
       return;
     }
+    if (d.kind === 'opdraw') {
+      const sp = d.moved && d.b ? opOpSpan(op.tool, d.a, d.b) : null;
+      if (sp) { const it = opAddItem(sp); op.selItem = it.id; opRefresh(); } else opToolClick(d.p0);
+      return;
+    }
     if (d.kind === 'rect' && op.tool === 'stair') {
       const st = opStairFromDrag(d.p0, op.hover || d.p0);
       if (st) { const it = opAddItem(st); op.selItem = it.id; opRefresh(); } else { opToast('Протяните лестницу: длина от 0,6 м, ширина от 0,5 м'); opDraw(); }
@@ -1191,7 +1225,7 @@ function opBindCanvas() {
       return;
     }
     if (!d.moved) return;
-    if (d.kind === 'iend' || d.kind === 'imove' || d.kind === 'bulge' || d.kind === 'bgmove') { if (d.it && !d.it.b) delete d.it.b; opDrawCommit(d.before); opRefresh(); return; }
+    if (d.kind === 'iend' || d.kind === 'imove' || d.kind === 'bulge' || d.kind === 'bgmove' || d.kind === 'opend') { if (d.it && !d.it.b) delete d.it.b; opDrawCommit(d.before); opRefresh(); return; }
     const r = opRoom(d.id), vals = r.poly && (d.r0.poly || d.kind === 'vert') ? opPolyVals(r.poly) : { x: r.x, y: r.y, w: r.w, h: r.h };
     Object.assign(r, d.r0); if (!d.r0.poly) r.poly = null;   // прежнее — в стек отмены через opSaveRoom
     await opSaveRoom(d.id, vals); opRefresh();

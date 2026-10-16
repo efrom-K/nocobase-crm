@@ -1110,15 +1110,15 @@ function opTotals(rs) {
   rs.forEach(function(r) { const a = Number(r.area_sqm) || 0, s = opState(r); if (s === 'rented' || s === 'free') tot += a; if (s === 'rented') rented += a; if (s === 'free') free += a; });
   return { tot: opR(tot), rented: opR(rented), free: opR(free) };
 }
-// весь план целиком: заголовок, чертёж, легенда, итоги, масштабная линейка; pw — ширина в пикселях
-async function opExportSvg(pw) {
+// весь план целиком: заголовок, чертёж, легенда, итоги, масштабная линейка; pw — ширина «как на экране» (от неё размер подписей), zoom — во сколько раз крупнее картинка
+async function opExportSvg(pw, zoom) {
   const p = opPlan(), o = op.objs.find(function(x) { return x.id === op.objId; }) || {};
   const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, pad = Math.max(W, H) * 0.04, tw = W + 2 * pad, px = tw / pw;
   const head = 70 * px, foot = 64 * px, th = H + 2 * pad + head + foot, ph = Math.round(pw * th / tw), x0 = -pad, y0 = -pad - head;
   const bg = await opBgData(p), rs = opPlanRooms(), T = opTotals(rs), t = new Date();
   const date = ('0' + t.getDate()).slice(-2) + '.' + ('0' + (t.getMonth() + 1)).slice(-2) + '.' + t.getFullYear();
   const tx = function(x, y, size, txt, attrs) { return '<text x="' + x + '" y="' + y + '" font-size="' + size * px + '"' + (attrs || '') + '>' + opEsc(txt) + '</text>'; };
-  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + pw + '" height="' + ph + '" viewBox="' + x0 + ' ' + y0 + ' ' + tw + ' ' + th + '" font-family="Arial, Helvetica, sans-serif">'
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.round(pw * zoom) + '" height="' + Math.round(ph * zoom) + '" viewBox="' + x0 + ' ' + y0 + ' ' + tw + ' ' + th + '" font-family="Arial, Helvetica, sans-serif">'
     + '<rect x="' + x0 + '" y="' + y0 + '" width="' + tw + '" height="' + th + '" fill="#fff"/>'
     + tx(0, y0 + 30 * px, 22, (o.name || '') + ' — ' + (p.title || 'План'), ' font-weight="700" fill="#1f2433"')
     + tx(0, y0 + 52 * px, 13, 'Размер плана ' + opM(W) + ' × ' + opM(H) + ' м · сетка 10 м · выгружено ' + date + (p.schematic ? ' · СХЕМА: расположение и форма помещений условные' : ''), ' fill="#5b6478"')
@@ -1135,7 +1135,7 @@ async function opExportSvg(pw) {
   const sb = W >= 20 ? 10 : W >= 5 ? 5 : 1, sx = W - sb, sy = ly - 4 * px, tk = 5 * px;
   s += '<path d="M' + sx + ' ' + (sy - tk) + 'V' + (sy + tk) + 'M' + sx + ' ' + sy + 'H' + W + 'M' + W + ' ' + (sy - tk) + 'V' + (sy + tk) + 'M' + (sx + sb / 2) + ' ' + (sy - tk * 0.6) + 'V' + (sy + tk * 0.6) + '" stroke="#1f2433" stroke-width="' + 1.6 * px + '" fill="none"/>'
     + tx(sx + sb / 2, sy + 20 * px, 12, sb + ' м', ' fill="#1f2433" text-anchor="middle"');
-  return { svg: s + '</svg>', w: pw, h: ph };
+  return { svg: s + '</svg>', w: Math.round(pw * zoom), h: Math.round(ph * zoom) };
 }
 function opCanvas(x) {
   return new Promise(function(ok, no) {
@@ -1251,7 +1251,7 @@ async function opExport(fmt) {
   try {
     if (fmt === 'xlsx') return opXlsx();
     if (fmt === 'dxf') return opSaveBlob(opDxf(), 'dxf');
-    const x = await opExportSvg(fmt === 'pdf' ? 3300 : fmt === 'png' ? 3000 : 1600);
+    const x = await opExportSvg(1400, fmt === 'pdf' ? 2.4 : fmt === 'png' ? 2 : 1);   // PDF А3 ≈ 200 dpi, подписи ~10 pt
     if (fmt === 'svg') return opSaveBlob(new Blob([x.svg], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
     const c = await opCanvas(x);
     if (fmt === 'pdf') return opSaveBlob(await opPdfBlob(c), 'pdf');

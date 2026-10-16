@@ -252,7 +252,7 @@ function opPushDrawing(p) {
 }
 function opDrawCommit(before) { const p = opPlan(); op.undo.push({ t: 'draw', id: p.id, d: before }); opPushDrawing(p); }
 function opWallLen(w) { return Math.hypot(w.x2 - w.x1, w.y2 - w.y1); }
-// дуговая стена: b — стрелка прогиба от середины хорды (плюс — влево по ходу стены); null — прямая
+// дуговая стена: b — стрелка прогиба от середины хорды (плюс — по нормали (-dy, dx), на экране вправо по ходу стены); null — прямая
 function opArc(w) {
   const b = Number(w.b) || 0, L = opWallLen(w); if (Math.abs(b) < 1e-3 || L < 1e-6) return null;
   const nx = -(w.y2 - w.y1) / L, ny = (w.x2 - w.x1) / L, mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2, R = (L * L / 4 + b * b) / (2 * Math.abs(b));
@@ -1326,9 +1326,15 @@ function opSaveBlob(blob, ext) {
 async function opBgData(p) {
   if (!p.bg_url) return null;
   try {
-    const b = await (await fetch(p.bg_url)).blob();
-    return await new Promise(function(ok, no) { const r = new FileReader(); r.onload = function() { ok(r.result); }; r.onerror = no; r.readAsDataURL(b); });
-  } catch (e) { return null; }
+    // base64 руками: FileReader и btoa в песочнице блока есть не всегда (без них подложка молча пропадала из выгрузки)
+    const res = await fetch(p.bg_url), u = new Uint8Array(await res.arrayBuffer()), A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', out = [];
+    if (!res.ok || !u.length) return null;
+    for (let i = 0; i < u.length; i += 3) {
+      const n = (u[i] << 16) | ((u[i + 1] || 0) << 8) | (u[i + 2] || 0);
+      out.push(A[n >> 18 & 63] + A[n >> 12 & 63] + (i + 1 < u.length ? A[n >> 6 & 63] : '=') + (i + 2 < u.length ? A[n & 63] : '='));
+    }
+    return 'data:' + (res.headers.get('content-type') || 'image/png').split(';')[0] + ';base64,' + out.join('');
+  } catch (e) { console.log('[objplan] bg', e && e.message); return null; }
 }
 function opTotals(rs) {
   let tot = 0, rented = 0, free = 0;

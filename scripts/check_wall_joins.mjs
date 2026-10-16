@@ -24,3 +24,18 @@ console.log('step a', JSON.stringify(r.polys[0].pts));
 r = f([W('a', 0, 0, 5, 0, 0.3), Object.assign(W('b', 5, 0, 10, 0, 0.3), { b: 2 })]);
 console.log('arc ok', r.polys[1].pts.length);
 console.log('OK');
+// наложения: стены Матросской 16.10 (комнаты обведены «Стенами по контуру» по очереди)
+{
+  const g = new Function(['opR', 'opWallLen', 'opArc', 'opNewId', 'opWallsClean'].map(pick).join('\n') + "\nconst OP_OPEN={door:1,window:1,gate:1}; let n=0; function opNewId(){return 'n'+(n++)}\nreturn opWallsClean;")();
+  const ws = [[30, 20, 13, 20, .5], [13, 20, 13, 26, .5], [30, 33.5, 30, 20, .5], [30, 20, 30, 20, .5], [10, 20, 30, 20, .38], [30, 20, 30, 13, .5], [30, 13, 23, 13, .5], [23, 13, 10, 13, .38],
+    [23, 5.5, 23, 13, .12], [36, 13, 23, 13, .38], [30, 13, 30, 33.5, .38], [36, 13, 30, 13, .38]].map((w, i) => ({ id: 'w' + i, k: 'wall', x1: w[0], y1: w[1], x2: w[2], y2: w[3], t: w[4] }));
+  const dw = { items: ws }; const ch = g(dw);
+  const W = dw.items;
+  // попарно: ни одна пара на одной линии не перекрывается
+  for (const a of W) for (const b of W) { if (a === b) continue; const L = Math.hypot(a.x2 - a.x1, a.y2 - a.y1), ux = (a.x2 - a.x1) / L, uy = (a.y2 - a.y1) / L;
+    if (Math.abs((b.x1 - a.x1) * uy - (b.y1 - a.y1) * ux) > 0.02 || Math.abs((b.x2 - a.x1) * uy - (b.y2 - a.y1) * ux) > 0.02) continue;
+    const p = [(b.x1 - a.x1) * ux + (b.y1 - a.y1) * uy, (b.x2 - a.x1) * ux + (b.y2 - a.y1) * uy].sort((x, y) => x - y);
+    if (Math.min(L, p[1]) - Math.max(0, p[0]) > 0.02) throw new Error('overlap ' + a.id + ' ' + b.id); }
+  if (W.some(w => Math.hypot(w.x2 - w.x1, w.y2 - w.y1) < 0.01)) throw new Error('zero wall');
+  console.log('clean: changed', ch, 'walls', ws.length, '→', W.length, 'OK');
+}

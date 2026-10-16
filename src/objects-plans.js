@@ -241,7 +241,11 @@ function opCentroid(pts) {
   if (Math.abs(a) < 1e-9) return [pts.reduce(function(s, q) { return s + q[0]; }, 0) / pts.length, pts.reduce(function(s, q) { return s + q[1]; }, 0) / pts.length];
   return [cx / (3 * a), cy / (3 * a)];
 }
-function opPolyVals(pts) { const p = pts.map(function(q) { return [opR(q[0]), opR(q[1])]; }); return Object.assign({ poly: p }, opBBox(p)); }
+function opPolyVals(pts) {
+  // повтор соседней точки (и последняя = первая) даёт сторону нулевой длины — а из неё стену-точку
+  const p = pts.map(function(q) { return [opR(q[0]), opR(q[1])]; }).filter(function(q, i, a) { const b = a[(i + a.length - 1) % a.length]; return a.length < 2 || Math.abs(q[0] - b[0]) + Math.abs(q[1] - b[1]) > 1e-6; });
+  return Object.assign({ poly: p }, opBBox(p));
+}
 function opPathD(pts) { return 'M' + pts.map(function(q) { return q[0] + ' ' + q[1]; }).join('L') + 'Z'; }
 // шаг привязки мыши — по масштабу: примерно 6 пикселей экрана
 function opStep() { const want = (op.vb ? op.vb.px : 0.05) * 6; return [0.05, 0.1, 0.25, 0.5, 1, 2, 5].find(function(s) { return s >= want; }) || 5; }
@@ -475,7 +479,7 @@ function opRender() {
   const legend = ['rented', 'free', 'tech', 'common'].map(function(s) { return '<span><i style="background:' + OP_COLORS[s][0] + ';border-color:' + OP_COLORS[s][1] + '"></i>' + opStateTitle(s) + '</span>'; }).join('');
   const B = function(act, ico, label, extra) { return '<button class="op-btn" data-act="' + act + '"' + (extra || '') + '>' + opIco(ico) + label + '</button>'; };
   const ribbon = ed && plan ? '<div class="op-ribbon op-card">'
-    + '<div class="op-grp"><div class="op-cap">Правка</div><div class="op-grp-b">' + B('undo', 'undo', 'Отменить', ' title="Ctrl+Z"' + (op.undo.length ? '' : ' disabled')) + B('sel-del', 'trash', 'Удалить', ' title="Delete — удалить выбранное"' + (op.sel || op.selItem ? '' : ' disabled')) + '</div></div>'
+    + '<div class="op-grp"><div class="op-cap">Правка</div><div class="op-grp-b">' + B('undo', 'undo', 'Отменить', ' title="Ctrl+Z"' + (op.undo.length ? '' : ' disabled')) + B('sel-del', 'trash', 'Удалить', ' title="Delete — удалить выбранное"' + (op.sel || op.selItem ? '' : ' disabled')) + B('walls-clean', 'wall', 'Убрать наложения стен', ' title="Стены на одной линии, лежащие друг на друге, — оставить одну (толстую); стены-точки убрать"') + '</div></div>'
     + '<div class="op-grp"><div class="op-cap">Помещения</div><div class="op-grp-b">' + B('room-add', 'roomadd', 'Добавить', ' title="Прямоугольник 6 × 6 м в центре экрана"') + B('renum', 'hash', 'Перенумеровать') + '</div></div>'
     + '<div class="op-grp"><div class="op-cap">Этажи</div><div class="op-grp-b">' + B('plan-add', 'layers', 'Новый этаж', ' title="Этаж, подвал, корпус, площадка"') + B('plan-set', 'gear', 'Настройки и подложка')
       + '<button class="op-btn' + (op.ghost ? ' on' : '') + '" data-act="ghost" title="Стены и лестницы этажа ниже — серым под чертежом">' + opIco('stair') + 'Этаж ниже под планом</button></div></div>'
@@ -1258,13 +1262,51 @@ async function opDelRoom(id) {
   try { await opApi('destroy', 'crm_rooms', id); op.rooms = op.rooms.filter(function(x) { return x.id !== id; }); op.sel = null; op.undo.push({ t: 'del', vals: keep }); opRefresh(); opToast('Удалено — можно отменить'); }
   catch (e) { opToast('Не удалось удалить'); }
 }
+// наложения стен: прямые стены на одной линии, перекрывающие друг друга, режем — перекрытый участок остаётся у толстой стены (при равной — у той, что раньше).
+// Стены нулевой длины убираем. Проёмы в изменённых стенах переезжают на стену, где оказалась их середина. Возвращает число изменённых стен.
+function opWallsClean(dw) {
+  const items = dw.items, isW = function(w) { return w.k === 'wall' && !opArc(w); };
+  // мировые координаты проёмов — до перестройки
+  const at = {}; items.forEach(function(o) { if (OP_OPEN[o.k] && o.wid) { const G = opOpG(o); at[o.id] = [G.x, G.y]; } });
+  const order = items.map(function(w, i) { return [w, i]; }).filter(function(q) { return isW(q[0]); })
+    .sort(function(a, b) { return (Number(b[0].t) || 0) - (Number(a[0].t) || 0) || a[1] - b[1]; }).map(function(q) { return q[0]; });
+  const kept = [], repl = {}; let changed = 0;
+  order.forEach(function(w) {
+    const L = opWallLen(w); if (L < 0.01) { repl[w.id] = []; changed++; return; }
+    const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
+    let iv = [[0, L]];
+    kept.forEach(function(k) {
+      const kL = opWallLen(k), kx = (k.x2 - k.x1) / kL, ky = (k.y2 - k.y1) / kL;
+      if (Math.abs(ux * ky - uy * kx) > 1e-3 || Math.abs((k.x1 - w.x1) * uy - (k.y1 - w.y1) * ux) > 0.02) return;   // не на одной линии
+      const a = (k.x1 - w.x1) * ux + (k.y1 - w.y1) * uy, b = (k.x2 - w.x1) * ux + (k.y2 - w.y1) * uy, lo = Math.min(a, b), hi = Math.max(a, b);
+      const nv = []; iv.forEach(function(q) { if (hi <= q[0] + 0.01 || lo >= q[1] - 0.01) { nv.push(q); return; } if (lo > q[0] + 0.01) nv.push([q[0], lo]); if (hi < q[1] - 0.01) nv.push([hi, q[1]]); });
+      iv = nv;
+    });
+    iv = iv.filter(function(q) { return q[1] - q[0] > 0.01; });
+    if (iv.length === 1 && iv[0][0] < 1e-6 && iv[0][1] > L - 1e-6) { kept.push(w); return; }
+    changed++;
+    repl[w.id] = iv.map(function(q, n) {
+      return Object.assign({}, w, { id: n ? opNewId() : w.id, x1: opR(w.x1 + ux * q[0]), y1: opR(w.y1 + uy * q[0]), x2: opR(w.x1 + ux * q[1]), y2: opR(w.y1 + uy * q[1]) });
+    });
+    repl[w.id].forEach(function(x) { kept.push(x); });
+  });
+  if (!changed) return 0;
+  const out = []; items.forEach(function(it) { if (repl[it.id]) out.push.apply(out, repl[it.id]); else out.push(it); });
+  dw.items = out;
+  out.forEach(function(o) {   // проём — на ту стену, где теперь его середина
+    if (!at[o.id]) return;
+    const c = at[o.id], nw = opNearWall({ x: c[0], y: c[1] }, 0.05);
+    if (nw) { o.wid = nw.wall.id; o.u = opR(nw.u); } else { const G = { x: c[0], y: c[1] }; delete o.wid; delete o.u; o.x = opR(G.x); o.y = opR(G.y); o.a = 0; }
+  });
+  return changed;
+}
 function opRoomWalls(r) {
-  const pts = opRoomPts(r), before = opDrawSnap(), items = opItems();
-  const has = function(a, b) { return items.some(function(w) { return w.k === 'wall' && ((Math.abs(w.x1 - a[0]) + Math.abs(w.y1 - a[1]) + Math.abs(w.x2 - b[0]) + Math.abs(w.y2 - b[1]) < 1e-3) || (Math.abs(w.x1 - b[0]) + Math.abs(w.y1 - b[1]) + Math.abs(w.x2 - a[0]) + Math.abs(w.y2 - a[1]) < 1e-3)); }); };
-  let n = 0;
-  pts.forEach(function(a, i) { const b = pts[(i + 1) % pts.length]; if (!has(a, b)) { items.push({ id: opNewId(), k: 'wall', x1: opR(a[0]), y1: opR(a[1]), x2: opR(b[0]), y2: opR(b[1]), t: op.def.wall, wt: op.def.wt }); n++; } });
-  if (!n) { opToast('Стены по контуру уже есть'); return; }
-  opDrawCommit(before); opRefresh(); opToast('Стен добавлено: ' + n + ' (толщина ' + opM(op.def.wall) + ' м)');
+  const pts = opRoomPts(r), before = opDrawSnap(), dw = opDw(opPlan());
+  pts.forEach(function(a, i) { const b = pts[(i + 1) % pts.length]; if (Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.01) dw.items.push({ id: opNewId(), k: 'wall', x1: opR(a[0]), y1: opR(a[1]), x2: opR(b[0]), y2: opR(b[1]), t: op.def.wall, wt: op.def.wt }); });
+  opWallsClean(dw);   // общие с соседями стороны не дублируем: участок, где стена уже есть, отрезается
+  const n = dw.items.filter(function(w) { return w.k === 'wall'; }).length - before.items.filter(function(w) { return w.k === 'wall'; }).length;
+  if (JSON.stringify(dw.items) === JSON.stringify(before.items)) { dw.items = before.items; opToast('Стены по контуру уже есть'); return; }
+  opDrawCommit(before); opRefresh(); opToast('Стены по контуру: ' + (n > 0 ? '+' + n : 'перестроены') + ' (общие с соседями стороны не задваиваются)');
 }
 async function opRenum() {
   const q = function(s) { return opRoot().querySelector('[data-r="' + s + '"]'); };
@@ -1805,6 +1847,11 @@ opRoot().addEventListener('click', async function(e) {
   if (act === 'room-area') { const r = opRoom(op.sel); if (r) { await opSaveRoom(r.id, { area_sqm: opR(opPolyArea(opRoomPts(r))) }); opRefresh(); } return; }
   if (act === 'it-del') return opDelItem(op.selItem);
   if (act === 'cal-go') return opCalApply();
+  if (act === 'walls-clean') {
+    const before = opDrawSnap(), n = opWallsClean(opDw(opPlan()));
+    if (!n) { opToast('Наложений стен нет'); return; }
+    op.selItem = null; opDrawCommit(before); opRefresh(); opToast('Исправлено стен: ' + n + ' — Ctrl+Z, чтобы вернуть'); return;
+  }
   if (act === 'cal-reset') { op.cal = []; opDraw(); opRenderSide(); return; }
   if (act === 'col-grid') {
     const it = opItem(op.selItem), g = function(k) { const el = opRoot().querySelector('[data-g="' + k + '"]'); return el ? opNum(el.value) : null; };

@@ -555,7 +555,7 @@ function opSideHtml() {
     return '<h4>' + opEsc(r.code) + (r.title ? ' · ' + opEsc(r.title) : '') + '</h4><div class="op-kv">'
       + '<b>Состояние</b><span>' + opStateTitle(s) + '</span><b>Площадь</b><span>' + opArea(r.area_sqm) + '</span><b>Тип</b><span>' + opEsc(OP_KINDS[r.kind] || '—') + '</span>'
       + (r.purpose ? '<b>Назначение</b><span>' + opEsc(r.purpose) + '</span>' : '') + (r.heating ? '<b>Отопление</b><span>' + opEsc(r.heating) + '</span>' : '')
-      + (c ? '<b>Договор</b><span>' + opEsc(c.contract_number) + '</span><b>Арендатор</b><span>' + opEsc(c.tenant_name) + '</span>' + (c.end_date ? '<b>До</b><span>' + opDate(c.end_date) + '</span>' : '') : '')
+      + (c ? '<b>Договор</b><span>' + opEsc(c.contract_number) + (opConRooms(r) ? '<br><small style="color:#595959;">' + opConRooms(r) + '</small>' : '') + '</span><b>Арендатор</b><span>' + opEsc(c.tenant_name) + '</span>' + (c.end_date ? '<b>До</b><span>' + opDate(c.end_date) + '</span>' : '') : '')
       + ((r.old_codes || []).length ? '<b>Прежние ID</b><span>' + opEsc(r.old_codes.join(', ')) + '</span>' : '')
       + '</div>' + (r.note ? '<div class="op-hint" style="margin-top:10px;white-space:pre-wrap;">' + opEsc(r.note) + '</div>' : '');
   }
@@ -563,14 +563,14 @@ function opSideHtml() {
   const cons = op.cons.filter(function(x) { return (x.object_name || '').trim() === objName.trim(); });
   const conOpts = '<option value="">— не сдано —</option>' + cons.map(function(x) {
     const busy = op.rooms.filter(function(q) { return q.contract_id === x.id && q.id !== r.id; }).map(function(q) { return q.code; });
-    return '<option value="' + x.id + '"' + (x.id === r.contract_id ? ' selected' : '') + '>' + opEsc(x.contract_number + ' — ' + (x.tenant_name || '') + ', ' + opArea(x.area_sqm) + (busy.length ? ' (уже: ' + busy.join(', ') + ')' : '')) + '</option>';
+    return '<option value="' + x.id + '"' + (x.id === r.contract_id ? ' selected' : '') + '>' + opEsc(x.contract_number + ' — ' + (x.tenant_name || '') + ', ' + opArea(x.area_sqm) + (busy.length ? ' · ещё помещения: ' + busy.join(', ') : '')) + '</option>';
   }).join('') + (r.contract_id && !c ? '<option value="' + r.contract_id + '" selected>договор #' + r.contract_id + ' (нет среди действующих)</option>' : '');
   return '<h4>Помещение</h4>'
     + opF('ID помещения', opIn('code', r.code), (r.old_codes || []).length ? 'прежние: ' + opEsc(r.old_codes.join(', ')) : '') + '<div class="op-err" data-err="code"></div>'
     + opF('Название', opIn('title', r.title, ' placeholder="Например: Склад 1, Офис 204"'))
     + '<div class="op-g2">' + opF('Площадь по документам, м²', opIn('area_sqm', r.area_sqm, ' inputmode="decimal"'), 'на рисунке: ' + opM(drawn) + ' м²')
     + opF('Тип', '<select data-f="kind">' + Object.keys(OP_KINDS).map(function(k) { return '<option value="' + k + '"' + ((r.kind || 'rent') === k ? ' selected' : '') + '>' + OP_KINDS[k] + '</option>'; }).join('') + '</select>') + '</div>'
-    + opF('Договор', '<select data-f="contract_id">' + conOpts + '</select>', 'только ссылка — договор не меняется')
+    + opF('Договор', '<select data-f="contract_id">' + conOpts + '</select>', opConRooms(r) || 'к одному договору можно привязать несколько помещений; договор не меняется')
     + opF('Назначение', opIn('purpose', r.purpose)) + opF('Отопление', opIn('heating', r.heating, ' placeholder="есть / нет / частично"'))
     + (poly ? opF('Положение на плане, м', '<div class="op-g2">' + ['x', 'y'].map(function(k) { return '<input type="text" data-f="' + k + '" value="' + opM(r[k]) + '" inputmode="decimal" title="' + (k === 'x' ? 'X — левый край' : 'Y — верхний край') + '">'; }).join('') + '</div>',
         'контур из ' + opRoomPts(r).length + ' углов: тащите углы на плане, «+» — новый угол, двойной клик по углу — убрать')
@@ -583,6 +583,14 @@ function opSideHtml() {
     + (!poly && opNum(r.area_sqm) && Math.abs(drawn - opNum(r.area_sqm)) > 0.05 ? '<button class="op-btn" data-act="room-fit" title="Глубину подогнать так, чтобы ширина × глубина = площадь">Размер по площади</button>' : '')
     + (opNum(r.area_sqm) === null && drawn > 0 ? '<button class="op-btn" data-act="room-area" title="Записать площадь по рисунку в поле «Площадь»">Площадь = по рисунку</button>' : '')
     + '<button class="op-btn" data-act="room-dup">Копия рядом</button><button class="op-btn red" data-act="room-del">Удалить</button></div>';
+}
+// все помещения договора (на любых планах объекта) и их площадь против площади в договоре
+function opConRooms(r) {
+  if (!r.contract_id) return '';
+  const rs = op.rooms.filter(function(q) { return q.contract_id === r.contract_id; }).sort(function(a, b) { return String(a.code).localeCompare(String(b.code), 'ru', { numeric: true }); });
+  const c = opCon(r.contract_id), sum = opR(rs.reduce(function(a, q) { return a + (Number(q.area_sqm) || 0); }, 0)), ca = c ? opNum(c.area_sqm) : null;
+  return 'Помещения по договору: ' + rs.map(function(q) { return opEsc(q.code) + (q.area_sqm ? ' (' + opArea(q.area_sqm) + ')' : ''); }).join(', ')
+    + (rs.length > 1 ? ' — итого ' + opArea(sum) : '') + (ca ? (Math.abs(sum - ca) > 0.05 ? ' · в договоре ' + opArea(ca) : ' · совпадает с договором') : '');
 }
 function opPlanFormHtml(p) {
   const nw = !p || op.newPlan;

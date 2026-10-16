@@ -32,58 +32,121 @@ if (!document.getElementById('crm-objplan-style')) {
   const st = document.createElement('style');
   st.id = 'crm-objplan-style';
   st.textContent = `
-    #crm-objplan { color:#1f1f1f; font-size:13.5px; }
-    #crm-objplan .op-wrap { display:grid; grid-template-columns:220px minmax(0,1fr) 330px; gap:14px; align-items:start; }
-    #crm-objplan .op-objs { border:1px solid #e3e7ef; border-radius:8px; background:#fff; padding:6px; max-height:calc(100vh - 170px); overflow:auto; }
-    #crm-objplan .op-obj { display:flex; justify-content:space-between; gap:8px; padding:8px 10px; border-radius:6px; cursor:pointer; font-weight:500; }
-    #crm-objplan .op-obj:hover { background:#f3f5fa; }
-    #crm-objplan .op-obj.on { background:#1c2d58; color:#fff; font-weight:700; }
-    #crm-objplan .op-obj small { color:#8c8c8c; font-weight:600; white-space:nowrap; }
+    #crm-objplan { --ink:#1f2433; --muted:#5b6478; --line:#dfe3ec; --soft:#f3f5f9; --brand:#1c2d58; --brand2:#2f4a8a; --red:#cf1322; color:var(--ink); font-size:13.5px; }
+    #crm-objplan .op-wrap { display:grid; grid-template-columns:232px minmax(0,1fr) 340px; gap:16px; align-items:start; }
+    #crm-objplan .op-card { background:#fff; border:1px solid var(--line); border-radius:10px; }
+    #crm-objplan .op-cap { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#7c869b; }
+    /* объекты */
+    #crm-objplan .op-objs { padding:12px 8px 8px; position:sticky; top:8px; max-height:calc(100vh - 150px); overflow:auto; }
+    #crm-objplan .op-objs .op-cap { padding:0 8px 8px; }
+    #crm-objplan .op-search { width:100%; box-sizing:border-box; border:1px solid var(--line); background:var(--soft); border-radius:7px; padding:6px 10px; font:inherit; font-size:13px; color:var(--ink); margin-bottom:6px; }
+    #crm-objplan .op-search:focus { outline:none; border-color:var(--brand); background:#fff; }
+    #crm-objplan .op-obj { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 10px; border-radius:7px; cursor:pointer; font-weight:500; }
+    #crm-objplan .op-obj:hover { background:var(--soft); }
+    #crm-objplan .op-obj.on { background:var(--brand); color:#fff; font-weight:700; }
+    #crm-objplan .op-obj small { color:#8a93a6; font-weight:600; font-size:11.5px; white-space:nowrap; }
     #crm-objplan .op-obj.on small { color:#d6dcf0; }
     #crm-objplan .op-main { min-width:0; }
-    #crm-objplan .op-bar { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:8px; }
-    #crm-objplan .op-title { font-size:18px; font-weight:700; margin-right:8px; }
-    #crm-objplan .op-btn { border:1px solid #c9d1df; background:#fff; color:#1f1f1f; border-radius:6px; padding:4px 11px; font-size:13px; cursor:pointer; font-family:inherit; }
-    #crm-objplan .op-btn:hover { border-color:#1c2d58; color:#1c2d58; }
-    #crm-objplan .op-btn.on, #crm-objplan .op-btn.pri { background:#1c2d58; border-color:#1c2d58; color:#fff; }
-    #crm-objplan .op-btn.red { color:#cf1322; border-color:#ffa39e; }
-    #crm-objplan .op-btn:disabled { opacity:.45; cursor:default; }
-    #crm-objplan .op-sep { width:1px; height:22px; background:#e3e7ef; margin:0 4px; }
-    #crm-objplan .op-plan-tab { border:1px solid #c9d1df; border-bottom-width:2px; background:#f8f9fb; border-radius:6px 6px 0 0; padding:4px 12px; cursor:pointer; font-weight:600; font-family:inherit; font-size:13px; }
-    #crm-objplan .op-plan-tab.on { background:#fff; border-bottom-color:#1c2d58; color:#1c2d58; }
-    #crm-objplan .op-canvas { position:relative; border:1px solid #c9d1df; border-radius:8px; background:#fbfcfe; height:calc(100vh - 330px); min-height:380px; overflow:hidden; touch-action:none; user-select:none; }
+    /* шапка */
+    #crm-objplan .op-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:10px; }
+    #crm-objplan .op-title { font-size:20px; font-weight:700; line-height:1.15; margin-right:4px; }
+    #crm-objplan .op-title small { display:block; font-size:12px; font-weight:500; color:var(--muted); margin-top:2px; }
+    #crm-objplan .op-grow { flex:1; }
+    #crm-objplan .op-seg { display:inline-flex; flex-wrap:wrap; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; }
+    #crm-objplan .op-seg button { display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; height:28px; padding:0 12px; border-radius:6px; font:inherit; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+    #crm-objplan .op-seg button svg { width:16px; height:16px; }
+    #crm-objplan .op-seg button:hover:not(.on) { color:var(--ink); background:#e8ecf3; }
+    #crm-objplan .op-seg button.on { background:#fff; color:var(--brand); box-shadow:0 1px 3px rgba(16,24,40,.14); }
+    /* кнопки */
+    #crm-objplan .op-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; height:32px; padding:0 12px; border:1px solid #cdd3df; background:#fff; color:var(--ink); border-radius:7px; font:inherit; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; transition:border-color .15s, background .15s, color .15s; }
+    #crm-objplan .op-btn svg { width:16px; height:16px; flex:none; }
+    #crm-objplan .op-btn:hover { border-color:var(--brand); color:var(--brand); background:#f7f9fd; }
+    #crm-objplan .op-btn.on, #crm-objplan .op-btn.pri { background:var(--brand); border-color:var(--brand); color:#fff; }
+    #crm-objplan .op-btn.pri:hover { background:var(--brand2); border-color:var(--brand2); }
+    #crm-objplan .op-btn.red { color:var(--red); border-color:#ffa39e; }
+    #crm-objplan .op-btn.red:hover { background:#fff1f0; }
+    #crm-objplan .op-btn:disabled { opacity:.42; cursor:default; pointer-events:none; }
+    /* лента действий */
+    #crm-objplan .op-ribbon { display:flex; flex-wrap:wrap; align-items:stretch; row-gap:8px; padding:7px 4px 6px; margin-bottom:10px; }
+    #crm-objplan .op-grp { display:flex; flex-direction:column; gap:5px; padding:0 12px; border-right:1px solid var(--line); }
+    #crm-objplan .op-grp:last-child { border-right:0; }
+    #crm-objplan .op-grp .op-cap { text-align:center; font-size:10.5px; }
+    #crm-objplan .op-grp-b { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+    /* холст */
+    #crm-objplan .op-stage { position:relative; border:1px solid #c9d1df; border-radius:10px; background:#f7f8fb; height:calc(100vh - 300px); min-height:440px; overflow:hidden; }
+    #crm-objplan .op-stage.edit { border-color:var(--brand); box-shadow:0 0 0 3px rgba(28,45,88,.10); }
+    #crm-objplan .op-canvas { position:absolute; inset:0; touch-action:none; user-select:none; outline:none; }
     #crm-objplan .op-canvas svg { width:100%; height:100%; display:block; }
-    #crm-objplan .op-canvas.edit { border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    #crm-objplan .op-hint { font-size:12px; color:#595959; margin:6px 0 0; }
-    #crm-objplan .op-warn { background:#fff7e6; border:1px solid #ffd591; color:#873800; border-radius:6px; padding:6px 10px; font-size:12.5px; margin-bottom:8px; }
-    #crm-objplan .op-legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:#595959; margin-left:auto; }
-    #crm-objplan .op-legend i { display:inline-block; width:12px; height:12px; border-radius:2px; border:1px solid; vertical-align:-2px; margin-right:4px; }
-    #crm-objplan .op-side { border:1px solid #e3e7ef; border-radius:8px; background:#fff; padding:12px 14px; position:sticky; top:8px; max-height:calc(100vh - 170px); overflow:auto; }
-    #crm-objplan .op-side h4 { margin:0 0 10px; font-size:15px; }
-    #crm-objplan .op-f { margin-bottom:9px; }
-    #crm-objplan .op-f label { display:block; font-size:12px; color:#595959; margin-bottom:3px; font-weight:500; }
-    #crm-objplan .op-f input[type=text], #crm-objplan .op-f input[type=number], #crm-objplan .op-f select, #crm-objplan .op-f textarea { width:100%; box-sizing:border-box; border:1px solid #c9d1df; border-radius:6px; padding:5px 8px; font:inherit; font-size:13.5px; color:#1f1f1f; background:#fff; }
-    #crm-objplan .op-f input:focus, #crm-objplan .op-f textarea:focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    #crm-objplan .op-f input[readonly] { background:#f5f6f8; color:#595959; }
-    #crm-objplan .op-f .op-sub { font-size:11.5px; color:#8c8c8c; margin-top:3px; }
-    #crm-objplan .op-f .op-err { font-size:12px; color:#cf1322; margin-top:3px; }
+    #crm-objplan .op-float { position:absolute; z-index:2; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 4px 16px rgba(16,24,40,.10); }
+    #crm-objplan .op-palette { left:10px; top:10px; display:flex; flex-direction:column; gap:2px; padding:5px; }
+    #crm-objplan .op-palette i { display:block; height:1px; background:var(--line); margin:3px 4px; }
+    #crm-objplan .op-tb { width:38px; height:38px; border:0; background:transparent; border-radius:7px; color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative; padding:0; }
+    #crm-objplan .op-tb svg { width:20px; height:20px; }
+    #crm-objplan .op-tb:hover { background:var(--soft); }
+    #crm-objplan .op-tb.on { background:var(--brand); color:#fff; }
+    #crm-objplan .op-tb[data-tip]:hover::after { content:attr(data-tip); position:absolute; left:46px; top:50%; transform:translateY(-50%); background:#1f2433; color:#fff; font-size:12px; font-weight:500; padding:4px 9px; border-radius:6px; white-space:nowrap; pointer-events:none; z-index:5; }
+    #crm-objplan .op-zoom { right:10px; top:10px; display:flex; align-items:center; gap:1px; padding:3px; }
+    #crm-objplan .op-zoom .op-tb { width:32px; height:30px; }
+    #crm-objplan .op-zoom .op-tb svg { width:18px; height:18px; }
+    #crm-objplan .op-zoom .op-tb[data-tip]:hover::after { left:auto; right:0; top:38px; transform:none; }
+    #crm-objplan .op-zoom span { min-width:50px; text-align:center; font-weight:700; font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--muted); }
+    #crm-objplan .op-legend { left:10px; bottom:10px; display:flex; flex-wrap:wrap; gap:6px 14px; padding:6px 12px; font-size:12px; color:var(--muted); font-weight:500; }
+    #crm-objplan .op-stage.edit .op-legend { left:62px; }
+    #crm-objplan .op-legend i { display:inline-block; width:12px; height:12px; border-radius:3px; border:1.5px solid; vertical-align:-2px; margin-right:5px; }
+    /* строка состояния */
+    #crm-objplan .op-status { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; padding:8px 2px 0; font-size:12.5px; color:var(--muted); line-height:1.45; }
+    #crm-objplan .op-status b { color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+    #crm-objplan .op-status [data-st="hint"] { flex:1; min-width:280px; }
+    #crm-objplan .op-pill { display:inline-flex; align-items:center; gap:6px; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:1px 10px; color:var(--ink); font-weight:600; white-space:nowrap; }
+    #crm-objplan .op-pill svg { width:14px; height:14px; }
+    #crm-objplan .op-xy { white-space:nowrap; }
+    #crm-objplan .op-warn { background:#fff7e6; border:1px solid #ffd591; color:#873800; border-radius:8px; padding:7px 12px; font-size:12.5px; margin-bottom:10px; }
+    /* экспорт */
+    #crm-objplan .op-menu-w { position:relative; }
+    #crm-objplan .op-menu { display:none; position:absolute; right:0; top:38px; z-index:20; padding:6px; min-width:300px; }
+    #crm-objplan .op-menu.open { display:block; }
+    #crm-objplan .op-menu button { display:flex; width:100%; gap:12px; align-items:center; border:0; background:transparent; padding:8px 10px; border-radius:7px; font:inherit; text-align:left; cursor:pointer; color:var(--ink); }
+    #crm-objplan .op-menu button:hover { background:var(--soft); }
+    #crm-objplan .op-menu b { display:block; font-size:13.5px; font-weight:600; }
+    #crm-objplan .op-menu small { display:block; color:var(--muted); font-size:12px; }
+    #crm-objplan .op-fmt { width:44px; flex:none; font-size:10.5px; font-weight:800; letter-spacing:.04em; text-align:center; border-radius:5px; padding:4px 0; color:#fff; }
+    /* инспектор */
+    #crm-objplan .op-side { position:sticky; top:8px; max-height:calc(100vh - 150px); overflow:auto; }
+    #crm-objplan .op-side h4 { margin:0; padding:13px 16px; font-size:15px; font-weight:700; border-bottom:1px solid var(--line); background:#fafbfd; border-radius:10px 10px 0 0; }
+    #crm-objplan .op-sb { padding:12px 16px 16px; }
+    #crm-objplan .op-f { margin-bottom:11px; }
+    #crm-objplan .op-f label { display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#7c869b; margin-bottom:4px; }
+    #crm-objplan .op-f input[type=text], #crm-objplan .op-f input[type=number], #crm-objplan .op-f select, #crm-objplan .op-f textarea { width:100%; box-sizing:border-box; border:1px solid #cdd3df; border-radius:7px; padding:6px 9px; font:inherit; font-size:13.5px; color:var(--ink); background:#fff; }
+    #crm-objplan .op-f input[type=text], #crm-objplan .op-f input[type=number], #crm-objplan .op-f select { height:33px; }
+    #crm-objplan .op-f input:focus, #crm-objplan .op-f textarea:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(28,45,88,.12); }
+    #crm-objplan .op-f input[readonly] { background:var(--soft); color:var(--muted); }
+    #crm-objplan .op-f .op-sub { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4; }
+    #crm-objplan .op-f .op-err, #crm-objplan .op-err { font-size:12px; color:var(--red); margin-top:-6px; margin-bottom:6px; }
     #crm-objplan .op-g4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
-    #crm-objplan .op-g2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-    #crm-objplan .op-acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
-    #crm-objplan .op-kv { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; font-size:13px; }
-    #crm-objplan .op-kv b { color:#595959; font-weight:500; }
-    #crm-objplan .op-tot { display:flex; flex-wrap:wrap; gap:16px; margin:12px 0 6px; font-size:13px; }
-    #crm-objplan .op-tot b { font-size:15px; font-variant-numeric:tabular-nums; }
+    #crm-objplan .op-g2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    #crm-objplan .op-acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid #eef1f6; }
+    #crm-objplan .op-kv { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13px; }
+    #crm-objplan .op-kv b { color:var(--muted); font-weight:500; }
+    #crm-objplan .op-hint { font-size:12.5px; color:var(--muted); line-height:1.45; margin:6px 0 0; }
+    #crm-objplan .op-keys { font-size:12px; color:var(--muted); line-height:1.7; margin-top:12px; padding-top:10px; border-top:1px solid #eef1f6; }
+    #crm-objplan .op-keys kbd { display:inline-block; min-width:16px; text-align:center; font:inherit; font-size:11px; font-weight:700; color:var(--ink); background:var(--soft); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px; }
+    /* экспликация */
+    #crm-objplan .op-tbl { margin-top:14px; padding:12px 14px 6px; }
+    #crm-objplan .op-tbl-h { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin-bottom:10px; }
+    #crm-objplan .op-tbl-h .op-t-title { font-size:15px; font-weight:700; margin-right:6px; }
+    #crm-objplan .op-tbl-h .op-pill b { font-size:13.5px; }
+    #crm-objplan .op-tbl-h small { color:#8a93a6; font-size:12px; }
     #crm-objplan table.op-t { width:100%; border-collapse:collapse; font-size:13px; }
-    #crm-objplan .op-t th { background:#eef1f6; border-bottom:2px solid #c9d1df; text-align:left; padding:6px 8px; font-weight:600; white-space:nowrap; }
-    #crm-objplan .op-t td { padding:5px 8px; border-bottom:1px solid #edf0f5; }
+    #crm-objplan .op-t th { background:#eef1f6; border-bottom:2px solid #c9d1df; text-align:left; padding:7px 8px; font-weight:600; white-space:nowrap; color:#262626; }
+    #crm-objplan .op-t td { padding:6px 8px; border-bottom:1px solid #edf0f5; color:#1f1f1f; }
     #crm-objplan .op-t tr:nth-child(even) td { background:#f8f9fb; }
     #crm-objplan .op-t tbody tr { cursor:pointer; }
     #crm-objplan .op-t tbody tr:hover td { background:#eaf0ff; }
     #crm-objplan .op-t tr.on td { background:#dbe4ff !important; font-weight:600; }
     #crm-objplan .op-t .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-    #crm-objplan .op-chip { display:inline-block; padding:0 7px; border-radius:9px; font-size:11.5px; border:1px solid; white-space:nowrap; }
-    #crm-objplan .op-toast { position:fixed; right:24px; bottom:24px; background:#1f1f1f; color:#fff; padding:8px 14px; border-radius:6px; font-size:13px; z-index:2000; }
+    #crm-objplan .op-chip { display:inline-block; padding:0 8px; border-radius:9px; font-size:11.5px; font-weight:600; border:1px solid; white-space:nowrap; }
+    #crm-objplan .op-toast { position:fixed; right:24px; bottom:24px; background:#1f2433; color:#fff; padding:9px 15px; border-radius:8px; font-size:13px; z-index:2000; box-shadow:0 6px 20px rgba(0,0,0,.2); }
+    /* чертёж */
     #crm-objplan svg text { pointer-events:none; font-family:inherit; }
     #crm-objplan svg .op-room { cursor:pointer; }
     #crm-objplan .edit svg .op-room { cursor:move; }
@@ -93,15 +156,12 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .edit svg .op-it { cursor:move; }
     #crm-objplan .op-canvas:not(.edit) svg .op-it { pointer-events:none; }
     #crm-objplan .op-canvas.tool, #crm-objplan .op-canvas.tool svg .op-room, #crm-objplan .op-canvas.tool svg .op-it { cursor:crosshair; }
-    #crm-objplan .op-tools { background:#f3f5fa; border:1px solid #e3e7ef; border-radius:8px; padding:5px 6px; }
-    #crm-objplan .op-tools .op-btn kbd { font:inherit; font-size:11px; color:#8c8c8c; margin-left:5px; }
-    #crm-objplan .op-tools .op-btn.on kbd { color:#d6dcf0; }
-    #crm-objplan .op-keys { font-size:12px; color:#595959; line-height:1.6; margin-top:10px; }
-    #crm-objplan .op-keys b { color:#1f1f1f; }
-    @media (max-width: 1100px) { #crm-objplan .op-wrap { grid-template-columns:1fr; } #crm-objplan .op-side { position:static; } #crm-objplan .op-objs { max-height:none; display:flex; flex-wrap:wrap; gap:4px; } }
+    @media (max-width: 1250px) { #crm-objplan .op-wrap { grid-template-columns:200px minmax(0,1fr); } #crm-objplan .op-side { grid-column:1 / -1; position:static; max-height:none; } }
+    @media (max-width: 800px) { #crm-objplan .op-wrap { grid-template-columns:1fr; } #crm-objplan .op-objs { position:static; max-height:240px; } }
   `;
   document.head.appendChild(st);
 }
+// @include src/_crm-xlsx.js
 
 // ---------- состояние ----------
 const OP_KINDS = { rent: 'Под аренду', tech: 'Техническое', common: 'Общего пользования' };
@@ -292,42 +352,86 @@ const OP_HINTS = {
   dim: 'Два клика — размерная линия с длиной между точками. Привязывается к углам.',
   text: 'Клик — подпись на плане, текст — в панели справа.'
 };
+// иконки — контур 24×24, цвет от кнопки
+const OP_ICO = {
+  sel: '<path d="M6 3l12 8.5-5.5 1.2L9.5 18z"/>',
+  wall: '<path d="M3 18h8V7h10" stroke-width="3.4" stroke-linecap="butt" stroke-linejoin="miter"/>',
+  room: '<path d="M4 5h10l6 6v8H4z"/><circle cx="4" cy="5" r="1.6" fill="currentColor"/><circle cx="14" cy="5" r="1.6" fill="currentColor"/><circle cx="20" cy="11" r="1.6" fill="currentColor"/><circle cx="20" cy="19" r="1.6" fill="currentColor"/><circle cx="4" cy="19" r="1.6" fill="currentColor"/>',
+  rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
+  door: '<path d="M2 20h4M18 20h4" stroke-width="2.6"/><path d="M6 20V8" stroke-width="2.2"/><path d="M6 8a12 12 0 0 1 12 12" stroke-dasharray="2.2 2.2"/>',
+  window: '<path d="M2 12h3M19 12h3" stroke-width="2.6"/><rect x="5" y="9" width="14" height="6"/><path d="M5 12h14"/>',
+  gate: '<path d="M2 12h3M19 12h3" stroke-width="2.6"/><path d="M5 8v8M19 8v8"/><path d="M7 12h10" stroke-dasharray="2.5 2" stroke-width="2.2"/>',
+  dim: '<path d="M4 7v10M20 7v10M4 12h16"/><path d="M7.5 9.5L5 12l2.5 2.5M16.5 9.5L19 12l-2.5 2.5"/>',
+  text: '<path d="M5 7V5h14v2M12 5v14M9 19h6"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
+  fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  hash: '<path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  roomadd: '<rect x="3" y="6" width="13" height="13" rx="1"/><path d="M19.5 2.5v6M16.5 5.5h6"/>',
+  download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
+};
+function opIco(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (OP_ICO[n] || '') + '</svg>'; }
+const OP_FMT = [['png', 'PNG', '#0e7c86', 'Картинка PNG', 'для сообщений и презентаций, высокое разрешение'], ['pdf', 'PDF', '#cf1322', 'PDF для печати', 'лист А3, заголовок, легенда и итоги'],
+  ['svg', 'SVG', '#d46b08', 'SVG — векторный', 'масштабируется без потери качества'], ['dxf', 'DXF', '#1c2d58', 'DXF для AutoCAD', 'стены, помещения, проёмы по слоям, 1 ед. = 1 м'],
+  ['xlsx', 'XLSX', '#237804', 'Экспликация в Excel', 'все помещения объекта: площади, договоры, арендаторы']];
 function opRender() {
   const root = opRoot(); if (!root) return;
   const plan = opPlan(), o = op.objs.find(function(x) { return x.id === op.objId; });
-  const can = opCanEdit(), ps = op.plans.filter(function(p) { return p.object_id === op.objId; });
+  const can = opCanEdit(), ed = can && op.edit, ps = op.plans.filter(function(p) { return p.object_id === op.objId; });
   if (!op.edit) op.tool = 'sel';
-  const objList = op.objs.map(function(x) {
+  const q = (op.q || '').trim().toLowerCase();
+  const objList = op.objs.filter(function(x) { return !q || String(x.name).toLowerCase().indexOf(q) !== -1; }).map(function(x) {
     const rs = op.rooms.filter(function(r) { return r.object_id === x.id; });
     return '<div class="op-obj' + (x.id === op.objId ? ' on' : '') + '" data-obj="' + x.id + '"><span>' + opEsc(x.name) + '</span><small>' + (rs.length ? rs.length + ' пом.' : '—') + '</small></div>';
   }).join('');
-  const tabs = ps.map(function(p) { return '<button class="op-plan-tab' + (p.id === op.planId ? ' on' : '') + '" data-plan="' + p.id + '">' + opEsc(p.title || 'План') + '</button>'; }).join('')
-    + (can && op.edit ? '<button class="op-btn" data-act="plan-add" title="Новый план: этаж, корпус, площадка">+ План</button>' : '');
+  const tabs = ps.length ? '<div class="op-seg">' + ps.map(function(p) { return '<button class="' + (p.id === op.planId ? 'on' : '') + '" data-plan="' + p.id + '">' + opEsc(p.title || 'План') + '</button>'; }).join('') + '</div>' : '';
   const legend = ['rented', 'free', 'tech', 'common'].map(function(s) { return '<span><i style="background:' + OP_COLORS[s][0] + ';border-color:' + OP_COLORS[s][1] + '"></i>' + opStateTitle(s) + '</span>'; }).join('');
-  const tools = can && op.edit && plan ? '<div class="op-bar op-tools">' + OP_TOOLS.map(function(t) {
-    return '<button class="op-btn' + (op.tool === t[0] ? ' on' : '') + '" data-tool="' + t[0] + '" title="' + t[1] + ' — клавиша ' + t[2] + '">' + t[1] + '<kbd>' + t[2] + '</kbd></button>';
+  const B = function(act, ico, label, extra) { return '<button class="op-btn" data-act="' + act + '"' + (extra || '') + '>' + opIco(ico) + label + '</button>'; };
+  const ribbon = ed && plan ? '<div class="op-ribbon op-card">'
+    + '<div class="op-grp"><div class="op-cap">Правка</div><div class="op-grp-b">' + B('undo', 'undo', 'Отменить', ' title="Ctrl+Z"' + (op.undo.length ? '' : ' disabled')) + B('sel-del', 'trash', 'Удалить', ' title="Delete — удалить выбранное"' + (op.sel || op.selItem ? '' : ' disabled')) + '</div></div>'
+    + '<div class="op-grp"><div class="op-cap">Помещения</div><div class="op-grp-b">' + B('room-add', 'roomadd', 'Добавить', ' title="Прямоугольник 6 × 6 м в центре экрана"') + B('renum', 'hash', 'Перенумеровать') + '</div></div>'
+    + '<div class="op-grp"><div class="op-cap">План</div><div class="op-grp-b">' + B('plan-set', 'gear', 'Настройки и подложка') + B('plan-add', 'layers', 'Новый план', ' title="Этаж, корпус, площадка"') + '</div></div>'
+    + '</div>' : '';
+  const palette = ed && plan ? '<div class="op-float op-palette">' + OP_TOOLS.map(function(t, i) {
+    return (i === 1 || i === 4 || i === 7 ? '<i></i>' : '') + '<button class="op-tb' + (op.tool === t[0] ? ' on' : '') + '" data-tool="' + t[0] + '" data-tip="' + t[1] + ' · ' + t[2] + '">' + opIco(t[0]) + '</button>';
   }).join('') + '</div>' : '';
+  const tname = ed ? (OP_TOOLS.find(function(t) { return t[0] === op.tool; }) || [])[1] : 'Просмотр';
+  const menu = '<div class="op-float op-menu">' + OP_FMT.map(function(f) { return '<button data-act="exp" data-fmt="' + f[0] + '"><span class="op-fmt" style="background:' + f[2] + '">' + f[1] + '</span><span><b>' + f[3] + '</b><small>' + f[4] + '</small></span></button>'; }).join('') + '</div>';
   root.innerHTML = '<div class="op-wrap">'
-    + '<div class="op-objs">' + objList + '</div>'
+    + '<div class="op-objs op-card"><div class="op-cap">Объекты</div><input class="op-search" data-q placeholder="Найти объект" value="' + opEsc(op.q || '') + '">' + objList + '</div>'
     + '<div class="op-main">'
-    + '<div class="op-bar"><span class="op-title">' + opEsc(o ? o.name : 'Объекты') + '</span>' + tabs + '</div>'
-    + (plan && plan.schematic ? '<div class="op-warn"><b>Схема, не по чертежу.</b> Площади помещений — из договоров, расположение и форма — условные. Загрузите чертёж подложкой («Настройки плана») и обведите помещения по нему.</div>' : '')
-    + '<div class="op-bar">'
-    + (can ? '<button class="op-btn' + (op.edit ? ' on' : '') + '" data-act="edit">' + (op.edit ? '✓ Редактирование' : '✎ Редактировать') + '</button>' : '')
-    + (can && op.edit && plan ? '<button class="op-btn" data-act="room-add">+ Помещение</button><button class="op-btn" data-act="renum">Перенумеровать</button><button class="op-btn" data-act="plan-set">Настройки плана</button>'
-      + '<button class="op-btn" data-act="undo"' + (op.undo.length ? '' : ' disabled') + ' title="Ctrl+Z">↶ Отменить</button>' : '')
-    + '<span class="op-sep"></span><button class="op-btn" data-act="zin" title="Крупнее">+</button><button class="op-btn" data-act="zout" title="Мельче">−</button><button class="op-btn" data-act="zfit">По размеру</button>'
-    + '<span class="op-legend">' + legend + '</span></div>'
-    + tools
-    + (plan ? '<div class="op-canvas' + (op.edit ? ' edit' : '') + (op.edit && op.tool !== 'sel' ? ' tool' : '') + '" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg"></svg></div>'
-      + '<div class="op-hint">' + (op.edit ? OP_HINTS[op.tool] + ' Правая кнопка — двигать план, колесо — масштаб. Всё сохраняется сразу.'
-        : 'Клик по помещению — подробности. Пустое место — двигать план, колесо — масштаб.') + '</div>'
-      + '<div class="op-tbl">' + opTableHtml() + '</div>'
-      : '<div class="op-warn">У объекта пока нет плана.' + (can ? ' Включите «Редактировать» и нажмите «+ План».' : '') + '</div>')
+    + '<div class="op-head"><div class="op-title">' + opEsc(o ? o.name : 'Объекты') + '<small>Планы и помещения</small></div>' + tabs + '<span class="op-grow"></span>'
+    + (can ? '<div class="op-seg"><button data-act="mode-view" class="' + (op.edit ? '' : 'on') + '">' + opIco('eye') + 'Просмотр</button><button data-act="mode-edit" class="' + (op.edit ? 'on' : '') + '">' + opIco('edit') + 'Редактирование</button></div>' : '')
+    + (plan ? '<div class="op-menu-w"><button class="op-btn" data-act="exp-toggle">' + opIco('download') + 'Экспорт</button>' + menu + '</div>' : '')
     + '</div>'
-    + '<div class="op-side">' + opSideHtml() + '</div>'
+    + (plan && plan.schematic ? '<div class="op-warn"><b>Схема, не по чертежу.</b> Площади помещений — из договоров, расположение и форма — условные. Загрузите чертёж подложкой («Настройки и подложка») и обведите помещения по нему.</div>' : '')
+    + ribbon
+    + (plan ? '<div class="op-stage' + (op.edit ? ' edit' : '') + '"><div class="op-canvas' + (op.edit ? ' edit' : '') + (op.edit && op.tool !== 'sel' ? ' tool' : '') + '" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg"></svg></div>'
+      + palette
+      + '<div class="op-float op-zoom"><button class="op-tb" data-act="zout" data-tip="Мельче">' + opIco('minus') + '</button><span data-st="zoom">100%</span><button class="op-tb" data-act="zin" data-tip="Крупнее">' + opIco('plus') + '</button><button class="op-tb" data-act="zfit" data-tip="Весь план">' + opIco('fit') + '</button></div>'
+      + '<div class="op-float op-legend">' + legend + '</div></div>'
+      + '<div class="op-status"><span class="op-pill">' + (ed ? opIco(op.tool) : opIco('eye')) + opEsc(tname) + '</span><span data-st="hint">'
+      + (ed ? OP_HINTS[op.tool] + ' Правая кнопка — двигать план, колесо — масштаб. Всё сохраняется сразу.' : 'Клик по помещению — подробности. Тащите пустое место — двигать план, колесо — масштаб.')
+      + '</span><span class="op-xy" data-st="xy"></span></div>'
+      + '<div class="op-tbl op-card">' + opTableHtml() + '</div>'
+      : '<div class="op-warn">У объекта пока нет плана.' + (can ? ' Включите «Редактирование» и нажмите «Новый план».' + (op.edit ? ' <button class="op-btn" data-act="plan-add">' + opIco('layers') + 'Новый план</button>' : '') : '') + '</div>')
+    + '</div>'
+    + '<div class="op-side op-card">' + opSideOut() + '</div>'
     + '</div>';
   if (plan) { opDraw(); opBindCanvas(); }
+}
+// инспектор: заголовок отдельной полосой, содержимое — с отступами
+function opSideOut() { const h = opSideHtml(), i = h.indexOf('</h4>'); return i < 0 ? '<div class="op-sb">' + h + '</div>' : h.slice(0, i + 5) + '<div class="op-sb">' + h.slice(i + 5) + '</div>'; }
+function opStatus() {
+  const z = opRoot().querySelector('[data-st="zoom"]'), p = opPlan(); if (!z || !p || !op.view) return;
+  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40;
+  z.textContent = Math.round((W + 2 * Math.max(W, H) * 0.04) / op.view.w * 100) + '%';
 }
 function opFit() {
   const p = opPlan(); if (!p) return;
@@ -397,7 +501,12 @@ function opDraw() {
   const vx = v.x - (vw - v.w) / 2, vy = v.y - (vh - v.h) / 2;
   op.vb = { x: vx, y: vy, w: vw, h: vh, px: box.width ? vw / box.width : 0.05 };
   svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
-  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, px = op.vb.px, fs = 12.5 * px, ed = op.edit, sel0 = op.tool === 'sel';
+  svg.innerHTML = opBuild(p, op.vb.px, null);
+  opStatus();
+}
+// содержимое чертежа в метрах; px — метров на пиксель (толщины линий, подписи); exp — выгрузка: без выделения, ручек и мелкой сетки, exp.bg — подложка data:URL
+function opBuild(p, px, exp) {
+  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, fs = 12.5 * px, ed = op.edit && !exp, sel0 = op.tool === 'sel', sid = exp ? null : op.selItem;
   let g = '';
   // сетка: 1 м (если не мельче 6 пикселей) и 10 м
   const grid = function(step, color, sw) {
@@ -407,8 +516,8 @@ function opDraw() {
     return '<path d="' + s + '" stroke="' + color + '" stroke-width="' + sw * px + '" fill="none"/>';
   };
   g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
-  if (p.bg_url) g += '<image href="' + opEsc(p.bg_url) + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none" opacity="' + (p.bg_opacity === null || p.bg_opacity === undefined ? 0.6 : p.bg_opacity) + '"/>';
-  if (1 / px >= 6) g += grid(1, '#eef1f6', 1);
+  if (p.bg_url && (!exp || exp.bg)) g += '<image href="' + opEsc(exp ? exp.bg : p.bg_url) + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none" opacity="' + (p.bg_opacity === null || p.bg_opacity === undefined ? 0.6 : p.bg_opacity) + '"/>';
+  if (!exp && 1 / px >= 6) g += grid(1, '#eef1f6', 1);
   g += grid(10, '#d6dce8', 1);
   g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none" stroke="#9aa3b5" stroke-width="' + 1.5 * px + '"/>';
   // линейка: подписи каждые 10 м
@@ -417,13 +526,13 @@ function opDraw() {
   const rooms = opPlanRooms(), items = opItems();
   // 1) заливка помещений
   rooms.forEach(function(r) {
-    const c = OP_COLORS[opState(r)], sel = r.id === op.sel;
+    const c = OP_COLORS[opState(r)], sel = !exp && r.id === op.sel;
     g += '<path class="op-room" data-room="' + r.id + '" d="' + opPathD(opRoomPts(r)) + '" fill="' + c[0] + '" fill-opacity="' + (p.bg_url ? 0.75 : 1) + '" stroke="' + (sel ? '#cf1322' : c[1]) + '" stroke-width="' + (sel ? 3 : 1.3) * px + '" stroke-linejoin="round"/>';
   });
   // 2) стены, проёмы, размеры, подписи
-  items.forEach(function(it) { if (it.k === 'wall') g += opWallSvg(it, px, it.id === op.selItem); });
-  items.forEach(function(it) { if (OP_OPEN[it.k]) g += opOpenSvg(it, px, false, it.id === op.selItem); });
-  items.forEach(function(it) { if (it.k === 'dim') g += opDimSvg(it, px, it.id === op.selItem ? '#cf1322' : '#1c2d58', true); });
+  items.forEach(function(it) { if (it.k === 'wall') g += opWallSvg(it, px, it.id === sid); });
+  items.forEach(function(it) { if (OP_OPEN[it.k]) g += opOpenSvg(it, px, false, it.id === sid); });
+  items.forEach(function(it) { if (it.k === 'dim') g += opDimSvg(it, px, it.id === sid ? '#cf1322' : '#1c2d58', true); });
   // 3) подписи помещений — только если влезают
   rooms.forEach(function(r) {
     const pts = opRoomPts(r), bb = opBBox(pts), w = bb.w, h = bb.h, c = opIsPoly(r) ? opCentroid(pts) : [bb.x + w / 2, bb.y + h / 2];
@@ -440,7 +549,7 @@ function opDraw() {
     let ty = c[1] - tot / 2;
     lines.forEach(function(l) { ty += l[1] * 1.25; g += '<text x="' + cx + '" y="' + (ty - l[1] * 0.3) + '" font-size="' + l[1] + '" fill="#1f1f1f" text-anchor="middle">' + l[0] + '</text>'; });
   });
-  items.forEach(function(it) { if (it.k === 'text') g += opTextSvg(it, px, it.id === op.selItem); });
+  items.forEach(function(it) { if (it.k === 'text') g += opTextSvg(it, px, it.id === sid); });
   // 4) выбранное: длины сторон и ручки
   const sr = opRoom(op.sel);
   if (ed && sr && sr.plan_id === op.planId) {
@@ -483,15 +592,15 @@ function opDraw() {
     if (OP_OPEN[t]) g += opOpenSvg(opOpPlace(t, hv), px, true, false);
     g += '<circle cx="' + hv.x + '" cy="' + hv.y + '" r="' + 4 * px + '" fill="none" stroke="' + (hv.snap ? '#389e0d' : '#1c2d58') + '" stroke-width="' + 1.8 * px + '"/>';
   }
-  svg.innerHTML = g;
+  return g;
 }
 function opTableHtml() {
   const rs = opPlanRooms().slice().sort(function(a, b) { return String(a.code).localeCompare(String(b.code), 'ru', { numeric: true }); });
-  if (!rs.length) return '<div class="op-hint" style="margin-top:12px;">На плане нет помещений.</div>';
+  if (!rs.length) return '<div class="op-tbl-h"><span class="op-t-title">Экспликация помещений</span><small>на плане нет помещений</small></div>';
   let tot = 0, rented = 0, free = 0;
   rs.forEach(function(r) { const a = Number(r.area_sqm) || 0, s = opState(r); if (s === 'rented' || s === 'free') tot += a; if (s === 'rented') rented += a; if (s === 'free') free += a; });
-  return '<div class="op-tot"><span>Помещений: <b>' + rs.length + '</b></span><span>Под аренду: <b>' + opArea(opR(tot)) + '</b></span><span>Сдано: <b>' + opArea(opR(rented)) + '</b></span><span>Свободно: <b>' + opArea(opR(free)) + '</b></span>'
-    + '<span style="color:#8c8c8c;">площади — по документам (поле «Площадь»), не по рисунку</span></div>'
+  return '<div class="op-tbl-h"><span class="op-t-title">Экспликация помещений</span><span class="op-pill">Помещений: <b>' + rs.length + '</b></span><span class="op-pill">Под аренду: <b>' + opArea(opR(tot)) + '</b></span><span class="op-pill">Сдано: <b>' + opArea(opR(rented)) + '</b></span><span class="op-pill">Свободно: <b>' + opArea(opR(free)) + '</b></span>'
+    + '<small>площади — по документам (поле «Площадь»), не по рисунку</small></div>'
     + '<table class="op-t"><thead><tr><th>ID</th><th>Название</th><th class="num">Площадь</th><th class="num">По рисунку</th><th>Состояние</th><th>Договор</th><th>Арендатор</th><th>Договор до</th></tr></thead><tbody>'
     + rs.map(function(r) {
       const s = opState(r), c = opCon(r.contract_id);
@@ -511,7 +620,7 @@ function opToolHtml() {
   let h = '<h4>' + opEsc(name) + '</h4><div class="op-hint" style="margin:0 0 10px;">' + OP_HINTS[t] + '</div>';
   if (t === 'wall') h += opF('Толщина новых стен, м', '<input type="text" data-d="wall" value="' + opM(op.def.wall) + '" inputmode="decimal">', 'наружные обычно 0,4–0,6, перегородки 0,1–0,2');
   if (OP_OPEN[t]) h += opF('Ширина, м', '<input type="text" data-d="' + t + '" value="' + opM(op.def[t]) + '" inputmode="decimal">');
-  return h + '<div class="op-keys"><b>Клавиши:</b> V выбор · W стена · P помещение по углам · R прямоугольник · D дверь · O окно · G ворота · M размер · T подпись · Esc — отмена · Ctrl+Z — отменить действие</div>';
+  return h + '<div class="op-keys">' + OP_TOOLS.map(function(x) { return '<kbd>' + x[2] + '</kbd> ' + x[1].toLowerCase(); }).join(' · ') + ' · <kbd>Esc</kbd> отмена · <kbd>Ctrl+Z</kbd> отменить</div>';
 }
 function opItemHtml(it) {
   let h = '<h4>' + OP_IT[it.k] + '</h4>';
@@ -607,9 +716,9 @@ function opPlanFormHtml(p) {
     + '<div class="op-acts"><button class="op-btn pri" data-act="plan-save">' + (nw ? 'Создать' : 'Сохранить') + '</button><button class="op-btn" data-act="side-close">Отмена</button>'
     + (nw ? '' : '<button class="op-btn red" data-act="plan-del" title="Только пустой план">Удалить план</button>') + '</div>';
 }
-function opRenderSide() { const s = opRoot().querySelector('.op-side'); if (s) s.innerHTML = opSideHtml(); }
+function opRenderSide() { const s = opRoot().querySelector('.op-side'); if (s) s.innerHTML = opSideOut(); }
 function opRenderTable() { const t = opRoot().querySelector('.op-tbl'); if (t) t.innerHTML = opTableHtml(); }
-function opRefresh() { opDraw(); opRenderTable(); opRenderSide(); const u = opRoot().querySelector('[data-act="undo"]'); if (u) u.disabled = !op.undo.length; }
+function opRefresh() { opDraw(); opRenderTable(); opRenderSide(); const u = opRoot().querySelector('[data-act="undo"]'); if (u) u.disabled = !op.undo.length; const d = opRoot().querySelector('[data-act="sel-del"]'); if (d) d.disabled = !(op.sel || op.selItem); }
 
 // ---------- инструменты ----------
 function opSetTool(t) {
@@ -735,7 +844,8 @@ function opBindCanvas() {
     e.preventDefault();
   });
   cv.addEventListener('pointermove', function(e) {
-    const d = op.drag, raw = opPt(e);
+    const d = op.drag, raw = opPt(e), xy = opRoot().querySelector('[data-st="xy"]');
+    if (xy) xy.innerHTML = 'X <b>' + opM(opR(raw.x)) + '</b> · Y <b>' + opM(opR(raw.y)) + '</b> м' + (op.edit ? ' · шаг <b>' + opM(opStep()) + '</b> м' : '');
     if (op.edit && op.tool !== 'sel' && (!d || d.kind === 'rect')) {
       op.hover = OP_OPEN[op.tool] ? raw : opSnapPt(raw, e, d ? null : opToolFrom()); opDraw(); return;
     }
@@ -974,6 +1084,178 @@ function opItemField(el) {
   opDrawCommit(before); opRefresh();
 }
 
+// ---------- выгрузка плана: PNG, PDF, SVG, DXF, Excel ----------
+function opFileName(ext) {
+  const o = op.objs.find(function(x) { return x.id === op.objId; }) || {}, p = opPlan() || {}, t = new Date();
+  const d = ('0' + t.getDate()).slice(-2) + '.' + ('0' + (t.getMonth() + 1)).slice(-2) + '.' + t.getFullYear();
+  return ('План ' + (o.name || '') + ' — ' + (p.title || 'план') + ' ' + d).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() + '.' + ext;
+}
+function opSaveBlob(blob, ext) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = opFileName(ext);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function() { URL.revokeObjectURL(a.href); }, 3000);
+}
+// подложка внутрь файла (data:URL): картинка по ссылке в выгруженном SVG/PNG не откроется
+async function opBgData(p) {
+  if (!p.bg_url) return null;
+  try {
+    const b = await (await fetch(p.bg_url)).blob();
+    return await new Promise(function(ok, no) { const r = new FileReader(); r.onload = function() { ok(r.result); }; r.onerror = no; r.readAsDataURL(b); });
+  } catch (e) { return null; }
+}
+function opTotals(rs) {
+  let tot = 0, rented = 0, free = 0;
+  rs.forEach(function(r) { const a = Number(r.area_sqm) || 0, s = opState(r); if (s === 'rented' || s === 'free') tot += a; if (s === 'rented') rented += a; if (s === 'free') free += a; });
+  return { tot: opR(tot), rented: opR(rented), free: opR(free) };
+}
+// весь план целиком: заголовок, чертёж, легенда, итоги, масштабная линейка; pw — ширина в пикселях
+async function opExportSvg(pw) {
+  const p = opPlan(), o = op.objs.find(function(x) { return x.id === op.objId; }) || {};
+  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, pad = Math.max(W, H) * 0.04, tw = W + 2 * pad, px = tw / pw;
+  const head = 70 * px, foot = 64 * px, th = H + 2 * pad + head + foot, ph = Math.round(pw * th / tw), x0 = -pad, y0 = -pad - head;
+  const bg = await opBgData(p), rs = opPlanRooms(), T = opTotals(rs), t = new Date();
+  const date = ('0' + t.getDate()).slice(-2) + '.' + ('0' + (t.getMonth() + 1)).slice(-2) + '.' + t.getFullYear();
+  const tx = function(x, y, size, txt, attrs) { return '<text x="' + x + '" y="' + y + '" font-size="' + size * px + '"' + (attrs || '') + '>' + opEsc(txt) + '</text>'; };
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + pw + '" height="' + ph + '" viewBox="' + x0 + ' ' + y0 + ' ' + tw + ' ' + th + '" font-family="Arial, Helvetica, sans-serif">'
+    + '<rect x="' + x0 + '" y="' + y0 + '" width="' + tw + '" height="' + th + '" fill="#fff"/>'
+    + tx(0, y0 + 30 * px, 22, (o.name || '') + ' — ' + (p.title || 'План'), ' font-weight="700" fill="#1f2433"')
+    + tx(0, y0 + 52 * px, 13, 'Размер плана ' + opM(W) + ' × ' + opM(H) + ' м · сетка 10 м · выгружено ' + date + (p.schematic ? ' · СХЕМА: расположение и форма помещений условные' : ''), ' fill="#5b6478"')
+    + opBuild(p, px, { bg: bg });
+  // легенда и итоги
+  let lx = 0; const ly = H + pad + 26 * px;
+  ['rented', 'free', 'tech', 'common'].forEach(function(st) {
+    s += '<rect x="' + lx + '" y="' + (ly - 11 * px) + '" width="' + 13 * px + '" height="' + 13 * px + '" rx="' + 2 * px + '" fill="' + OP_COLORS[st][0] + '" stroke="' + OP_COLORS[st][1] + '" stroke-width="' + 1.5 * px + '"/>'
+      + tx(lx + 19 * px, ly, 13, opStateTitle(st), ' fill="#1f2433"');
+    lx += (opStateTitle(st).length * 7.4 + 44) * px;
+  });
+  s += tx(0, ly + 24 * px, 13, 'Помещений: ' + rs.length + ' · под аренду ' + opArea(T.tot) + ' · сдано ' + opArea(T.rented) + ' · свободно ' + opArea(T.free) + ' (площади — по документам)', ' fill="#1f2433" font-weight="600"');
+  // масштабная линейка 10 м (или меньше, если план узкий)
+  const sb = W >= 20 ? 10 : W >= 5 ? 5 : 1, sx = W - sb, sy = ly - 4 * px, tk = 5 * px;
+  s += '<path d="M' + sx + ' ' + (sy - tk) + 'V' + (sy + tk) + 'M' + sx + ' ' + sy + 'H' + W + 'M' + W + ' ' + (sy - tk) + 'V' + (sy + tk) + 'M' + (sx + sb / 2) + ' ' + (sy - tk * 0.6) + 'V' + (sy + tk * 0.6) + '" stroke="#1f2433" stroke-width="' + 1.6 * px + '" fill="none"/>'
+    + tx(sx + sb / 2, sy + 20 * px, 12, sb + ' м', ' fill="#1f2433" text-anchor="middle"');
+  return { svg: s + '</svg>', w: pw, h: ph };
+}
+function opCanvas(x) {
+  return new Promise(function(ok, no) {
+    const img = new Image();
+    img.onload = function() {
+      const c = document.createElement('canvas'); c.width = x.w; c.height = x.h;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, x.w, x.h); g.drawImage(img, 0, 0, x.w, x.h);
+      URL.revokeObjectURL(img.src); ok(c);
+    };
+    img.onerror = function() { no(new Error('svg')); };
+    img.src = URL.createObjectURL(new Blob([x.svg], { type: 'image/svg+xml;charset=utf-8' }));
+  });
+}
+// PDF руками: одна страница А3, картинка JPEG (DCTDecode) по центру с полями
+function opPdfBlob(c) {
+  const b = atob(c.toDataURL('image/jpeg', 0.9).split(',')[1]), img = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) img[i] = b.charCodeAt(i);
+  const land = c.width >= c.height, PW = land ? 1190.55 : 841.89, PH = land ? 841.89 : 1190.55, m = 28;
+  const k = Math.min((PW - 2 * m) / c.width, (PH - 2 * m) / c.height), dw = c.width * k, dh = c.height * k;
+  const parts = [], offs = []; let len = 0;
+  const add = function(x) { parts.push(x); len += x.length; };   // все строки здесь — ASCII: длина = байты
+  const obj = function(n, body) { offs[n] = len; add(n + ' 0 obj\n'); body.forEach(add); add('\nendobj\n'); };
+  add('%PDF-1.4\n');
+  obj(1, ['<< /Type /Catalog /Pages 2 0 R >>']);
+  obj(2, ['<< /Type /Pages /Kids [3 0 R] /Count 1 >>']);
+  obj(3, ['<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>']);
+  obj(4, ['<< /Type /XObject /Subtype /Image /Width ' + c.width + ' /Height ' + c.height + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + img.length + ' >>\nstream\n', img, '\nendstream']);
+  const cs = 'q ' + dw.toFixed(2) + ' 0 0 ' + dh.toFixed(2) + ' ' + ((PW - dw) / 2).toFixed(2) + ' ' + ((PH - dh) / 2).toFixed(2) + ' cm /Im0 Do Q';
+  obj(5, ['<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream']);
+  const xref = len; let t = 'xref\n0 6\n0000000000 65535 f \n';
+  for (let i = 1; i <= 5; i++) t += ('000000000' + offs[i]).slice(-10) + ' 00000 n \n';
+  add(t + 'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
+  return new Blob(parts, { type: 'application/pdf' });
+}
+// DXF R12 (ASCII): слои, ось Y вверх, 1 единица = 1 м; кириллица — \U+XXXX (понимают AutoCAD, LibreCAD, nanoCAD)
+function opDxf() {
+  const p = opPlan(), W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, out = [];
+  const E = function() { for (let i = 0; i < arguments.length; i += 2) out.push(arguments[i], arguments[i + 1]); };
+  const n = function(v) { return String(Math.round(v * 1000) / 1000); };
+  const Y = function(y) { return H - y; };
+  const esc = function(s) { return String(s).replace(/[^\x20-\x7e]/g, function(c) { return '\\U+' + ('000' + c.charCodeAt(0).toString(16).toUpperCase()).slice(-4); }); };
+  const line = function(L, a, b) { E(0, 'LINE', 8, L, 10, n(a[0]), 20, n(Y(a[1])), 30, 0, 11, n(b[0]), 21, n(Y(b[1])), 31, 0); };
+  const poly = function(L, pts, closed) { E(0, 'POLYLINE', 8, L, 66, 1, 70, closed ? 1 : 0, 10, 0, 20, 0, 30, 0); pts.forEach(function(q) { E(0, 'VERTEX', 8, L, 10, n(q[0]), 20, n(Y(q[1])), 30, 0); }); E(0, 'SEQEND', 8, L); };
+  const text = function(L, x, y, h, s, rot) { E(0, 'TEXT', 8, L, 10, n(x), 20, n(Y(y)), 30, 0, 40, n(h), 1, esc(s), 50, n(rot || 0), 72, 1, 11, n(x), 21, n(Y(y)), 31, 0, 73, 2); };
+  const LAYERS = [['PLAN', 8], ['ROOMS', 5], ['ROOM_ID', 7], ['WALLS', 7], ['WALL_AXIS', 9], ['DOORS', 1], ['WINDOWS', 4], ['GATES', 30], ['DIMS', 3], ['TEXT', 7]];
+  E(0, 'SECTION', 2, 'HEADER', 9, '$ACADVER', 1, 'AC1009', 0, 'ENDSEC');
+  E(0, 'SECTION', 2, 'TABLES', 0, 'TABLE', 2, 'LTYPE', 70, 1, 0, 'LTYPE', 2, 'CONTINUOUS', 70, 0, 3, 'Solid line', 72, 65, 73, 0, 40, '0.0', 0, 'ENDTAB');
+  E(0, 'TABLE', 2, 'LAYER', 70, LAYERS.length); LAYERS.forEach(function(l) { E(0, 'LAYER', 2, l[0], 70, 0, 62, l[1], 6, 'CONTINUOUS'); }); E(0, 'ENDTAB', 0, 'ENDSEC');
+  E(0, 'SECTION', 2, 'ENTITIES');
+  poly('PLAN', [[0, 0], [W, 0], [W, H], [0, H]], true);
+  opPlanRooms().forEach(function(r) {
+    const pts = opRoomPts(r), bb = opBBox(pts), c = opIsPoly(r) ? opCentroid(pts) : [bb.x + bb.w / 2, bb.y + bb.h / 2], h = Math.max(0.25, Math.min(1, Math.min(bb.w, bb.h) / 6));
+    poly('ROOMS', pts, true);
+    text('ROOM_ID', c[0], c[1] - h * 0.7, h, r.code || '');
+    if (r.area_sqm) text('ROOM_ID', c[0], c[1] + h * 0.7, h * 0.75, opM(r.area_sqm) + ' m2');
+  });
+  const loc = function(G) { const a = G.a * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a); return function(lx, ly) { return [G.x + lx * cs - ly * sn, G.y + lx * sn + ly * cs]; }; };
+  opItems().forEach(function(it) {
+    if (it.k === 'wall') {
+      const L = opWallLen(it); if (L < 1e-6) return;
+      const t2 = (Number(it.t) || 0.2) / 2, ux = (it.x2 - it.x1) / L, uy = (it.y2 - it.y1) / L, nx = -uy * t2, ny = ux * t2;
+      const ax = it.x1 - ux * t2, ay = it.y1 - uy * t2, bx = it.x2 + ux * t2, by = it.y2 + uy * t2;
+      poly('WALLS', [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax - nx, ay - ny]], true);
+      line('WALL_AXIS', [it.x1, it.y1], [it.x2, it.y2]);
+    } else if (OP_OPEN[it.k]) {
+      const G = opOpG(it), f = loc(G), w = Number(it.w) || 0.9, hw = w / 2, t = Math.max(0.05, G.t), L = { door: 'DOORS', window: 'WINDOWS', gate: 'GATES' }[it.k];
+      poly(L, [f(-hw, -t / 2), f(hw, -t / 2), f(hw, t / 2), f(-hw, t / 2)], true);
+      if (it.k === 'door') {
+        const fl = it.flip || 0, hx = (fl & 1) ? hw : -hw, sd = (fl & 2) ? -1 : 1, y0 = sd * t / 2;
+        line(L, f(hx, y0), f(hx, y0 + sd * w));
+        const a0 = Math.atan2(sd * w, 0); let da = Math.atan2(0, -2 * hx) - a0; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+        const arc = []; for (let i = 0; i <= 12; i++) { const a = a0 + da * i / 12; arc.push(f(hx + w * Math.cos(a), y0 + w * Math.sin(a))); }
+        poly(L, arc, false);
+      } else if (it.k === 'window') { line(L, f(-hw, -t / 6), f(hw, -t / 6)); line(L, f(-hw, t / 6), f(hw, t / 6)); }
+      else line(L, f(-hw, 0), f(hw, 0));
+    } else if (it.k === 'dim') {
+      const L = opWallLen(it); if (L < 1e-6) return;
+      const off = it.off === undefined || it.off === null ? -0.8 : Number(it.off), nx = -(it.y2 - it.y1) / L * off, ny = (it.x2 - it.x1) / L * off;
+      const a1 = [it.x1 + nx, it.y1 + ny], a2 = [it.x2 + nx, it.y2 + ny];
+      line('DIMS', [it.x1, it.y1], a1); line('DIMS', [it.x2, it.y2], a2); line('DIMS', a1, a2);
+      let ang = Math.atan2(it.y2 - it.y1, it.x2 - it.x1) * 180 / Math.PI; if (ang > 90 || ang <= -90) ang += 180;
+      const k = Math.abs(off) > 1e-9 ? 0.3 / Math.abs(off) : 0, mx = (a1[0] + a2[0]) / 2 + nx * k, my = (a1[1] + a2[1]) / 2 + ny * k;
+      text('DIMS', mx, my, 0.3, opM(opR(L)) + ' m', -ang);
+    } else if (it.k === 'text') text('TEXT', it.x, it.y - (Number(it.s) || 1) * 0.35, (Number(it.s) || 1) * 0.75, it.text || '');
+  });
+  E(0, 'ENDSEC', 0, 'EOF');
+  return new Blob([out.join('\r\n') + '\r\n'], { type: 'application/dxf' });
+}
+function opXlsx() {
+  const o = op.objs.find(function(x) { return x.id === op.objId; }) || {}, plans = op.plans.filter(function(p) { return p.object_id === op.objId; });
+  const pi = function(id) { const i = plans.findIndex(function(p) { return p.id === id; }); return i < 0 ? 999 : i; };
+  const rs = op.rooms.filter(function(r) { return r.object_id === op.objId; })
+    .sort(function(a, b) { return pi(a.plan_id) - pi(b.plan_id) || String(a.code).localeCompare(String(b.code), 'ru', { numeric: true }); });
+  crmXlsx('Экспликация ' + (o.name || ''), {
+    title: 'Экспликация помещений — ' + (o.name || ''),
+    filters: [['Объект', o.name || ''], ['Планы', plans.map(function(p) { return p.title || 'План'; }).join(', ')]],
+    notes: [['Площадь', 'по документам: договор, техпаспорт'], ['По рисунку', 'площадь фигуры на плане — справочно'], ['Состояние', 'Сдано — к помещению привязан действующий договор'], ['Прежние ID', 'номера помещения до перенумерации']],
+    sheets: [{ name: 'Помещения', total: true, cols: [{ h: 'План', t: 'text', w: 14 }, { h: 'ID', t: 'text', w: 9 }, { h: 'Название', t: 'text', w: 30 }, { h: 'Тип', t: 'text', w: 19 }, { h: 'Состояние', t: 'text', w: 13 },
+      { h: 'Площадь', t: 'area' }, { h: 'По рисунку', t: 'area' }, { h: 'Договор', t: 'text', w: 20 }, { h: 'Арендатор', t: 'text', w: 34 }, { h: 'Договор до', t: 'date' },
+      { h: 'Назначение', t: 'long', w: 34 }, { h: 'Отопление', t: 'text', w: 12 }, { h: 'Прежние ID', t: 'text', w: 13 }],
+      rows: rs.map(function(r) {
+        const c = opCon(r.contract_id), pl = plans.find(function(p) { return p.id === r.plan_id; }) || {};
+        return [pl.title || '', r.code || '', r.title || '', OP_KINDS[r.kind] || '', opStateTitle(opState(r)), opNum(r.area_sqm), opR(opPolyArea(opRoomPts(r))),
+          c ? c.contract_number : '', c ? c.tenant_name : '', c ? c.end_date : '', r.purpose || '', r.heating || '', (r.old_codes || []).join(', ')];
+      }) }]
+  });
+}
+async function opExport(fmt) {
+  const m = opRoot().querySelector('.op-menu'); if (m) m.classList.remove('open');
+  if (!opPlan()) return;
+  opToast('Готовлю ' + fmt.toUpperCase() + '…');
+  try {
+    if (fmt === 'xlsx') return opXlsx();
+    if (fmt === 'dxf') return opSaveBlob(opDxf(), 'dxf');
+    const x = await opExportSvg(fmt === 'pdf' ? 3300 : fmt === 'png' ? 3000 : 1600);
+    if (fmt === 'svg') return opSaveBlob(new Blob([x.svg], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
+    const c = await opCanvas(x);
+    if (fmt === 'pdf') return opSaveBlob(opPdfBlob(c), 'pdf');
+    c.toBlob(function(b) { if (b) opSaveBlob(b, 'png'); else opToast('Не удалось собрать картинку'); }, 'image/png');
+  } catch (e) { opToast('Не удалось выгрузить ' + fmt.toUpperCase()); }
+}
+
 // ---------- события ----------
 opRoot().addEventListener('click', async function(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
@@ -984,7 +1266,10 @@ opRoot().addEventListener('click', async function(e) {
   if (tr) { op.sel = Number(tr.getAttribute('data-room')); op.selItem = null; op.panel = 'room'; opRefresh(); return; }
   if (!a) return;
   const act = a.getAttribute('data-act');
-  if (act === 'edit') { op.edit = !op.edit; op.panel = 'room'; op.selItem = null; op.chain = []; opRender(); return; }
+  if (act === 'edit' || act === 'mode-view' || act === 'mode-edit') { const v = act === 'edit' ? !op.edit : act === 'mode-edit'; if (v === op.edit) return; op.edit = v; op.panel = 'room'; op.selItem = null; op.chain = []; opRender(); return; }
+  if (act === 'exp-toggle') { const m = opRoot().querySelector('.op-menu'); if (m) m.classList.toggle('open'); return; }
+  if (act === 'exp') return opExport(a.getAttribute('data-fmt'));
+  if (act === 'sel-del') { if (op.selItem) return opDelItem(op.selItem); if (op.sel) return opDelRoom(op.sel); return; }
   if (act === 'zin') return opZoom(1 / 1.3);
   if (act === 'zout') return opZoom(1.3);
   if (act === 'zfit') { opFit(); opDraw(); return; }
@@ -1025,12 +1310,17 @@ opRoot().addEventListener('change', function(e) {
 });
 opRoot().addEventListener('input', function(e) {
   const el = e.target;
+  if (el.matches && el.matches('[data-q]')) {   // поиск объекта — фильтр списка без перерисовки страницы
+    op.q = el.value; const q = el.value.trim().toLowerCase();
+    opRoot().querySelectorAll('.op-obj').forEach(function(x) { x.style.display = !q || x.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none'; });
+  }
   if (el.matches && el.matches('[data-p="bg_opacity"]')) { const p = opPlan(); if (p) { p.bg_opacity = Number(el.value); opDraw(); } }
 });
 opRoot().addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && e.target.matches && e.target.matches('input[data-f], input[data-i], input[data-d]')) { e.preventDefault(); e.target.blur(); }
 });
 window.addEventListener('resize', function() { if (opSvg()) opDraw(); });
+document.addEventListener('click', function(e) { const m = opRoot() && opRoot().querySelector('.op-menu.open'); if (m && !e.target.closest('.op-menu-w')) m.classList.remove('open'); });
 
 (async function opStart() {
   try {

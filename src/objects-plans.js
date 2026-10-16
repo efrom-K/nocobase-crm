@@ -1639,8 +1639,8 @@ async function op3dMount() {
   });
   const S = Math.max(W, D);
   scene.background = new T.Color(0xeef1f6); scene.fog = new T.Fog(0xeef1f6, S * 2.5, S * 7);   // без чёрного неба и обрыва земли на горизонте
-  scene.add(new T.HemisphereLight(0xffffff, 0xc9d1de, 0.75));
-  const sun = new T.DirectionalLight(0xffffff, 0.8); sun.position.set(W * 0.5 - S * 0.6, S * 1.2 + oy, D * 0.5 - S * 0.9); sun.target.position.set(W / 2, 0, D / 2);
+  scene.add(new T.HemisphereLight(0xffffff, 0xc9d1de, 0.62));
+  const sun = new T.DirectionalLight(0xffffff, 0.5); sun.position.set(W * 0.5 - S * 0.6, S * 1.2 + oy, D * 0.5 - S * 0.9); sun.target.position.set(W / 2, 0, D / 2);
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005;
   Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 0.5, far: S * 4 + oy * 2 }); sun.shadow.camera.updateProjectionMatrix();
   scene.add(sun, sun.target);

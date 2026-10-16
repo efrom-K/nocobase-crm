@@ -1912,8 +1912,6 @@ function nextFieldChange(periods, rec, iso, field) {
   }
   return null;
 }
-// реестр (registry-tabs.js) показывает ту же плашку «с даты: цена» рядом с ценой в таблице — расчёт один на оба места
-window.__cmNextFieldChange = nextFieldChange;
 
 function renderPricesSection(prefix) {
   const comp = function(c) {

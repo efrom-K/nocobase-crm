@@ -1,6 +1,9 @@
 // «Объекты» → вкладка «Планы и помещения» (/admin/j3a32zo1jzo/tab/objplantab1, блок objplanblk01): планы объектов и помещения с ID.
 // Слева объекты, в центре план (SVG, метры), справа карточка помещения; под планом — таблица помещений (сдано / свободно по ссылке на договор).
 // Редактор (только admin): перетаскивание и размер мышью, стрелки, ID и перенумерация (прежние ID — old_codes), планы-этажи, подложка-чертёж, отмена.
+// Чертёж: помещения любой формы (crm_rooms.poly — углы в метрах; без poly — прямоугольник x/y/w/h, bbox держим и для контура),
+// стены, двери, окна, ворота, размеры, подписи — crm_floor_plans.drawing = { items: [...] } (проём хранит стену wid и расстояние u от её начала).
+// Привязка к углам и стенам, углы 0/45/90°, длина с клавиатуры. Отмена чертежа — снимок drawing целиком.
 // Таблицы crm_floor_plans / crm_rooms — scripts/setup_object_plans.py (там же начальная схема из договоров). Договоры только читаются.
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
@@ -85,6 +88,16 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan svg .op-room { cursor:pointer; }
     #crm-objplan .edit svg .op-room { cursor:move; }
     #crm-objplan svg .op-h { cursor:nwse-resize; }
+    #crm-objplan svg .op-h.v { cursor:move; }
+    #crm-objplan svg .op-h.m { cursor:copy; }
+    #crm-objplan .edit svg .op-it { cursor:move; }
+    #crm-objplan .op-canvas:not(.edit) svg .op-it { pointer-events:none; }
+    #crm-objplan .op-canvas.tool, #crm-objplan .op-canvas.tool svg .op-room, #crm-objplan .op-canvas.tool svg .op-it { cursor:crosshair; }
+    #crm-objplan .op-tools { background:#f3f5fa; border:1px solid #e3e7ef; border-radius:8px; padding:5px 6px; }
+    #crm-objplan .op-tools .op-btn kbd { font:inherit; font-size:11px; color:#8c8c8c; margin-left:5px; }
+    #crm-objplan .op-tools .op-btn.on kbd { color:#d6dcf0; }
+    #crm-objplan .op-keys { font-size:12px; color:#595959; line-height:1.6; margin-top:10px; }
+    #crm-objplan .op-keys b { color:#1f1f1f; }
     @media (max-width: 1100px) { #crm-objplan .op-wrap { grid-template-columns:1fr; } #crm-objplan .op-side { position:static; } #crm-objplan .op-objs { max-height:none; display:flex; flex-wrap:wrap; gap:4px; } }
   `;
   document.head.appendChild(st);
@@ -93,9 +106,16 @@ if (!document.getElementById('crm-objplan-style')) {
 // ---------- состояние ----------
 const OP_KINDS = { rent: 'Под аренду', tech: 'Техническое', common: 'Общего пользования' };
 const OP_COLORS = { rented: ['#dbe4ff', '#1c2d58'], free: ['#d9f7be', '#389e0d'], tech: ['#ececec', '#8c8c8c'], common: ['#fff1d6', '#d48806'] };
-const OP_SNAP = 0.5;   // шаг сетки при перетаскивании, м (точнее — числами в панели или стрелками с Alt)
-const op = { me: null, edit: false, objs: [], plans: [], rooms: [], cons: [], objId: null, planId: null, sel: null, view: null, undo: [], panel: 'room', drag: null };
+const OP_SNAP = 0.5;   // шаг стрелок, м (с Alt — 0,1); мышь — шаг по масштабу (opStep)
+const OP_TOOLS = [['sel', 'Выбор', 'V'], ['wall', 'Стена', 'W'], ['room', 'Помещение по углам', 'P'], ['rect', 'Прямоугольник', 'R'],
+  ['door', 'Дверь', 'D'], ['window', 'Окно', 'O'], ['gate', 'Ворота', 'G'], ['dim', 'Размер', 'M'], ['text', 'Подпись', 'T']];
+const OP_KEYS = {}; OP_TOOLS.forEach(function(t) { OP_KEYS['Key' + t[2]] = t[0]; });
+const OP_IT = { wall: 'Стена', door: 'Дверь', window: 'Окно', gate: 'Ворота', dim: 'Размер', text: 'Подпись' };
+const OP_OPEN = { door: 1, window: 1, gate: 1 };
+const op = { me: null, edit: false, objs: [], plans: [], rooms: [], cons: [], objId: null, planId: null, sel: null, selItem: null, view: null, undo: [], panel: 'room', drag: null,
+  tool: 'sel', chain: [], hover: null, typed: '', def: { wall: 0.2, door: 0.9, window: 1.2, gate: 3 }, saveQ: Promise.resolve() };
 try { op.objId = Number(localStorage.getItem('crm-objplan-obj')) || null; } catch (e) { /* нет хранилища */ }
+try { Object.assign(op.def, JSON.parse(localStorage.getItem('crm-objplan-def') || '{}')); } catch (e) { /* нет хранилища */ }
 
 ctx.render('<div id="crm-objplan"><div style="color:#8c8c8c;padding:12px;">Загрузка…</div></div>');
 function opRoot() { return (ctx.element && ctx.element.querySelector('#crm-objplan')) || document.getElementById('crm-objplan'); }
@@ -119,6 +139,101 @@ function opCon(id) { return op.cons.find(function(c) { return c.id === id; }) ||
 function opState(r) { return r.kind === 'tech' ? 'tech' : r.kind === 'common' ? 'common' : r.contract_id && opCon(r.contract_id) ? 'rented' : 'free'; }
 function opStateTitle(s) { return { rented: 'Сдано', free: 'Свободно', tech: 'Техническое', common: 'Общего пользования' }[s]; }
 
+// ---------- геометрия ----------
+function opDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function opIsPoly(r) { return Array.isArray(r.poly) && r.poly.length >= 3; }
+function opRoomPts(r) {
+  if (opIsPoly(r)) return r.poly.map(function(q) { return [Number(q[0]) || 0, Number(q[1]) || 0]; });
+  const x = Number(r.x) || 0, y = Number(r.y) || 0, w = Math.max(0.1, Number(r.w) || 1), h = Math.max(0.1, Number(r.h) || 1);
+  return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+}
+function opBBox(pts) {
+  const xs = pts.map(function(q) { return q[0]; }), ys = pts.map(function(q) { return q[1]; });
+  const x = Math.min.apply(null, xs), y = Math.min.apply(null, ys);
+  return { x: opR(x), y: opR(y), w: opR(Math.max.apply(null, xs) - x), h: opR(Math.max.apply(null, ys) - y) };
+}
+function opPolyArea(pts) { let s = 0; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; s += a[0] * b[1] - b[0] * a[1]; } return Math.abs(s) / 2; }
+// ponytail: центр масс контура — у «буквы П» может попасть мимо помещения; нужен polylabel, если начнёт мешать
+function opCentroid(pts) {
+  let a = 0, cx = 0, cy = 0;
+  for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length], c = p[0] * q[1] - q[0] * p[1]; a += c; cx += (p[0] + q[0]) * c; cy += (p[1] + q[1]) * c; }
+  if (Math.abs(a) < 1e-9) return [pts.reduce(function(s, q) { return s + q[0]; }, 0) / pts.length, pts.reduce(function(s, q) { return s + q[1]; }, 0) / pts.length];
+  return [cx / (3 * a), cy / (3 * a)];
+}
+function opPolyVals(pts) { const p = pts.map(function(q) { return [opR(q[0]), opR(q[1])]; }); return Object.assign({ poly: p }, opBBox(p)); }
+function opPathD(pts) { return 'M' + pts.map(function(q) { return q[0] + ' ' + q[1]; }).join('L') + 'Z'; }
+// шаг привязки мыши — по масштабу: примерно 6 пикселей экрана
+function opStep() { const want = (op.vb ? op.vb.px : 0.05) * 6; return [0.05, 0.1, 0.25, 0.5, 1, 2, 5].find(function(s) { return s >= want; }) || 5; }
+
+// ---------- чертёж плана: стены, проёмы, размеры, подписи ----------
+function opDw(p) { if (!p.drawing || !Array.isArray(p.drawing.items)) p.drawing = { items: [] }; return p.drawing; }
+function opItems() { const p = opPlan(); return p ? opDw(p).items : []; }
+function opItem(id) { return id ? opItems().find(function(x) { return x.id === id; }) || null : null; }
+function opNewId() { return 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function opDrawSnap() { return JSON.parse(JSON.stringify(opDw(opPlan()))); }
+// весь чертёж одним полем; очередь — чтобы быстрые правки не обогнали друг друга (уходит то, что есть на момент отправки)
+function opPushDrawing(p) {
+  op.saveQ = op.saveQ.then(function() { return opApi('update', 'crm_floor_plans', p.id, { drawing: p.drawing }); })
+    .catch(function() { opToast('Чертёж не сохранился — обновите страницу'); });
+}
+function opDrawCommit(before) { const p = opPlan(); op.undo.push({ t: 'draw', id: p.id, d: before }); opPushDrawing(p); }
+function opWallLen(w) { return Math.hypot(w.x2 - w.x1, w.y2 - w.y1); }
+// положение проёма: в стене (wid + u от начала стены) или свободно (x, y, a — угол в градусах)
+function opOpG(it) {
+  const w = it.wid ? opItem(it.wid) : null;
+  if (w && w.k === 'wall') {
+    const L = opWallLen(w) || 1e-9, ww = Number(it.w) || 0.9, u = L < ww ? L / 2 : Math.min(L - ww / 2, Math.max(ww / 2, Number(it.u) || 0));
+    return { x: w.x1 + (w.x2 - w.x1) * u / L, y: w.y1 + (w.y2 - w.y1) * u / L, a: Math.atan2(w.y2 - w.y1, w.x2 - w.x1) * 180 / Math.PI, t: Number(w.t) || 0.2, L: L, u: u };
+  }
+  return { x: Number(it.x) || 0, y: Number(it.y) || 0, a: Number(it.a) || 0, t: Number(it.t) || 0.2 };
+}
+function opNearWall(pt, maxD) {
+  let best = null;
+  opItems().forEach(function(w) {
+    if (w.k !== 'wall') return;
+    const dx = w.x2 - w.x1, dy = w.y2 - w.y1, L2 = dx * dx + dy * dy; if (L2 < 1e-9) return;
+    const k = Math.max(0, Math.min(1, ((pt.x - w.x1) * dx + (pt.y - w.y1) * dy) / L2)), d = Math.hypot(pt.x - w.x1 - k * dx, pt.y - w.y1 - k * dy);
+    if (d <= maxD && (!best || d < best.d)) best = { wall: w, u: k * Math.sqrt(L2), L: Math.sqrt(L2), d: d };
+  });
+  return best;
+}
+// куда встанет проём с центром в pt: на ближайшую стену (в пределах ~1 м) или свободно
+function opOpPlace(kind, pt, base) {
+  const w = base ? Number(base.w) || op.def[kind] : op.def[kind], flip = base ? base.flip || 0 : 0;
+  const near = opNearWall(pt, Math.max(0.8, 20 * op.vb.px));
+  if (near) return { k: kind, wid: near.wall.id, u: opR(near.L < w ? near.L / 2 : Math.min(near.L - w / 2, Math.max(w / 2, opSnap(near.u, opStep() / 2)))), w: w, flip: flip };
+  return { k: kind, x: opR(opSnap(pt.x, opStep())), y: opR(opSnap(pt.y, opStep())), a: base && !base.wid ? base.a || 0 : 0, t: op.def.wall, w: w, flip: flip };
+}
+function opSnapCands(skip) {
+  const s = skip || [], out = [];
+  opItems().forEach(function(it) {
+    if (it.k !== 'wall' && it.k !== 'dim') return;
+    if (s.indexOf(it.id + ':p1') === -1) out.push([it.x1, it.y1]);
+    if (s.indexOf(it.id + ':p2') === -1) out.push([it.x2, it.y2]);
+  });
+  opPlanRooms().forEach(function(r) { opRoomPts(r).forEach(function(q, i) { if (s.indexOf('r' + r.id + ':' + i) === -1) out.push(q); }); });
+  op.chain.forEach(function(q) { out.push([q.x, q.y]); });
+  return out;
+}
+// привязка точки: к углам стен и помещений (10 px), иначе шаг сетки; от предыдущей точки — углы 0/45/90° (магнит 6°, Shift — всегда), Alt — без привязки
+function opSnapPt(raw, e, from, skip) {
+  const px = op.vb.px, free = e && e.altKey;
+  if (!free) {
+    let best = null, bd = 10 * px;
+    opSnapCands(skip).forEach(function(c) { const d = Math.hypot(c[0] - raw.x, c[1] - raw.y); if (d < bd) { bd = d; best = c; } });
+    if (best) return { x: best[0], y: best[1], snap: true };
+  }
+  const step = free ? 0.01 : opStep();
+  if (from) {
+    let L = opDist(raw, from), a = Math.atan2(raw.y - from.y, raw.x - from.x);
+    if (L < 1e-9) return { x: from.x, y: from.y };
+    if (!free) { const q = Math.PI / 4, n = Math.round(a / q) * q; if ((e && e.shiftKey) || Math.abs(a - n) < 6 * Math.PI / 180) a = n; }
+    L = Math.max(step, Math.round(L / step) * step);
+    return { x: opR(from.x + Math.cos(a) * L), y: opR(from.y + Math.sin(a) * L) };
+  }
+  return { x: opR(opSnap(raw.x, step)), y: opR(opSnap(raw.y, step)) };
+}
+
 // ---------- данные ----------
 async function opLoad() {
   const L = function(c, p) { return ctx.api.resource(c).list(Object.assign({ paginate: false }, p || {})).then(opRows).catch(function() { return []; }); };
@@ -133,7 +248,7 @@ async function opLoad() {
 function opPickPlan(keep) {
   const ps = op.plans.filter(function(p) { return p.object_id === op.objId; });
   if (!keep || !ps.some(function(p) { return p.id === op.planId; })) op.planId = ps.length ? ps[0].id : null;
-  op.view = null;
+  op.view = null; op.selItem = null; op.chain = []; op.typed = '';
 }
 async function opApi(kind, coll, a, b) {
   const res = ctx.api.resource(coll);
@@ -144,7 +259,7 @@ async function opApi(kind, coll, a, b) {
 // правка помещения: локально сразу, на сервер — следом; в стек отмены — прежние значения
 async function opSaveRoom(id, vals, noUndo) {
   const r = opRoom(id); if (!r) return false;
-  const before = {}; Object.keys(vals).forEach(function(k) { before[k] = r[k]; });
+  const before = {}; Object.keys(vals).forEach(function(k) { before[k] = r[k] === undefined ? null : r[k]; });
   Object.assign(r, vals);
   try {
     await opApi('update', 'crm_rooms', id, vals);
@@ -166,10 +281,22 @@ function opNextCode() {
 }
 
 // ---------- отрисовка ----------
+const OP_HINTS = {
+  sel: 'Тащите помещения, стены, двери мышью; углы контура — за квадратики, «+» на середине стороны — новый угол, двойной клик по углу — убрать его. Стрелки — на 0,5 м (Alt — 0,1 м), Delete — удалить, Ctrl+Z — отменить.',
+  wall: 'Клик — начало стены, следующие клики — продолжение. Длину можно набрать цифрами и нажать Enter. Углы прилипают к 0/45/90° (Shift — строго, Alt — без привязки). Enter, двойной клик или правая кнопка — закончить, Esc — отменить.',
+  room: 'Кликайте по углам помещения по порядку; клик по первому углу, Enter или двойной клик — замкнуть контур. Длину стороны можно набрать цифрами + Enter. Esc — отменить.',
+  rect: 'Протяните мышью прямоугольник помещения от угла до угла.',
+  door: 'Наведите на стену — дверь встанет в неё. Клик — поставить. Ширину и сторону открывания — в панели справа.',
+  window: 'Наведите на стену — окно встанет в неё. Клик — поставить. Ширина — в панели справа.',
+  gate: 'Наведите на стену — ворота встанут в неё. Клик — поставить. Ширина — в панели справа.',
+  dim: 'Два клика — размерная линия с длиной между точками. Привязывается к углам.',
+  text: 'Клик — подпись на плане, текст — в панели справа.'
+};
 function opRender() {
   const root = opRoot(); if (!root) return;
   const plan = opPlan(), o = op.objs.find(function(x) { return x.id === op.objId; });
   const can = opCanEdit(), ps = op.plans.filter(function(p) { return p.object_id === op.objId; });
+  if (!op.edit) op.tool = 'sel';
   const objList = op.objs.map(function(x) {
     const rs = op.rooms.filter(function(r) { return r.object_id === x.id; });
     return '<div class="op-obj' + (x.id === op.objId ? ' on' : '') + '" data-obj="' + x.id + '"><span>' + opEsc(x.name) + '</span><small>' + (rs.length ? rs.length + ' пом.' : '—') + '</small></div>';
@@ -177,19 +304,23 @@ function opRender() {
   const tabs = ps.map(function(p) { return '<button class="op-plan-tab' + (p.id === op.planId ? ' on' : '') + '" data-plan="' + p.id + '">' + opEsc(p.title || 'План') + '</button>'; }).join('')
     + (can && op.edit ? '<button class="op-btn" data-act="plan-add" title="Новый план: этаж, корпус, площадка">+ План</button>' : '');
   const legend = ['rented', 'free', 'tech', 'common'].map(function(s) { return '<span><i style="background:' + OP_COLORS[s][0] + ';border-color:' + OP_COLORS[s][1] + '"></i>' + opStateTitle(s) + '</span>'; }).join('');
+  const tools = can && op.edit && plan ? '<div class="op-bar op-tools">' + OP_TOOLS.map(function(t) {
+    return '<button class="op-btn' + (op.tool === t[0] ? ' on' : '') + '" data-tool="' + t[0] + '" title="' + t[1] + ' — клавиша ' + t[2] + '">' + t[1] + '<kbd>' + t[2] + '</kbd></button>';
+  }).join('') + '</div>' : '';
   root.innerHTML = '<div class="op-wrap">'
     + '<div class="op-objs">' + objList + '</div>'
     + '<div class="op-main">'
     + '<div class="op-bar"><span class="op-title">' + opEsc(o ? o.name : 'Объекты') + '</span>' + tabs + '</div>'
-    + (plan && plan.schematic ? '<div class="op-warn"><b>Схема, не по чертежу.</b> Площади помещений — из договоров, расположение и форма — условные. Загрузите чертёж подложкой («Настройки плана») и расставьте помещения по нему.</div>' : '')
+    + (plan && plan.schematic ? '<div class="op-warn"><b>Схема, не по чертежу.</b> Площади помещений — из договоров, расположение и форма — условные. Загрузите чертёж подложкой («Настройки плана») и обведите помещения по нему.</div>' : '')
     + '<div class="op-bar">'
     + (can ? '<button class="op-btn' + (op.edit ? ' on' : '') + '" data-act="edit">' + (op.edit ? '✓ Редактирование' : '✎ Редактировать') + '</button>' : '')
     + (can && op.edit && plan ? '<button class="op-btn" data-act="room-add">+ Помещение</button><button class="op-btn" data-act="renum">Перенумеровать</button><button class="op-btn" data-act="plan-set">Настройки плана</button>'
       + '<button class="op-btn" data-act="undo"' + (op.undo.length ? '' : ' disabled') + ' title="Ctrl+Z">↶ Отменить</button>' : '')
     + '<span class="op-sep"></span><button class="op-btn" data-act="zin" title="Крупнее">+</button><button class="op-btn" data-act="zout" title="Мельче">−</button><button class="op-btn" data-act="zfit">По размеру</button>'
     + '<span class="op-legend">' + legend + '</span></div>'
-    + (plan ? '<div class="op-canvas' + (op.edit ? ' edit' : '') + '" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg"></svg></div>'
-      + '<div class="op-hint">' + (op.edit ? 'Перетаскивайте помещения мышью, размер — за уголок. Стрелки двигают выбранное на 0,5 м, с Alt — на 0,1 м. Пустое место — двигать план, колесо — масштаб. Всё сохраняется сразу.'
+    + tools
+    + (plan ? '<div class="op-canvas' + (op.edit ? ' edit' : '') + (op.edit && op.tool !== 'sel' ? ' tool' : '') + '" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg"></svg></div>'
+      + '<div class="op-hint">' + (op.edit ? OP_HINTS[op.tool] + ' Правая кнопка — двигать план, колесо — масштаб. Всё сохраняется сразу.'
         : 'Клик по помещению — подробности. Пустое место — двигать план, колесо — масштаб.') + '</div>'
       + '<div class="op-tbl">' + opTableHtml() + '</div>'
       : '<div class="op-warn">У объекта пока нет плана.' + (can ? ' Включите «Редактировать» и нажмите «+ План».' : '') + '</div>')
@@ -204,6 +335,58 @@ function opFit() {
   op.view = { x: -pad, y: -pad, w: W + 2 * pad, h: H + 2 * pad };
 }
 function opSvg() { const c = opRoot().querySelector('.op-canvas svg'); return c; }
+function opLenLbl(a, b, px, txt) {
+  const L = opDist(a, b); if (L < 1e-3 && !txt) return '';
+  return '<text x="' + (a.x + b.x) / 2 + '" y="' + ((a.y + b.y) / 2 - 8 * px) + '" font-size="' + 12 * px + '" font-weight="700" fill="#1c2d58" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">'
+    + opEsc(txt || opM(opR(L)) + ' м') + '</text>';
+}
+function opWallSvg(it, px, sel) {
+  const t = Math.max(0.03, Number(it.t) || 0.2), c = 'x1="' + it.x1 + '" y1="' + it.y1 + '" x2="' + it.x2 + '" y2="' + it.y2 + '"';
+  return '<g class="op-it" data-it="' + it.id + '"><line ' + c + ' stroke="' + (sel ? '#cf1322' : '#262626') + '" stroke-width="' + t + '" stroke-linecap="square"/>'
+    + '<line ' + c + ' stroke="transparent" stroke-width="' + Math.max(t, 12 * px) + '"/></g>';
+}
+function opOpenSvg(it, px, ghost, sel) {
+  const G = opOpG(it), w = Number(it.w) || 0.9, hw = w / 2, t = Math.max(0.05, G.t), col = sel ? '#cf1322' : '#262626', sw = 1.4 * px;
+  let s = '<g transform="translate(' + G.x + ' ' + G.y + ') rotate(' + G.a + ')"' + (ghost ? ' opacity="0.55"' : ' class="op-it" data-it="' + it.id + '"') + '>';
+  s += '<rect x="' + -hw + '" y="' + (-t / 2 - px) + '" width="' + w + '" height="' + (t + 2 * px) + '" fill="#fff"/>';   // проём «вырезает» стену
+  const jambs = '<path d="M' + -hw + ' ' + -t / 2 + 'V' + t / 2 + 'M' + hw + ' ' + -t / 2 + 'V' + t / 2 + '" stroke="' + col + '" stroke-width="' + 2 * sw + '"/>';
+  if (it.k === 'door') {
+    const f = it.flip || 0, hx = (f & 1) ? hw : -hw, sd = (f & 2) ? -1 : 1, y0 = sd * t / 2, sweep = 2 * sd * w * hx > 0 ? 1 : 0;
+    s += jambs + '<path d="M' + hx + ' ' + y0 + 'V' + (y0 + sd * w) + '" stroke="' + col + '" stroke-width="' + 2 * sw + '"/>'
+      + '<path d="M' + hx + ' ' + (y0 + sd * w) + 'A' + w + ' ' + w + ' 0 0 ' + sweep + ' ' + -hx + ' ' + y0 + '" fill="none" stroke="' + col + '" stroke-width="' + sw * 0.8 + '" stroke-dasharray="' + 4 * px + ' ' + 3 * px + '"/>';
+  } else if (it.k === 'window') {
+    s += '<rect x="' + -hw + '" y="' + -t / 2 + '" width="' + w + '" height="' + t + '" fill="#e6f4ff" stroke="' + col + '" stroke-width="' + sw + '"/>'
+      + '<path d="M' + -hw + ' ' + -t / 6 + 'H' + hw + 'M' + -hw + ' ' + t / 6 + 'H' + hw + '" stroke="' + col + '" stroke-width="' + sw * 0.8 + '"/>';
+  } else {
+    s += jambs + '<path d="M' + -hw + ' 0H' + hw + '" stroke="' + col + '" stroke-width="' + 2.5 * sw + '" stroke-dasharray="' + 7 * px + ' ' + 4 * px + '"/>';
+  }
+  if (!ghost) s += '<rect x="' + -hw + '" y="' + -Math.max(t / 2, 7 * px) + '" width="' + w + '" height="' + Math.max(t, 14 * px) + '" fill="transparent"/>';
+  return s + '</g>';
+}
+function opDimSvg(it, px, col, hit) {
+  const dx = it.x2 - it.x1, dy = it.y2 - it.y1, L = Math.hypot(dx, dy); if (L < 1e-6) return '';
+  const off = it.off === undefined || it.off === null ? 0.6 : Number(it.off), nx = -dy / L, ny = dx / L;
+  const a1 = [it.x1 + nx * off, it.y1 + ny * off], a2 = [it.x2 + nx * off, it.y2 + ny * off], tk = 5 * px, ux = dx / L, uy = dy / L, ex = Math.sign(off || 1) * 0.15;
+  let ang = Math.atan2(dy, dx) * 180 / Math.PI; if (ang > 90 || ang <= -90) ang += 180;
+  const mx = (a1[0] + a2[0]) / 2, my = (a1[1] + a2[1]) / 2;
+  let d = 'M' + it.x1 + ' ' + it.y1 + 'L' + (a1[0] + nx * ex) + ' ' + (a1[1] + ny * ex) + 'M' + it.x2 + ' ' + it.y2 + 'L' + (a2[0] + nx * ex) + ' ' + (a2[1] + ny * ex)
+    + 'M' + a1[0] + ' ' + a1[1] + 'L' + a2[0] + ' ' + a2[1];
+  [a1, a2].forEach(function(q) { d += 'M' + (q[0] - (ux + nx) * tk) + ' ' + (q[1] - (uy + ny) * tk) + 'L' + (q[0] + (ux + nx) * tk) + ' ' + (q[1] + (uy + ny) * tk); });
+  return '<g' + (hit ? ' class="op-it" data-it="' + it.id + '"' : '') + '><path d="' + d + '" stroke="' + col + '" stroke-width="' + 1.2 * px + '" fill="none"/>'
+    + (hit ? '<line x1="' + a1[0] + '" y1="' + a1[1] + '" x2="' + a2[0] + '" y2="' + a2[1] + '" stroke="transparent" stroke-width="' + 12 * px + '"/>' : '')
+    + '<text transform="translate(' + mx + ' ' + my + ') rotate(' + ang + ')" y="' + -4 * px + '" font-size="' + 12 * px + '" fill="' + col + '" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">' + opM(opR(L)) + ' м</text></g>';
+}
+function opTextSvg(it, px, sel) {
+  const s = Math.max(0.1, Number(it.s) || 0.6), txt = String(it.text || ''), w = Math.max(1, txt.length) * s * 0.6;
+  return '<g class="op-it" data-it="' + it.id + '"><rect x="' + (it.x - w / 2) + '" y="' + (it.y - s) + '" width="' + w + '" height="' + s * 1.3 + '" fill="transparent"' + (sel ? ' stroke="#cf1322" stroke-width="' + px + '" stroke-dasharray="' + 3 * px + '"' : '') + '/>'
+    + '<text x="' + it.x + '" y="' + it.y + '" font-size="' + s + '" font-weight="600" fill="' + (sel ? '#cf1322' : '#262626') + '" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">' + opEsc(txt) + '</text></g>';
+}
+function opHandle(x, y, h, px, cls) {
+  const hs = 9 * px;
+  if (cls === 'm') return '<circle class="op-h m" data-h="' + h + '" cx="' + x + '" cy="' + y + '" r="' + 5 * px + '" fill="#fff" stroke="#1c2d58" stroke-width="' + 1.5 * px + '"/>';
+  return '<rect class="op-h' + (cls ? ' ' + cls : '') + '" data-h="' + h + '" x="' + (x - hs / 2) + '" y="' + (y - hs / 2) + '" width="' + hs + '" height="' + hs + '" fill="#fff" stroke="#cf1322" stroke-width="' + 1.5 * px + '"'
+    + (h === 'ne' || h === 'sw' ? ' style="cursor:nesw-resize"' : '') + '/>';
+}
 function opDraw() {
   const svg = opSvg(), p = opPlan(); if (!svg || !p) return;
   if (!op.view) opFit();
@@ -214,7 +397,7 @@ function opDraw() {
   const vx = v.x - (vw - v.w) / 2, vy = v.y - (vh - v.h) / 2;
   op.vb = { x: vx, y: vy, w: vw, h: vh, px: box.width ? vw / box.width : 0.05 };
   svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
-  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, px = op.vb.px, fs = 12.5 * px;
+  const W = Number(p.width_m) || 60, H = Number(p.height_m) || 40, px = op.vb.px, fs = 12.5 * px, ed = op.edit, sel0 = op.tool === 'sel';
   let g = '';
   // сетка: 1 м (если не мельче 6 пикселей) и 10 м
   const grid = function(step, color, sw) {
@@ -227,16 +410,24 @@ function opDraw() {
   if (p.bg_url) g += '<image href="' + opEsc(p.bg_url) + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none" opacity="' + (p.bg_opacity === null || p.bg_opacity === undefined ? 0.6 : p.bg_opacity) + '"/>';
   if (1 / px >= 6) g += grid(1, '#eef1f6', 1);
   g += grid(10, '#d6dce8', 1);
-  g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none" stroke="#1f1f1f" stroke-width="' + 2.5 * px + '"/>';
+  g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none" stroke="#9aa3b5" stroke-width="' + 1.5 * px + '"/>';
   // линейка: подписи каждые 10 м
   for (let x = 0; x <= W + 1e-6; x += 10) g += '<text x="' + x + '" y="' + (-4 * px) + '" font-size="' + 10 * px + '" fill="#8c8c8c" text-anchor="middle">' + x + '</text>';
   for (let y = 10; y <= H + 1e-6; y += 10) g += '<text x="' + (-4 * px) + '" y="' + (y + 3 * px) + '" font-size="' + 10 * px + '" fill="#8c8c8c" text-anchor="end">' + y + '</text>';
-  opPlanRooms().forEach(function(r) {
-    const s = opState(r), c = OP_COLORS[s], sel = r.id === op.sel;
-    const x = Number(r.x) || 0, y = Number(r.y) || 0, w = Math.max(0.1, Number(r.w) || 1), h = Math.max(0.1, Number(r.h) || 1);
-    g += '<g class="op-room" data-room="' + r.id + '"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + c[0] + '" fill-opacity="' + (p.bg_url ? 0.75 : 1) + '" stroke="' + (sel ? '#cf1322' : c[1]) + '" stroke-width="' + (sel ? 3 : 1.3) * px + '"/>';
-    // подписи — только если влезают
-    const code = String(r.code || ''), cx = x + w / 2;
+  const rooms = opPlanRooms(), items = opItems();
+  // 1) заливка помещений
+  rooms.forEach(function(r) {
+    const c = OP_COLORS[opState(r)], sel = r.id === op.sel;
+    g += '<path class="op-room" data-room="' + r.id + '" d="' + opPathD(opRoomPts(r)) + '" fill="' + c[0] + '" fill-opacity="' + (p.bg_url ? 0.75 : 1) + '" stroke="' + (sel ? '#cf1322' : c[1]) + '" stroke-width="' + (sel ? 3 : 1.3) * px + '" stroke-linejoin="round"/>';
+  });
+  // 2) стены, проёмы, размеры, подписи
+  items.forEach(function(it) { if (it.k === 'wall') g += opWallSvg(it, px, it.id === op.selItem); });
+  items.forEach(function(it) { if (OP_OPEN[it.k]) g += opOpenSvg(it, px, false, it.id === op.selItem); });
+  items.forEach(function(it) { if (it.k === 'dim') g += opDimSvg(it, px, it.id === op.selItem ? '#cf1322' : '#1c2d58', true); });
+  // 3) подписи помещений — только если влезают
+  rooms.forEach(function(r) {
+    const pts = opRoomPts(r), bb = opBBox(pts), w = bb.w, h = bb.h, c = opIsPoly(r) ? opCentroid(pts) : [bb.x + w / 2, bb.y + h / 2];
+    const code = String(r.code || ''), cx = c[0];
     const fit = function(txt, f) { return txt.length * f * 0.68 < w - 4 * px; };
     let lines = [];
     if (fit(code, fs * 1.15) && h > fs * 1.6) lines.push(['<tspan font-weight="700">' + opEsc(code) + '</tspan>', fs * 1.15]);
@@ -246,16 +437,52 @@ function opDraw() {
       if (max >= 4) { if (t.length > max) t = t.slice(0, max - 1) + '…'; lines.push([opEsc(t), fs * 0.92]); }
     }
     const tot = lines.reduce(function(a, l) { return a + l[1] * 1.25; }, 0);
-    let ty = y + h / 2 - tot / 2;
+    let ty = c[1] - tot / 2;
     lines.forEach(function(l) { ty += l[1] * 1.25; g += '<text x="' + cx + '" y="' + (ty - l[1] * 0.3) + '" font-size="' + l[1] + '" fill="#1f1f1f" text-anchor="middle">' + l[0] + '</text>'; });
-    if (sel && op.edit) {
-      const hs = 9 * px;
-      [[x, y, 'nw'], [x + w, y, 'ne'], [x, y + h, 'sw'], [x + w, y + h, 'se']].forEach(function(q) {
-        g += '<rect class="op-h" data-h="' + q[2] + '" x="' + (q[0] - hs / 2) + '" y="' + (q[1] - hs / 2) + '" width="' + hs + '" height="' + hs + '" fill="#fff" stroke="#cf1322" stroke-width="' + 1.5 * px + '"' + (q[2] === 'ne' || q[2] === 'sw' ? ' style="cursor:nesw-resize"' : '') + '/>';
-      });
-    }
-    g += '</g>';
   });
+  items.forEach(function(it) { if (it.k === 'text') g += opTextSvg(it, px, it.id === op.selItem); });
+  // 4) выбранное: длины сторон и ручки
+  const sr = opRoom(op.sel);
+  if (ed && sr && sr.plan_id === op.planId) {
+    const pts = opRoomPts(sr), n = pts.length, poly = opIsPoly(sr);
+    for (let i = 0; i < n; i++) {
+      const a = { x: pts[i][0], y: pts[i][1] }, b = { x: pts[(i + 1) % n][0], y: pts[(i + 1) % n][1] };
+      if (opDist(a, b) / px > 46) g += opLenLbl(a, b, px).replace('#1c2d58', '#cf1322');
+    }
+    if (sel0) {
+      if (poly) {
+        pts.forEach(function(q, i) { const b = pts[(i + 1) % n]; if (Math.hypot(b[0] - q[0], b[1] - q[1]) / px > 30) g += opHandle((q[0] + b[0]) / 2, (q[1] + b[1]) / 2, 'm' + i, px, 'm'); });
+        pts.forEach(function(q, i) { g += opHandle(q[0], q[1], 'v' + i, px, 'v'); });
+      } else {
+        const x = Number(sr.x) || 0, y = Number(sr.y) || 0, w = Number(sr.w) || 1, h = Number(sr.h) || 1;
+        [[x, y, 'nw'], [x + w, y, 'ne'], [x, y + h, 'sw'], [x + w, y + h, 'se']].forEach(function(q) { g += opHandle(q[0], q[1], q[2], px); });
+      }
+    }
+  }
+  const si = opItem(op.selItem);
+  if (ed && sel0 && si && (si.k === 'wall' || si.k === 'dim')) {
+    g += opLenLbl({ x: si.x1, y: si.y1 }, { x: si.x2, y: si.y2 }, px).replace('#1c2d58', '#cf1322');
+    g += opHandle(si.x1, si.y1, 'p1', px, 'v') + opHandle(si.x2, si.y2, 'p2', px, 'v');
+  }
+  // 5) рисуемое сейчас
+  const hv = op.hover;
+  if (ed && !sel0 && hv) {
+    const t = op.tool, from = opToolFrom(), typed = op.typed ? op.typed.replace('.', ',') + ' м ⏎' : '';
+    if (t === 'wall' && from) g += '<line x1="' + from.x + '" y1="' + from.y + '" x2="' + hv.x + '" y2="' + hv.y + '" stroke="#1c2d58" stroke-opacity="0.55" stroke-width="' + op.def.wall + '" stroke-linecap="square"/>' + opLenLbl(from, hv, px, typed);
+    if (t === 'room' && op.chain.length) {
+      const pts = op.chain.map(function(q) { return q.x + ' ' + q.y; }).concat([hv.x + ' ' + hv.y]);
+      g += '<path d="M' + pts.join('L') + '" fill="#dbe4ff" fill-opacity="0.5" stroke="#1c2d58" stroke-width="' + 2 * px + '" stroke-dasharray="' + 6 * px + ' ' + 4 * px + '"/>'
+        + '<circle cx="' + op.chain[0].x + '" cy="' + op.chain[0].y + '" r="' + 6 * px + '" fill="#fff" stroke="#1c2d58" stroke-width="' + 2 * px + '"/>' + opLenLbl(from, hv, px, typed);
+    }
+    if (t === 'rect' && op.drag && op.drag.kind === 'rect') {
+      const a = op.drag.p0, x = Math.min(a.x, hv.x), y = Math.min(a.y, hv.y), w = Math.abs(hv.x - a.x), h = Math.abs(hv.y - a.y);
+      g += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#dbe4ff" fill-opacity="0.5" stroke="#1c2d58" stroke-width="' + 2 * px + '" stroke-dasharray="' + 6 * px + ' ' + 4 * px + '"/>'
+        + opLenLbl({ x: x, y: y + h / 2 }, { x: x + w, y: y + h / 2 }, px, opM(opR(w)) + ' × ' + opM(opR(h)) + ' м = ' + opArea(opR(w * h)));
+    }
+    if (t === 'dim' && from) g += opDimSvg({ x1: from.x, y1: from.y, x2: hv.x, y2: hv.y }, px, '#1c2d58', false);
+    if (OP_OPEN[t]) g += opOpenSvg(opOpPlace(t, hv), px, true, false);
+    g += '<circle cx="' + hv.x + '" cy="' + hv.y + '" r="' + 4 * px + '" fill="none" stroke="' + (hv.snap ? '#389e0d' : '#1c2d58') + '" stroke-width="' + 1.8 * px + '"/>';
+  }
   svg.innerHTML = g;
 }
 function opTableHtml() {
@@ -265,10 +492,11 @@ function opTableHtml() {
   rs.forEach(function(r) { const a = Number(r.area_sqm) || 0, s = opState(r); if (s === 'rented' || s === 'free') tot += a; if (s === 'rented') rented += a; if (s === 'free') free += a; });
   return '<div class="op-tot"><span>Помещений: <b>' + rs.length + '</b></span><span>Под аренду: <b>' + opArea(opR(tot)) + '</b></span><span>Сдано: <b>' + opArea(opR(rented)) + '</b></span><span>Свободно: <b>' + opArea(opR(free)) + '</b></span>'
     + '<span style="color:#8c8c8c;">площади — по документам (поле «Площадь»), не по рисунку</span></div>'
-    + '<table class="op-t"><thead><tr><th>ID</th><th>Название</th><th class="num">Площадь</th><th>Состояние</th><th>Договор</th><th>Арендатор</th><th>Договор до</th></tr></thead><tbody>'
+    + '<table class="op-t"><thead><tr><th>ID</th><th>Название</th><th class="num">Площадь</th><th class="num">По рисунку</th><th>Состояние</th><th>Договор</th><th>Арендатор</th><th>Договор до</th></tr></thead><tbody>'
     + rs.map(function(r) {
       const s = opState(r), c = opCon(r.contract_id);
       return '<tr data-room="' + r.id + '"' + (r.id === op.sel ? ' class="on"' : '') + '><td><b>' + opEsc(r.code) + '</b></td><td>' + opEsc(r.title) + '</td><td class="num">' + opArea(r.area_sqm) + '</td>'
+        + '<td class="num" style="color:#8c8c8c;">' + opArea(opR(opPolyArea(opRoomPts(r)))) + '</td>'
         + '<td><span class="op-chip" style="background:' + OP_COLORS[s][0] + ';border-color:' + OP_COLORS[s][1] + '">' + opStateTitle(s) + '</span></td>'
         + '<td>' + (c ? opEsc(c.contract_number) : r.contract_id ? '<span style="color:#cf1322;">нет в действующих</span>' : '') + '</td><td>' + (c ? opEsc(c.tenant_name) : '') + '</td><td>' + (c ? opDate(c.end_date) : '') + '</td></tr>';
     }).join('') + '</tbody></table>';
@@ -277,6 +505,33 @@ function opTableHtml() {
 // ---------- боковая панель ----------
 function opF(label, inner, sub) { return '<div class="op-f"><label>' + label + '</label>' + inner + (sub ? '<div class="op-sub">' + sub + '</div>' : '') + '</div>'; }
 function opIn(name, val, attrs) { return '<input type="text" data-f="' + name + '" value="' + opEsc(val === null || val === undefined ? '' : val) + '"' + (attrs || '') + '>'; }
+function opII(name, val, title) { return '<input type="text" data-i="' + name + '" value="' + opEsc(val) + '" inputmode="decimal"' + (title ? ' title="' + title + '"' : '') + '>'; }
+function opToolHtml() {
+  const t = op.tool, name = (OP_TOOLS.find(function(x) { return x[0] === t; }) || [])[1];
+  let h = '<h4>' + opEsc(name) + '</h4><div class="op-hint" style="margin:0 0 10px;">' + OP_HINTS[t] + '</div>';
+  if (t === 'wall') h += opF('Толщина новых стен, м', '<input type="text" data-d="wall" value="' + opM(op.def.wall) + '" inputmode="decimal">', 'наружные обычно 0,4–0,6, перегородки 0,1–0,2');
+  if (OP_OPEN[t]) h += opF('Ширина, м', '<input type="text" data-d="' + t + '" value="' + opM(op.def[t]) + '" inputmode="decimal">');
+  return h + '<div class="op-keys"><b>Клавиши:</b> V выбор · W стена · P помещение по углам · R прямоугольник · D дверь · O окно · G ворота · M размер · T подпись · Esc — отмена · Ctrl+Z — отменить действие</div>';
+}
+function opItemHtml(it) {
+  let h = '<h4>' + OP_IT[it.k] + '</h4>';
+  if (it.k === 'wall' || it.k === 'dim') {
+    h += opF('Длина, м', opII('len', opM(opR(opWallLen(it)))), 'меняется второй конец, направление то же');
+    if (it.k === 'wall') h += opF('Толщина, м', opII('t', opM(it.t)));
+    h += opF('Концы, м', '<div class="op-g4">' + opII('x1', opM(it.x1), 'X начала') + opII('y1', opM(it.y1), 'Y начала') + opII('x2', opM(it.x2), 'X конца') + opII('y2', opM(it.y2), 'Y конца') + '</div>', 'X, Y начала → X, Y конца, от левого верхнего угла плана');
+    if (it.k === 'dim') h += opF('Отступ линии, м', opII('off', opM(it.off === undefined ? 0.6 : it.off)), 'минус — по другую сторону');
+    if (it.k === 'wall') { const n = opItems().filter(function(x) { return x.wid === it.id; }).length; if (n) h += '<div class="op-hint">В стене проёмов: ' + n + ' — удалятся вместе со стеной.</div>'; }
+  } else if (OP_OPEN[it.k]) {
+    h += opF('Ширина, м', opII('w', opM(it.w)));
+    const G = opOpG(it);
+    if (G.L) h += opF('От начала стены до проёма, м', opII('pos', opM(opR(G.u - (Number(it.w) || 0) / 2))), 'длина стены ' + opM(opR(G.L)) + ' м');
+    else h += opF('Поворот, °', opII('a', it.a || 0), 'проём не в стене — перетащите его на стену');
+    if (it.k === 'door') h += '<div class="op-acts"><button class="op-btn" data-act="it-flip1">Петли с другой стороны</button><button class="op-btn" data-act="it-flip2">Открывание внутрь / наружу</button></div>';
+  } else if (it.k === 'text') {
+    h += opF('Текст', '<textarea data-i="text" rows="2">' + opEsc(it.text) + '</textarea>') + opF('Высота букв, м', opII('s', opM(it.s || 0.6)));
+  }
+  return h + '<div class="op-acts"><button class="op-btn red" data-act="it-del">Удалить</button></div><div class="op-hint">Delete — удалить, Ctrl+Z — отменить.</div>';
+}
 function opSideHtml() {
   const p = opPlan(), can = opCanEdit() && op.edit;
   if (op.panel === 'plan' && can) return opPlanFormHtml(p);
@@ -285,14 +540,17 @@ function opSideHtml() {
     + opF('Начало ID', '<input type="text" data-r="prefix" value="П-">', 'например «П-», «1.», «А»') + opF('С номера', '<input type="number" data-r="start" value="1" min="0">')
     + opF('Цифр в номере', '<select data-r="pad"><option value="2">2 (П-01)</option><option value="1">без нулей (П-1)</option><option value="3">3 (П-001)</option></select>')
     + '<div class="op-acts"><button class="op-btn pri" data-act="renum-go">Перенумеровать</button><button class="op-btn" data-act="side-close">Отмена</button></div>';
+  const it = can ? opItem(op.selItem) : null;
+  if (it) return opItemHtml(it);
   const r = opRoom(op.sel);
   if (!r || r.plan_id !== op.planId) {
+    if (can && op.tool !== 'sel') return opToolHtml();
     if (!p) return '<h4>Помещения</h4><div class="op-hint">Выберите объект слева.</div>';
     return '<h4>' + opEsc(p.title || 'План') + '</h4><div class="op-kv"><b>Размер</b><span>' + opM(p.width_m) + ' × ' + opM(p.height_m) + ' м</span><b>Подложка</b><span>' + (p.bg_url ? 'чертёж загружен' : 'нет') + '</span></div>'
       + (p.note ? '<div class="op-hint" style="margin-top:10px;white-space:pre-wrap;">' + opEsc(p.note) + '</div>' : '')
       + '<div class="op-hint" style="margin-top:12px;">Выберите помещение на плане или в таблице.</div>';
   }
-  const c = opCon(r.contract_id), s = opState(r), drawn = opR((Number(r.w) || 0) * (Number(r.h) || 0));
+  const c = opCon(r.contract_id), s = opState(r), poly = opIsPoly(r), drawn = opR(opPolyArea(opRoomPts(r)));
   if (!can) {
     return '<h4>' + opEsc(r.code) + (r.title ? ' · ' + opEsc(r.title) : '') + '</h4><div class="op-kv">'
       + '<b>Состояние</b><span>' + opStateTitle(s) + '</span><b>Площадь</b><span>' + opArea(r.area_sqm) + '</span><b>Тип</b><span>' + opEsc(OP_KINDS[r.kind] || '—') + '</span>'
@@ -314,10 +572,16 @@ function opSideHtml() {
     + opF('Тип', '<select data-f="kind">' + Object.keys(OP_KINDS).map(function(k) { return '<option value="' + k + '"' + ((r.kind || 'rent') === k ? ' selected' : '') + '>' + OP_KINDS[k] + '</option>'; }).join('') + '</select>') + '</div>'
     + opF('Договор', '<select data-f="contract_id">' + conOpts + '</select>', 'только ссылка — договор не меняется')
     + opF('Назначение', opIn('purpose', r.purpose)) + opF('Отопление', opIn('heating', r.heating, ' placeholder="есть / нет / частично"'))
-    + opF('Положение и размер на плане, м', '<div class="op-g4">' + ['x', 'y', 'w', 'h'].map(function(k) { return '<input type="text" data-f="' + k + '" value="' + opM(r[k]) + '" title="' + { x: 'X — от левого края', y: 'Y — от верхнего края', w: 'Ширина', h: 'Глубина' }[k] + '" inputmode="decimal">'; }).join('') + '</div>', 'X, Y от левого верхнего угла · ширина · глубина')
+    + (poly ? opF('Положение на плане, м', '<div class="op-g2">' + ['x', 'y'].map(function(k) { return '<input type="text" data-f="' + k + '" value="' + opM(r[k]) + '" inputmode="decimal" title="' + (k === 'x' ? 'X — левый край' : 'Y — верхний край') + '">'; }).join('') + '</div>',
+        'контур из ' + opRoomPts(r).length + ' углов: тащите углы на плане, «+» — новый угол, двойной клик по углу — убрать')
+      : opF('Положение и размер на плане, м', '<div class="op-g4">' + ['x', 'y', 'w', 'h'].map(function(k) { return '<input type="text" data-f="' + k + '" value="' + opM(r[k]) + '" title="' + { x: 'X — от левого края', y: 'Y — от верхнего края', w: 'Ширина', h: 'Глубина' }[k] + '" inputmode="decimal">'; }).join('') + '</div>', 'X, Y от левого верхнего угла · ширина · глубина'))
     + opF('Заметки', '<textarea data-f="note" rows="2">' + opEsc(r.note) + '</textarea>')
     + '<div class="op-acts">'
-    + (opNum(r.area_sqm) && Math.abs(drawn - opNum(r.area_sqm)) > 0.05 ? '<button class="op-btn" data-act="room-fit" title="Глубину подогнать так, чтобы ширина × глубина = площадь">Размер по площади</button>' : '')
+    + (poly ? '<button class="op-btn" data-act="room-rect" title="Контур заменить описанным прямоугольником">Сделать прямоугольником</button>'
+      : '<button class="op-btn" data-act="room-poly" title="Помещение станет контуром: углы можно двигать и добавлять">Изменить форму (углы)</button>')
+    + '<button class="op-btn" data-act="room-walls" title="Поставить стены по сторонам помещения">Стены по контуру</button>'
+    + (!poly && opNum(r.area_sqm) && Math.abs(drawn - opNum(r.area_sqm)) > 0.05 ? '<button class="op-btn" data-act="room-fit" title="Глубину подогнать так, чтобы ширина × глубина = площадь">Размер по площади</button>' : '')
+    + (opNum(r.area_sqm) === null && drawn > 0 ? '<button class="op-btn" data-act="room-area" title="Записать площадь по рисунку в поле «Площадь»">Площадь = по рисунку</button>' : '')
     + '<button class="op-btn" data-act="room-dup">Копия рядом</button><button class="op-btn red" data-act="room-del">Удалить</button></div>';
 }
 function opPlanFormHtml(p) {
@@ -339,7 +603,79 @@ function opRenderSide() { const s = opRoot().querySelector('.op-side'); if (s) s
 function opRenderTable() { const t = opRoot().querySelector('.op-tbl'); if (t) t.innerHTML = opTableHtml(); }
 function opRefresh() { opDraw(); opRenderTable(); opRenderSide(); const u = opRoot().querySelector('[data-act="undo"]'); if (u) u.disabled = !op.undo.length; }
 
-// ---------- холст: выбор, перетаскивание, масштаб ----------
+// ---------- инструменты ----------
+function opSetTool(t) {
+  op.tool = t; op.chain = []; op.typed = ''; op.hover = null; op.sel = null; op.selItem = null; op.panel = 'room';
+  opRender(); const cv = opRoot().querySelector('.op-canvas'); if (cv) cv.focus({ preventScroll: true });
+}
+function opToolFrom() { return (op.tool === 'wall' || op.tool === 'room' || op.tool === 'dim') && op.chain.length ? op.chain[op.chain.length - 1] : null; }
+function opAddItem(it) { const before = opDrawSnap(); it.id = opNewId(); opItems().push(it); opDrawCommit(before); return it; }
+async function opToolClick(pt) {
+  const t = op.tool, ch = op.chain;
+  if (t === 'wall') {
+    if (ch.length) {
+      const a = ch[ch.length - 1]; if (opDist(a, pt) < 0.01) return;
+      opAddItem({ k: 'wall', x1: a.x, y1: a.y, x2: pt.x, y2: pt.y, t: op.def.wall });
+      if (ch.length > 1 && opDist(ch[0], pt) < 0.01) { op.chain = []; opRefresh(); return; }   // замкнули контур
+    }
+    ch.push(pt); op.typed = ''; opRefresh(); return;
+  }
+  if (t === 'room') {
+    if (ch.length >= 3 && opDist(ch[0], pt) < 0.01) return opRoomFinish();
+    if (ch.length && opDist(ch[ch.length - 1], pt) < 0.01) return;
+    ch.push(pt); op.typed = ''; opDraw(); return;
+  }
+  if (t === 'dim') {
+    if (!ch.length) { ch.push(pt); opDraw(); return; }
+    if (opDist(ch[0], pt) < 0.01) return;
+    opAddItem({ k: 'dim', x1: ch[0].x, y1: ch[0].y, x2: pt.x, y2: pt.y, off: 0.6 }); op.chain = []; op.typed = ''; opRefresh(); return;
+  }
+  if (OP_OPEN[t]) { const it = opAddItem(opOpPlace(t, pt)); op.selItem = it.id; opRefresh(); return; }
+  if (t === 'text') {
+    const it = opAddItem({ k: 'text', x: pt.x, y: pt.y, text: 'Подпись', s: 0.6 });
+    op.tool = 'sel'; op.selItem = it.id; opRender();
+    const ta = opRoot().querySelector('[data-i="text"]'); if (ta) { ta.focus(); ta.select(); }
+  }
+}
+async function opRoomFinish() {
+  const pts = op.chain.map(function(q) { return [q.x, q.y]; }); op.chain = []; op.typed = '';
+  if (pts.length < 3 || opPolyArea(pts) < 0.05) { opDraw(); return; }
+  await opCreateRoom(opPolyVals(pts));
+}
+async function opCreateRoom(geom, src) {
+  const p = opPlan();
+  const vals = Object.assign({ object_id: op.objId, plan_id: p.id, code: opNextCode(), title: src ? src.title || '' : '', area_sqm: src ? src.area_sqm : null, kind: src ? src.kind || 'rent' : 'rent',
+    purpose: src ? src.purpose || '' : '', heating: src ? src.heating || '' : '', contract_id: null, poly: null, old_codes: [], note: '' }, geom);
+  try { const r = await opApi('create', 'crm_rooms', vals); op.rooms.push(r); op.sel = r.id; op.selItem = null; op.panel = 'room'; op.undo.push({ t: 'add', id: r.id }); opRefresh(); opToast('Помещение ' + r.code + ' добавлено'); }
+  catch (e) { opToast(opErrText(e, 'Не удалось добавить помещение')); }
+}
+function opFinishChain() { if (op.tool === 'room' && op.chain.length >= 3) return opRoomFinish(); op.chain = []; op.typed = ''; opDraw(); }
+// длина набрана цифрами: точка на этом расстоянии в сторону мыши (с привязкой угла)
+function opTypedGo() {
+  const L = opNum(op.typed), a = opToolFrom(); op.typed = '';
+  if (!a || !L || L <= 0) { opDraw(); return; }
+  const h = op.hover && opDist(op.hover, a) > 1e-6 ? op.hover : { x: a.x + 1, y: a.y }, d = opDist(h, a);
+  opToolClick({ x: opR(a.x + (h.x - a.x) / d * L), y: opR(a.y + (h.y - a.y) / d * L) });
+}
+function opDelItem(id) {
+  const before = opDrawSnap(), dw = opDw(opPlan());
+  dw.items = dw.items.filter(function(x) { return x.id !== id && x.wid !== id; });
+  op.selItem = null; opDrawCommit(before); opRefresh();
+}
+function opMoveItem(it, o, dx, dy) {
+  if (it.k === 'wall' || it.k === 'dim') { it.x1 = opR(o.x1 + dx); it.y1 = opR(o.y1 + dy); it.x2 = opR(o.x2 + dx); it.y2 = opR(o.y2 + dy); }
+  else if (it.k === 'text') { it.x = opR(o.x + dx); it.y = opR(o.y + dy); }
+  else if (OP_OPEN[it.k]) {
+    const c = opOpG(o), np = opOpPlace(it.k, { x: c.x + dx, y: c.y + dy }, o);
+    ['wid', 'u', 'x', 'y', 'a', 't'].forEach(function(k) { delete it[k]; }); Object.assign(it, np);
+  }
+}
+function opMoveRoomVals(r, dx, dy) {
+  if (opIsPoly(r)) return opPolyVals(opRoomPts(r).map(function(q) { return [q[0] + dx, q[1] + dy]; }));
+  return { x: opR((Number(r.x) || 0) + dx), y: opR((Number(r.y) || 0) + dy) };
+}
+
+// ---------- холст: выбор, перетаскивание, рисование, масштаб ----------
 function opPt(e) {
   const svg = opSvg(), b = svg.getBoundingClientRect(), v = op.vb;
   return { x: v.x + (e.clientX - b.left) * v.w / b.width, y: v.y + (e.clientY - b.top) * v.h / b.height };
@@ -347,57 +683,143 @@ function opPt(e) {
 function opSnap(n, step) { return Math.round(n / step) * step; }
 function opBindCanvas() {
   const cv = opRoot().querySelector('.op-canvas'); if (!cv) return;
+  cv.addEventListener('contextmenu', function(e) { e.preventDefault(); });
   cv.addEventListener('pointerdown', function(e) {
-    if (e.button !== 0) return;
-    const pt = opPt(e), hEl = e.target.closest('.op-h'), gEl = e.target.closest('.op-room');
     cv.focus({ preventScroll: true });
-    if (gEl) {
-      const id = Number(gEl.getAttribute('data-room')), r = opRoom(id);
-      if (op.sel !== id) { op.sel = id; op.panel = 'room'; opDraw(); opRenderSide(); opRenderTable(); }
-      if (!op.edit || !r) return;
-      op.drag = { kind: hEl ? 'resize' : 'move', h: hEl ? hEl.getAttribute('data-h') : null, id: id, p0: pt, r0: { x: Number(r.x) || 0, y: Number(r.y) || 0, w: Number(r.w) || 1, h: Number(r.h) || 1 }, moved: false };
+    const raw = opPt(e), pan = function() { op.drag = { kind: 'pan', p0: { x: e.clientX, y: e.clientY }, v0: Object.assign({}, op.view), moved: false, btn: e.button }; };
+    if (e.button === 1 || e.button === 2) pan();
+    else if (e.button !== 0) return;
+    else if (op.edit && op.tool !== 'sel') {
+      const pt = OP_OPEN[op.tool] ? raw : opSnapPt(raw, e, opToolFrom());
+      if (op.tool === 'rect') { op.drag = { kind: 'rect', p0: pt }; op.hover = pt; }
+      else opToolClick(pt);
     } else {
-      op.drag = { kind: 'pan', p0: { x: e.clientX, y: e.clientY }, v0: Object.assign({}, op.view), moved: false };
+      const hEl = e.target.closest('.op-h'), iEl = op.edit ? e.target.closest('[data-it]') : null, gEl = e.target.closest('.op-room');
+      const it = op.edit && op.selItem ? opItem(op.selItem) : null, r = opRoom(op.sel);
+      if (hEl && it) {
+        // конец стены: тянем вместе с ним все концы стен в этой же точке (угол не разваливается)
+        const end = hEl.getAttribute('data-h'), px0 = it[end === 'p1' ? 'x1' : 'x2'], py0 = it[end === 'p1' ? 'y1' : 'y2'], ends = [];
+        opItems().forEach(function(x) {
+          if (x.k !== it.k) return;
+          ['p1', 'p2'].forEach(function(n) { const s = n === 'p1' ? 1 : 2; if (Math.abs(x['x' + s] - px0) < 1e-3 && Math.abs(x['y' + s] - py0) < 1e-3) ends.push([x, s]); });
+        });
+        const other = end === 'p1' ? { x: it.x2, y: it.y2 } : { x: it.x1, y: it.y1 };
+        op.drag = { kind: 'iend', ends: ends, from: ends.length === 1 ? other : null, skip: ends.map(function(q) { return q[0].id + ':p' + q[1]; }), before: opDrawSnap(), moved: false };
+      } else if (hEl && r && op.edit) {
+        const h = hEl.getAttribute('data-h'), r0 = { x: Number(r.x) || 0, y: Number(r.y) || 0, w: Number(r.w) || 1, h: Number(r.h) || 1, poly: opIsPoly(r) ? JSON.parse(JSON.stringify(r.poly)) : null };
+        if (h[0] === 'v' || h[0] === 'm') {
+          let i = Number(h.slice(1));
+          if (h[0] === 'm') { const pts = opRoomPts(r), a = pts[i], b = pts[(i + 1) % pts.length]; pts.splice(i + 1, 0, [opR((a[0] + b[0]) / 2), opR((a[1] + b[1]) / 2)]); r.poly = pts; i++; }
+          op.drag = { kind: 'vert', id: r.id, i: i, r0: r0, moved: h[0] === 'm' };
+        } else op.drag = { kind: 'resize', h: h, id: r.id, p0: raw, r0: r0, moved: false };
+      } else if (iEl) {
+        const x = opItem(iEl.getAttribute('data-it'));
+        if (op.selItem !== x.id || op.sel) { op.selItem = x.id; op.sel = null; op.panel = 'room'; opRefresh(); }
+        op.drag = { kind: 'imove', it: x, o: JSON.parse(JSON.stringify(x)), p0: raw, before: opDrawSnap(), moved: false };
+      } else if (gEl) {
+        const id = Number(gEl.getAttribute('data-room')), rr = opRoom(id);
+        if (op.sel !== id || op.selItem) { op.sel = id; op.selItem = null; op.panel = 'room'; opRefresh(); }
+        if (!op.edit || !rr) return;
+        op.drag = { kind: 'move', id: id, p0: raw, r0: { x: Number(rr.x) || 0, y: Number(rr.y) || 0, w: Number(rr.w) || 1, h: Number(rr.h) || 1, poly: opIsPoly(rr) ? JSON.parse(JSON.stringify(rr.poly)) : null }, moved: false };
+      } else pan();
     }
     try { cv.setPointerCapture(e.pointerId); } catch (x) { /* не критично */ }
     e.preventDefault();
   });
   cv.addEventListener('pointermove', function(e) {
-    const d = op.drag; if (!d) return;
+    const d = op.drag, raw = opPt(e);
+    if (op.edit && op.tool !== 'sel' && (!d || d.kind === 'rect')) {
+      op.hover = OP_OPEN[op.tool] ? raw : opSnapPt(raw, e, d ? null : opToolFrom()); opDraw(); return;
+    }
+    if (!d) return;
     if (d.kind === 'pan') {
       const b = cv.getBoundingClientRect(), s = op.vb.w / b.width;
-      op.view.x = d.v0.x - (e.clientX - d.p0.x) * s; op.view.y = d.v0.y - (e.clientY - d.p0.y) * s; d.moved = true; opDraw(); return;
+      if (Math.abs(e.clientX - d.p0.x) + Math.abs(e.clientY - d.p0.y) > 3) d.moved = true;
+      op.view.x = d.v0.x - (e.clientX - d.p0.x) * s; op.view.y = d.v0.y - (e.clientY - d.p0.y) * s; opDraw(); return;
     }
-    const pt = opPt(e), r = opRoom(d.id), dx = pt.x - d.p0.x, dy = pt.y - d.p0.y, o = d.r0;
+    const st = opStep();
+    if (d.kind === 'iend') { const pt = opSnapPt(raw, e, d.from, d.skip); d.ends.forEach(function(q) { q[0]['x' + q[1]] = pt.x; q[0]['y' + q[1]] = pt.y; }); d.moved = true; opDraw(); return; }
+    if (d.kind === 'vert') { const r = opRoom(d.id), pt = opSnapPt(raw, e, null, ['r' + d.id + ':' + d.i]); r.poly[d.i] = [pt.x, pt.y]; d.moved = true; opDraw(); return; }
+    const dx = raw.x - d.p0.x, dy = raw.y - d.p0.y;
     if (!d.moved && Math.abs(dx) + Math.abs(dy) < 3 * op.vb.px) return;   // дрожь руки при клике — не перемещение
     d.moved = true;
-    if (d.kind === 'move') { r.x = opR(opSnap(o.x + dx, OP_SNAP)); r.y = opR(opSnap(o.y + dy, OP_SNAP)); }
-    else {
+    if (d.kind === 'imove') { opMoveItem(d.it, d.o, opSnap(dx, st), opSnap(dy, st)); opDraw(); return; }
+    const r = opRoom(d.id), o = d.r0;
+    if (d.kind === 'move') {
+      if (o.poly) { const sx = opSnap(dx, st), sy = opSnap(dy, st); r.poly = o.poly.map(function(q) { return [opR(q[0] + sx), opR(q[1] + sy)]; }); Object.assign(r, opBBox(r.poly)); }
+      else { r.x = opR(opSnap(o.x + dx, st)); r.y = opR(opSnap(o.y + dy, st)); }
+    } else {
       let x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h;
-      if (d.h.indexOf('w') !== -1) x1 = opSnap(o.x + dx, OP_SNAP); else x2 = opSnap(x2 + dx, OP_SNAP);
-      if (d.h.indexOf('n') !== -1) y1 = opSnap(o.y + dy, OP_SNAP); else y2 = opSnap(y2 + dy, OP_SNAP);
-      if (x2 - x1 < OP_SNAP) { if (d.h.indexOf('w') !== -1) x1 = x2 - OP_SNAP; else x2 = x1 + OP_SNAP; }
-      if (y2 - y1 < OP_SNAP) { if (d.h.indexOf('n') !== -1) y1 = y2 - OP_SNAP; else y2 = y1 + OP_SNAP; }
+      if (d.h.indexOf('w') !== -1) x1 = opSnap(o.x + dx, st); else x2 = opSnap(x2 + dx, st);
+      if (d.h.indexOf('n') !== -1) y1 = opSnap(o.y + dy, st); else y2 = opSnap(y2 + dy, st);
+      if (x2 - x1 < st) { if (d.h.indexOf('w') !== -1) x1 = x2 - st; else x2 = x1 + st; }
+      if (y2 - y1 < st) { if (d.h.indexOf('n') !== -1) y1 = y2 - st; else y2 = y1 + st; }
       r.x = opR(x1); r.y = opR(y1); r.w = opR(x2 - x1); r.h = opR(y2 - y1);
     }
     opDraw();
   });
   const end = async function() {
-    const d = op.drag; op.drag = null; if (!d || d.kind === 'pan' || !d.moved) return;
-    const r = opRoom(d.id), vals = { x: r.x, y: r.y, w: r.w, h: r.h };
-    Object.assign(r, d.r0);   // прежнее — в стек отмены через opSaveRoom
+    const d = op.drag; op.drag = null; if (!d) return;
+    if (d.kind === 'pan') {
+      if (d.moved) return;
+      if (d.btn === 2 && op.chain.length) return opFinishChain();   // правая кнопка без движения — закончить стену / контур
+      if (d.btn === 0 && (op.sel || op.selItem)) { op.sel = null; op.selItem = null; opRefresh(); }   // клик по пустому — снять выбор
+      return;
+    }
+    if (d.kind === 'rect') {
+      const a = d.p0, b = op.hover || a, x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = opR(Math.abs(b.x - a.x)), h = opR(Math.abs(b.y - a.y));
+      if (w >= 0.3 && h >= 0.3) await opCreateRoom({ x: opR(x), y: opR(y), w: w, h: h }); else opDraw();
+      return;
+    }
+    if (!d.moved) return;
+    if (d.kind === 'iend' || d.kind === 'imove') { opDrawCommit(d.before); opRefresh(); return; }
+    const r = opRoom(d.id), vals = r.poly && (d.r0.poly || d.kind === 'vert') ? opPolyVals(r.poly) : { x: r.x, y: r.y, w: r.w, h: r.h };
+    Object.assign(r, d.r0); if (!d.r0.poly) r.poly = null;   // прежнее — в стек отмены через opSaveRoom
     await opSaveRoom(d.id, vals); opRefresh();
   };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  cv.addEventListener('pointerleave', function() { if (op.hover && !op.drag) { op.hover = null; opDraw(); } });
+  cv.addEventListener('dblclick', async function(e) {
+    if (!op.edit) return;
+    if (op.tool === 'wall' || op.tool === 'room') { e.preventDefault(); opFinishChain(); return; }
+    const hEl = e.target.closest('.op-h'), r = opRoom(op.sel), h = hEl && hEl.getAttribute('data-h');
+    if (r && h && h[0] === 'v' && opIsPoly(r)) {
+      const pts = opRoomPts(r); if (pts.length <= 3) { opToast('У помещения минимум 3 угла'); return; }
+      pts.splice(Number(h.slice(1)), 1); await opSaveRoom(r.id, opPolyVals(pts)); opRefresh();
+    }
+  });
   cv.addEventListener('wheel', function(e) {
     e.preventDefault();
     const pt = opPt(e); opZoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, pt);
   }, { passive: false });
   cv.addEventListener('keydown', async function(e) {
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'я')) { e.preventDefault(); opUndo(); return; }
-    const r = opRoom(op.sel); if (!op.edit || !r || r.plan_id !== op.planId) return;
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'я' || e.code === 'KeyZ')) { e.preventDefault(); opUndo(); return; }
+    if (!op.edit || e.ctrlKey || e.metaKey) return;
+    if (op.tool !== 'sel' && op.chain.length) {
+      if (/^[0-9]$/.test(e.key) || e.key === ',' || e.key === '.') { e.preventDefault(); op.typed += e.key === ',' ? '.' : e.key; opDraw(); return; }
+      if (e.key === 'Backspace' && op.typed) { e.preventDefault(); op.typed = op.typed.slice(0, -1); opDraw(); return; }
+      if (e.key === 'Backspace' && op.tool === 'room') { e.preventDefault(); op.chain.pop(); opDraw(); return; }
+    }
+    if (e.key === 'Enter') { e.preventDefault(); if (op.typed) opTypedGo(); else opFinishChain(); return; }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (op.chain.length) { op.chain = []; op.typed = ''; opDraw(); } else if (op.tool !== 'sel') opSetTool('sel'); else { op.sel = null; op.selItem = null; opRefresh(); }
+      return;
+    }
+    if (OP_KEYS[e.code] && !e.altKey && !e.shiftKey) { e.preventDefault(); opSetTool(OP_KEYS[e.code]); return; }
     const st = e.altKey ? 0.1 : OP_SNAP, mv = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, -st], ArrowDown: [0, st] }[e.key];
-    if (mv) { e.preventDefault(); await opSaveRoom(r.id, { x: opR((Number(r.x) || 0) + mv[0]), y: opR((Number(r.y) || 0) + mv[1]) }); opRefresh(); }
+    const it = opItem(op.selItem);
+    if (it) {
+      if (mv) {
+        e.preventDefault(); const before = opDrawSnap();
+        if (OP_OPEN[it.k] && it.wid) { const G = opOpG(it); it.u = opR(G.u + (mv[0] || mv[1])); it.u = opOpG(it).u; } else opMoveItem(it, JSON.parse(JSON.stringify(it)), mv[0], mv[1]);
+        opDrawCommit(before); opRefresh();
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); opDelItem(it.id); }
+      return;
+    }
+    const r = opRoom(op.sel); if (!r || r.plan_id !== op.planId) return;
+    if (mv) { e.preventDefault(); await opSaveRoom(r.id, opMoveRoomVals(r, mv[0], mv[1])); opRefresh(); }
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); opDelRoom(r.id); }
   });
 }
@@ -417,28 +839,36 @@ async function opUndo() {
     else if (u.t === 'add') { await opApi('destroy', 'crm_rooms', u.id); op.rooms = op.rooms.filter(function(r) { return r.id !== u.id; }); if (op.sel === u.id) op.sel = null; }
     else if (u.t === 'del') { const nr = await opApi('create', 'crm_rooms', u.vals); op.rooms.push(nr); op.sel = nr.id; }
     else if (u.t === 'batch') { for (const x of u.list.slice().reverse()) await opSaveRoom(x.id, x.vals, true); }
+    else if (u.t === 'draw') { const p = op.plans.find(function(x) { return x.id === u.id; }); if (p) { p.drawing = u.d; op.selItem = null; opPushDrawing(p); } }
     opToast('Отменено');
   } catch (e) { opToast('Не удалось отменить'); }
   opRefresh();
 }
 async function opAddRoom(src) {
   const p = opPlan(); if (!p) return;
+  if (src) {
+    const pts = opRoomPts(src), bb = opBBox(pts), dx = Math.min(bb.w, Math.max(0, Number(p.width_m) - bb.x - bb.w));
+    return opCreateRoom(opIsPoly(src) ? opPolyVals(pts.map(function(q) { return [q[0] + dx, q[1]]; })) : { x: opR(bb.x + dx), y: bb.y, w: bb.w, h: bb.h }, src);
+  }
   const v = op.view || { x: 0, y: 0, w: p.width_m, h: p.height_m };
-  const w = src ? Number(src.w) || 6 : 6, h = src ? Number(src.h) || 6 : 6;
-  const x = src ? Math.min(Number(p.width_m) - w, (Number(src.x) || 0) + w) : opSnap(Math.max(0, Math.min(Number(p.width_m) - w, v.x + v.w / 2 - w / 2)), OP_SNAP);
-  const y = src ? Number(src.y) || 0 : opSnap(Math.max(0, Math.min(Number(p.height_m) - h, v.y + v.h / 2 - h / 2)), OP_SNAP);
-  const vals = { object_id: op.objId, plan_id: p.id, code: opNextCode(), title: src ? src.title || '' : '', area_sqm: src ? src.area_sqm : null, kind: src ? src.kind || 'rent' : 'rent',
-    purpose: src ? src.purpose || '' : '', heating: src ? src.heating || '' : '', contract_id: null, x: opR(Math.max(0, x)), y: opR(y), w: w, h: h, old_codes: [], note: '' };
-  try { const r = await opApi('create', 'crm_rooms', vals); op.rooms.push(r); op.sel = r.id; op.panel = 'room'; op.undo.push({ t: 'add', id: r.id }); opRefresh(); opToast('Помещение ' + r.code + ' добавлено'); }
-  catch (e) { opToast(opErrText(e, 'Не удалось добавить помещение')); }
+  const x = opSnap(Math.max(0, Math.min(Number(p.width_m) - 6, v.x + v.w / 2 - 3)), OP_SNAP), y = opSnap(Math.max(0, Math.min(Number(p.height_m) - 6, v.y + v.h / 2 - 3)), OP_SNAP);
+  return opCreateRoom({ x: opR(x), y: opR(y), w: 6, h: 6 });
 }
 async function opDelRoom(id) {
   const r = opRoom(id); if (!r) return;
   const btn = opRoot().querySelector('[data-act="room-del"]');
   if (btn && !btn.dataset.sure) { btn.dataset.sure = '1'; btn.textContent = 'Точно удалить ' + r.code + '?'; return; }   // без всплывающих окон: второй клик подтверждает
-  const keep = {}; ['object_id', 'plan_id', 'code', 'title', 'area_sqm', 'kind', 'purpose', 'heating', 'contract_id', 'x', 'y', 'w', 'h', 'old_codes', 'note'].forEach(function(k) { keep[k] = r[k]; });
+  const keep = {}; ['object_id', 'plan_id', 'code', 'title', 'area_sqm', 'kind', 'purpose', 'heating', 'contract_id', 'x', 'y', 'w', 'h', 'poly', 'old_codes', 'note'].forEach(function(k) { keep[k] = r[k] === undefined ? null : r[k]; });
   try { await opApi('destroy', 'crm_rooms', id); op.rooms = op.rooms.filter(function(x) { return x.id !== id; }); op.sel = null; op.undo.push({ t: 'del', vals: keep }); opRefresh(); opToast('Удалено — можно отменить'); }
   catch (e) { opToast('Не удалось удалить'); }
+}
+function opRoomWalls(r) {
+  const pts = opRoomPts(r), before = opDrawSnap(), items = opItems();
+  const has = function(a, b) { return items.some(function(w) { return w.k === 'wall' && ((Math.abs(w.x1 - a[0]) + Math.abs(w.y1 - a[1]) + Math.abs(w.x2 - b[0]) + Math.abs(w.y2 - b[1]) < 1e-3) || (Math.abs(w.x1 - b[0]) + Math.abs(w.y1 - b[1]) + Math.abs(w.x2 - a[0]) + Math.abs(w.y2 - a[1]) < 1e-3)); }); };
+  let n = 0;
+  pts.forEach(function(a, i) { const b = pts[(i + 1) % pts.length]; if (!has(a, b)) { items.push({ id: opNewId(), k: 'wall', x1: opR(a[0]), y1: opR(a[1]), x2: opR(b[0]), y2: opR(b[1]), t: op.def.wall }); n++; } });
+  if (!n) { opToast('Стены по контуру уже есть'); return; }
+  opDrawCommit(before); opRefresh(); opToast('Стен добавлено: ' + n + ' (толщина ' + opM(op.def.wall) + ' м)');
 }
 async function opRenum() {
   const q = function(s) { return opRoot().querySelector('[data-r="' + s + '"]'); };
@@ -510,21 +940,43 @@ async function opRoomField(el) {
     if ((f === 'w' || f === 'h') && v < 0.1) v = 0.1;
     if (v !== null) v = opR(v);
   }
+  if (opIsPoly(r) && (f === 'x' || f === 'y')) {   // контур — сдвигаем целиком
+    const d = v - (Number(r[f]) || 0); if (Math.abs(d) < 1e-9) return;
+    await opSaveRoom(r.id, opMoveRoomVals(r, f === 'x' ? d : 0, f === 'y' ? d : 0)); opRefresh(); return;
+  }
   if (f === 'contract_id') v = v ? Number(v) : null;
   if (r[f] === v) return;
   await opSaveRoom(r.id, { [f]: v }); opRefresh();
+}
+function opItemField(el) {
+  const it = opItem(op.selItem); if (!it) return;
+  const f = el.getAttribute('data-i'), before = opDrawSnap();
+  if (f === 'text') it.text = el.value;
+  else {
+    const v = opNum(el.value); if (v === null) { opRenderSide(); return; }
+    if (f === 'len') {
+      const L = opWallLen(it); if (v <= 0.01 || L < 1e-9) { opRenderSide(); return; }
+      it.x2 = opR(it.x1 + (it.x2 - it.x1) / L * v); it.y2 = opR(it.y1 + (it.y2 - it.y1) / L * v);
+    } else if (f === 't') it.t = opR(Math.max(0.03, v));
+    else if (f === 'w') it.w = opR(Math.max(0.3, v));
+    else if (f === 's') it.s = opR(Math.max(0.1, v));
+    else if (f === 'pos') it.u = opR(v + (Number(it.w) || 0) / 2);
+    else it[f] = opR(v);   // x1 y1 x2 y2 off a
+  }
+  opDrawCommit(before); opRefresh();
 }
 
 // ---------- события ----------
 opRoot().addEventListener('click', async function(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
-  const ob = c('[data-obj]'), pl = c('[data-plan]'), tr = c('tr[data-room]'), a = c('[data-act]');
+  const ob = c('[data-obj]'), pl = c('[data-plan]'), tr = c('tr[data-room]'), a = c('[data-act]'), tl = c('[data-tool]');
   if (ob) { op.objId = Number(ob.getAttribute('data-obj')); try { localStorage.setItem('crm-objplan-obj', op.objId); } catch (x) { /* нет */ } op.sel = null; op.panel = 'room'; op.undo = []; opPickPlan(); opRender(); return; }
-  if (pl) { op.planId = Number(pl.getAttribute('data-plan')); op.sel = null; op.view = null; op.panel = 'room'; opRender(); return; }
-  if (tr) { op.sel = Number(tr.getAttribute('data-room')); op.panel = 'room'; opRefresh(); return; }
+  if (pl) { op.planId = Number(pl.getAttribute('data-plan')); op.sel = null; op.selItem = null; op.chain = []; op.view = null; op.panel = 'room'; opRender(); return; }
+  if (tl) { opSetTool(tl.getAttribute('data-tool')); return; }
+  if (tr) { op.sel = Number(tr.getAttribute('data-room')); op.selItem = null; op.panel = 'room'; opRefresh(); return; }
   if (!a) return;
   const act = a.getAttribute('data-act');
-  if (act === 'edit') { op.edit = !op.edit; op.panel = 'room'; opRender(); return; }
+  if (act === 'edit') { op.edit = !op.edit; op.panel = 'room'; op.selItem = null; op.chain = []; opRender(); return; }
   if (act === 'zin') return opZoom(1 / 1.3);
   if (act === 'zout') return opZoom(1.3);
   if (act === 'zfit') { opFit(); opDraw(); return; }
@@ -533,6 +985,12 @@ opRoot().addEventListener('click', async function(e) {
   if (act === 'room-dup') return opAddRoom(opRoom(op.sel));
   if (act === 'room-del') return opDelRoom(op.sel);
   if (act === 'room-fit') { const r = opRoom(op.sel), ar = opNum(r && r.area_sqm); if (r && ar && Number(r.w) > 0) { await opSaveRoom(r.id, { h: opR(ar / Number(r.w)) }); opRefresh(); } return; }
+  if (act === 'room-poly') { const r = opRoom(op.sel); if (r) { await opSaveRoom(r.id, opPolyVals(opRoomPts(r))); opRefresh(); opToast('Тащите углы, «+» на стороне — новый угол'); } return; }
+  if (act === 'room-rect') { const r = opRoom(op.sel); if (r) { await opSaveRoom(r.id, Object.assign({ poly: null }, opBBox(opRoomPts(r)))); opRefresh(); } return; }
+  if (act === 'room-walls') { const r = opRoom(op.sel); if (r) opRoomWalls(r); return; }
+  if (act === 'room-area') { const r = opRoom(op.sel); if (r) { await opSaveRoom(r.id, { area_sqm: opR(opPolyArea(opRoomPts(r))) }); opRefresh(); } return; }
+  if (act === 'it-del') return opDelItem(op.selItem);
+  if (act === 'it-flip1' || act === 'it-flip2') { const it = opItem(op.selItem); if (it) { const before = opDrawSnap(); it.flip = (it.flip || 0) ^ (act === 'it-flip1' ? 1 : 2); opDrawCommit(before); opRefresh(); } return; }
   if (act === 'renum') { op.panel = 'renum'; opRenderSide(); return; }
   if (act === 'renum-go') return opRenum();
   if (act === 'plan-add') { op.newPlan = true; op.panel = 'plan'; opRenderSide(); return; }
@@ -543,13 +1001,18 @@ opRoot().addEventListener('click', async function(e) {
   if (act === 'plan-del') {
     const p = opPlan(); if (!p) return;
     if (opPlanRooms().length) { opToast('Сначала удалите или перенесите помещения плана'); return; }
-    if (!a.dataset.sure) { a.dataset.sure = '1'; a.textContent = 'Точно удалить план?'; return; }
+    if (!a.dataset.sure) { a.dataset.sure = '1'; a.textContent = opItems().length ? 'Удалить план вместе с чертежом?' : 'Точно удалить план?'; return; }
     try { await opApi('destroy', 'crm_floor_plans', p.id); op.plans = op.plans.filter(function(x) { return x.id !== p.id; }); op.panel = 'room'; opPickPlan(); opRender(); } catch (x) { opToast('Не удалось удалить план'); }
   }
 });
 opRoot().addEventListener('change', function(e) {
   const el = e.target;
   if (el.matches && el.matches('[data-f]')) opRoomField(el);
+  if (el.matches && el.matches('[data-i]')) opItemField(el);
+  if (el.matches && el.matches('[data-d]')) {
+    const v = opNum(el.value), k = el.getAttribute('data-d');
+    if (v && v > 0) { op.def[k] = opR(v); try { localStorage.setItem('crm-objplan-def', JSON.stringify(op.def)); } catch (x) { /* нет */ } opDraw(); } else el.value = opM(op.def[k]);
+  }
   if (el.matches && el.matches('[data-p="bg_opacity"]')) { const p = opPlan(); if (p) { p.bg_opacity = Number(el.value); opDraw(); } }
 });
 opRoot().addEventListener('input', function(e) {
@@ -557,7 +1020,7 @@ opRoot().addEventListener('input', function(e) {
   if (el.matches && el.matches('[data-p="bg_opacity"]')) { const p = opPlan(); if (p) { p.bg_opacity = Number(el.value); opDraw(); } }
 });
 opRoot().addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && e.target.matches && e.target.matches('input[data-f]')) { e.preventDefault(); e.target.blur(); }
+  if (e.key === 'Enter' && e.target.matches && e.target.matches('input[data-f], input[data-i], input[data-d]')) { e.preventDefault(); e.target.blur(); }
 });
 window.addEventListener('resize', function() { if (opSvg()) opDraw(); });
 

@@ -11,6 +11,8 @@
   "crmblock003": "src/crm-hr.js",
   "crmblock004": "src/crm-hr.js",
   "crmblock005": "src/crm-aho.js",
+  "crmblock007": "src/crm-hr.js",
+  "crmblock008": "src/crm-aho.js",
   "calpageblk1": "src/calendar.js",
   "crmblock006": "src/crm-settings.js",
   "vaultblock01": "src/vault.js"

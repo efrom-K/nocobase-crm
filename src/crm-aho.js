@@ -1,4 +1,4 @@
-// «Дашборд АХО (тест)» (/admin/ahodash01, блок crmblock005) — рабочее место офис-менеджера (административно-хозяйственный отдел).
+// «Дашборд АХО» — вкладка «АХО» на «Главной» (/admin/dashpage01/tabs/hometabaho1, блок crmblock008; старая /admin/ahodash01, crmblock005, оставлена для ссылок) — рабочее место офис-менеджера (административно-хозяйственный отдел).
 // Устроен как дашборд HR: главный экран = плитки разделов + лента «Требует внимания»; клик по плитке открывает раздел, «← Дашборд АХО» возвращает.
 // Разделы повторяют её работу: регулярные дела по регламенту, счета (согласование, оплата, закрывающие) и регулярные платежи с планом/фактом,
 // доверенности, требования арендаторам по пожарной безопасности, корреспонденция и служебные записки, машины и штрафы, рассылки арендаторам.
@@ -220,7 +220,9 @@ if (!document.getElementById('crm-aho-style')) {
 // @include src/_crm-calls.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
-const AHO_PAGE = '/admin/ahodash01', AHO_MAIL_PAGE = '/admin/mailpage01';
+// дашборд АХО — вкладка «АХО» на «Главной» (блок crmblock008); старая /admin/ahodash01 (crmblock005) открывается для ссылок из старых уведомлений
+const AHO_PAGE = '/admin/dashpage01/tabs/hometabaho1', AHO_MAIL_PAGE = '/admin/mailpage01';
+const A_OWN_URL = location.pathname.indexOf('/dashpage01') === -1 || location.pathname.indexOf('hometabaho1') !== -1;   // на «Главной» параметры читает только открытая вкладка
 const A_PERIOD = cfg('aho.period');
 const A_WEEKDAYS = ['', 'по понедельникам', 'по вторникам', 'по средам', 'по четвергам', 'по пятницам', 'по субботам', 'по воскресеньям'];
 const A_EXP_ST = cfg('aho.expStatus');
@@ -570,7 +572,7 @@ async function aStart() {
   try {
     ah.me = await aMe();
     await aLoad();
-    const sc = location.search.match(/[?&]sec=(\w+)/), op = location.search.match(/[?&]open=(\w+):(\d+)/);
+    const sc = A_OWN_URL && location.search.match(/[?&]sec=(\w+)/), op = A_OWN_URL && location.search.match(/[?&]open=(\w+):(\d+)/);
     if (sc && A_SECTIONS[sc[1]]) ah.tab = sc[1];
     aRender();
     if (op) aGo(JSON.parse('{"' + op[1] + '":' + op[2] + '}'));

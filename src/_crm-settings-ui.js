@@ -112,7 +112,7 @@ if (!document.getElementById('crm-cfg-style')) {
 const CS_SKIP_ROLES = ['root', 'mail_service'];          // не выдаются людям
 const CS_SERVICE_USERS = ['mail-service'];               // служебные учётки — не сотрудники
 const CS_LINKS = [
-  ['/admin/hrdash01?sec=staff', 'Структура компании', 'Отделы, подчинённость, руководители, карточки сотрудников, юрлица — дашборд HR → «Сотрудники».'],
+  ['/admin/dashpage01/tabs/hometabhr01?sec=staff', 'Структура компании', 'Отделы, подчинённость, руководители, карточки сотрудников, юрлица — «Главная» → «Кадры» → «Сотрудники».'],
   ['/admin/settings/users-permissions/roles', 'Роли, права и меню', 'Стандартные настройки NocoBase: какие разделы видит роль и что она может менять.'],
   ['/admin/settings/users-permissions/users', 'Все пользователи NocoBase', 'Полный список учётных записей, включая служебные.'],
   ['/admin/settings/data-source-manager/main/collections', 'Таблицы и поля', 'Новое поле в договоре, заявке, сотруднике (вывести его в модуль — доработка).']

@@ -1,6 +1,6 @@
 // Один код — две страницы (режим по адресу):
 //  • «Сотрудники (тест)» (/admin/hrpage01, блок crmblock003) — общий раздел для всех: справочник, структура, отпуска; только просмотр.
-//  • «Дашборд HR (тест)» (/admin/hrdash01, блок crmblock004) — рабочее место HR-службы: без вкладок, главный экран = плитки разделов
+//  • «Дашборд HR» — вкладка «Кадры» на «Главной» (/admin/dashpage01/tabs/hometabhr01, блок crmblock007; старая /admin/hrdash01, crmblock004, оставлена для ссылок) — рабочее место HR-службы: без вкладок, главный экран = плитки разделов
 //    + лента «Требует внимания»; клик по плитке открывает раздел, «← Дашборд HR» возвращает. Разделы: сотрудники (сводная таблица и структура), отпуска,
 // охрана труда (обучение, инструктажи, пожарная безопасность, СОУТ), воинский учёт (по организациям и людям), документы и мероприятия
 // (ЛНА, мотивация, корпоративы). Разделы повторяют рабочие папки HR: всё ведётся по юрлицам (их больше десятка, человек может быть в нескольких).
@@ -300,8 +300,11 @@ if (!document.getElementById('crm-hr-style')) {
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
 const HR_TASKS_PAGE = '/admin/tskpage01';
-const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/hrdash01';
-const HR_MODE = location.pathname.indexOf(HR_DASH_PAGE) !== -1 ? 'hr' : 'staff';
+// дашборд HR — вкладка «Кадры» на «Главной» (блок crmblock007); старая страница /admin/hrdash01 (crmblock004) открывается для ссылок из старых уведомлений
+const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/dashpage01/tabs/hometabhr01';
+const HR_MODE = ['crmblock004', 'crmblock007'].indexOf(ctx.model && ctx.model.uid) !== -1 || location.pathname.indexOf('/admin/hrdash01') !== -1 ? 'hr' : 'staff';
+// на «Главной» ?sec= / ?open= читает только блок открытой вкладки (АХО на соседней вкладке)
+const HR_OWN_URL = location.pathname.indexOf('/dashpage01') === -1 || location.pathname.indexOf('hometabhr01') !== -1;
 const HR_DEPT = cfg('org.hrDept');
 const HR_EMP_TYPE = cfg('hr.empType');
 const HR_EMP_ST = { active: 'Работает', fired: 'Уволен' };
@@ -833,9 +836,9 @@ async function hStart() {
     hr.tab = HR_MODE === 'hr' ? 'home' : 'staff';
     if (HR_MODE === 'hr') hr.staffView = 'table';
     hRender();
-    const sc = location.search.match(/[?&]sec=(\w+)/);
+    const sc = HR_OWN_URL && location.search.match(/[?&]sec=(\w+)/);
     if (sc && HR_MODE === 'hr' && HR_SECTIONS[sc[1]]) { hr.tab = sc[1]; hRender(); try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
-    const m = location.search.match(/[?&]open=emp:(\d+)/);
+    const m = HR_OWN_URL && location.search.match(/[?&]open=emp:(\d+)/);
     if (m) {
       hOpenEmp(Number(m[1]));
       try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ }

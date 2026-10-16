@@ -1137,7 +1137,7 @@ async function opExportSvg(pw) {
 }
 function opCanvas(x) {
   return new Promise(function(ok, no) {
-    const img = new Image();
+    const img = document.createElement('img');   // new Image() в песочнице блоков нет
     img.onload = function() {
       const c = document.createElement('canvas'); c.width = x.w; c.height = x.h;
       const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, x.w, x.h); g.drawImage(img, 0, 0, x.w, x.h);
@@ -1148,9 +1148,10 @@ function opCanvas(x) {
   });
 }
 // PDF руками: одна страница А3, картинка JPEG (DCTDecode) по центру с полями
-function opPdfBlob(c) {
-  const b = atob(c.toDataURL('image/jpeg', 0.9).split(',')[1]), img = new Uint8Array(b.length);
-  for (let i = 0; i < b.length; i++) img[i] = b.charCodeAt(i);
+async function opPdfBlob(c) {
+  const jb = await new Promise(function(ok) { c.toBlob(ok, 'image/jpeg', 0.9); });   // без atob: его в песочнице может не быть
+  if (!jb) throw new Error('jpeg');
+  const img = new Uint8Array(await jb.arrayBuffer());
   const land = c.width >= c.height, PW = land ? 1190.55 : 841.89, PH = land ? 841.89 : 1190.55, m = 28;
   const k = Math.min((PW - 2 * m) / c.width, (PH - 2 * m) / c.height), dw = c.width * k, dh = c.height * k;
   const parts = [], offs = []; let len = 0;
@@ -1251,9 +1252,9 @@ async function opExport(fmt) {
     const x = await opExportSvg(fmt === 'pdf' ? 3300 : fmt === 'png' ? 3000 : 1600);
     if (fmt === 'svg') return opSaveBlob(new Blob([x.svg], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
     const c = await opCanvas(x);
-    if (fmt === 'pdf') return opSaveBlob(opPdfBlob(c), 'pdf');
+    if (fmt === 'pdf') return opSaveBlob(await opPdfBlob(c), 'pdf');
     c.toBlob(function(b) { if (b) opSaveBlob(b, 'png'); else opToast('Не удалось собрать картинку'); }, 'image/png');
-  } catch (e) { opToast('Не удалось выгрузить ' + fmt.toUpperCase()); }
+  } catch (e) { console.log('[objplan] export', fmt, e && e.message); opToast('Не удалось выгрузить ' + fmt.toUpperCase()); }
 }
 
 // ---------- события ----------

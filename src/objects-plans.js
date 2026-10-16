@@ -365,7 +365,7 @@ function opOpenSvg(it, px, ghost, sel) {
 }
 function opDimSvg(it, px, col, hit) {
   const dx = it.x2 - it.x1, dy = it.y2 - it.y1, L = Math.hypot(dx, dy); if (L < 1e-6) return '';
-  const off = it.off === undefined || it.off === null ? 0.6 : Number(it.off), nx = -dy / L, ny = dx / L;
+  const off = it.off === undefined || it.off === null ? -0.8 : Number(it.off), nx = -dy / L, ny = dx / L;
   const a1 = [it.x1 + nx * off, it.y1 + ny * off], a2 = [it.x2 + nx * off, it.y2 + ny * off], tk = 5 * px, ux = dx / L, uy = dy / L, ex = Math.sign(off || 1) * 0.15;
   let ang = Math.atan2(dy, dx) * 180 / Math.PI; if (ang > 90 || ang <= -90) ang += 180;
   const mx = (a1[0] + a2[0]) / 2, my = (a1[1] + a2[1]) / 2;
@@ -377,7 +377,7 @@ function opDimSvg(it, px, col, hit) {
     + '<text transform="translate(' + mx + ' ' + my + ') rotate(' + ang + ')" y="' + -4 * px + '" font-size="' + 12 * px + '" fill="' + col + '" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">' + opM(opR(L)) + ' м</text></g>';
 }
 function opTextSvg(it, px, sel) {
-  const s = Math.max(0.1, Number(it.s) || 0.6), txt = String(it.text || ''), w = Math.max(1, txt.length) * s * 0.6;
+  const s = Math.max(0.1, Number(it.s) || 1), txt = String(it.text || ''), w = Math.max(1, txt.length) * s * 0.6;
   return '<g class="op-it" data-it="' + it.id + '"><rect x="' + (it.x - w / 2) + '" y="' + (it.y - s) + '" width="' + w + '" height="' + s * 1.3 + '" fill="transparent"' + (sel ? ' stroke="#cf1322" stroke-width="' + px + '" stroke-dasharray="' + 3 * px + '"' : '') + '/>'
     + '<text x="' + it.x + '" y="' + it.y + '" font-size="' + s + '" font-weight="600" fill="' + (sel ? '#cf1322' : '#262626') + '" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">' + opEsc(txt) + '</text></g>';
 }
@@ -519,7 +519,7 @@ function opItemHtml(it) {
     h += opF('Длина, м', opII('len', opM(opR(opWallLen(it)))), 'меняется второй конец, направление то же');
     if (it.k === 'wall') h += opF('Толщина, м', opII('t', opM(it.t)));
     h += opF('Концы, м', '<div class="op-g4">' + opII('x1', opM(it.x1), 'X начала') + opII('y1', opM(it.y1), 'Y начала') + opII('x2', opM(it.x2), 'X конца') + opII('y2', opM(it.y2), 'Y конца') + '</div>', 'X, Y начала → X, Y конца, от левого верхнего угла плана');
-    if (it.k === 'dim') h += opF('Отступ линии, м', opII('off', opM(it.off === undefined ? 0.6 : it.off)), 'минус — по другую сторону');
+    if (it.k === 'dim') h += opF('Отступ линии, м', opII('off', opM(it.off === undefined ? -0.8 : it.off)), 'со знаком минус — по другую сторону');
     if (it.k === 'wall') { const n = opItems().filter(function(x) { return x.wid === it.id; }).length; if (n) h += '<div class="op-hint">В стене проёмов: ' + n + ' — удалятся вместе со стеной.</div>'; }
   } else if (OP_OPEN[it.k]) {
     h += opF('Ширина, м', opII('w', opM(it.w)));
@@ -528,7 +528,7 @@ function opItemHtml(it) {
     else h += opF('Поворот, °', opII('a', it.a || 0), 'проём не в стене — перетащите его на стену');
     if (it.k === 'door') h += '<div class="op-acts"><button class="op-btn" data-act="it-flip1">Петли с другой стороны</button><button class="op-btn" data-act="it-flip2">Открывание внутрь / наружу</button></div>';
   } else if (it.k === 'text') {
-    h += opF('Текст', '<textarea data-i="text" rows="2">' + opEsc(it.text) + '</textarea>') + opF('Высота букв, м', opII('s', opM(it.s || 0.6)));
+    h += opF('Текст', '<textarea data-i="text" rows="2">' + opEsc(it.text) + '</textarea>') + opF('Высота букв, м', opII('s', opM(it.s || 1)));
   }
   return h + '<div class="op-acts"><button class="op-btn red" data-act="it-del">Удалить</button></div><div class="op-hint">Delete — удалить, Ctrl+Z — отменить.</div>';
 }
@@ -628,11 +628,11 @@ async function opToolClick(pt) {
   if (t === 'dim') {
     if (!ch.length) { ch.push(pt); opDraw(); return; }
     if (opDist(ch[0], pt) < 0.01) return;
-    opAddItem({ k: 'dim', x1: ch[0].x, y1: ch[0].y, x2: pt.x, y2: pt.y, off: 0.6 }); op.chain = []; op.typed = ''; opRefresh(); return;
+    opAddItem({ k: 'dim', x1: ch[0].x, y1: ch[0].y, x2: pt.x, y2: pt.y, off: -0.8 }); op.chain = []; op.typed = ''; opRefresh(); return;
   }
   if (OP_OPEN[t]) { const it = opAddItem(opOpPlace(t, pt)); op.selItem = it.id; opRefresh(); return; }
   if (t === 'text') {
-    const it = opAddItem({ k: 'text', x: pt.x, y: pt.y, text: 'Подпись', s: 0.6 });
+    const it = opAddItem({ k: 'text', x: pt.x, y: pt.y, text: 'Подпись', s: 1 });
     op.tool = 'sel'; op.selItem = it.id; opRender();
     const ta = opRoot().querySelector('[data-i="text"]'); if (ta) { ta.focus(); ta.select(); }
   }

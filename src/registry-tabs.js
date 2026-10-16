@@ -599,8 +599,7 @@ if (!document.getElementById('cm-extracalc-style')) {
   const est = document.createElement('style');
   est.id = 'cm-extracalc-style';
   est.textContent = `
-    .cm-xc-badge { display:inline-block; font-size:11px; line-height:18px; color:#ad6800; background:#fff7e6; border:1px solid #ffd591; border-radius:4px; padding:0 6px; margin-left:6px; font-weight:500; white-space:nowrap; vertical-align:1px; }
-    td.cm-xc-cell { white-space:nowrap; }
+    .cm-xc-badge { display:table; margin-top:3px; font-size:11px; line-height:17px; color:#ad6800; background:#fff7e6; border:1px solid #ffd591; border-radius:4px; padding:0 6px; font-weight:500; white-space:nowrap; }
     #cm-extra-btn { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:4px 12px; font-size:13px; cursor:pointer; }
     #cm-extra-btn:hover { border-color:#1c2d58; color:#1c2d58; }
     #cm-extra-btn.on { background:#1c2d58; border-color:#1c2d58; color:#fff; }
@@ -608,6 +607,9 @@ if (!document.getElementById('cm-extracalc-style')) {
   document.head.appendChild(est);
 }
 function xcMoney(v) { return Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽'; }
+// в ячейке — коротко: «с 01.02.27: 420 554 ₽» (копейки, если есть); полный текст — в подсказке
+function xcMoneyShort(v) { const n = Number(v); return n.toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 }) + ' ₽'; }
+function xcDateShort(iso) { const m = String(iso || '').match(/^\d{2}(\d{2})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(iso || ''); }
 function xcDate(iso) { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(iso || ''); }
 function xcToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function paintExtraBtn() {
@@ -628,7 +630,7 @@ function xcBadgeFor(uid, id) {
       try { ch = fn(info.periods, info.rec, today, f); } catch (e) { ch = null; }
       if (ch && ch.value !== null && ch.value !== undefined) {
         const what = f === 'rent_amount' ? 'Арендная плата' : 'Эксплуатационный сбор';
-        return { text: (f === 'rent_amount' ? '' : 'сбор ') + 'с ' + xcDate(ch.date) + ': ' + xcMoney(ch.value),
+        return { text: (f === 'rent_amount' ? '' : 'сбор ') + 'с ' + xcDateShort(ch.date) + ': ' + xcMoneyShort(ch.value),
                  title: what + ' с ' + xcDate(ch.date) + ' — ' + xcMoney(ch.value) + ' в месяц (дополнительные расчёты аренды)' };
       }
     }
@@ -651,7 +653,7 @@ function paintExtraRows() {
       Array.from(tr.children).forEach(function(td, i) {
         const tag = td.querySelector(':scope > .cm-xc-badge');
         const want = b && cols.indexOf(i) !== -1;
-        if (!want) { if (tag) tag.remove(); td.classList.remove('cm-xc-cell'); return; }
+        if (!want) { if (tag) tag.remove(); return; }
         if (tag && tag.textContent === b.text) return;
         if (tag) tag.remove();
         const t = document.createElement('span');
@@ -659,7 +661,6 @@ function paintExtraRows() {
         t.textContent = b.text;
         t.title = b.title;
         td.appendChild(t);
-        td.classList.add('cm-xc-cell');
       });
     });
   });

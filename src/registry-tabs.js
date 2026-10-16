@@ -592,9 +592,9 @@ if (!window.__cmNotifTimers) {
 // В строке — метка «доп. расчёт» у номера договора; кнопка «Доп. расчёты сверху» поднимает такие договоры наверх (выбор запоминается).
 const EXTRA_TABLE_BY_TYPE = { active: 'ozazmpm4o4v', forming: 'formtbl000001', completed: 'ipb7gfluldk' };
 try { window.__cmExtraFirst = localStorage.getItem('cm-extra-first') === '1'; } catch (e) { window.__cmExtraFirst = false; }
-if (!document.getElementById('cm-extra-style')) {
+if (!document.getElementById('cm-extracalc-style')) {
   const est = document.createElement('style');
-  est.id = 'cm-extra-style';
+  est.id = 'cm-extracalc-style';
   est.textContent = `
     .cm-extra-tag { display:inline-block; margin-left:8px; padding:0 7px; border-radius:6px; border:1px solid #adc6ff; background:#f0f5ff; color:#1d39c4; font-size:11.5px; line-height:18px; font-weight:600; white-space:nowrap; vertical-align:1px; }
     #cm-extra-btn { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:4px 12px; font-size:13px; cursor:pointer; }

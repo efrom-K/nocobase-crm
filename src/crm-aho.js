@@ -351,7 +351,7 @@ async function aLoad() {
     L('crm_skud_cards', { sort: ['skud_name'] }).catch(function() { return []; }),
     L('crm_employees', { filter: { status: { $ne: 'fired' } }, sort: ['last_name', 'first_name'], fields: ['id', 'full_name', 'last_name', 'first_name', 'position', 'department', 'work_schedule'] }).catch(function() { return []; }),
     L('crm_vacations', { filter: { end_date: { $gte: (new Date().getFullYear() - 1) + '-01-01' } }, fields: ['employee_id', 'kind', 'start_date', 'end_date'] }).catch(function() { return []; }),
-    L('app_settings', { filter: { name: { $in: ['skud_work_start', 'skud_grace_min', 'skud_synced_at', 'skud_last_event'] } } }).catch(function() { return []; }),
+    L('app_settings', { filter: { name: { $in: ['skud_work_start', 'skud_grace_min', 'skud_synced_at', 'skud_last_event', 'skud_hidden_emps'] } } }).catch(function() { return []; }),
     L('crm_skud_events', { filter: { day: hToday(), kind: 'card' }, fields: ['day', 'time', 'card'] }).catch(function() { return []; }),
     L('crm_skud_marks', { filter: { day: hToday() } }).catch(function() { return []; })
   ]);
@@ -1080,8 +1080,9 @@ function aAttPeople() {
     if (!by[key].grp && c.skud_group) by[key].grp = c.skud_group;
   });
   // сотрудники CRM без карты СКУД (удалённые и т. п.) — тоже в списке, в офисной компании; работники объектов («Управление объектами») — нет
+  const hidden = aHiddenEmps();
   (ah.d.emps || []).forEach(function(e) {
-    if (!by['e' + e.id] && e.department !== 'Управление объектами') by['e' + e.id] = { key: 'e' + e.id, emp: e, name: e.full_name, cards: [], grp: 'КН Инвест.', noCard: true };
+    if (!by['e' + e.id] && e.department !== 'Управление объектами' && hidden.indexOf(e.id) === -1) by['e' + e.id] = { key: 'e' + e.id, emp: e, name: e.full_name, cards: [], grp: 'КН Инвест.', noCard: true };
   });
   Object.keys(by).forEach(function(k) { const p = by[k]; if (p.emp) p.name = p.emp.full_name || p.name; if (k[0] === 'e' && !p.emp) delete by[k]; });
   return Object.keys(by).map(function(k) { return by[k]; }).sort(function(a, b) { return a.name.localeCompare(b.name, 'ru'); });
@@ -1089,6 +1090,13 @@ function aAttPeople() {
 // отметки АХО (crm_skud_marks): ключ «сотрудник|день» → { id, time — исправленный приход, comment, excused — уважительная причина }
 function aPutMarks(list) { (list || []).forEach(function(m) { ah.d.marks[m.employee_id + '|' + hD(m.day)] = m; }); }
 function aMark(empId, day) { return (ah.d.marks || {})[empId + '|' + day] || null; }
+// сотрудники без карты, убранные из «Приходов» (app_settings skud_hidden_emps — номера через запятую)
+function aHiddenEmps() { return String(ah.d.skud.skud_hidden_emps || '').split(',').map(Number).filter(Boolean); }
+async function aHideEmp(id) {
+  const v = aHiddenEmps().concat([id]).join(',');
+  try { await ctx.api.resource('app_settings').update({ filter: { name: 'skud_hidden_emps' }, values: { value: v } }); ah.d.skud.skud_hidden_emps = v; hToast('Убран из «Приходов»'); aRenderAtt(); }
+  catch (e) { hToast('Не удалось сохранить'); }
+}
 // компании (группы СКУД): по числу людей; ah.att.co — выбранная ('' — все, разделами)
 function aAttCos() {
   const n = {}; aAttPeople().forEach(function(p) { const g = p.grp || 'Карты без владельца'; n[g] = (n[g] || 0) + 1; });
@@ -1112,6 +1120,7 @@ function aAttStatus(p, day, evs) {
   const wd = ((new Date(day + 'T00:00:00').getDay() + 6) % 7) + 1, sc = aSched(p.emp), grace = Number(ah.d.skud.skud_grace_min || 10);
   const mk = p.emp ? aMark(p.emp.id, day) : null;
   const r = { first: (mk && mk.time) || mine[0] || '', skudFirst: mine[0] || '', last: mine[mine.length - 1] || '', n: mine.length, start: sc.start, mark: mk };
+  if (mk && mk.remote) { r.st = 'remote'; r.first = ''; return r; }   // АХО отметила «удалённо» за этот день
   if (r.first) {
     r.st = p.emp && aMin(r.first) > aMin(sc.start) + grace ? (mk && mk.excused ? 'excused' : 'late') : 'came'; r.lateMin = aMin(r.first) - aMin(sc.start); return r;
   }
@@ -1163,8 +1172,8 @@ async function aRenderAtt() {
   if (a.view === 'month') return aRenderAttMonth(head);
   const ppl = aAttPeopleCo(), rows = ppl.map(function(p, i) { return { p: p, i: i, s: aAttStatus(p, a.day, a.ev) }; })
     .filter(function(x) { return x.s.st !== 'off' || x.s.n; })
-    .sort(function(x, y) { const o = { late: 0, absent: 1, excused: 2, came: 3, vac: 4, remote: 5, off: 6 }, gr = function(z) { return a.co ? 0 : cos.indexOf(z.p.grp || 'Карты без владельца'); };
-      return gr(x) - gr(y) || o[x.s.st] - o[y.s.st] || (x.s.first || '99').localeCompare(y.s.first || '99'); });
+    .sort(function(x, y) { const gr = function(z) { return a.co ? 0 : cos.indexOf(z.p.grp || 'Карты без владельца'); };
+      return gr(x) - gr(y) || x.p.name.localeCompare(y.p.name, 'ru'); });
   const cnt = function(st) { return rows.filter(function(x) { return x.s.st === st; }).length; };
   aBody().innerHTML = head
     + '<div class="hr-tiles">' + [['came', 'Пришли вовремя'], ['late', 'Опоздали'], ['excused', 'Уважительная причина'], ['absent', 'Нет прохода'], ['vac', 'В отпуске'], ['remote', 'Удалённо']].map(function(x) {
@@ -1172,7 +1181,7 @@ async function aRenderAtt() {
     + (rows.length ? '<div class="hr-card"><table><thead><tr><th>Сотрудник</th><th>Должность</th><th>Начало дня</th><th>Приход</th><th>Последний вход</th><th class="n">Проходов</th><th>Статус</th><th>Комментарий</th></tr></thead><tbody>'
       + rows.map(function(x, ri) {
         const s = x.s, st = A_ATT_ST[s.st];
-        return aCoHead(rows, ri, function(r) { return r.p; }, 8) + '<tr><td>' + hEsc(x.p.name) + (x.p.emp ? (x.p.noCard ? ' <span class="hr-chip grey" title="Нет карты СКУД — приход можно отметить вручную">без карты</span>' : '') : ' <span class="hr-chip orange" title="Карта не сопоставлена с сотрудником CRM — вкладка «Карты»">не сопоставлен</span>') + '</td>'
+        return aCoHead(rows, ri, function(r) { return r.p; }, 8) + '<tr><td>' + hEsc(x.p.name) + (x.p.emp ? (x.p.noCard ? ' <span class="hr-chip grey" title="Нет карты СКУД — приход можно отметить вручную">без карты</span> <button class="hr-btn sm" data-act="atthide" data-emp="' + x.p.emp.id + '" title="Не показывать в «Приходах» (сотрудник в CRM остаётся)">убрать</button>' : '') : ' <span class="hr-chip orange" title="Карта не сопоставлена с сотрудником CRM — вкладка «Карты»">не сопоставлен</span>') + '</td>'
           + '<td>' + hEsc(x.p.emp ? x.p.emp.position || '' : '') + '</td><td>' + (x.p.emp ? '<input type="time" class="att-start" data-start-emp="' + x.p.emp.id + '" value="' + hEsc(s.start) + '" title="Изменить начало дня — сохраняется в «График работы» сотрудника">' : '') + '</td><td>' + aArrCell(x.p, s) + '</td><td>' + hEsc(s.n > 1 ? s.last.slice(0, 5) : '') + '</td>'
           + '<td class="n">' + (s.n || '') + '</td><td><span class="hr-chip ' + st[1] + '">' + st[0] + (s.st === 'late' || (s.st === 'excused' && s.lateMin > 0) ? ' ' + s.lateMin + ' мин' : '') + '</span>'
           + (x.p.emp && (s.mark && s.mark.excused || s.st === 'late' || s.st === 'absent') ? ' <label class="att-exc" title="Опоздание или отсутствие по уважительной причине — не считается"><input type="checkbox" data-mark-exc="' + x.p.emp.id + '"' + (s.mark && s.mark.excused ? ' checked' : '') + '> уважительная</label>' : '') + '</td>'
@@ -1312,8 +1321,10 @@ function aRenderCards(head) {
 // приход: поле времени (исправить — забыл карту, прошёл за кем-то; очистить — вернуть время СКУД), под ним — что было по СКУД, если исправлено
 function aArrCell(p, s) {
   if (!p.emp) return '<b>' + hEsc(s.first.slice(0, 5)) + '</b>';
-  return '<input type="time" class="att-start" data-mark-time="' + p.emp.id + '" value="' + hEsc(s.first.slice(0, 5)) + '" title="Исправить время прихода; очистить — вернуть время по СКУД">'
-    + (s.mark && s.mark.time ? '<div class="hr-hint" style="margin:2px 0 0;">по СКУД: ' + (s.skudFirst ? hEsc(s.skudFirst.slice(0, 5)) : 'нет прохода') + '</div>' : '');
+  const rem = !!(s.mark && s.mark.remote);
+  return (rem ? '' : '<input type="time" class="att-start" data-mark-time="' + p.emp.id + '" value="' + hEsc(s.first.slice(0, 5)) + '" title="Исправить время прихода; очистить — вернуть время по СКУД">')
+    + ' <label class="att-exc" title="Работал удалённо в этот день — не опоздание и не «нет прохода»"><input type="checkbox" data-mark-rem="' + p.emp.id + '"' + (rem ? ' checked' : '') + '> удалённо</label>'
+    + (!rem && s.mark && s.mark.time ? '<div class="hr-hint" style="margin:2px 0 0;">по СКУД: ' + (s.skudFirst ? hEsc(s.skudFirst.slice(0, 5)) : 'нет прохода') + '</div>' : '');
 }
 // отметка за день (ah.att.day): одна запись на сотрудника и день — создаём или правим
 async function aSaveMark(empId, vals) {
@@ -1367,6 +1378,7 @@ aRoot().addEventListener('click', function(e) {
     if (a === 'year') { ah.year += Number(act.getAttribute('data-d')); return aRenderMoney(); }
     if (a === 'copymails') return aCopy((ah.mailList || []).join(', '));
     if (a === 'attv') { ah.att.view = act.getAttribute('data-v'); return aRenderAtt(); }
+    if (a === 'atthide') { aHideEmp(Number(act.getAttribute('data-emp'))); return; }
     if (a === 'attco') { ah.att.co = act.getAttribute('data-co') || ''; return aRenderAtt(); }
     if (a === 'attd') { return aAttShift(Number(act.getAttribute('data-d'))); }
     if (a === 'attx') { aAttXlsx(act.getAttribute('data-k')).catch(function(err) { console.error(err); hToast('Не удалось выгрузить'); }); return; }
@@ -1401,6 +1413,8 @@ aRoot().addEventListener('change', function(e) {
   if (mt) return aSaveMark(Number(mt), { time: e.target.value || null });
   if (mc) return aSaveMark(Number(mc), { comment: e.target.value.trim() || null });
   if (mx) return aSaveMark(Number(mx), { excused: e.target.checked });
+  const mr = e.target.getAttribute('data-mark-rem');
+  if (mr) return aSaveMark(Number(mr), { remote: e.target.checked });
   const se = e.target.getAttribute('data-start-emp');
   if (se) return aSaveStart(Number(se), e.target.value);
   const pl = e.target.getAttribute('data-plan');

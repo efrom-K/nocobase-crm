@@ -7,7 +7,7 @@
   - crm_skud_marks  — отметки АХО за день по сотруднику: исправленное время прихода (забыл карту, прошёл за кем-то), комментарий (почему опоздал),
                       «уважительная причина» — опоздание / отсутствие не считается; одна запись на сотрудника и день;
   - app_settings skud_work_start (начало дня по умолчанию, если у сотрудника не заполнен «График работы»), skud_grace_min (допустимое опоздание),
-    skud_synced_at / skud_last_event (заполняет scripts/skud_sync.py).
+    skud_synced_at / skud_last_event (заполняет scripts/skud_sync.py), skud_hidden_emps (номера сотрудников без карты, убранных из «Приходов», через запятую).
 
     NB_URL=http://localhost:13000 NB_TOKEN=<токен root> NB_SSH=user@server python3 setup_crm_skud.py
 """
@@ -49,12 +49,13 @@ collection('crm_skud_cards', 'СКУД: карты', [S('card', 'Карта (к�
                                              I('employee_id', 'Сотрудник CRM'), B('manual', 'Сопоставлен вручную'), B('ignore', 'Не учитывать (гостевая, служебная)'), T('note', 'Заметки')])
 # поля, добавленные позже, — в уже созданные коллекции
 print('field skud_group', ok(call('collections/crm_skud_cards/fields:create', S('skud_group', 'Компания (группа) в СКУД'))))
+print('field remote', ok(call('collections/crm_skud_marks/fields:create', B('remote', 'Работал удалённо'))))
 collection('crm_skud_events', 'СКУД: проходы', [D('day', 'День'), S('time', 'Время'), S('card', 'Карта'), S('kind', 'Вид')])   # card | button
 collection('crm_skud_marks', 'СКУД: отметки за день', [I('employee_id', 'Сотрудник CRM'), D('day', 'День'), S('time', 'Приход (исправлено), ЧЧ:ММ'),
                                                      T('comment', 'Комментарий'), B('excused', 'Уважительная причина')])
 psql("""create unique index if not exists crm_skud_marks_uniq on crm_skud_marks(employee_id, day);
 create unique index if not exists crm_skud_events_uniq on crm_skud_events(day, time, kind, coalesce(card, ''));
 create unique index if not exists crm_skud_cards_uniq on crm_skud_cards(card);
-insert into app_settings(name, value) select x, y from (values ('skud_work_start', '09:00'), ('skud_grace_min', '10'), ('skud_synced_at', null), ('skud_last_event', null)) v(x, y)
+insert into app_settings(name, value) select x, y from (values ('skud_work_start', '09:00'), ('skud_grace_min', '10'), ('skud_synced_at', null), ('skud_last_event', null), ('skud_hidden_emps', '')) v(x, y)
   where not exists (select 1 from app_settings a where a.name = v.x);""")
 print('indexes and settings ok')

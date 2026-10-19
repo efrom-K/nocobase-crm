@@ -1079,6 +1079,10 @@ function aAttPeople() {
     by[key].cards.push(c.card);
     if (!by[key].grp && c.skud_group) by[key].grp = c.skud_group;
   });
+  // сотрудники CRM без карты СКУД (удалённые и т. п.) — тоже в списке, в офисной компании; работники объектов («Управление объектами») — нет
+  (ah.d.emps || []).forEach(function(e) {
+    if (!by['e' + e.id] && e.department !== 'Управление объектами') by['e' + e.id] = { key: 'e' + e.id, emp: e, name: e.full_name, cards: [], grp: 'КН Инвест.', noCard: true };
+  });
   Object.keys(by).forEach(function(k) { const p = by[k]; if (p.emp) p.name = p.emp.full_name || p.name; if (k[0] === 'e' && !p.emp) delete by[k]; });
   return Object.keys(by).map(function(k) { return by[k]; }).sort(function(a, b) { return a.name.localeCompare(b.name, 'ru'); });
 }
@@ -1168,7 +1172,7 @@ async function aRenderAtt() {
     + (rows.length ? '<div class="hr-card"><table><thead><tr><th>Сотрудник</th><th>Должность</th><th>Начало дня</th><th>Приход</th><th>Последний вход</th><th class="n">Проходов</th><th>Статус</th><th>Комментарий</th></tr></thead><tbody>'
       + rows.map(function(x, ri) {
         const s = x.s, st = A_ATT_ST[s.st];
-        return aCoHead(rows, ri, function(r) { return r.p; }, 8) + '<tr><td>' + hEsc(x.p.name) + (x.p.emp ? '' : ' <span class="hr-chip orange" title="Карта не сопоставлена с сотрудником CRM — вкладка «Карты»">не сопоставлен</span>') + '</td>'
+        return aCoHead(rows, ri, function(r) { return r.p; }, 8) + '<tr><td>' + hEsc(x.p.name) + (x.p.emp ? (x.p.noCard ? ' <span class="hr-chip grey" title="Нет карты СКУД — приход можно отметить вручную">без карты</span>' : '') : ' <span class="hr-chip orange" title="Карта не сопоставлена с сотрудником CRM — вкладка «Карты»">не сопоставлен</span>') + '</td>'
           + '<td>' + hEsc(x.p.emp ? x.p.emp.position || '' : '') + '</td><td>' + (x.p.emp ? '<input type="time" class="att-start" data-start-emp="' + x.p.emp.id + '" value="' + hEsc(s.start) + '" title="Изменить начало дня — сохраняется в «График работы» сотрудника">' : '') + '</td><td>' + aArrCell(x.p, s) + '</td><td>' + hEsc(s.n > 1 ? s.last.slice(0, 5) : '') + '</td>'
           + '<td class="n">' + (s.n || '') + '</td><td><span class="hr-chip ' + st[1] + '">' + st[0] + (s.st === 'late' || (s.st === 'excused' && s.lateMin > 0) ? ' ' + s.lateMin + ' мин' : '') + '</span>'
           + (x.p.emp && (s.mark && s.mark.excused || s.st === 'late' || s.st === 'absent') ? ' <label class="att-exc" title="Опоздание или отсутствие по уважительной причине — не считается"><input type="checkbox" data-mark-exc="' + x.p.emp.id + '"' + (s.mark && s.mark.excused ? ' checked' : '') + '> уважительная</label>' : '') + '</td>'

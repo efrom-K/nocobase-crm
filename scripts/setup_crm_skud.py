@@ -47,6 +47,8 @@ def collection(name, title, fields):
 
 collection('crm_skud_cards', 'СКУД: карты', [S('card', 'Карта (как в журнале)'), I('skud_uid', 'Человек в СКУД (номер)'), S('skud_name', 'ФИО в СКУД'), S('skud_position', 'Должность в СКУД'),
                                              I('employee_id', 'Сотрудник CRM'), B('manual', 'Сопоставлен вручную'), B('ignore', 'Не учитывать (гостевая, служебная)'), T('note', 'Заметки')])
+# поля, добавленные позже, — в уже созданные коллекции
+print('field skud_group', ok(call('collections/crm_skud_cards/fields:create', S('skud_group', 'Компания (группа) в СКУД'))))
 collection('crm_skud_events', 'СКУД: проходы', [D('day', 'День'), S('time', 'Время'), S('card', 'Карта'), S('kind', 'Вид')])   # card | button
 collection('crm_skud_marks', 'СКУД: отметки за день', [I('employee_id', 'Сотрудник CRM'), D('day', 'День'), S('time', 'Приход (исправлено), ЧЧ:ММ'),
                                                      T('comment', 'Комментарий'), B('excused', 'Уважительная причина')])

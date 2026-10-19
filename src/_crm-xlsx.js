@@ -6,6 +6,7 @@
 // Вызов: crmXlsx('Имя файла', { title: 'Заголовок отчёта', filters: [['Период', '30 дней']], notes: [['Колонка', 'что значит']],
 //   sheets: [{ name: 'Лист', title?: 'заголовок листа', cols: [{ h: 'Объект', t: 'text', w?: 30 }, …], rows: [[…], …], total?: true }] })
 // Типы колонок t: text, long (перенос строк), int, num, money (₽), area (м²), date ('ГГГГ-ММ-ДД' или Date), pct (число 0–100), days (0,0).
+// Ячейку можно подсветить: вместо значения — { v: значение, paint: 'red' | 'blue' | 'orange' | 'green' } (заливка цветом, текст как в колонке).
 // В колонке можно задать total: 'sum' (по умолчанию для int/num/money/area), 'avg', число или текст; total: false — пусто.
 const CRM_XLSX_T = ['text', 'long', 'int', 'num', 'money', 'area', 'date', 'pct', 'days'];
 function crmXlsxBlob(spec) {
@@ -40,10 +41,12 @@ function crmXlsxBlob(spec) {
   const fonts = '<fonts count="6"><font><sz val="10.5"/><color rgb="FF1F1F1F"/><name val="Calibri"/></font><font><b/><sz val="10.5"/><color rgb="FF1F1F1F"/><name val="Calibri"/></font>'
     + '<font><b/><sz val="15"/><color rgb="FF1C2D58"/><name val="Calibri"/></font><font><sz val="9.5"/><color rgb="FF6B7280"/><name val="Calibri"/></font>'
     + '<font><b/><sz val="10.5"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="12"/><color rgb="FF1C2D58"/><name val="Calibri"/></font></fonts>';
-  const fills = '<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
+  const PAINT = ['red', 'blue', 'orange', 'green'];
+  const fills = '<fills count="9"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
     + '<fill><patternFill patternType="solid"><fgColor rgb="FF1C2D58"/><bgColor indexed="64"/></patternFill></fill>'
     + '<fill><patternFill patternType="solid"><fgColor rgb="FFF5F7FA"/><bgColor indexed="64"/></patternFill></fill>'
-    + '<fill><patternFill patternType="solid"><fgColor rgb="FFE8ECF3"/><bgColor indexed="64"/></patternFill></fill></fills>';
+    + '<fill><patternFill patternType="solid"><fgColor rgb="FFE8ECF3"/><bgColor indexed="64"/></patternFill></fill>'
+    + ['FFFFD6D6', 'FFDCE6FF', 'FFFFE7C2', 'FFD9F2D9'].map(function(c) { return '<fill><patternFill patternType="solid"><fgColor rgb="' + c + '"/><bgColor indexed="64"/></patternFill></fill>'; }).join('') + '</fills>';
   const thin = '<left style="thin"><color rgb="FFDDE2EA"/></left><right style="thin"><color rgb="FFDDE2EA"/></right><bottom style="thin"><color rgb="FFDDE2EA"/></bottom>';
   const borders = '<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border>'
     + '<border>' + thin.replace('<bottom', '<top style="thin"><color rgb="FFDDE2EA"/></top><bottom') + '<diagonal/></border>'
@@ -65,8 +68,17 @@ function crmXlsxBlob(spec) {
         + '<alignment vertical="' + (t === 'long' ? 'top' : 'center') + '"' + (t === 'long' ? ' wrapText="1"' : '') + (t === 'date' ? ' horizontal="center"' : '') + '/></xf>';
     });
   });
-  const xfCount = 6 + CRM_XLSX_T.length * 3;
-  const sid = function(t, v) { return 6 + CRM_XLSX_T.indexOf(CRM_XLSX_T.indexOf(t) === -1 ? 'text' : t) * 3 + v; };
+  CRM_XLSX_T.forEach(function(t) {   // подсвеченные ячейки: тип × цвет
+    PAINT.forEach(function(c, i) {
+      xfs += '<xf numFmtId="' + NUMFMT[t] + '" fontId="0" fillId="' + (5 + i) + '" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+        + '<alignment vertical="' + (t === 'long' ? 'top' : 'center') + '"' + (t === 'long' ? ' wrapText="1"' : '') + (t === 'date' ? ' horizontal="center"' : '') + '/></xf>';
+    });
+  });
+  const xfCount = 6 + CRM_XLSX_T.length * (3 + PAINT.length);
+  const ti = function(t) { return CRM_XLSX_T.indexOf(CRM_XLSX_T.indexOf(t) === -1 ? 'text' : t); };
+  const sid = function(t, v) { return 6 + ti(t) * 3 + v; };
+  const cv = function(v) { return v && typeof v === 'object' && !(v instanceof Date) ? v.v : v; };   // значение подсвеченной ячейки
+  const pid = function(t, c) { return 6 + CRM_XLSX_T.length * 3 + ti(t) * PAINT.length + PAINT.indexOf(c); };
   // условное форматирование «в срок, %»: зелёный / жёлтый / красный текст
   const dxfs = '<dxfs count="3"><dxf><font><b/><color rgb="FF389E0D"/></font></dxf><dxf><font><b/><color rgb="FFD48806"/></font></dxf><dxf><font><b/><color rgb="FFCF1322"/></font></dxf></dxfs>';
   const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + numFmts + fonts + fills + borders
@@ -87,8 +99,9 @@ function crmXlsxBlob(spec) {
     rows.forEach(function(r, ri) {
       const R = first + ri, z = ri % 2;
       out += '<row r="' + R + '">' + cols.map(function(c, ci) {
-        const t = c.t || 'text', ref = col(ci) + R, s = ' s="' + sid(t, z) + '"';
-        let v = r[ci];
+        const t = c.t || 'text', ref = col(ci) + R;
+        let v = r[ci], s = ' s="' + sid(t, z) + '"';
+        if (v && typeof v === 'object' && !(v instanceof Date)) { if (PAINT.indexOf(v.paint) !== -1) s = ' s="' + pid(t, v.paint) + '"'; v = v.v; }
         if (t === 'date') v = serial(v);
         else if (t === 'pct' && typeof v === 'number') v = v / 100;
         if (v === null || v === undefined || v === '' || (typeof v === 'number' && !isFinite(v))) return '<c r="' + ref + '"' + s + '/>';
@@ -102,7 +115,7 @@ function crmXlsxBlob(spec) {
         const t = c.t || 'text', ref = col(ci) + R, s = ' s="' + sid(t, 2) + '"', rng = col(ci) + first + ':' + col(ci) + end;
         const how = c.total !== undefined ? c.total : (['int', 'num', 'money', 'area'].indexOf(t) !== -1 ? 'sum' : (ci === 0 ? 'Итого' : false));
         // формула + готовое значение: Excel пересчитает при фильтре, а предпросмотр (почта, мессенджер, QuickLook) покажет сразу
-        const nums = rows.map(function(r) { return r[ci]; }).filter(function(v) { return typeof v === 'number' && isFinite(v); });
+        const nums = rows.map(function(r) { return cv(r[ci]); }).filter(function(v) { return typeof v === 'number' && isFinite(v); });
         const sum = nums.reduce(function(a, v) { return a + v; }, 0);
         if (how === 'sum') return '<c r="' + ref + '"' + s + '><f>SUBTOTAL(109,' + rng + ')</f><v>' + Math.round(sum * 100) / 100 + '</v></c>';
         if (how === 'avg') return nums.length ? '<c r="' + ref + '"' + s + '><f>IFERROR(SUBTOTAL(101,' + rng + '),"")</f><v>' + Math.round(sum / nums.length * 100) / 100 + '</v></c>' : '<c r="' + ref + '"' + s + '/>';
@@ -113,7 +126,7 @@ function crmXlsxBlob(spec) {
     }
     const widths = cols.map(function(c, ci) {
       if (c.w) return c.w;
-      const lens = rows.slice(0, 300).map(function(r) { const v = r[ci]; return v === null || v === undefined ? 0 : c.t === 'money' || c.t === 'area' ? String(Math.round(Number(v) || 0)).length + 7 : c.t === 'date' ? 10 : String(v).length; });
+      const lens = rows.slice(0, 300).map(function(r) { const v = cv(r[ci]); return v === null || v === undefined ? 0 : c.t === 'money' || c.t === 'area' ? String(Math.round(Number(v) || 0)).length + 7 : c.t === 'date' ? 10 : String(v).length; });
       return Math.min(c.t === 'long' ? 60 : 45, Math.max(9, Math.ceil(String(c.h).length * 0.8), Math.max.apply(null, lens.concat([0])) + 2));
     });
     let cf = '', pr = 1;

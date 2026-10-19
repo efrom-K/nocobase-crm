@@ -11,7 +11,9 @@
     55 00 | карта 6 байт | 04 (ключ найден) или 10 (дверь открыта) | … | месяц день час мин сек (BCD) — вход по карте;
     01 00 00 | месяц день час мин сек (BCD) | 11 00 00 | то же время — выход кнопкой (без карты: кто вышел, неизвестно).
   BASE/glbase.dbj — zlib; строки = 2 байта (длина в байтах | 0x8000) + UTF-16LE, 00 00 — пустая строка.
-    Человек: номер (4 байта) + число строк N (4 байта) + N+1 строк: должность, фамилия, имя, отчество…
+    Группы (компании, исправлено 19.10.2026): с байта 13 — число групп (2 байта), группа = номер (4) + название + 32 байта + 8 байт.
+    Люди: число (2 байта), человек = номер (4) + номер группы (4) + 4 строки: должность, фамилия, имя, отчество + хвост переменной длины
+    (раньше второе поле принимали за число строк — у людей не из «КН Инвест.» терялись имя и отчество).
     Карты (исправлено 19.10.2026): раздел выданных карт = 2 байта число записей, дальше записи
     номер владельца (4 байта) + 2 double + 32 байта + 00 06 00 + карта 6 байт + 1 байт + строка-комментарий + 4 байта.
     Владелец стоит ПЕРЕД картой (раньше брали номер после — это владелец следующей карты, все привязки съезжали).
@@ -54,12 +56,23 @@ def strings_at(d, p, n):
 
 def parse_base(raw):
     d = zlib.decompress(raw)
-    people = {}
-    for i in range(0, len(d) - 10):
-        uid, n = struct.unpack_from('<II', d, i)
-        if not (0 < uid < 100000 and 1 <= n <= 6) or uid in people: continue
-        s, _ = strings_at(d, i + 8, n + 1)
-        if s and len(s[1].strip()) > 1 and s[1].strip()[0].isupper(): people[uid] = [x.strip() for x in s]
+    p, groups = 15, {}
+    for _ in range(struct.unpack_from('<H', d, 13)[0]):
+        gid = struct.unpack_from('<I', d, p)[0]
+        s, p = strings_at(d, p + 4, 1)
+        groups[gid] = s[0].strip(); p += 32 + 8
+    people, n = {}, struct.unpack_from('<H', d, p)[0]
+    p += 2
+    for _ in range(n):
+        uid, gid = struct.unpack_from('<II', d, p)
+        s, p = strings_at(d, p + 8, 4)
+        people[uid] = [x.strip() for x in s] + [groups.get(gid, '')]   # должность, фамилия, имя, отчество, компания
+        while p < len(d) - 8:   # хвост записи переменной длины — до следующего «номер + группа + 4 строки»
+            u2, g2 = struct.unpack_from('<II', d, p)
+            if 0 < u2 < 100000 and g2 in groups:
+                s2, _ = strings_at(d, p + 8, 4)
+                if s2 and s2[1].strip(): break
+            p += 1
     cards = {}
     ms = [(m, strings_at(d, m.end(), 1)[0]) for m in re.finditer(rb'\x00\x06\x00([\x00-\xff]{6})[\x00-\xff]', d) if m.start() >= 54]
     ms = [(m, s) for m, s in ms if s is not None]
@@ -119,19 +132,20 @@ cur = {c['card']: c for c in rows("select card, employee_id, manual from crm_sku
 stmts = []
 for card, (uid, comment) in base_cards.items():
     p = people.get(uid) or ['', 'Карта без владельца в СКУД%s' % (', ' + comment.lower() if comment else '')]
-    last, first = ('', '') if uid not in people else (p[1].split() + [''])[:2] if len(p) == 2 else (p[1], p[2] if len(p) > 2 else '')
+    last, first = ('', '') if uid not in people else (p[1].split() + [''])[:2] if not p[2] else (p[1], p[2])
     cand = (by_name.get((norm(last), norm(first))) or (by_last.get(norm(last)) if not first else None) or []) if last else []
     if last and first and not cand:   # Наталья / Наталия: та же фамилия и начало имени
         cand = [e['id'] for e in emps if norm(e['last_name']) == norm(last) and norm(e['first_name'])[:4] == norm(first)[:4]]
     emp = cand[0] if len(cand) == 1 else None
-    name = ' '.join(x for x in p[1:] if x)
+    name = ' '.join(' '.join(x for x in p[1:4] if x).split())
+    grp = p[4] if len(p) > 4 else ''
     c = cur.get(card)
     if c is None:
-        stmts.append("insert into crm_skud_cards(\"createdAt\",\"updatedAt\",card,skud_uid,skud_name,skud_position,employee_id,manual) values (now(),now(),%s,%s,%s,%s,%s,false);"
-                     % (q(card), uid, q(name), q(p[0] if p[0] != 'Должность' else None), emp or 'NULL'))
+        stmts.append("insert into crm_skud_cards(\"createdAt\",\"updatedAt\",card,skud_uid,skud_name,skud_position,skud_group,employee_id,manual) values (now(),now(),%s,%s,%s,%s,%s,%s,false);"
+                     % (q(card), uid, q(name), q(p[0] if p[0] != 'Должность' else None), q(grp or None), emp or 'NULL'))
     else:
-        stmts.append("update crm_skud_cards set skud_uid=%s, skud_name=%s, skud_position=%s%s where card=%s;"
-                     % (uid, q(name), q(p[0] if p[0] != 'Должность' else None), '' if c['manual'] else ', employee_id=%s' % (emp or 'NULL'), q(card)))
+        stmts.append("update crm_skud_cards set skud_uid=%s, skud_name=%s, skud_position=%s, skud_group=%s%s where card=%s;"
+                     % (uid, q(name), q(p[0] if p[0] != 'Должность' else None), q(grp or None), '' if c['manual'] else ', employee_id=%s' % (emp or 'NULL'), q(card)))
 
 # ---------- проходы ----------
 n_ev, last = 0, None

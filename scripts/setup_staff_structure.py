@@ -41,6 +41,8 @@ VIEW_ONLY = {
     'crm_legal_entities': ['id', 'name', 'director', 'sort'],
     'crm_vacations': ['id', 'employee_id', 'start_date', 'end_date', 'days', 'status'],
 }
+# что роль может ещё и править: АХО меняет начало дня в «Приходах» (СКУД) — только «График работы»
+EDIT = {'aho': {'crm_employees': [['work_schedule']]}}
 DENY = ['crm_safety', 'crm_sout', 'crm_lna', 'crm_hr_programs', 'crm_hr_events',
         'crm_hr_private', 'crm_hr_files', 'crm_candidates', 'crm_vacancies', 'crm_staff_positions']
 
@@ -53,8 +55,8 @@ for role in roles:
         r = call('roles/%s/resources:update?filterByTk=%s' % (role, have[name]['id']), body) if name in have else call('roles/%s/resources:create' % role, body)
         return ok(r)
     for coll, flds in VIEW_ONLY.items():
-        act = {'name': 'view', 'fields': flds}
-        print(role, coll, 'view', put(coll, [act]))
+        acts = [{'name': 'view', 'fields': flds}] + [{'name': 'update', 'fields': f} for f in EDIT.get(role, {}).get(coll, [])]
+        print(role, coll, 'view' + (' + update' if len(acts) > 1 else ''), put(coll, acts))
     for coll in DENY:
         print(role, coll, 'deny', put(coll, []))
 

@@ -189,6 +189,8 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-flow span.done { background:#eef1f8; color:#142142; }
     .hr-plan input { width:90px; padding:3px 6px !important; text-align:right; font-size:12.5px !important; }
     .hr-plan td, .hr-plan th { white-space:nowrap; }
+    .att-start { border:1px solid #d9d9d9; border-radius:6px; padding:2px 6px; font:inherit; color:#1f1f1f; background:#fff; }
+    .att-start:hover, .att-start:focus { border-color:#1c2d58; outline:none; }
     .hr-mails { font-size:12.5px; color:#595959; word-break:break-all; background:#fafafa; border-radius:8px; padding:8px 10px; }
     /* читаемость (как в статистике заявок): контрастные плитки, карточки и таблицы */
     .hr-tile { border-color:#dfe3ea; }
@@ -1108,7 +1110,7 @@ async function aRenderAtt() {
   const head = '<div class="hr-bar">' + seg + nav + (a.view === 'month' ? '<button class="hr-btn" data-act="attcsv">⬇ Выгрузить в Excel</button>' : '')
     + '<span class="hr-hint" style="margin:0 0 0 auto;">данные СКУД: ' + hEsc(aSkudAge()) + '</span></div>'
     + '<div class="hr-hint" style="margin-bottom:10px;">СКУД видит только вход по карте (выход — кнопкой), поэтому «приход» — первый проход за день, «последний» — последний вход (например, после обеда), а не уход. '
-    + 'Начало дня — из «Графика работы» в карточке сотрудника (иначе ' + hEsc(ah.d.skud.skud_work_start || '09:00') + '), опоздание — больше ' + hEsc(ah.d.skud.skud_grace_min || '10') + ' мин; удалённые дни и отпуска учитываются.</div>';
+    + 'Начало дня — из «Графика работы» в карточке сотрудника, меняется прямо в таблице (иначе ' + hEsc(ah.d.skud.skud_work_start || '09:00') + '), опоздание — больше ' + hEsc(ah.d.skud.skud_grace_min || '10') + ' мин; удалённые дни и отпуска учитываются.</div>';
   if (a.view === 'cards') return aRenderCards(head);
   if (a.view === 'month') return aRenderAttMonth(head);
   const ppl = aAttPeople(), rows = ppl.map(function(p) { return { p: p, s: aAttStatus(p, a.day, a.ev) }; })
@@ -1122,7 +1124,7 @@ async function aRenderAtt() {
       + rows.map(function(x) {
         const s = x.s, st = A_ATT_ST[s.st];
         return '<tr><td>' + hEsc(x.p.name) + (x.p.emp ? '' : ' <span class="hr-chip orange" title="Карта не сопоставлена с сотрудником CRM — вкладка «Карты»">не сопоставлен</span>') + '</td>'
-          + '<td>' + hEsc(x.p.emp ? x.p.emp.position || '' : '') + '</td><td>' + (x.p.emp ? hEsc(s.start) : '') + '</td><td><b>' + hEsc(s.first.slice(0, 5)) + '</b></td><td>' + hEsc(s.n > 1 ? s.last.slice(0, 5) : '') + '</td>'
+          + '<td>' + hEsc(x.p.emp ? x.p.emp.position || '' : '') + '</td><td>' + (x.p.emp ? '<input type="time" class="att-start" data-start-emp="' + x.p.emp.id + '" value="' + hEsc(s.start) + '" title="Изменить начало дня — сохраняется в «График работы» сотрудника">' : '') + '</td><td><b>' + hEsc(s.first.slice(0, 5)) + '</b></td><td>' + hEsc(s.n > 1 ? s.last.slice(0, 5) : '') + '</td>'
           + '<td class="n">' + (s.n || '') + '</td><td><span class="hr-chip ' + st[1] + '">' + st[0] + (s.st === 'late' ? ' ' + s.lateMin + ' мин' : '') + '</span></td></tr>';
       }).join('') + '</tbody></table></div>'
       : '<div class="hr-empty"><b>Нет данных</b>Карты СКУД ещё не загружены или ни одна не сопоставлена с сотрудниками.</div>');
@@ -1228,6 +1230,14 @@ function aRenderCards(head) {
         + '<td><input type="checkbox" data-card-ign="' + c.id + '"' + (c.ignore ? ' checked' : '') + '></td></tr>';
     }).join('') + '</tbody></table></div>';
 }
+// начало дня → «График работы»: меняем первое время («9:00-18:00 · Удаленно: вт» → «10:00-18:00 · Удаленно: вт»), без времени — дописываем в начало
+async function aSaveStart(id, hm) {
+  const e = aEmp(id); if (!e || !/^\d\d:\d\d$/.test(hm)) return;
+  const old = String(e.work_schedule || ''), t = hm.replace(/^0(\d)/, '$1');
+  const v = /\d{1,2}:\d{2}/.test(old) ? old.replace(/\d{1,2}:\d{2}/, t) : t + (old ? ' · ' + old : '');
+  try { await ctx.api.resource('crm_employees').update({ filterByTk: id, values: { work_schedule: v } }); e.work_schedule = v; hToast('Начало дня: ' + hm); aRenderAtt(); }
+  catch (err) { hToast('Не удалось сохранить — нет прав на изменение графика'); aRenderAtt(); }
+}
 async function aSaveCard(id, vals) {
   try { await ctx.api.resource('crm_skud_cards').update({ filterByTk: id, values: vals }); const c = (ah.d.cards || []).find(function(x) { return x.id === id; }); if (c) Object.assign(c, vals); hToast('Сохранено'); aRenderAtt(); }
   catch (e) { hToast('Не удалось сохранить'); }
@@ -1292,6 +1302,8 @@ aRoot().addEventListener('change', function(e) {
   const ce = e.target.getAttribute('data-card-emp'), ci = e.target.getAttribute('data-card-ign');
   if (ce) return aSaveCard(Number(ce), { employee_id: e.target.value ? Number(e.target.value) : null, manual: true });
   if (ci) return aSaveCard(Number(ci), { ignore: e.target.checked });
+  const se = e.target.getAttribute('data-start-emp');
+  if (se) return aSaveStart(Number(se), e.target.value);
   const pl = e.target.getAttribute('data-plan');
   if (pl) aSavePlan(pl, e.target.value.trim());
 });

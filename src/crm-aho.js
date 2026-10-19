@@ -1087,19 +1087,19 @@ function aPutMarks(list) { (list || []).forEach(function(m) { ah.d.marks[m.emplo
 function aMark(empId, day) { return (ah.d.marks || {})[empId + '|' + day] || null; }
 // компании (группы СКУД): по числу людей; ah.att.co — выбранная ('' — все, разделами)
 function aAttCos() {
-  const n = {}; aAttPeople().forEach(function(p) { const g = p.grp || 'Без компании'; n[g] = (n[g] || 0) + 1; });
+  const n = {}; aAttPeople().forEach(function(p) { const g = p.grp || 'Карты без владельца'; n[g] = (n[g] || 0) + 1; });
   return Object.keys(n).sort(function(a, b) { return n[b] - n[a] || a.localeCompare(b, 'ru'); });
 }
 function aAttPeopleCo() {
-  const cos = aAttCos(), co = ah.att.co || '', g = function(p) { return p.grp || 'Без компании'; };
+  const cos = aAttCos(), co = ah.att.co || '', g = function(p) { return p.grp || 'Карты без владельца'; };
   return aAttPeople().filter(function(p) { return !co || g(p) === co; }).sort(function(a, b) { return cos.indexOf(g(a)) - cos.indexOf(g(b)) || a.name.localeCompare(b.name, 'ru'); });
 }
 // строка-заголовок компании, когда показаны все
 function aCoHead(rows, i, get, span) {
   if (ah.att.co) return '';
-  const g = function(k) { return get(rows[k]).grp || 'Без компании'; };
+  const g = function(k) { return get(rows[k]).grp || 'Карты без владельца'; };
   if (i && g(i) === g(i - 1)) return '';
-  const n = rows.filter(function(r) { return (get(r).grp || 'Без компании') === g(i); }).length;
+  const n = rows.filter(function(r) { return (get(r).grp || 'Карты без владельца') === g(i); }).length;
   return '<tr class="att-grp"><td colspan="' + span + '">' + hEsc(g(i)) + ' <small>' + n + '</small></td></tr>';
 }
 // статус человека за день: came | late | excused | absent | vac | remote | off; first — приход (исправленный АХО или первый проход), skudFirst — по СКУД, last — последний вход
@@ -1159,7 +1159,7 @@ async function aRenderAtt() {
   if (a.view === 'month') return aRenderAttMonth(head);
   const ppl = aAttPeopleCo(), rows = ppl.map(function(p, i) { return { p: p, i: i, s: aAttStatus(p, a.day, a.ev) }; })
     .filter(function(x) { return x.s.st !== 'off' || x.s.n; })
-    .sort(function(x, y) { const o = { late: 0, absent: 1, excused: 2, came: 3, vac: 4, remote: 5, off: 6 }, gr = function(z) { return a.co ? 0 : cos.indexOf(z.p.grp || 'Без компании'); };
+    .sort(function(x, y) { const o = { late: 0, absent: 1, excused: 2, came: 3, vac: 4, remote: 5, off: 6 }, gr = function(z) { return a.co ? 0 : cos.indexOf(z.p.grp || 'Карты без владельца'); };
       return gr(x) - gr(y) || o[x.s.st] - o[y.s.st] || (x.s.first || '99').localeCompare(y.s.first || '99'); });
   const cnt = function(st) { return rows.filter(function(x) { return x.s.st === st; }).length; };
   aBody().innerHTML = head
@@ -1225,7 +1225,7 @@ async function aAttXlsx(kind) {
   md.rows.forEach(function(r) { r.cells.forEach(function(c, i) {
     if (c.st === 'future' || (c.st === 'off' && !c.first)) return;
     const mk = c.mark || {};
-    det.push([days[i], r.p.name].concat(all ? [r.p.grp || 'Без компании'] : [], [r.p.emp ? r.p.emp.position || '' : '', r.p.emp ? c.start || '' : '', paint(c, (c.first || '').slice(0, 5)), mk.time ? (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') : '',
+    det.push([days[i], r.p.name].concat(all ? [r.p.grp || 'Карты без владельца'] : [], [r.p.emp ? r.p.emp.position || '' : '', r.p.emp ? c.start || '' : '', paint(c, (c.first || '').slice(0, 5)), mk.time ? (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') : '',
       c.n > 1 ? c.last.slice(0, 5) : '', c.n || 0, paint(c, (A_ATT_ST[c.st] || [''])[0]), c.st === 'late' || (c.st === 'excused' && c.lateMin > 0) ? paint(c, c.lateMin) : null, mk.comment || '']));
   }); });
   const cos = aAttCos();
@@ -1237,7 +1237,7 @@ async function aAttXlsx(kind) {
     rows: md.rows.map(function(r) {
       const notes = r.cells.map(function(c, i) { const mk = c.mark; if (!mk || !(mk.comment || mk.time || mk.excused)) return '';
         return days[i].slice(8) + '.' + days[i].slice(5, 7) + ' — ' + [mk.comment, mk.excused ? 'уважительная причина' : '', mk.time ? 'приход исправлен (по СКУД ' + (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') + ')' : ''].filter(Boolean).join('; '); }).filter(Boolean);
-      return [r.p.name].concat(all ? [r.p.grp || 'Без компании'] : [], r.cells.map(function(c) { return paint(c, c.first ? c.first.slice(0, 5) + (c.st === 'late' ? ' оп.' : c.st === 'excused' ? ' ув.' : '') + (c.mark && c.mark.comment ? ' *' : '') : ({ vac: 'О', remote: 'У', absent: '—', excused: 'УП' }[c.st] || '')); }), [r.came, r.late, r.absent, notes.join('\n')]);
+      return [r.p.name].concat(all ? [r.p.grp || 'Карты без владельца'] : [], r.cells.map(function(c) { return paint(c, c.first ? c.first.slice(0, 5) + (c.st === 'late' ? ' оп.' : c.st === 'excused' ? ' ув.' : '') + (c.mark && c.mark.comment ? ' *' : '') : ({ vac: 'О', remote: 'У', absent: '—', excused: 'УП' }[c.st] || '')); }), [r.came, r.late, r.absent, notes.join('\n')]);
     }) });
   sheets.push({ name: 'Подробно', title: 'Приходы по СКУД — ' + coName + ', ' + per, total: true, freezeCols: 2,
     cols: [{ h: 'Дата', t: 'date', total: 'Итого' }, { h: 'Сотрудник', w: 28 }].concat(all ? [{ h: 'Компания', w: 14 }] : [], [{ h: 'Должность', w: 28 }, { h: 'Начало дня' }, { h: 'Приход' }, { h: 'По СКУД (если исправлено)' },

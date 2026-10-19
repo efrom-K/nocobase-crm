@@ -192,10 +192,12 @@ if (!document.getElementById('crm-aho-style')) {
     .att-start { border:1px solid #d9d9d9; border-radius:6px; padding:2px 6px; font:inherit; color:#1f1f1f; background:#fff; }
     .att-start:hover, .att-start:focus { border-color:#1c2d58; outline:none; }
     .att-month { overflow-x:visible; padding:10px 8px; }
-    .att-month table { table-layout:fixed; width:100%; font-size:12px; }
-    .att-month th, .att-month td { padding:5px 1px !important; text-align:center; overflow:hidden; text-overflow:ellipsis; }
-    .att-month th:first-child, .att-month td:first-child { width:150px; text-align:left; padding-left:6px !important; }
-    .att-month th:nth-last-child(-n+3), .att-month td:nth-last-child(-n+3) { width:46px; }
+    .att-month table { table-layout:fixed; width:100%; font-size:11px; letter-spacing:-.3px; }
+    .att-month th, .att-month td { padding:5px 0 !important; text-align:center; overflow:hidden; text-overflow:clip; font-weight:400 !important; }
+    .att-month th:first-child, .att-month td:first-child { width:130px; text-align:left; padding-left:6px !important; letter-spacing:0; font-size:12px; overflow:hidden; text-overflow:ellipsis; }
+    .att-month th:nth-last-child(-n+3), .att-month td:nth-last-child(-n+3) { width:38px; }
+    .att-month td sup { position:absolute; }
+    .att-month td { position:relative; }
     .att-month thead th { font-size:11.5px; white-space:normal; line-height:1.15; }
     .att-cmt { border:1px solid #d9d9d9; border-radius:6px; padding:3px 8px; font:inherit; color:#1f1f1f; background:#fff; width:100%; min-width:180px; box-sizing:border-box; }
     .att-cmt:hover, .att-cmt:focus { border-color:#1c2d58; outline:none; }

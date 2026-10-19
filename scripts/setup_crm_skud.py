@@ -4,6 +4,8 @@
 Создаёт:
   - crm_skud_cards  — карты и люди из базы СКУД (номер карты, человек в СКУД, должность) + сопоставленный сотрудник CRM;
   - crm_skud_events — проходы: день, время, карта, вид (card — вход по карте, button — выход кнопкой); повтор не пишется (уникальный индекс);
+  - crm_skud_marks  — отметки АХО за день по сотруднику: исправленное время прихода (забыл карту, прошёл за кем-то), комментарий (почему опоздал),
+                      «уважительная причина» — опоздание / отсутствие не считается; одна запись на сотрудника и день;
   - app_settings skud_work_start (начало дня по умолчанию, если у сотрудника не заполнен «График работы»), skud_grace_min (допустимое опоздание),
     skud_synced_at / skud_last_event (заполняет scripts/skud_sync.py).
 
@@ -46,7 +48,10 @@ def collection(name, title, fields):
 collection('crm_skud_cards', 'СКУД: карты', [S('card', 'Карта (как в журнале)'), I('skud_uid', 'Человек в СКУД (номер)'), S('skud_name', 'ФИО в СКУД'), S('skud_position', 'Должность в СКУД'),
                                              I('employee_id', 'Сотрудник CRM'), B('manual', 'Сопоставлен вручную'), B('ignore', 'Не учитывать (гостевая, служебная)'), T('note', 'Заметки')])
 collection('crm_skud_events', 'СКУД: проходы', [D('day', 'День'), S('time', 'Время'), S('card', 'Карта'), S('kind', 'Вид')])   # card | button
-psql("""create unique index if not exists crm_skud_events_uniq on crm_skud_events(day, time, kind, coalesce(card, ''));
+collection('crm_skud_marks', 'СКУД: отметки за день', [I('employee_id', 'Сотрудник CRM'), D('day', 'День'), S('time', 'Приход (исправлено), ЧЧ:ММ'),
+                                                     T('comment', 'Комментарий'), B('excused', 'Уважительная причина')])
+psql("""create unique index if not exists crm_skud_marks_uniq on crm_skud_marks(employee_id, day);
+create unique index if not exists crm_skud_events_uniq on crm_skud_events(day, time, kind, coalesce(card, ''));
 create unique index if not exists crm_skud_cards_uniq on crm_skud_cards(card);
 insert into app_settings(name, value) select x, y from (values ('skud_work_start', '09:00'), ('skud_grace_min', '10'), ('skud_synced_at', null), ('skud_last_event', null)) v(x, y)
   where not exists (select 1 from app_settings a where a.name = v.x);""")

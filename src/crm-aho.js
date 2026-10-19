@@ -1213,6 +1213,8 @@ function aExportXlsx() {
     sheets: sheets
   });
 }
+// номер карты как в Guard Light: серия (3-й байт) + номер (1–2-й байты, little-endian): 589c6e000900 → 11040024
+function aCardNo(h) { const b = function(i) { return parseInt(h.substr(i * 2, 2), 16); }; return String(b(2)).padStart(3, '0') + String(b(0) + b(1) * 256).padStart(5, '0'); }
 function aRenderCards(head) {
   const cards = (ah.d.cards || []).filter(function(c) { return !ah.att.cardsOnlyFree || (!c.employee_id && !c.ignore); });
   const free = (ah.d.cards || []).filter(function(c) { return !c.employee_id && !c.ignore; }).length;
@@ -1221,7 +1223,7 @@ function aRenderCards(head) {
     + '<span class="hr-hint" style="margin:0;">Карты и ФИО приходят из программы СКУД. Сотрудник CRM подставляется по ФИО сам; если не нашёлся — выберите вручную. Гостевые и служебные карты отметьте «не учитывать».</span></div>'
     + '<div class="hr-card"><table><thead><tr><th>ФИО в СКУД</th><th>Должность в СКУД</th><th>Карта</th><th>Сотрудник CRM</th><th>Не учитывать</th></tr></thead><tbody>'
     + cards.map(function(c) {
-      return '<tr' + (c.ignore ? ' style="opacity:.5;"' : '') + '><td>' + hEsc(c.skud_name) + '</td><td>' + hEsc(c.skud_position || '') + '</td><td><span class="hr-hint" style="margin:0;">' + hEsc(c.card) + '</span></td>'
+      return '<tr' + (c.ignore ? ' style="opacity:.5;"' : '') + '><td>' + hEsc(c.skud_name) + '</td><td>' + hEsc(c.skud_position || '') + '</td><td><span class="hr-hint" style="margin:0;">' + aCardNo(c.card) + '</span></td>'
         + '<td><select data-card-emp="' + c.id + '"' + (c.employee_id ? '' : ' style="border-color:#ffd591;"') + '>' + opts(c.employee_id) + '</select>' + (c.manual ? ' <span class="hr-hint">вручную</span>' : '') + '</td>'
         + '<td><input type="checkbox" data-card-ign="' + c.id + '"' + (c.ignore ? ' checked' : '') + '></td></tr>';
     }).join('') + '</tbody></table></div>';

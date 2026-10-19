@@ -12,8 +12,11 @@
     01 00 00 | месяц день час мин сек (BCD) | 11 00 00 | то же время — выход кнопкой (без карты: кто вышел, неизвестно).
   BASE/glbase.dbj — zlib; строки = 2 байта (длина в байтах | 0x8000) + UTF-16LE, 00 00 — пустая строка.
     Человек: номер (4 байта) + число строк N (4 байта) + N+1 строк: должность, фамилия, имя, отчество…
-    Карта: 00 06 00 + карта 6 байт + 1 байт + строка-комментарий + 4 байта + номер человека (4 байта).
-    Человека могут удалить, а карту оставить — она продолжает открывать дверь; такие карты попадают в список «без владельца».
+    Карты (исправлено 19.10.2026): раздел выданных карт = 2 байта число записей, дальше записи
+    номер владельца (4 байта) + 2 double + 32 байта + 00 06 00 + карта 6 байт + 1 байт + строка-комментарий + 4 байта.
+    Владелец стоит ПЕРЕД картой (раньше брали номер после — это владелец следующей карты, все привязки съезжали).
+    За ним — архив удалённых/неизвестных карт той же структуры: владельца у них нет; попадают в «без владельца», если ими ходили.
+    Номер карты, как в Guard Light: байт 3 (серия, 3 знака) + байты 1–2 little-endian (5 знаков): 58 9c 6e → 110,40024 → 11040024.
     У карт Em-Marine в базе после 3 байт номера идёт ещё байт, которого нет в журнале, — сравниваем по первым трём.
 
 cron на svc:  */10 * * * * /usr/bin/python3 /home/ubuntu/nb_bik/skud_sync.py >> /home/ubuntu/nb_bik/skud.log 2>&1
@@ -58,14 +61,13 @@ def parse_base(raw):
         s, _ = strings_at(d, i + 8, n + 1)
         if s and len(s[1].strip()) > 1 and s[1].strip()[0].isupper(): people[uid] = [x.strip() for x in s]
     cards = {}
-    for m in re.finditer(rb'\x00\x06\x00([\x00-\xff]{6})[\x00-\xff]', d):
-        s, p = strings_at(d, m.end(), 1)
-        if s is None or p + 8 > len(d): continue
-        uid = struct.unpack_from('<I', d, p + 4)[0]
-        # у карты бывает несколько записей (история «удалена у …» + текущая): запись живого человека важнее;
-        # карта может висеть и на удалённом в СКУД человеке — она всё равно открывает дверь
+    ms = [(m, strings_at(d, m.end(), 1)[0]) for m in re.finditer(rb'\x00\x06\x00([\x00-\xff]{6})[\x00-\xff]', d) if m.start() >= 54]
+    ms = [(m, s) for m, s in ms if s is not None]
+    issued = struct.unpack_from('<H', d, ms[0][0].start() - 54)[0] if ms else 0
+    for i, (m, s) in enumerate(ms):
         k = m.group(1).hex()
-        if 0 < uid < 100000 and (k not in cards or (uid in people and cards[k][0] not in people)): cards[k] = (uid, s[0].strip())
+        if i < issued: cards[k] = (struct.unpack_from('<I', d, m.start() - 52)[0], s[0].strip())
+        elif k not in cards: cards[k] = (0, s[0].strip())   # архив: владельца нет
     return people, cards
 
 def parse_log(raw, year):
@@ -116,9 +118,11 @@ for e in emps: by_last.setdefault(norm(e['last_name']), []).append(e['id'])
 cur = {c['card']: c for c in rows("select card, employee_id, manual from crm_skud_cards")}
 stmts = []
 for card, (uid, comment) in base_cards.items():
-    p = people.get(uid) or ['', 'Карта без владельца в СКУД (человек №%d удалён)%s' % (uid, ', ' + comment.lower() if comment else '')]
+    p = people.get(uid) or ['', 'Карта без владельца в СКУД%s' % (', ' + comment.lower() if comment else '')]
     last, first = ('', '') if uid not in people else (p[1].split() + [''])[:2] if len(p) == 2 else (p[1], p[2] if len(p) > 2 else '')
     cand = (by_name.get((norm(last), norm(first))) or (by_last.get(norm(last)) if not first else None) or []) if last else []
+    if last and first and not cand:   # Наталья / Наталия: та же фамилия и начало имени
+        cand = [e['id'] for e in emps if norm(e['last_name']) == norm(last) and norm(e['first_name'])[:4] == norm(first)[:4]]
     emp = cand[0] if len(cand) == 1 else None
     name = ' '.join(x for x in p[1:] if x)
     c = cur.get(card)
@@ -127,7 +131,7 @@ for card, (uid, comment) in base_cards.items():
                      % (q(card), uid, q(name), q(p[0] if p[0] != 'Должность' else None), emp or 'NULL'))
     else:
         stmts.append("update crm_skud_cards set skud_uid=%s, skud_name=%s, skud_position=%s%s where card=%s;"
-                     % (uid, q(name), q(p[0] if p[0] != 'Должность' else None), '' if c['manual'] or c['employee_id'] else ', employee_id=%s' % (emp or 'NULL'), q(card)))
+                     % (uid, q(name), q(p[0] if p[0] != 'Должность' else None), '' if c['manual'] else ', employee_id=%s' % (emp or 'NULL'), q(card)))
 
 # ---------- проходы ----------
 n_ev, last = 0, None
@@ -146,7 +150,8 @@ for card in base_cards:
     old = card[:6] + '000000'
     stmts.append("delete from crm_skud_events e where card=%s and exists (select 1 from crm_skud_events x where x.card=%s and x.day=e.day and x.time=e.time and x.kind=e.kind);" % (q(old), q(card)))
     stmts.append("update crm_skud_events e set card=%s where card=%s and not exists (select 1 from crm_skud_cards c where c.card=e.card);" % (q(card), q(old)))
-stmts.append("delete from crm_skud_cards c where c.skud_name like 'Карта без владельца%%' and not c.manual and c.card not in (%s);" % ','.join(q(c) for c in base_cards))
+# карты, которых больше нет среди выданных (в т.ч. записанные раньше со сдвинутым владельцем), — убрать, если не сопоставлены вручную
+stmts.append("delete from crm_skud_cards c where not c.manual and c.card not in (%s);" % ','.join(q(c) for c in base_cards))
 stmts.append("update app_settings set value=%s where name='skud_synced_at';" % q(datetime.datetime.now().isoformat(timespec='seconds')))
 if last: stmts.append("update app_settings set value=greatest(coalesce(value, ''), %s) where name='skud_last_event';" % q(last.isoformat(sep=' ')))
 psql('begin;\n' + '\n'.join(stmts) + '\ncommit;')

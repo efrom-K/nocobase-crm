@@ -58,7 +58,8 @@ collection('crm_rooms', 'Объекты: помещения', [I('object_id', '�
                                              N('x', 'X, м'), N('y', 'Y, м'), N('w', 'Ширина, м'), N('h', 'Глубина, м'), J('old_codes', 'Прежние ID'), T('note', 'Заметки')])
 psql('create unique index if not exists crm_rooms_object_code on crm_rooms (object_id, code);')
 # чертёж: контур помещения (углы [[x, y], ...], без него — прямоугольник x/y/w/h) и стены/проёмы/размеры/подписи плана одним json
-for c, f in (('crm_rooms', J('poly', 'Контур (углы), м')), ('crm_floor_plans', J('drawing', 'Чертёж: стены, двери, окна, размеры'))):
+# building — здание/корпус: этажи одного здания идут стопкой (этаж ниже, 3D, лестницы), пусто — одно здание на объекте
+for c, f in (('crm_rooms', J('poly', 'Контур (углы), м')), ('crm_floor_plans', J('drawing', 'Чертёж: стены, двери, окна, размеры')), ('crm_floor_plans', S('building', 'Здание / корпус'))):
     print('field', c, f['name'], ok(call('collections/%s/fields:create' % c, f)))
 
 # права: роли с глобальной стратегией «создавать/менять» — здесь только просмотр

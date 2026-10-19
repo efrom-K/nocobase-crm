@@ -485,7 +485,9 @@ function opRender() {
     const rs = op.rooms.filter(function(r) { return r.object_id === x.id; });
     return '<div class="op-obj' + (x.id === op.objId ? ' on' : '') + '" data-obj="' + x.id + '"><span>' + opEsc(x.name) + '</span><small>' + (rs.length ? rs.length + ' пом.' : '—') + '</small></div>';
   }).join('');
-  const tabs = ps.length ? '<div class="op-seg">' + ps.map(function(p) { return '<button class="' + (p.id === op.planId ? 'on' : '') + '" data-plan="' + p.id + '">' + opEsc(p.title || 'План') + '</button>'; }).join('') + '</div>' : '';
+  const blds = opBlds(), cb = plan ? opBld(plan) : '';
+  const tabs = (blds.length > 1 ? '<div class="op-seg op-bld" title="Здание / корпус">' + blds.map(function(b) { return '<button class="' + (b === cb ? 'on' : '') + '" data-bld="' + opEsc(b) + '">' + opIco('layers') + opEsc(b || 'Без здания') + '</button>'; }).join('') + '</div>' : '')
+    + (ps.length ? '<div class="op-seg">' + ps.filter(function(p) { return opBld(p) === cb; }).map(function(p) { return '<button class="' + (p.id === op.planId ? 'on' : '') + '" data-plan="' + p.id + '">' + opEsc(p.title || 'План') + '</button>'; }).join('') + '</div>' : '');
   const legend = ['rented', 'free', 'tech', 'common'].map(function(s) { return '<span><i style="background:' + OP_COLORS[s][0] + ';border-color:' + OP_COLORS[s][1] + '"></i>' + opStateTitle(s) + '</span>'; }).join('');
   const B = function(act, ico, label, extra) { return '<button class="op-btn" data-act="' + act + '"' + (extra || '') + '>' + opIco(ico) + label + '</button>'; };
   const ribbon = ed && plan ? '<div class="op-ribbon op-card">'
@@ -693,7 +695,17 @@ function opStairFromDrag(p0, p1) {
 }
 function opObjPlans() { return op.plans.filter(function(x) { return x.object_id === op.objId; }); }
 function opSortPlans() { op.plans.sort(function(a, b) { return (a.object_id - b.object_id) || ((Number(a.sort) || 0) - (Number(b.sort) || 0)) || (a.id - b.id); }); }
-function opLowerPlan(p) { const ps = op.plans.filter(function(x) { return x.object_id === p.object_id; }), i = ps.indexOf(p); return i > 0 ? ps[i - 1] : null; }
+// здание / корпус: этажи одного здания — стопка (этаж ниже, 3D, лестницы); пусто — единственное здание объекта
+function opBld(p) { return String((p && p.building) || '').trim(); }
+function opBldPlans(p) { const b = opBld(p); return op.plans.filter(function(x) { return x.object_id === p.object_id && opBld(x) === b; }); }
+function opBlds() { const r = []; opObjPlans().forEach(function(x) { const b = opBld(x); if (r.indexOf(b) < 0) r.push(b); }); return r.sort(function(a, b) { return a.localeCompare(b, 'ru', { numeric: true }); }); }
+function opPlanName(p) { const b = opBld(p); return (b ? b + ' — ' : '') + (p.title || 'План'); }
+// в другое здание — на тот же уровень (ближайший порядок этажа)
+function opGoBld(b) {
+  const cur = Number((opPlan() || {}).sort) || 0, ps = opObjPlans().filter(function(x) { return opBld(x) === b; });
+  if (ps.length) opGoPlan(ps.reduce(function(m, x) { return Math.abs((Number(x.sort) || 0) - cur) < Math.abs((Number(m.sort) || 0) - cur) ? x : m; }).id);
+}
+function opLowerPlan(p) { const ps = opBldPlans(p), i = ps.indexOf(p); return i > 0 ? ps[i - 1] : null; }
 // этаж ниже — серым под чертежом: по нему выравнивают стены и лестницы
 function opGhostSvg(lp, px) {
   let g = '<g pointer-events="none" opacity="0.45">';
@@ -905,10 +917,10 @@ function opItemHtml(it) {
     if (it.k === 'door') h += opF('Тип', '<select data-i="dt">' + Object.keys(OP_DT).map(function(k) { return '<option value="' + k + '"' + ((it.dt || 'one') === k ? ' selected' : '') + '>' + OP_DT[k] + '</option>'; }).join('') + '</select>')
       + (it.dt === 'open' ? '' : '<div class="op-acts">' + (it.dt === 'two' ? '' : '<button class="op-btn" data-act="it-flip1">Петли с другой стороны</button>') + '<button class="op-btn" data-act="it-flip2">Открывание внутрь / наружу</button></div>');
   } else if (it.k === 'stair') {
-    const others = opObjPlans().filter(function(x) { return x.id !== op.planId; }), n = Math.max(2, Math.round(Number(it.n) || 10));
+    const others = opObjPlans().filter(function(x) { return x.id !== op.planId; }).sort(function(a, b) { return (opBld(a) !== opBld(opPlan())) - (opBld(b) !== opBld(opPlan())); }), n = Math.max(2, Math.round(Number(it.n) || 10));
     h += '<div class="op-g2">' + opF('Длина марша, м', opII('l', opM(it.l))) + opF('Ширина, м', opII('w', opM(it.w))) + '</div>'
       + opF('Ступеней', opII('n', n), 'ступень ' + Math.round((Number(it.l) || 0) / n * 100) + ' см; стрелка — подъём')
-      + opF('Ведёт на этаж', '<select data-i="to"><option value="">— не указан —</option>' + others.map(function(x) { return '<option value="' + x.id + '"' + (x.id === it.to ? ' selected' : '') + '>' + opEsc(x.title || 'План') + '</option>'; }).join('') + '</select>',
+      + opF('Ведёт на этаж', '<select data-i="to"><option value="">— не указан —</option>' + others.map(function(x) { return '<option value="' + x.id + '"' + (x.id === it.to ? ' selected' : '') + '>' + opEsc(opBld(x) === opBld(opPlan()) ? x.title || 'План' : opPlanName(x)) + '</option>'; }).join('') + '</select>',
         others.length ? 'в просмотре клик по лестнице открывает этот этаж' : 'других этажей пока нет — «Новый этаж» на ленте')
       + '<div class="op-acts"><button class="op-btn" data-act="st-rot">Повернуть на 90°</button><button class="op-btn" data-act="st-flip">Подъём в другую сторону</button>'
       + (it.to ? '<button class="op-btn" data-act="st-go">Перейти на этаж</button>' : '') + '</div>';
@@ -984,11 +996,13 @@ function opConRooms(r) {
     + (rs.length > 1 ? ' — итого ' + opArea(sum) : '') + (ca ? (Math.abs(sum - ca) > 0.05 ? ' · в договоре ' + opArea(ca) : ' · совпадает с договором') : '');
 }
 function opPlanFormHtml(p) {
-  const nw = !p || op.newPlan, cnt = opObjPlans().length;
-  const v = nw ? { title: 'Этаж ' + (cnt + 1), width_m: p ? p.width_m : 60, height_m: p ? p.height_m : 40, bg_opacity: 0.6 } : p;
+  const nw = !p || op.newPlan, cnt = p ? opBldPlans(p).length : opObjPlans().length;
+  const v = nw ? { title: 'Этаж ' + (cnt + 1), building: opBld(p), width_m: p ? p.width_m : 60, height_m: p ? p.height_m : 40, bg_opacity: 0.6 } : p;
   const copyN = p ? opDw(p).items.filter(function(it) { return it.k === 'wall' || it.k === 'window' || it.k === 'stair' || it.k === 'col'; }).length : 0;
   return '<h4>' + (nw ? 'Новый этаж' : 'Настройки этажа') + '</h4>'
-    + opF('Название', '<input type="text" data-p="title" value="' + opEsc(v.title) + '" placeholder="Этаж 2, Подвал, Корпус Б — 1 этаж, Площадка">')
+    + opF('Название', '<input type="text" data-p="title" value="' + opEsc(v.title) + '" placeholder="Этаж 2, Подвал, Антресоль, Площадка">')
+    + opF('Здание / корпус', '<input type="text" data-p="building" list="op-blds" value="' + opEsc(v.building || '') + '" placeholder="Строение 2, Корпус Б — пусто, если здание одно"><datalist id="op-blds">' + opBlds().filter(Boolean).map(function(b) { return '<option value="' + opEsc(b) + '">'; }).join('') + '</datalist>',
+      'этажи одного здания — стопкой: этаж ниже, 3D, лестницы; новое название — новое здание')
     + (nw ? (copyN ? opF('', '<label style="display:flex;gap:6px;align-items:flex-start;font-size:13px;color:#1f2433;text-transform:none;letter-spacing:0;font-weight:500;"><input type="checkbox" data-p="copy" checked style="margin-top:3px;"> Скопировать стены, окна, колонны и лестницы с «' + opEsc(p.title) + '» (' + copyN + ')</label>', 'лестницы свяжутся: с нового этажа — вниз, с текущего — вверх') : '')
       + '<div class="op-hint" style="margin:0 0 10px;">Новый этаж встанет выше остальных. Порядок меняется в «Настройках этажа».</div>'
       : opF('Порядок снизу вверх', '<input type="text" data-p="sort" value="' + opEsc(v.sort === null || v.sort === undefined ? '' : v.sort) + '" inputmode="numeric">', 'подвал — 0, первый этаж — 1, второй — 2 …; вкладки этажей идут в этом порядке'))
@@ -1448,13 +1462,13 @@ async function opCalApply() {
 async function opSavePlan() {
   const q = function(s) { return opRoot().querySelector('[data-p="' + s + '"]'); };
   const p = opPlan(), nw = !p || op.newPlan;
-  const vals = { title: q('title').value.trim() || 'План', width_m: opNum(q('width_m').value), height_m: opNum(q('height_m').value) };
+  const vals = { title: q('title').value.trim() || 'План', building: q('building').value.trim() || null, width_m: opNum(q('width_m').value), height_m: opNum(q('height_m').value) };
   if (!vals.width_m || !vals.height_m || vals.width_m <= 0 || vals.height_m <= 0) { opToast('Ширина и глубина — числа больше нуля'); return; }
   if (!nw) { vals.bg_opacity = opNum(q('bg_opacity').value); vals.schematic = q('schematic').checked; vals.note = q('note').value; const so = opNum(q('sort').value); if (so !== null) vals.sort = Math.round(so); }
   try {
     if (nw) {
       // новый этаж — выше всех; по желанию копия стен, окон и лестниц текущего этажа (лестницы связываются друг с другом)
-      const top = opObjPlans().reduce(function(m, x) { return Math.max(m, Number(x.sort) || 0); }, 0), cp = q('copy') && q('copy').checked && p;
+      const top = opObjPlans().filter(function(x) { return opBld(x) === (vals.building || ''); }).reduce(function(m, x) { return Math.max(m, Number(x.sort) || 0); }, 0), cp = q('copy') && q('copy').checked && p;
       const ids = {}, items = [];
       if (cp) opDw(p).items.forEach(function(it) { if (it.k === 'wall') { ids[it.id] = opNewId(); items.push(Object.assign({}, it, { id: ids[it.id] })); } });
       if (cp) opDw(p).items.forEach(function(it) {
@@ -1693,14 +1707,14 @@ function opXlsx() {
     .sort(function(a, b) { return pi(a.plan_id) - pi(b.plan_id) || String(a.code).localeCompare(String(b.code), 'ru', { numeric: true }); });
   crmXlsx('Экспликация ' + (o.name || ''), {
     title: 'Экспликация помещений — ' + (o.name || ''),
-    filters: [['Объект', o.name || ''], ['Этажи', plans.map(function(p) { return p.title || 'План'; }).join(', ')]],
+    filters: [['Объект', o.name || ''], ['Этажи', plans.map(opPlanName).join(', ')]],
     notes: [['Площадь', 'по документам: договор, техпаспорт'], ['По рисунку', 'площадь фигуры на плане — справочно'], ['Состояние', 'Сдано — к помещению привязан действующий договор'], ['Прежние ID', 'номера помещения до перенумерации']],
-    sheets: [{ name: 'Помещения', total: true, cols: [{ h: 'Этаж', t: 'text', w: 14 }, { h: 'ID', t: 'text', w: 9 }, { h: 'Название', t: 'text', w: 30 }, { h: 'Тип', t: 'text', w: 19 }, { h: 'Состояние', t: 'text', w: 13 },
+    sheets: [{ name: 'Помещения', total: true, cols: [{ h: 'Этаж', t: 'text', w: 24 }, { h: 'ID', t: 'text', w: 9 }, { h: 'Название', t: 'text', w: 30 }, { h: 'Тип', t: 'text', w: 19 }, { h: 'Состояние', t: 'text', w: 13 },
       { h: 'Площадь', t: 'area' }, { h: 'По рисунку', t: 'area' }, { h: 'Договор', t: 'text', w: 20 }, { h: 'Арендатор', t: 'text', w: 34 }, { h: 'Договор до', t: 'date' },
       { h: 'Назначение', t: 'long', w: 34 }, { h: 'Отопление', t: 'text', w: 12 }, { h: 'Прежние ID', t: 'text', w: 13 }],
       rows: rs.map(function(r) {
         const c = opCon(r.contract_id), pl = plans.find(function(p) { return p.id === r.plan_id; }) || {};
-        return [pl.title || '', r.code || '', r.title || '', OP_KINDS[r.kind] || '', opStateTitle(opState(r)), opNum(r.area_sqm), opR(opPolyArea(opRoomPts(r))),
+        return [pl.id ? opPlanName(pl) : '', r.code || '', r.title || '', OP_KINDS[r.kind] || '', opStateTitle(opState(r)), opNum(r.area_sqm), opR(opPolyArea(opRoomPts(r))),
           c ? c.contract_number : '', c ? c.tenant_name : '', c ? c.end_date : '', r.purpose || '', r.heating || '', (r.old_codes || []).join(', ')];
       }) }]
   });
@@ -1728,7 +1742,7 @@ async function opExport(fmt) {
 const OP_THREE_URL = '/storage/uploads/vendor/three-0.149.0.min.js';
 function op3dH(p) { const h = p && p.drawing && Number(p.drawing.h3); return h >= 2 ? h : 3; }
 function op3dBar(can) {
-  const p = opPlan(), many = opObjPlans().length > 1;
+  const p = opPlan(), many = opBldPlans(p).length > 1;
   return '<div class="op-float op-3dbar"><button class="op-btn" data-act="3d-reset">' + opIco('cube') + 'Вид 3D</button><button class="op-btn" data-act="3d-top">' + opIco('fit') + 'Сверху</button>'
     + (many ? '<button class="op-btn' + (op.v3all ? ' on' : '') + '" data-act="3d-all">' + opIco('layers') + 'Все этажи</button>' : '')
     + (can ? '<label>Высота стен, м <input data-h3 value="' + opM(op3dH(p)) + '" inputmode="decimal"></label>' : '')
@@ -1752,14 +1766,14 @@ async function op3dMount() {
   if (!box || !box.isConnected || !op.v3) return;
   if (!T) { box.innerHTML = '<div class="op-3d-msg">Не удалось загрузить 3D. Обновите страницу.</div>'; return; }
   op3dDispose();
-  const plan = opPlan(), plans = op.v3all ? opObjPlans() : [plan];
+  const plan = opPlan(), plans = op.v3all ? opBldPlans(plan) : [plan];
   const renderer = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
   box.innerHTML = ''; box.appendChild(renderer.domElement);
   const scene = new T.Scene(), rooms = [];
   let oy = 0, W = 0, D = 0;
-  plans.forEach(function(p) {
-    const h = op3dH(p), g = op3dPlan(T, p, h, p.id === plan.id || !op.v3all, rooms);
+  plans.forEach(function(p, i) {
+    const h = op3dH(p), g = op3dPlan(T, p, h, p.id === plan.id || !op.v3all, rooms, op.v3all && i > 0);
     g.position.y = oy; scene.add(g); W = Math.max(W, Number(p.width_m) || 60); D = Math.max(D, Number(p.height_m) || 40);
     oy += h + (op.v3all ? 2.5 : 0);   // этажи стопкой с зазором — видно, что над чем
   });
@@ -1809,7 +1823,7 @@ function op3dBind(r, el) {
   el.addEventListener('wheel', function(e) { e.preventDefault(); r.c.dist = Math.max(2, Math.min(r.S * 6, r.c.dist * (e.deltaY > 0 ? 1.12 : 1 / 1.12))); r.draw(); }, { passive: false });
 }
 // один этаж: пол помещений, стены с проёмами, колонны, лестницы, подписи
-function op3dPlan(T, p, h, full, rooms) {
+function op3dPlan(T, p, h, full, rooms, upper) {
   const grp = new T.Group(), W = Number(p.width_m) || 60, D = Number(p.height_m) || 40, items = opDw(p).items;
   const mat = function(c, o) { return new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85, metalness: 0 }, o || {})); };
   const add = function(geo, m, sh) { const x = new T.Mesh(geo, m); x.castShadow = sh !== false; x.receiveShadow = true; grp.add(x); return x; };
@@ -1819,7 +1833,7 @@ function op3dPlan(T, p, h, full, rooms) {
     const g = new T.ExtrudeGeometry(s, { depth: y1 - y0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, y0, 0); return add(g, m);
   };
   // плита этажа
-  const slab = new T.Mesh(new T.BoxGeometry(W, 0.12, D), mat(0xf7f8fa)); slab.position.set(W / 2, -0.06, D / 2); slab.receiveShadow = true; grp.add(slab);
+  const slab = new T.Mesh(new T.BoxGeometry(W, 0.12, D), mat(0xf7f8fa, upper ? { transparent: true, opacity: 0.28, depthWrite: false } : null));   // перекрытие верхнего этажа — сквозь него видно нижний slab.position.set(W / 2, -0.06, D / 2); slab.receiveShadow = true; grp.add(slab);
   // помещения: пол цветом состояния и подпись «номер / площадь»
   op.rooms.filter(function(r) { return r.plan_id === p.id; }).forEach(function(r) {
     const pts = opRoomPts(r), s = new T.Shape(pts.map(function(q) { return new T.Vector2(q[0], -q[1]); }));
@@ -1903,6 +1917,7 @@ opRoot().addEventListener('click', async function(e) {
   const ob = c('[data-obj]'), pl = c('[data-plan]'), tr = c('tr[data-room]'), a = c('[data-act]'), tl = c('[data-tool]');
   if (ob) { op.objId = Number(ob.getAttribute('data-obj')); try { localStorage.setItem('crm-objplan-obj', op.objId); } catch (x) { /* нет */ } op.sel = null; op.panel = 'room'; op.undo = []; opPickPlan(); opRender(); return; }
   if (pl) { opGoPlan(Number(pl.getAttribute('data-plan'))); return; }
+  const bl = c('[data-bld]'); if (bl) { opGoBld(bl.getAttribute('data-bld')); return; }
   if (tl) { opSetTool(tl.getAttribute('data-tool')); return; }
   if (tr) { op.sel = Number(tr.getAttribute('data-room')); op.selItem = null; op.panel = 'room'; opRefresh(); return; }
   if (!a) return;

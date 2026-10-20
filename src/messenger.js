@@ -4,6 +4,7 @@
 // @include src/_crm-calls.js
 // @include src/_crm-mobile.js
 // @include src/_crm-profile.js
+// @include src/_crm-stories.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
 if (!document.getElementById('crm-controls-style')) {
@@ -1421,6 +1422,7 @@ injectStyle();
 const shellHtml =
   '<div class="msgr-root">' +
     '<div class="msgr-head"><h3>Сообщения</h3><button class="msgr-new-btn" id="msgr-new-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.8em height=.8em style=flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg></button></div>' +
+    '<div id="msgr-stories"></div>' +
     '<div class="msgr-search-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input id="msgr-search-input" placeholder="Поиск"></div>' +
     '<div class="msgr-folders" id="msgr-folders"></div>' +
     '<div class="msgr-conv-list" id="msgr-conv-list"><div class="msgr-empty">Загрузка…</div></div>' +
@@ -1445,6 +1447,16 @@ if (!state.currentUser) {
   root.querySelector('#msgr-conv-list').innerHTML = '<div class="msgr-empty">Не удалось определить пользователя</div>';
   return;
 }
+
+// сторис над списком чатов; ответ на сторис — личным сообщением автору
+window.__msgrSendDm = async function (userId, text) {
+  const convId = await getOrCreateConversation([userId]);
+  await ctx.api.resource('chat_messages').create({ values: { conversation_id: convId, author_id: state.currentUser.id, message: text, created_at: new Date().toISOString() } });
+  await loadMyConversations();
+  await notifyOthers(convId, text);
+  if (root.isConnected) renderConvList(root, currentSearchValue(root));
+};
+if (window.crmStoriesMount) window.crmStoriesMount(root.querySelector('#msgr-stories'), state.currentUser);
 
 state.users = await loadUsers();
 await loadFolders();

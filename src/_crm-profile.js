@@ -16,6 +16,41 @@
   const name = function (u) { return u ? (u.nickname || u.username || '#' + u.id) : ''; };
   const ini = function (s) { const p = String(s || '?').trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : String(s).slice(0, 2)).toUpperCase(); };
   const tel = function (p) { return String(p || '').replace(/[^\d+]/g, ''); };
+  // телефон по маске: +7 (999) 123-45-67 (российские 10/11 цифр), иначе как ввели
+  const fmtPhone = function (p) {
+    let d = String(p || '').replace(/\D/g, '');
+    if (d.length === 11 && (d[0] === '7' || d[0] === '8')) d = d.slice(1);
+    if (d.length !== 10) return String(p || '');
+    return '+7 (' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6, 8) + '-' + d.slice(8);
+  };
+  const maskPhone = function (inp) {
+    let d = inp.value.replace(/\D/g, '');
+    if (!d) { inp.value = ''; return; }
+    if (d[0] === '8' || d[0] === '7') d = d.slice(1);
+    d = d.slice(0, 10);
+    let v = '+7';
+    if (d.length) v += ' (' + d.slice(0, 3);
+    if (d.length >= 3) v += ')';
+    if (d.length > 3) v += ' ' + d.slice(3, 6);
+    if (d.length > 6) v += '-' + d.slice(6, 8);
+    if (d.length > 8) v += '-' + d.slice(8, 10);
+    inp.value = v;
+  };
+  // шапка профиля: готовые градиенты (users.cover_style) или своё фото (users.cover)
+  const COVERS = { ocean: ['#2f6fed', '#5cd0ff'], night: ['#1c2d58', '#5b3fa8'], sunset: ['#ff6a5c', '#ffb35c'], forest: ['#1f7a4d', '#7fd18f'],
+    berry: ['#b0306a', '#ff7ac7'], sand: ['#c08a3e', '#ffd99a'], graphite: ['#2b2f3a', '#6b7385'], mint: ['#13a8a8', '#9ef0d8'] };
+  const coverBg = function (u) {
+    const c = u && u.cover && u.cover[0];
+    if (c) return 'url(&quot;' + e(c.url) + '&quot;) center/cover';
+    const g = COVERS[u && u.cover_style] || grad(u && u.id);
+    return 'linear-gradient(135deg,' + g[0] + ',' + g[1] + ')';
+  };
+  const link = function (v, kind) {
+    v = String(v || '').trim();
+    if (kind === 'telegram') { const h = v.replace(/^@|^https?:\/\/t\.me\//, ''); return { href: 'https://t.me/' + h, text: '@' + h }; }
+    if (kind === 'github') { const h = v.replace(/^@|^https?:\/\/github\.com\//, '').replace(/\/$/, ''); return { href: 'https://github.com/' + h, text: h }; }
+    return { href: /^https?:/.test(v) ? v : 'https://' + v, text: v.replace(/^https?:\/\//, '').replace(/\/$/, '') };
+  };
   const ICON = {
     phone: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
     mail: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>',
@@ -25,6 +60,11 @@
     chat: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 20l1.1-4A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/></svg>',
     edit: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
     smile: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+    tg: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>',
+    gh: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.4 6.4-1.6 6.4-7A5.4 5.4 0 0 0 20 4.8 5 5 0 0 0 19.9 1S18.7.6 16 2.5a13.4 13.4 0 0 0-7 0C6.3.6 5.1 1 5.1 1A5 5 0 0 0 5 4.8a5.4 5.4 0 0 0-1.5 3.7c0 5.4 3.3 6.6 6.4 7A3.4 3.4 0 0 0 9 18.1V22"/></svg>',
+    web: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>',
+    brief: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
     x: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
     chev: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
   };
@@ -45,7 +85,7 @@
     li.crmp-li { padding:0 !important; margin:-4px -4px 4px !important; background:none !important; cursor:pointer !important; }
     li.crmp-li .ant-dropdown-menu-title-content { display:block; }
     .crmp-head { display:flex; gap:12px; align-items:center; padding:14px 14px 14px 16px; min-width:290px; border-radius:8px 8px 0 0; color:#fff; position:relative; overflow:hidden; }
-    .crmp-head::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.18)); pointer-events:none; }
+    .crmp-head::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.3)); pointer-events:none; }
     .crmp-head > * { position:relative; z-index:1; }
     .crmp-head .crmp-ava { box-shadow:0 0 0 2.5px rgba(255,255,255,.85); }
     .crmp-head-t { flex:1; min-width:0; }
@@ -69,9 +109,15 @@
     .crmp-x:hover { background:rgba(0,0,0,.38); }
 
     /* профиль */
-    .crmp-cover { height:132px; position:relative; }
-    .crmp-cover.ph { background-size:cover !important; background-position:center !important; }
-    .crmp-cover.ph::before { content:''; position:absolute; inset:0; backdrop-filter:blur(26px) saturate(1.3); background:rgba(0,0,0,.12); }
+    .crmp-cover { height:132px; position:relative; transition:background .3s; }
+    .crmp-sub { display:flex; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px; color:#595959; font-size:13.5px; }
+    .crmp-sub svg { color:#8c97ab; vertical-align:-2px; margin-right:2px; }
+    .crmp-sub i { width:4px; height:4px; border-radius:50%; background:#c9d1df; margin:0 4px; }
+    .crmp-covers { display:flex; gap:8px; flex-wrap:wrap; padding:4px 0 2px; }
+    .crmp-covers button { width:34px; height:34px; border-radius:50%; border:0; cursor:pointer; box-shadow:0 0 0 2px #fff, 0 0 0 3.5px transparent; transition:box-shadow .15s, transform .12s; }
+    .crmp-covers button:hover { transform:scale(1.08); }
+    .crmp-covers button.on { box-shadow:0 0 0 2px #fff, 0 0 0 3.5px #2f6fed; }
+    .crmp-covers button.ph { background:#f1f4fb; color:#2f6fed; display:flex; align-items:center; justify-content:center; }
     .crmp-big { position:absolute; left:50%; bottom:-52px; transform:translateX(-50%); z-index:2; }
     .crmp-big .crmp-ava { box-shadow:0 0 0 4px #fff, 0 6px 18px rgba(0,0,0,.18); }
     .crmp-cam { position:absolute; right:-2px; bottom:2px; width:36px; height:36px; border-radius:50%; background:#2f6fed; color:#fff; border:3px solid #fff;
@@ -168,8 +214,9 @@
   async function load() {
     try {
       if (!P.me) { const r = await api.request({ url: 'auth:check' }); P.me = (r.data && r.data.data) || null; }
-      const r = await api.request({ url: 'users:list', params: { pageSize: 500, appends: ['avatar'],
-        fields: ['id', 'nickname', 'username', 'email', 'phone', 'status_emoji', 'status_text', 'status_until', 'about'] } });
+      const r = await api.request({ url: 'users:list', params: { pageSize: 500,
+        fields: ['id', 'nickname', 'username', 'email', 'phone', 'status_emoji', 'status_text', 'status_until', 'about',
+          'cover_style', 'position', 'location', 'telegram', 'github', 'website'], appends: ['avatar', 'cover'] } });
       const m = {};
       ((r.data && r.data.data) || []).forEach(function (u) { m[u.id] = u; });
       P.byId = m; P.at = Date.now();
@@ -205,7 +252,7 @@
   }
 
   // фото: квадрат до 512 px по центру (как в Telegram), JPEG; загрузка тем же способом, что вложения мессенджера
-  function pickPhoto(done) {
+  function pickPhoto(done, wide) {
     const inp = document.createElement('input');
     inp.type = 'file'; inp.accept = 'image/*';
     inp.onchange = function () {
@@ -214,9 +261,11 @@
       const img = document.createElement('img');
       const url = URL.createObjectURL(f);
       img.onload = function () {
-        const s = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas');
-        c.width = c.height = Math.min(512, s);
-        c.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, c.width, c.height);
+        // аватар — квадрат по центру, шапка — полоса 3:1
+        const W = img.naturalWidth, H = img.naturalHeight, ar = wide ? 3 : 1;
+        const sw = Math.min(W, H * ar), sh = sw / ar, c = document.createElement('canvas');
+        c.width = Math.min(wide ? 1200 : 512, sw); c.height = Math.round(c.width / ar);
+        c.getContext('2d').drawImage(img, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
         c.toBlob(function (b) { upload(b || f, 'avatar.jpg').then(done, function () { done(null); }); }, 'image/jpeg', 0.88);
       };
@@ -239,24 +288,35 @@
       return '<div class="crmp-r"' + (copy ? ' data-copy="' + e(copy) + '"' : '') + (href ? ' data-href="' + e(href) + '"' : '') + '>' + icon
         + '<div><div class="v' + (v ? '' : ' no') + '">' + e(v || 'не указано') + '</div><div class="k">' + k + '</div></div></div>';
     };
-    return r(ICON.phone, u.phone, 'Телефон', u.phone, u.phone ? 'tel:' + tel(u.phone) : '') + r(ICON.mail, u.email, 'Почта', u.email, '')
-      + (u.about ? r(ICON.info, u.about, 'О себе', u.about, '') : '') + r(ICON.user, '@' + u.username, 'Логин', u.username, '');
+    const lk = function (icon, v, kind, k) { if (!v) return ''; const l = link(v, kind); return r(icon, l.text, k, l.href, l.href).replace('class="crmp-r"', 'class="crmp-r" data-open="1"'); };
+    return r(ICON.phone, fmtPhone(u.phone), 'Телефон', fmtPhone(u.phone), u.phone ? 'tel:' + tel(fmtPhone(u.phone)) : '') + r(ICON.mail, u.email, 'Почта', u.email, '')
+      + (u.about ? r(ICON.info, u.about, 'О себе', u.about, '') : '')
+      + lk(ICON.tg, u.telegram, 'telegram', 'Telegram') + lk(ICON.gh, u.github, 'github', 'GitHub') + lk(ICON.web, u.website, 'web', 'Сайт')
+      + r(ICON.user, '@' + u.username, 'Логин', u.username, '');
   }
 
   function openProfile(id, editing) {
     const u = P.byId[id];
     if (!u) return;
-    const mine = P.me && id === P.me.id, s = active(u), g = grad(id), ph = photo(u);
-    const cover = ph ? 'class="crmp-cover ph" style="background:url(&quot;' + e(ph) + '&quot;)"' : 'class="crmp-cover" style="background:linear-gradient(135deg,' + g[0] + ',' + g[1] + ')"';
+    const mine = P.me && id === P.me.id, s = active(u);
+    const cover = 'class="crmp-cover" style="background:' + coverBg(u) + '"';
+    const sub = [u.position, u.location].filter(Boolean);
     const pill = s ? '<span class="crmp-pill">' + e(stLine(s)) + (s.until ? ' <small>· ' + e(untilText(s.until)) + '</small>' : '') + '</span>'
       : (mine ? '<span class="crmp-pill empty" data-st>＋ Установить статус</span>' : '');
     let body;
     if (editing) {
       body = '<div class="crmp-f">'
         + '<label>Имя и фамилия</label><input data-f="nickname" maxlength="60" value="' + e(u.nickname || '') + '">'
-        + '<label>Телефон</label><input data-f="phone" maxlength="30" placeholder="+7 900 000-00-00" value="' + e(u.phone || '') + '">'
+        + '<label>Шапка</label><div class="crmp-covers">' + Object.keys(COVERS).map(function (k) { return '<button data-cover="' + k + '" class="' + (!(u.cover && u.cover[0]) && u.cover_style === k ? 'on' : '') + '" style="background:linear-gradient(135deg,' + COVERS[k][0] + ',' + COVERS[k][1] + ')"></button>'; }).join('')
+        + '<button data-cover-photo class="ph' + (u.cover && u.cover[0] ? ' on' : '') + '" title="Своё фото">' + ICON.cam + '</button></div>'
+        + '<label>Должность</label><input data-f="position" maxlength="60" placeholder="Например: менеджер по аренде" value="' + e(u.position || '') + '">'
+        + '<label>Телефон</label><input data-f="phone" data-phone inputmode="tel" maxlength="18" placeholder="+7 (900) 000-00-00" value="' + e(fmtPhone(u.phone)) + '">'
         + '<label>Почта</label><input data-f="email" maxlength="80" value="' + e(u.email || '') + '">'
-        + '<label>О себе</label><textarea data-f="about" rows="3" maxlength="300" placeholder="Должность, чем занимаетесь, как с вами связаться">' + e(u.about || '') + '</textarea>'
+        + '<label>О себе</label><textarea data-f="about" rows="3" maxlength="300" placeholder="Чем занимаетесь, как с вами связаться">' + e(u.about || '') + '</textarea>'
+        + '<label>Город</label><input data-f="location" maxlength="60" value="' + e(u.location || '') + '">'
+        + '<label>Telegram</label><input data-f="telegram" maxlength="60" placeholder="@username" value="' + e(u.telegram || '') + '">'
+        + '<label>GitHub</label><input data-f="github" maxlength="60" placeholder="username" value="' + e(u.github || '') + '">'
+        + '<label>Сайт</label><input data-f="website" maxlength="120" placeholder="example.ru" value="' + e(u.website || '') + '">'
         + '<small>Видно всем сотрудникам в карточке профиля</small></div>'
         + '<div class="crmp-foot"><button class="crmp-btn" data-cancel>Отмена</button><button class="crmp-btn pri" data-save>Сохранить</button></div>';
     } else {
@@ -269,7 +329,10 @@
     }
     const m = modal('<button class="crmp-x" data-x>' + ICON.x + '</button>'
       + '<div ' + cover + '><div class="crmp-big">' + avaHtml(u, 104) + (mine ? '<span class="crmp-cam" data-cam title="Сменить фото">' + ICON.cam + '</span>' : '') + '</div></div>'
-      + '<div class="crmp-name"><b>' + e(name(u)) + '</b>' + (editing ? '' : pill) + '</div>' + body);
+      + '<div class="crmp-name"><b>' + e(name(u)) + '</b>'
+      + (sub.length && !editing ? '<div class="crmp-sub">' + (u.position ? ICON.brief.replace('width="20" height="20"', 'width="15" height="15"') + e(u.position) : '')
+        + (u.position && u.location ? '<i></i>' : '') + (u.location ? ICON.pin.replace('width="20" height="20"', 'width="15" height="15"') + e(u.location) : '') + '</div>' : '')
+      + (editing ? '' : pill) + '</div>' + body);
     const q = function (sel) { return m.querySelector(sel); };
     const on = function (sel, fn) { m.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('[data-x]', function () { m.close(); });
@@ -288,6 +351,7 @@
     on('[data-save]', async function () {
       const btn = this, v = {};
       m.querySelectorAll('[data-f]').forEach(function (x) { v[x.getAttribute('data-f')] = x.value.trim() || null; });
+      if (v.phone && v.phone.replace(/\D/g, '').length < 11 && /^\+7/.test(v.phone)) return toast('Телефон не дописан');
       if (!v.nickname) return toast('Имя не может быть пустым');
       btn.disabled = true;
       if (await saveMe(v)) { m.close(); openProfile(id); toast('Сохранено'); } else btn.disabled = false;
@@ -295,10 +359,23 @@
     m.querySelectorAll('.crmp-r[data-copy]').forEach(function (r) {
       r.onclick = function () {
         const h = r.getAttribute('data-href');
+        if (r.hasAttribute('data-open')) { window.open(h, '_blank', 'noopener'); return; }
         if (h && /Mobi|Android|iPhone/i.test(navigator.userAgent)) { location.href = h; return; }
         const done = function () { const c = document.createElement('span'); c.className = 'crmp-copied'; c.textContent = 'скопировано'; r.appendChild(c); setTimeout(function () { c.remove(); }, 1200); };
         try { navigator.clipboard.writeText(r.getAttribute('data-copy')).then(done, function () { /* нет доступа к буферу */ }); } catch (x) { /* http без буфера */ }
       };
+    });
+    const ph1 = q('[data-phone]');
+    if (ph1) ph1.addEventListener('input', function () { maskPhone(ph1); });
+    on('[data-cover]', async function () {
+      const k = this.getAttribute('data-cover');
+      if (await saveMe({ cover_style: k, cover: [] })) { const c = m.querySelector('.crmp-cover'); c.style.background = coverBg(P.byId[id]); m.querySelectorAll('[data-cover],[data-cover-photo]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-cover') === k); }); }
+    });
+    on('[data-cover-photo]', function () {
+      pickPhoto(async function (att) {
+        if (!att || !att.id) return toast('Фото не загрузилось');
+        if (await saveMe({ cover: [{ id: att.id }] })) { m.querySelector('.crmp-cover').style.background = coverBg(P.byId[id]); m.querySelectorAll('[data-cover]').forEach(function (b) { b.classList.remove('on'); }); q('[data-cover-photo]').classList.add('on'); }
+      }, true);
     });
     if (editing) setTimeout(function () { const i = q('[data-f="nickname"]'); if (i) i.focus(); }, 30);
   }
@@ -357,7 +434,7 @@
     const me = P.me && (P.byId[P.me.id] || P.me);
     if (!me) return;
     const s = active(me);
-    const key = me.id + '|' + photo(me) + '|' + JSON.stringify(s) + '|' + name(me) + '|' + me.phone + '|' + me.email;
+    const key = me.id + '|' + photo(me) + '|' + JSON.stringify(s) + '|' + name(me) + '|' + me.phone + '|' + me.email + '|' + me.cover_style + '|' + JSON.stringify(me.cover || null);
     const btn = document.querySelector('[data-testid=user-center-button]');
     if (btn && (force || key !== lastKey || !btn.querySelector('.crmp-ava'))) {
       btn.classList.add('crmp-on');
@@ -367,14 +444,13 @@
     }
     const li = document.querySelector('.ant-dropdown:not(.ant-dropdown-hidden) [data-testid=schema-settings-menu] li[title=nickname]');
     if (li && li.getAttribute('data-k') !== key) {
-      const g = grad(me.id), ph = photo(me);
       li.className = 'ant-dropdown-menu-item crmp-li';
       li.removeAttribute('aria-disabled');
       li.setAttribute('data-k', key);
       const t = li.querySelector('.ant-dropdown-menu-title-content') || li;
-      t.innerHTML = '<div class="crmp-head" style="background:' + (ph ? 'linear-gradient(rgba(0,0,0,.3),rgba(0,0,0,.3)),url(&quot;' + e(ph) + '&quot;) center/cover' : 'linear-gradient(135deg,' + g[0] + ',' + g[1] + ')') + ';">'
+      t.innerHTML = '<div class="crmp-head" style="background:' + coverBg(me) + ';">'
         + avaHtml(me, 54) + '<div class="crmp-head-t"><b>' + e(name(me)) + '</b>'
-        + (me.phone ? '<div>' + e(me.phone) + '</div>' : '') + (me.email ? '<div>' + e(me.email) + '</div>' : '')
+        + (me.phone ? '<div>' + e(fmtPhone(me.phone)) + '</div>' : '') + (me.email ? '<div>' + e(me.email) + '</div>' : '')
         + (s ? '<span class="crmp-head-st">' + e(stLine(s)) + '</span>' : '') + '</div>' + ICON.chev + '</div>';
       t.onclick = function (ev) { ev.stopPropagation(); const dd = li.closest('.ant-dropdown'); if (dd) dd.classList.add('ant-dropdown-hidden'); openProfile(me.id); };
       let set = li.parentNode.querySelector('li.crmp-li-st');

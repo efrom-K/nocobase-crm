@@ -37,11 +37,30 @@ FIELDS = [
                   'x-component-props': {'showTime': True, 'dateFormat': 'DD.MM.YYYY', 'timeFormat': 'HH:mm'}}},
     {'name': 'about', 'type': 'text', 'interface': 'textarea',
      'uiSchema': {'type': 'string', 'title': 'О себе', 'x-component': 'Input.TextArea'}},
+    # шапка профиля: своё фото или готовый градиент (ключ из src/_crm-profile.js COVERS)
+    {'name': 'cover', 'type': 'belongsToMany', 'interface': 'attachment', 'target': 'attachments',
+     'through': 'users_cover', 'foreignKey': 'user_id', 'otherKey': 'attachment_id', 'sourceKey': 'id', 'targetKey': 'id',
+     'uiSchema': {'type': 'array', 'title': 'Шапка профиля', 'x-component': 'Upload.Attachment',
+                  'x-component-props': {'multiple': False, 'accept': 'image/*'}}},
+    {'name': 'cover_style', 'type': 'string', 'interface': 'input', 'uiSchema': {'type': 'string', 'title': 'Цвет шапки', 'x-component': 'Input'}},
+    # как в профиле GitHub
+    {'name': 'position', 'type': 'string', 'interface': 'input', 'uiSchema': {'type': 'string', 'title': 'Должность', 'x-component': 'Input'}},
+    {'name': 'location', 'type': 'string', 'interface': 'input', 'uiSchema': {'type': 'string', 'title': 'Город', 'x-component': 'Input'}},
+    {'name': 'telegram', 'type': 'string', 'interface': 'input', 'uiSchema': {'type': 'string', 'title': 'Telegram', 'x-component': 'Input'}},
+    {'name': 'github', 'type': 'string', 'interface': 'input', 'uiSchema': {'type': 'string', 'title': 'GitHub', 'x-component': 'Input'}},
+    {'name': 'website', 'type': 'string', 'interface': 'url', 'uiSchema': {'type': 'string', 'title': 'Сайт', 'x-component': 'Input.URL'}},
 ]
 have = {f['name'] for f in call('collections/users/fields:list?paginate=false').get('data', [])}
 for f in FIELDS:
     if f['name'] not in have:
         print('field', f['name'], ok(call('collections/users/fields:create', f)))
+
+# фото группового чата мессенджера (как вложение у chat_messages)
+have = {f['name'] for f in call('collections/chat_conversations/fields:list?paginate=false').get('data', [])}
+if 'avatar' not in have:
+    print('chat avatar', ok(call('collections/chat_conversations/fields:create', {
+        'name': 'avatar', 'type': 'belongsTo', 'interface': 'm2o', 'target': 'attachments', 'foreignKey': 'avatar_id', 'targetKey': 'id',
+        'uiSchema': {'type': 'object', 'title': 'Фото', 'x-component': 'AssociationField'}})))
 
 def item(name, typ):
     return {'type': typ, 'x-toolbar': 'FormItemSchemaToolbar', 'x-settings': 'fieldSettings:FormItem', 'x-component': 'CollectionField',
@@ -68,3 +87,8 @@ if '"users.status_text"' not in placed:
                                  {'schema': row(('status_emoji', 'string'), ('status_text', 'string'), ('status_until', 'string'))})))
 if '"users.about"' not in placed:
     print('form about', ok(call('uiSchemas:insertAdjacent/%s?position=beforeEnd' % grid, {'schema': row(('about', 'string'))})))
+if '"users.position"' not in placed:
+    print('form github-like', ok(call('uiSchemas:insertAdjacent/%s?position=beforeEnd' % grid, {'schema': row(('position', 'string'), ('location', 'string'))})))
+    print('form links', ok(call('uiSchemas:insertAdjacent/%s?position=beforeEnd' % grid, {'schema': row(('telegram', 'string'), ('github', 'string'), ('website', 'string'))})))
+if '"users.cover"' not in placed:
+    print('form cover', ok(call('uiSchemas:insertAdjacent/%s?position=beforeEnd' % grid, {'schema': row(('cover', 'array'), ('cover_style', 'string'))})))

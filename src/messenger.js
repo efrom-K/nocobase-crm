@@ -880,9 +880,9 @@ function wireFileOpen(scope) {
 const STK_BASE = '/storage/uploads/stickers/';
 function stickerPath(text) { const mm = /^::sticker:([\w.-]+\/[\w.-]+)$/.exec(text || ''); return mm ? mm[1] : null; }
 function msgPreview(text) { return stickerPath(text) ? 'Стикер' : (text || ''); }
-function stickerMedia(path, live) {
-  const u = esc(STK_BASE + path);
-  return /\.webm$/.test(path) ? '<video src="' + u + '" muted loop playsinline' + (live ? ' autoplay' : '') + ' preload="metadata"></video>' : '<img src="' + u + '" loading="lazy" alt="">';
+// видеостикеры (.webm VP9 с прозрачностью) Safari/iOS не показывает — рядом лежит анимированный .webp (scripts/webm2webp.py), рисуем его
+function stickerMedia(path) {
+  return '<img src="' + esc(STK_BASE + path.replace(/\.webm$/, '.webp')) + '" loading="lazy" alt="">';
 }
 async function loadPacks() {
   if (!state.packs) {
@@ -910,8 +910,6 @@ async function toggleStickers(rootPage, win, convId) {
     panel.querySelectorAll('[data-pack]').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); cur = Number(b.getAttribute('data-pack')); try { localStorage.setItem('msgr-stk-pack', packs[cur].key); } catch (x) { /* */ } draw(); }; });
     panel.querySelectorAll('[data-stk]').forEach(function (b) {
       b.onclick = function (e) { e.stopPropagation(); panel.remove(); btn.classList.remove('on'); sendSticker(rootPage, win, convId, b.getAttribute('data-stk')); };
-      const v = b.querySelector('video');
-      if (v) { b.onmouseenter = function () { v.play().catch(function () {}); }; b.onmouseleave = function () { v.pause(); }; }
     });
   };
   draw();

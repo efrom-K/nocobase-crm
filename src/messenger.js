@@ -403,6 +403,41 @@ function injectStyle() {
     .msgr-hero-row small { display:block; color:#8c8c8c; font-size:11.5px; }
     .msgr-hero-btn { margin-top:8px; border:0; background:#eef3ff; color:#2f6fed; border-radius:10px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; }
     .msgr-hero-btn:hover { background:#e3eaff; }
+    /* голосовые и кружочки */
+    .msgr-rec-btn { width:38px; height:38px; border-radius:50%; background:none; border:none; color:#8a90a0; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; touch-action:none; user-select:none; -webkit-user-select:none; }
+    .msgr-rec-btn:hover { color:#2f6fed; background:#eef3ff; }
+    .msgr-rec-btn.rec { background:#e5484d; color:#fff; transform:scale(1.25); box-shadow:0 0 0 8px rgba(229,72,77,.18); transition:transform .15s; }
+    .msgr-composer { position:relative; }
+    .msgr-rec-ui { position:absolute; left:10px; right:110px; top:8px; bottom:8px; background:#fff; display:flex; align-items:center; gap:10px; padding:0 12px; border-radius:14px; z-index:3; font-size:14px; }
+    .msgr-rec-dot { width:10px; height:10px; border-radius:50%; background:#e5484d; animation:msgrBlink 1s infinite; }
+    @keyframes msgrBlink { 50% { opacity:.25; } }
+    .msgr-rec-t { font-variant-numeric:tabular-nums; font-weight:600; color:#1f1f1f; }
+    .msgr-rec-hint { color:#8c8c8c; margin-left:auto; }
+    .msgr-rec-ui.cancel .msgr-rec-hint { color:#e5484d; font-weight:600; }
+    .msgr-rec-ui.cancel .msgr-rec-hint::after { content:' — отпустите'; }
+    .msgr-rec-cam { position:absolute; left:50%; bottom:70px; transform:translateX(-50%); width:240px; height:240px; border-radius:50%; overflow:hidden; box-shadow:0 0 0 4px #fff, 0 0 0 7px #e5484d, 0 12px 40px rgba(0,0,0,.3); background:#111; }
+    .msgr-rec-cam video { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+    .msgr-rec-toast { position:absolute; left:50%; bottom:70px; transform:translateX(-50%); background:rgba(30,34,44,.92); color:#fff; padding:8px 14px; border-radius:10px; font-size:13px; z-index:6; }
+    .msgr-voice { display:flex; align-items:center; gap:10px; min-width:220px; padding:2px 0; }
+    .msgr-vplay { width:38px; height:38px; border-radius:50%; border:0; background:#2f6fed; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
+    .msgr-msg-row.own .msgr-vplay { background:#fff; color:#1c2d58; }
+    .msgr-vwave { flex:1; height:30px; display:flex; align-items:center; gap:2px; cursor:pointer; }
+    .msgr-vwave i { flex:1; min-width:2px; border-radius:2px; background:#b8c4dc; }
+    .msgr-vwave i.on { background:#2f6fed; }
+    .msgr-msg-row.own .msgr-vwave i { background:rgba(255,255,255,.45); }
+    .msgr-msg-row.own .msgr-vwave i.on { background:#fff; }
+    .msgr-vdur { font-size:12px; opacity:.75; font-variant-numeric:tabular-nums; min-width:32px; }
+    .msgr-vtr { border:0; border-radius:8px; padding:3px 6px; font-size:12px; font-weight:700; cursor:pointer; background:rgba(47,111,237,.12); color:#2f6fed; }
+    .msgr-msg-row.own .msgr-vtr { background:rgba(255,255,255,.2); color:#fff; }
+    .msgr-vtr.on { outline:1.5px solid currentColor; }
+    .msgr-vtext { font-size:13.5px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(127,127,127,.25); white-space:pre-wrap; }
+    .msgr-circle { position:relative; width:200px; height:200px; border-radius:50%; overflow:hidden; cursor:pointer; background:#111; }
+    .msgr-circle video { width:100%; height:100%; object-fit:cover; }
+    .msgr-circle svg { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); pointer-events:none; }
+    .msgr-circle circle { fill:none; stroke:#fff; stroke-width:3; stroke-dasharray:305; stroke-dashoffset:305; opacity:0; transition:stroke-dashoffset .2s linear; }
+    .msgr-circle.play circle { opacity:.9; }
+    .msgr-cdur { position:absolute; left:50%; bottom:10px; transform:translateX(-50%); background:rgba(0,0,0,.45); color:#fff; font-size:11.5px; padding:1px 7px; border-radius:8px; }
+    .msgr-circle.play .msgr-cdur { display:none; }
     /* стикеры */
     .msgr-stk-btn { width:38px; height:38px; border-radius:50%; background:none; border:none; color:#8a90a0; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
     .msgr-stk-btn:hover, .msgr-stk-btn.on { color:#2f6fed; background:#eef3ff; }
@@ -730,6 +765,7 @@ async function openChatWindow(rootPage, convId) {
         '<button class="msgr-attach-btn" id="msgr-attach-btn" title="Прикрепить файл"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.19 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>' +
         '<textarea id="msgr-input" placeholder="Написать сообщение…" rows="1"></textarea>' +
         '<button class="msgr-stk-btn" id="msgr-stk-btn" title="Стикеры"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z" fill="none"/><path d="M15 21v-4a2 2 0 0 1 2-2h4"/><path d="M8 13s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg></button>' +
+        '<button class="msgr-rec-btn" id="msgr-rec-btn"></button>' +
         '<button class="msgr-send-btn" id="msgr-send-btn" title="Отправить"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 21.5L23 12 2.5 2.5 2.5 10 17 12 2.5 14z"/></svg></button>' +
       '</div>' +
     '</div>' +
@@ -772,6 +808,7 @@ async function openChatWindow(rootPage, convId) {
   if (!touch) textarea.focus();
 
   win.querySelector('#msgr-stk-btn').addEventListener('click', function (e) { e.stopPropagation(); toggleStickers(rootPage, win, convId); });
+  attachRecorder(rootPage, win, convId);
 
   const fileInput = win.querySelector('#msgr-file-input');
   win.querySelector('#msgr-attach-btn').addEventListener('click', function () { fileInput.click(); });
@@ -811,6 +848,17 @@ async function loadAndRenderMessages(win, convId, isPoll) {
 
   thread.innerHTML = msgs.map(function (m) {
     const own = m.author_id === state.currentUser.id;
+    const vn = noteInfo(m.message);
+    if (vn && m.attachment && vn.kind === 'circle') {
+      return '<div class="msgr-msg-row' + (own ? ' own' : '') + '"><div class="msgr-sticker">' +
+        (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') + circleHtml(m.attachment.url, vn) +
+        '<span class="msgr-time">' + fmtTime(m.created_at) + '</span></div></div>';
+    }
+    if (vn && m.attachment) {
+      return '<div class="msgr-msg-row' + (own ? ' own' : '') + '"><div class="msgr-bubble">' +
+        (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') + voiceHtml(m.attachment.url, vn) +
+        '<span class="msgr-time">' + fmtTime(m.created_at) + '</span></div></div>';
+    }
     const stk = stickerPath(m.message);
     if (stk && !m.attachment) {
       return '<div class="msgr-msg-row' + (own ? ' own' : '') + '"><div class="msgr-sticker">' +
@@ -844,6 +892,7 @@ async function loadAndRenderMessages(win, convId, isPoll) {
 
   hydrateAttachments(thread);
   wireFileOpen(thread);
+  wireNotes(thread);
 
   if (state.activeConvId === convId && conv && conv.unread) await markRead(conv);
 }
@@ -879,7 +928,11 @@ function wireFileOpen(scope) {
 // список — packs.json. Стикер — обычное сообщение «::sticker:<пак>/<файл>».
 const STK_BASE = '/storage/uploads/stickers/';
 function stickerPath(text) { const mm = /^::sticker:([\w.-]+\/[\w.-]+)$/.exec(text || ''); return mm ? mm[1] : null; }
-function msgPreview(text) { return stickerPath(text) ? 'Стикер' : (text || ''); }
+function msgPreview(text) {
+  const vn = noteInfo(text);
+  if (vn) return vn.kind === 'circle' ? '⭕ Видеосообщение' : '🎤 Голосовое ' + fmtDur(vn.sec);
+  return stickerPath(text) ? 'Стикер' : (text || '');
+}
 // видеостикеры (.webm VP9 с прозрачностью) Safari/iOS не показывает — рядом лежит анимированный .webp (scripts/webm2webp.py), рисуем его
 function stickerMedia(path) {
   return '<img src="' + esc(STK_BASE + path.replace(/\.webm$/, '.webp')) + '" loading="lazy" alt="">';
@@ -928,6 +981,188 @@ async function sendSticker(rootPage, win, convId, path) {
     renderConvList(rootPage, currentSearchValue(rootPage));
     await notifyOthers(convId, 'Стикер');
   } catch (e) { /* нет прав / сеть */ }
+}
+
+// ===== Голосовые и кружочки (как в Telegram) =====
+// Кнопка у поля ввода: удерживать — запись, отпустить — отправить, увести влево — отмена; короткое нажатие — микрофон ↔ камера.
+// Сообщение = вложение + текст «::voice:<сек>:<волна 0–9>» (с новой строки — расшифровка) или «::circle:<сек>».
+// Расшифровка — распознавание речи браузера во время записи (Chrome/Edge — через Google, Safari — Apple), ru-RU.
+const REC_ICONS = {
+  mic: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>',
+  cam: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg>',
+  play: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
+  pause: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>'
+};
+function fmtDur(sec) { sec = Math.round(Number(sec) || 0); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+function noteInfo(text) {
+  const mm = /^::(voice|circle):(\d+)(?::([0-9]*))?(?:\n([\s\S]*))?$/.exec(text || '');
+  return mm ? { kind: mm[1], sec: Number(mm[2]), peaks: mm[3] || '', text: (mm[4] || '').trim() } : null;
+}
+function voiceHtml(url, vn) {
+  const pk = vn.peaks || '3'.repeat(40);
+  const bars = pk.split('').map(function (d) { return '<i style="height:' + (18 + Number(d) * 9) + '%"></i>'; }).join('');
+  return '<div class="msgr-voice" data-src="' + esc(url) + '" data-sec="' + vn.sec + '"><button class="msgr-vplay">' + REC_ICONS.play + '</button>' +
+    '<div class="msgr-vwave">' + bars + '</div><span class="msgr-vdur">' + fmtDur(vn.sec) + '</span>' +
+    (vn.text ? '<button class="msgr-vtr" title="Расшифровка">Аа</button>' : '') + '</div>' +
+    (vn.text ? '<div class="msgr-vtext" style="display:none">' + esc(vn.text) + '</div>' : '');
+}
+function circleHtml(url, vn) {
+  return '<div class="msgr-circle" data-src="' + esc(url) + '"><video src="' + esc(url) + '" muted loop autoplay playsinline preload="metadata"></video>' +
+    '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48.5"/></svg><span class="msgr-cdur">' + fmtDur(vn.sec) + '</span></div>';
+}
+// один плеер на всё окно: новое голосовое останавливает предыдущее
+function wireNotes(scope) {
+  scope.querySelectorAll('.msgr-voice').forEach(function (v) {
+    if (v.__wired) return; v.__wired = true;
+    const btn = v.querySelector('.msgr-vplay'), bars = v.querySelectorAll('.msgr-vwave i'), dur = v.querySelector('.msgr-vdur'), sec = Number(v.getAttribute('data-sec'));
+    const paint = function (p) { bars.forEach(function (b, i) { b.classList.toggle('on', i / bars.length < p); }); };
+    btn.onclick = function () {
+      const P = state.player;
+      if (P && P.el === v) { if (P.a.paused) P.a.play(); else P.a.pause(); return; }
+      if (P) { P.a.pause(); P.reset(); }
+      const a = document.createElement('audio'); a.src = v.getAttribute('data-src');
+      const reset = function () { btn.innerHTML = REC_ICONS.play; paint(0); dur.textContent = fmtDur(sec); };
+      state.player = { el: v, a: a, reset: reset };
+      a.onplay = function () { btn.innerHTML = REC_ICONS.pause; };
+      a.onpause = function () { btn.innerHTML = REC_ICONS.play; };
+      a.ontimeupdate = function () { const d = isFinite(a.duration) ? a.duration : sec; paint(a.currentTime / d); dur.textContent = fmtDur(a.currentTime); };
+      a.onended = function () { reset(); state.player = null; };
+      a.play().catch(function () { reset(); });
+    };
+    v.querySelector('.msgr-vwave').onclick = function (e) {
+      const P = state.player; if (!P || P.el !== v) return;
+      const r = this.getBoundingClientRect(), d = isFinite(P.a.duration) ? P.a.duration : sec;
+      P.a.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * d;
+    };
+    const tr = v.querySelector('.msgr-vtr');
+    if (tr) tr.onclick = function () { const t = v.nextElementSibling; t.style.display = t.style.display === 'none' ? '' : 'none'; tr.classList.toggle('on'); };
+  });
+  scope.querySelectorAll('.msgr-circle').forEach(function (c) {
+    if (c.__wired) return; c.__wired = true;
+    const vid = c.querySelector('video'), ring = c.querySelector('circle');
+    c.onclick = function () {
+      if (c.classList.contains('play')) { vid.muted = true; vid.loop = true; c.classList.remove('play'); ring.style.strokeDashoffset = ''; return; }
+      if (state.player) { state.player.a.pause(); state.player.reset(); state.player = null; }
+      vid.muted = false; vid.loop = false; vid.currentTime = 0; c.classList.add('play'); vid.play().catch(function () {});
+    };
+    vid.ontimeupdate = function () { if (c.classList.contains('play') && vid.duration) ring.style.strokeDashoffset = String(305 * (1 - vid.currentTime / vid.duration)); };
+    vid.onended = function () { c.classList.remove('play'); vid.muted = true; vid.loop = true; ring.style.strokeDashoffset = ''; vid.play().catch(function () {}); };
+  });
+}
+function recMime(video) {
+  const c = video ? ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'] : ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+  if (!window.MediaRecorder) return null;
+  for (let i = 0; i < c.length; i++) if (window.MediaRecorder.isTypeSupported(c[i])) return c[i];
+  return '';
+}
+function attachRecorder(rootPage, win, convId) {
+  const btn = win.querySelector('#msgr-rec-btn'), composer = win.querySelector('.msgr-composer');
+  if (!navigator.mediaDevices || recMime(false) === null) { btn.remove(); return; }
+  let mode = 'voice';
+  try { mode = localStorage.getItem('msgr-rec-mode') || 'voice'; } catch (e) { /* без localStorage */ }
+  const icon = function () {
+    btn.innerHTML = mode === 'voice' ? REC_ICONS.mic : REC_ICONS.cam;
+    btn.title = (mode === 'voice' ? 'Голосовое' : 'Кружочек') + ': удерживайте, чтобы записать. Нажмите — ' + (mode === 'voice' ? 'кружочек' : 'голосовое');
+  };
+  icon();
+  let R = null, holdT = null, downX = 0;
+  btn.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); downX = e.clientX;
+    try { btn.setPointerCapture(e.pointerId); } catch (x) { /* */ }
+    holdT = setTimeout(function () { holdT = null; start(); }, 220);
+  });
+  btn.addEventListener('pointermove', function (e) { if (R && downX - e.clientX > 90) { R.cancel = true; R.ui.classList.add('cancel'); } });
+  const up = function () {
+    if (holdT) { clearTimeout(holdT); holdT = null; mode = mode === 'voice' ? 'circle' : 'voice'; try { localStorage.setItem('msgr-rec-mode', mode); } catch (x) { /* */ } icon(); return; }
+    if (R) finish();
+  };
+  btn.addEventListener('pointerup', up);
+  btn.addEventListener('pointercancel', function () { if (R) { R.cancel = true; finish(); } });
+
+  async function start() {
+    const video = mode === 'circle';
+    R = { cancel: false, chunks: [], peaks: [], text: '', video: video, released: false };
+    const my = R;
+    my.ui = document.createElement('div');
+    my.ui.className = 'msgr-rec-ui' + (video ? ' video' : '');
+    my.ui.innerHTML = (video ? '<div class="msgr-rec-cam"><video muted playsinline autoplay></video></div>' : '') +
+      '<span class="msgr-rec-dot"></span><span class="msgr-rec-t">0:00</span><span class="msgr-rec-hint">‹ влево — отмена</span>';
+    composer.appendChild(my.ui);
+    btn.classList.add('rec');
+    try {
+      my.stream = await navigator.mediaDevices.getUserMedia(video ? { audio: true, video: { width: 480, height: 480, facingMode: 'user' } } : { audio: true });
+    } catch (x) { cleanup(my); my.ui.remove(); toastRec(win, video ? 'Нет доступа к камере или микрофону' : 'Нет доступа к микрофону'); R = null; return; }
+    if (R !== my) { cleanup(my); return; }            // отпустили, пока браузер спрашивал разрешение
+    if (video) my.ui.querySelector('video').srcObject = my.stream;
+    const mime = recMime(video);
+    my.rec = new window.MediaRecorder(my.stream, mime ? { mimeType: mime } : undefined);   // конструкторы — через window: в песочнице блоков их нет
+    my.rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) my.chunks.push(ev.data); };
+    my.rec.start(250);
+    my.t0 = Date.now();
+    try {   // волна для плеера
+      my.actx = new (window.AudioContext || window.webkitAudioContext)();
+      const an = my.actx.createAnalyser(); an.fftSize = 512; my.actx.createMediaStreamSource(my.stream).connect(an);
+      const buf = new Uint8Array(an.fftSize);
+      my.peakT = setInterval(function () { an.getByteTimeDomainData(buf); let mx = 0; for (let i = 0; i < buf.length; i++) mx = Math.max(mx, Math.abs(buf[i] - 128)); my.peaks.push(mx); }, 100);
+    } catch (x) { /* без волны */ }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR && !video) {
+      try {
+        my.sr = new SR(); my.sr.lang = 'ru-RU'; my.sr.continuous = true; my.sr.interimResults = false;
+        my.sr.onresult = function (ev) { for (let i = ev.resultIndex; i < ev.results.length; i++) if (ev.results[i].isFinal) my.text += ev.results[i][0].transcript + ' '; };
+        my.sr.onerror = function () { /* без расшифровки */ };
+        my.sr.start();
+      } catch (x) { my.sr = null; }
+    }
+    my.tick = setInterval(function () {
+      const sec = (Date.now() - my.t0) / 1000;
+      my.ui.querySelector('.msgr-rec-t').textContent = fmtDur(sec);
+      if (sec >= (video ? 60 : 300)) finish();
+    }, 200);
+  }
+  function cleanup(my) {
+    clearInterval(my.tick); clearInterval(my.peakT);
+    if (my.stream) my.stream.getTracks().forEach(function (t) { t.stop(); });
+    if (my.actx) my.actx.close().catch(function () {});
+    btn.classList.remove('rec');
+  }
+  function finish() {
+    const my = R; R = null;
+    if (!my) return;
+    if (!my.rec) { my.ui.remove(); cleanup(my); return; }
+    const sec = Math.round((Date.now() - my.t0) / 1000);
+    my.rec.onstop = async function () {
+      cleanup(my);
+      const wait = my.sr ? new Promise(function (res) { my.sr.onend = res; setTimeout(res, 1500); try { my.sr.stop(); } catch (x) { res(); } }) : Promise.resolve();
+      if (my.cancel || sec < 1) { my.ui.remove(); try { if (my.sr) my.sr.abort(); } catch (x) { /* */ } return; }
+      my.ui.querySelector('.msgr-rec-hint').textContent = 'Отправляю…';
+      await wait;
+      const type = (my.rec.mimeType || (my.video ? 'video/webm' : 'audio/webm')).split(';')[0];
+      const blob = new Blob(my.chunks, { type: type });
+      blob.name = (my.video ? 'circle-' : 'voice-') + Date.now() + (/mp4/.test(type) ? '.mp4' : '.webm');
+      let peaks = '';
+      if (my.peaks.length) {
+        const n = 40, mx = Math.max.apply(null, my.peaks) || 1;
+        for (let i = 0; i < n; i++) { const a = my.peaks[Math.floor(i * my.peaks.length / n)] || 0; peaks += Math.min(9, Math.round(a / mx * 9)); }
+      }
+      try {
+        const att = await uploadFile(blob);
+        if (!att || !att.id) throw new Error('upload');
+        const text = my.video ? '::circle:' + sec : '::voice:' + sec + ':' + peaks + (my.text.trim() ? '\n' + my.text.trim() : '');
+        await ctx.api.resource('chat_messages').create({ values: { conversation_id: convId, author_id: state.currentUser.id, message: text, attachment_id: att.id, created_at: new Date().toISOString() } });
+        await loadAndRenderMessages(win, convId);
+        await loadMyConversations();
+        renderConvList(rootPage, currentSearchValue(rootPage));
+        await notifyOthers(convId, msgPreview(text));
+      } catch (x) { toastRec(win, 'Не удалось отправить запись'); }
+      my.ui.remove();
+    };
+    try { my.rec.stop(); } catch (x) { my.ui.remove(); cleanup(my); }
+  }
+}
+function toastRec(win, t) {
+  const d = document.createElement('div'); d.className = 'msgr-rec-toast'; d.textContent = t;
+  win.querySelector('.msgr-chat-main').appendChild(d); setTimeout(function () { d.remove(); }, 2500);
 }
 
 // ===== Шапка панели «Информация» (как в Telegram) =====

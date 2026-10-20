@@ -463,6 +463,17 @@
         li.parentNode.insertBefore(set, li.nextSibling);
       }
       set.innerHTML = '<span class="ant-dropdown-menu-title-content">' + ICON.smile + (s ? 'Изменить статус' : 'Установить статус') + '</span>';
+      // одна форма профиля: стандартный пункт «Редактировать профиль» открывает редактор выше (стандартная форма остаётся
+      // служебной — по ней users:updateProfile решает, какие поля можно сохранять)
+      li.parentNode.querySelectorAll('li').forEach(function (x) {
+        if (x.__crmpEdit || !/^Редактировать профиль|^Edit profile/.test((x.textContent || '').trim())) return;
+        x.__crmpEdit = true;
+        x.addEventListener('click', function (ev) {
+          ev.stopPropagation(); ev.preventDefault();
+          const dd = li.closest('.ant-dropdown'); if (dd) dd.classList.add('ant-dropdown-hidden');
+          openProfile(me.id, true);
+        }, true);
+      });
     }
   }
   load().then(function () { decorate(true); });

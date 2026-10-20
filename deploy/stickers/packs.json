@@ -257,7 +257,1127 @@
      "alt": "Thinking face"
     }
    ]
+  },
+  {
+   "key": "memes",
+   "title": "Мемы",
+   "cover": "01.webm",
+   "stickers": [
+    {
+     "file": "01.webm",
+     "alt": "🎶"
+    },
+    {
+     "file": "02.webm",
+     "alt": "😽"
+    },
+    {
+     "file": "03.webm",
+     "alt": "✅"
+    },
+    {
+     "file": "04.webm",
+     "alt": "❌"
+    },
+    {
+     "file": "05.webm",
+     "alt": "🫥"
+    },
+    {
+     "file": "06.webm",
+     "alt": "🙀"
+    },
+    {
+     "file": "07.webm",
+     "alt": "🤯"
+    },
+    {
+     "file": "08.webm",
+     "alt": "💀"
+    },
+    {
+     "file": "09.webm",
+     "alt": "😽"
+    },
+    {
+     "file": "10.webm",
+     "alt": "😮"
+    },
+    {
+     "file": "11.webm",
+     "alt": "🕺"
+    },
+    {
+     "file": "12.webm",
+     "alt": "😿"
+    },
+    {
+     "file": "13.webm",
+     "alt": "😿"
+    },
+    {
+     "file": "14.webm",
+     "alt": "😶"
+    },
+    {
+     "file": "15.webm",
+     "alt": "😼"
+    },
+    {
+     "file": "16.webm",
+     "alt": "💥"
+    },
+    {
+     "file": "17.webm",
+     "alt": "😾"
+    },
+    {
+     "file": "18.webm",
+     "alt": "😿"
+    },
+    {
+     "file": "19.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "20.webm",
+     "alt": "😸"
+    },
+    {
+     "file": "21.webm",
+     "alt": "🙀"
+    },
+    {
+     "file": "22.webm",
+     "alt": "😳"
+    },
+    {
+     "file": "23.webm",
+     "alt": "🙀"
+    },
+    {
+     "file": "24.webm",
+     "alt": "🥊"
+    },
+    {
+     "file": "25.webm",
+     "alt": "🐱"
+    },
+    {
+     "file": "26.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "27.webm",
+     "alt": "🍴"
+    },
+    {
+     "file": "28.webm",
+     "alt": "🔨"
+    },
+    {
+     "file": "29.webm",
+     "alt": "🐱"
+    },
+    {
+     "file": "30.webm",
+     "alt": "😿"
+    },
+    {
+     "file": "31.webm",
+     "alt": "😱"
+    },
+    {
+     "file": "32.webm",
+     "alt": "🧹"
+    },
+    {
+     "file": "33.webm",
+     "alt": "🐸"
+    },
+    {
+     "file": "34.webm",
+     "alt": "🤬"
+    },
+    {
+     "file": "35.webm",
+     "alt": "🐶"
+    },
+    {
+     "file": "36.webm",
+     "alt": "😎"
+    },
+    {
+     "file": "37.webm",
+     "alt": "😮"
+    },
+    {
+     "file": "38.webm",
+     "alt": "🤔"
+    },
+    {
+     "file": "39.webm",
+     "alt": "😵"
+    },
+    {
+     "file": "40.webm",
+     "alt": "🧱"
+    },
+    {
+     "file": "41.webm",
+     "alt": "😋"
+    },
+    {
+     "file": "42.webm",
+     "alt": "😐"
+    },
+    {
+     "file": "43.webm",
+     "alt": "😐"
+    },
+    {
+     "file": "44.webm",
+     "alt": "🤨"
+    },
+    {
+     "file": "45.webm",
+     "alt": "💥"
+    },
+    {
+     "file": "46.webm",
+     "alt": "📝"
+    },
+    {
+     "file": "47.webm",
+     "alt": "😏"
+    },
+    {
+     "file": "48.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "49.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "50.webm",
+     "alt": "😫"
+    },
+    {
+     "file": "51.webp",
+     "alt": "👉"
+    }
+   ]
+  },
+  {
+   "key": "cats",
+   "title": "Котики",
+   "cover": "01.webm",
+   "stickers": [
+    {
+     "file": "01.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "02.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "03.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "04.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "05.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "06.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "07.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "08.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "09.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "10.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "11.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "12.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "13.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "14.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "15.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "16.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "17.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "18.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "19.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "20.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "21.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "22.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "23.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "24.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "25.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "26.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "27.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "28.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "29.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "30.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "31.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "32.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "33.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "34.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "35.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "36.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "37.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "38.webm",
+     "alt": "🍊"
+    },
+    {
+     "file": "39.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "40.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "41.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "42.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "43.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "44.webm",
+     "alt": "🦀"
+    },
+    {
+     "file": "45.webm",
+     "alt": "🐈"
+    },
+    {
+     "file": "46.webm",
+     "alt": "🌶"
+    },
+    {
+     "file": "47.webm",
+     "alt": "🥫"
+    },
+    {
+     "file": "48.webm",
+     "alt": "🍪"
+    },
+    {
+     "file": "49.webm",
+     "alt": "💩"
+    },
+    {
+     "file": "50.webm",
+     "alt": "🍞"
+    }
+   ]
+  },
+  {
+   "key": "cute",
+   "title": "Милота",
+   "cover": "01.webm",
+   "stickers": [
+    {
+     "file": "01.webm",
+     "alt": "😍"
+    },
+    {
+     "file": "02.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "03.webm",
+     "alt": "🚶‍♀"
+    },
+    {
+     "file": "04.webm",
+     "alt": "😂"
+    },
+    {
+     "file": "05.webm",
+     "alt": "😢"
+    },
+    {
+     "file": "06.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "07.webm",
+     "alt": "🥺"
+    },
+    {
+     "file": "08.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "09.webm",
+     "alt": "🌹"
+    },
+    {
+     "file": "10.webm",
+     "alt": "👀"
+    },
+    {
+     "file": "11.webm",
+     "alt": "🍑"
+    },
+    {
+     "file": "12.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "13.webm",
+     "alt": "😊"
+    },
+    {
+     "file": "14.webm",
+     "alt": "😡"
+    },
+    {
+     "file": "15.webm",
+     "alt": "😍"
+    },
+    {
+     "file": "16.webm",
+     "alt": "😌"
+    },
+    {
+     "file": "17.webm",
+     "alt": "🤔"
+    },
+    {
+     "file": "18.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "19.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "20.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "21.webm",
+     "alt": "😡"
+    },
+    {
+     "file": "22.webm",
+     "alt": "😏"
+    },
+    {
+     "file": "23.webm",
+     "alt": "😌"
+    },
+    {
+     "file": "24.webm",
+     "alt": "😡"
+    },
+    {
+     "file": "25.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "26.webm",
+     "alt": "💋"
+    },
+    {
+     "file": "27.webm",
+     "alt": "♥"
+    },
+    {
+     "file": "28.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "29.webm",
+     "alt": "🫂"
+    },
+    {
+     "file": "30.webm",
+     "alt": "😐"
+    },
+    {
+     "file": "31.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "32.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "33.webm",
+     "alt": "💖"
+    },
+    {
+     "file": "34.webm",
+     "alt": "💋"
+    },
+    {
+     "file": "35.webm",
+     "alt": "😂"
+    },
+    {
+     "file": "36.webm",
+     "alt": "😢"
+    },
+    {
+     "file": "37.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "38.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "39.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "40.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "41.webm",
+     "alt": "😠"
+    },
+    {
+     "file": "42.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "43.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "44.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "45.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "46.webm",
+     "alt": "😍"
+    },
+    {
+     "file": "47.webm",
+     "alt": "😠"
+    },
+    {
+     "file": "48.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "49.webm",
+     "alt": "😋"
+    },
+    {
+     "file": "50.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "51.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "52.webm",
+     "alt": "😭"
+    },
+    {
+     "file": "53.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "54.webm",
+     "alt": "🍿"
+    },
+    {
+     "file": "55.webm",
+     "alt": "🥲"
+    },
+    {
+     "file": "56.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "57.webm",
+     "alt": "☺️"
+    },
+    {
+     "file": "58.webm",
+     "alt": "🥹"
+    },
+    {
+     "file": "59.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "60.webm",
+     "alt": "😡"
+    },
+    {
+     "file": "61.webm",
+     "alt": "😞"
+    },
+    {
+     "file": "62.webm",
+     "alt": "😌"
+    },
+    {
+     "file": "63.webm",
+     "alt": "🥰"
+    },
+    {
+     "file": "64.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "65.webm",
+     "alt": "🎸"
+    },
+    {
+     "file": "66.webm",
+     "alt": "🕺"
+    },
+    {
+     "file": "67.webm",
+     "alt": "🤨"
+    },
+    {
+     "file": "68.webm",
+     "alt": "👩‍🦰"
+    },
+    {
+     "file": "69.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "70.webm",
+     "alt": "💃"
+    },
+    {
+     "file": "71.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "72.webm",
+     "alt": "🥹"
+    },
+    {
+     "file": "73.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "74.webm",
+     "alt": "😠"
+    },
+    {
+     "file": "75.webm",
+     "alt": "🙃"
+    },
+    {
+     "file": "76.webm",
+     "alt": "🚽"
+    },
+    {
+     "file": "77.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "78.webm",
+     "alt": "❤️"
+    },
+    {
+     "file": "79.webm",
+     "alt": "😀"
+    },
+    {
+     "file": "80.webm",
+     "alt": "🥹"
+    },
+    {
+     "file": "81.webm",
+     "alt": "🕺"
+    },
+    {
+     "file": "82.webm",
+     "alt": "👍"
+    },
+    {
+     "file": "83.webm",
+     "alt": "😡"
+    },
+    {
+     "file": "84.webm",
+     "alt": "☕️"
+    },
+    {
+     "file": "85.webm",
+     "alt": "🤨"
+    },
+    {
+     "file": "86.webm",
+     "alt": "🧖‍♀"
+    },
+    {
+     "file": "87.webm",
+     "alt": "😎"
+    },
+    {
+     "file": "88.webm",
+     "alt": "🥺"
+    },
+    {
+     "file": "89.webm",
+     "alt": "😠"
+    },
+    {
+     "file": "90.webm",
+     "alt": "🥰"
+    },
+    {
+     "file": "91.webm",
+     "alt": "😌"
+    },
+    {
+     "file": "92.webm",
+     "alt": "😿"
+    },
+    {
+     "file": "93.webm",
+     "alt": "😡"
+    },
+    {
+     "file": "94.webm",
+     "alt": "🤗"
+    },
+    {
+     "file": "95.webm",
+     "alt": "💢"
+    },
+    {
+     "file": "96.webm",
+     "alt": "😡"
+    },
+    {
+     "file": "97.webm",
+     "alt": "😿"
+    },
+    {
+     "file": "98.webm",
+     "alt": "🍕"
+    },
+    {
+     "file": "99.webm",
+     "alt": "🍔"
+    },
+    {
+     "file": "100.webm",
+     "alt": "😣"
+    },
+    {
+     "file": "101.webm",
+     "alt": "😓"
+    },
+    {
+     "file": "102.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "103.webm",
+     "alt": "📱"
+    },
+    {
+     "file": "104.webm",
+     "alt": "⚖"
+    },
+    {
+     "file": "105.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "106.webm",
+     "alt": "😹"
+    },
+    {
+     "file": "107.webm",
+     "alt": "😳"
+    },
+    {
+     "file": "108.webm",
+     "alt": "😝"
+    },
+    {
+     "file": "109.webm",
+     "alt": "☺️"
+    },
+    {
+     "file": "110.webm",
+     "alt": "🎉"
+    },
+    {
+     "file": "111.webm",
+     "alt": "🥹"
+    },
+    {
+     "file": "112.webm",
+     "alt": "👋"
+    },
+    {
+     "file": "113.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "114.webm",
+     "alt": "🤠"
+    },
+    {
+     "file": "115.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "116.webm",
+     "alt": "😘"
+    },
+    {
+     "file": "117.webm",
+     "alt": "🍓"
+    },
+    {
+     "file": "118.webm",
+     "alt": "🩲"
+    },
+    {
+     "file": "119.webm",
+     "alt": "😾"
+    },
+    {
+     "file": "120.webm",
+     "alt": "😞"
+    }
+   ]
+  },
+  {
+   "key": "smiles",
+   "title": "Смайлики",
+   "cover": "01.webp",
+   "stickers": [
+    {
+     "file": "01.webp",
+     "alt": "😎"
+    },
+    {
+     "file": "02.webp",
+     "alt": "🚬"
+    },
+    {
+     "file": "03.webp",
+     "alt": "🍺"
+    },
+    {
+     "file": "04.webp",
+     "alt": "👺"
+    },
+    {
+     "file": "05.webp",
+     "alt": "👨‍❤️‍💋‍👨"
+    },
+    {
+     "file": "06.webp",
+     "alt": "😤"
+    },
+    {
+     "file": "07.webp",
+     "alt": "🥳"
+    },
+    {
+     "file": "08.webp",
+     "alt": "🤬"
+    },
+    {
+     "file": "09.webp",
+     "alt": "😮"
+    },
+    {
+     "file": "10.webp",
+     "alt": "🧐"
+    },
+    {
+     "file": "11.webp",
+     "alt": "🍟"
+    },
+    {
+     "file": "12.webp",
+     "alt": "📞"
+    },
+    {
+     "file": "13.webp",
+     "alt": "👉"
+    },
+    {
+     "file": "14.webp",
+     "alt": "😳"
+    },
+    {
+     "file": "15.webp",
+     "alt": "🤔"
+    },
+    {
+     "file": "16.webp",
+     "alt": "🤫"
+    },
+    {
+     "file": "17.webp",
+     "alt": "🙏"
+    },
+    {
+     "file": "18.webp",
+     "alt": "😠"
+    },
+    {
+     "file": "19.webp",
+     "alt": "😶"
+    },
+    {
+     "file": "20.webp",
+     "alt": "🤟"
+    },
+    {
+     "file": "21.webp",
+     "alt": "😉"
+    },
+    {
+     "file": "22.webp",
+     "alt": "🤡"
+    },
+    {
+     "file": "23.webp",
+     "alt": "👉"
+    },
+    {
+     "file": "24.webp",
+     "alt": "🤭"
+    },
+    {
+     "file": "25.webp",
+     "alt": "🧕"
+    },
+    {
+     "file": "26.webp",
+     "alt": "🤓"
+    },
+    {
+     "file": "27.webp",
+     "alt": "🥲"
+    },
+    {
+     "file": "28.webp",
+     "alt": "😚"
+    },
+    {
+     "file": "29.webp",
+     "alt": "😫"
+    },
+    {
+     "file": "30.webp",
+     "alt": "🙁"
+    },
+    {
+     "file": "31.webp",
+     "alt": "😐"
+    },
+    {
+     "file": "32.webp",
+     "alt": "😳"
+    },
+    {
+     "file": "33.webp",
+     "alt": "😆"
+    },
+    {
+     "file": "34.webp",
+     "alt": "😀"
+    },
+    {
+     "file": "35.webp",
+     "alt": "🤨"
+    },
+    {
+     "file": "36.webp",
+     "alt": "😱"
+    },
+    {
+     "file": "37.webp",
+     "alt": "🤨"
+    },
+    {
+     "file": "38.webp",
+     "alt": "😐"
+    },
+    {
+     "file": "39.webp",
+     "alt": "😃"
+    },
+    {
+     "file": "40.webp",
+     "alt": "👏"
+    },
+    {
+     "file": "41.webp",
+     "alt": "🤫"
+    },
+    {
+     "file": "42.webp",
+     "alt": "💤"
+    },
+    {
+     "file": "43.webp",
+     "alt": "😕"
+    },
+    {
+     "file": "44.webp",
+     "alt": "🤭"
+    },
+    {
+     "file": "45.webp",
+     "alt": "👋"
+    },
+    {
+     "file": "46.webp",
+     "alt": "😡"
+    },
+    {
+     "file": "47.webp",
+     "alt": "💡"
+    },
+    {
+     "file": "48.webp",
+     "alt": "🤓"
+    },
+    {
+     "file": "49.webp",
+     "alt": "😇"
+    },
+    {
+     "file": "50.webp",
+     "alt": "🤰"
+    },
+    {
+     "file": "51.webp",
+     "alt": "🤢"
+    },
+    {
+     "file": "52.webp",
+     "alt": "🤙"
+    }
+   ]
   }
  ],
- "license": "Fluent Emoji © Microsoft (MIT); шрифт Nunito (OFL)"
+ "license": "Fluent Emoji © Microsoft (MIT); шрифт Nunito (OFL); паки «Мемы», «Котики», «Милота», «Смайлики» — из Telegram, для внутреннего использования"
 }

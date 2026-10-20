@@ -90,7 +90,7 @@
       const m = {};
       ((r.data && r.data.data) || []).forEach(function (u) { m[u.id] = u; });
       P.byId = m; P.at = Date.now();
-      window.dispatchEvent(new Event('crm-profiles'));
+      const evt = document.createEvent('Event'); evt.initEvent('crm-profiles', false, false); window.dispatchEvent(evt);  // new Event() в песочнице блоков нет
     } catch (x) { /* нет прав на список — остаются инициалы */ }
   }
   window.crmPhoto = function (id) { return photo(P.byId[id]); };
@@ -184,7 +184,7 @@
       set.className = 'ant-dropdown-menu-item';
       set.setAttribute('role', 'menuitem');
       set.innerHTML = '<span class="ant-dropdown-menu-title-content">' + (active(me) ? '✏️ Изменить статус' : '😊 Установить статус') + '</span>';
-      set.addEventListener('click', function () { document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); openStatus(); });
+      set.addEventListener('click', function () { const dd = li.closest('.ant-dropdown'); if (dd) dd.classList.add('ant-dropdown-hidden'); openStatus(); });
       li.parentNode.insertBefore(set, li.nextSibling);
     }
   }

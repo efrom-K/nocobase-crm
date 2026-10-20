@@ -382,7 +382,46 @@ function injectStyle() {
       .msgr-attach-btn, .msgr-send-btn { width:42px; height:42px; }
       .msgr-modal-box { width:100%; max-width:none; top:auto; bottom:0; left:0; transform:none; border-radius:14px 14px 0 0; max-height:85vh; }
       .msgr-modal-box.open { transform:none; }
+      .msgr-stk-panel { left:6px; right:6px; width:auto; }
     }
+    /* шапка панели «Информация» как в Telegram: фото, название (у группы — правка и смена фото), статус собеседника */
+    .msgr-hero { padding:20px 16px 14px; text-align:center; border-bottom:1px solid #eef0f3; background:#fff; }
+    .msgr-hero-ava { position:relative; display:inline-block; }
+    .msgr-hero-ava .msgr-avatar, .msgr-hero-ava .crmp-ava { box-shadow:0 4px 14px rgba(0,0,0,.12); }
+    .msgr-hero-cam { position:absolute; right:-2px; bottom:0; width:30px; height:30px; border-radius:50%; background:#2f6fed; color:#fff; border:2.5px solid #fff;
+      display:flex; align-items:center; justify-content:center; cursor:pointer; }
+    .msgr-hero-title { margin-top:10px; font-size:17px; font-weight:700; color:#1a1d24; display:flex; align-items:center; justify-content:center; gap:6px; word-break:break-word; }
+    .msgr-hero-edit { border:0; background:none; color:#8c97ab; cursor:pointer; padding:3px; border-radius:6px; display:flex; }
+    .msgr-hero-edit:hover { background:#f1f4fb; color:#2f6fed; }
+    .msgr-hero-title input { font-size:16px; font-weight:600; border:0; border-bottom:2px solid #2f6fed; outline:0; text-align:center; width:100%; padding:2px 4px; }
+    .msgr-hero-sub { font-size:13px; color:#8c8c8c; margin-top:3px; }
+    .msgr-hero-st { display:inline-block; margin-top:7px; padding:3px 10px; border-radius:14px; background:#f1f4fb; font-size:12.5px; color:#262626; }
+    .msgr-hero-rows { text-align:left; margin-top:10px; }
+    .msgr-hero-row { display:flex; gap:12px; align-items:center; padding:7px 8px; border-radius:10px; font-size:13.5px; color:#1f1f1f; }
+    .msgr-hero-row svg { color:#8c97ab; flex:none; }
+    .msgr-hero-row small { display:block; color:#8c8c8c; font-size:11.5px; }
+    .msgr-hero-btn { margin-top:8px; border:0; background:#eef3ff; color:#2f6fed; border-radius:10px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+    .msgr-hero-btn:hover { background:#e3eaff; }
+    /* стикеры */
+    .msgr-stk-btn { width:38px; height:38px; border-radius:50%; background:none; border:none; color:#8a90a0; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+    .msgr-stk-btn:hover, .msgr-stk-btn.on { color:#2f6fed; background:#eef3ff; }
+    .msgr-chat-main { position:relative; }
+    .msgr-stk-panel { position:absolute; right:12px; bottom:64px; width:380px; height:380px; background:#fff; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.22); z-index:5;
+      display:flex; flex-direction:column; overflow:hidden; animation:msgrStk .16s ease-out; }
+    @keyframes msgrStk { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    .msgr-stk-tabs { display:flex; gap:4px; padding:8px; border-bottom:1px solid #eef0f3; overflow-x:auto; flex:none; }
+    .msgr-stk-tab { width:40px; height:40px; border-radius:10px; flex:none; cursor:pointer; display:flex; align-items:center; justify-content:center; border:0; background:none; padding:4px; }
+    .msgr-stk-tab img, .msgr-stk-tab video { width:32px; height:32px; object-fit:contain; pointer-events:none; }
+    .msgr-stk-tab.on, .msgr-stk-tab:hover { background:#eef3ff; }
+    .msgr-stk-title { font-size:12px; font-weight:600; color:#8c8c8c; padding:8px 12px 2px; text-transform:uppercase; letter-spacing:.04em; flex:none; }
+    .msgr-stk-grid { flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; padding:6px 8px 10px; align-content:start; }
+    .msgr-stk-grid button { aspect-ratio:1; border:0; background:none; border-radius:12px; cursor:pointer; padding:6px; transition:background .1s, transform .1s; }
+    .msgr-stk-grid button:hover { background:#f3f5fa; transform:scale(1.06); }
+    .msgr-stk-grid img, .msgr-stk-grid video { width:100%; height:100%; object-fit:contain; pointer-events:none; }
+    .msgr-sticker { position:relative; max-width:170px; }
+    .msgr-sticker img, .msgr-sticker video { width:170px; height:170px; object-fit:contain; display:block; }
+    .msgr-sticker .msgr-time { position:absolute; right:4px; bottom:4px; background:rgba(0,0,0,.4); color:#fff; padding:1px 6px; border-radius:8px; }
+    .msgr-sticker .msgr-author { display:block; font-size:12px; font-weight:600; color:#2f6fed; margin-bottom:2px; }
   `;
   document.head.appendChild(style);
 }
@@ -393,6 +432,12 @@ function avatarHtml(label, id, size, uid, card) {
   const g = gradientFor(id);
   const s = size ? ('width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * 0.36) + 'px;') : '';
   return '<div class="msgr-avatar" style="background:linear-gradient(135deg,' + g[0] + ',' + g[1] + ');' + s + '">' + esc(initials(label)) + '</div>';
+}
+
+// аватар чата: у группы — своё фото (chat_conversations.avatar), у личного — фото собеседника из профиля
+function convAvatar(c, size, card) {
+  if (c.is_group && c.photo) return '<div class="msgr-avatar" style="width:' + size + 'px;height:' + size + 'px;background:#e6e9ee url(&quot;' + esc(c.photo) + '&quot;) center/cover;"></div>';
+  return avatarHtml(c.title, c.id, size, c.is_group ? null : c.others[0] && c.others[0].user_id, card);
 }
 
 async function loadUsers() {
@@ -418,7 +463,7 @@ async function loadFolders() {
 async function loadMyConversations() {
   const meId = state.currentUser.id;
   const membRes = await ctx.api.resource('chat_conversation_members').list({
-    filter: { user_id: meId }, appends: ['conversation'], pageSize: 200
+    filter: { user_id: meId }, appends: ['conversation', 'conversation.avatar'], pageSize: 200
   });
   const myMemberships = listPayload(membRes);
   if (!myMemberships.length) { state.conversations = []; return; }
@@ -460,6 +505,7 @@ async function loadMyConversations() {
       memberRowId: mem.id,
       title: title,
       is_group: conv.is_group,
+      photo: conv.avatar ? conv.avatar.url : null,
       members: members,
       others: others,
       lastMessage: last,
@@ -606,11 +652,11 @@ function renderConvList(root, filterText) {
   }
   listEl.innerHTML = items.map(function (c) {
     const preview = c.lastMessage
-      ? ((c.lastMessage.author_id === state.currentUser.id ? 'Вы: ' : '') + esc((c.lastMessage.message || '').slice(0, 42)))
+      ? ((c.lastMessage.author_id === state.currentUser.id ? 'Вы: ' : '') + esc(msgPreview(c.lastMessage.message).slice(0, 42)))
       : 'Нет сообщений';
     const time = c.lastMessage ? fmtTime(c.lastMessage.created_at) : '';
     return '<div class="msgr-conv-item" data-id="' + c.id + '">' +
-      avatarHtml(c.title, c.id, 0, c.is_group ? null : c.others[0] && c.others[0].user_id) +
+      convAvatar(c, 46) +
       '<div class="msgr-conv-meta">' +
         '<div class="msgr-conv-top"><span class="msgr-conv-name">' + esc(c.title) + statusText(c) + '</span><span class="msgr-conv-time">' + time + '</span></div>' +
         '<div class="msgr-conv-bottom"><span class="msgr-conv-preview">' + preview + '</span>' +
@@ -671,7 +717,7 @@ async function openChatWindow(rootPage, convId) {
   win.innerHTML =
     '<div class="msgr-chat-main">' +
       '<div class="msgr-chat-head" id="msgr-chat-head">' +
-        avatarHtml(conv.title, conv.id, 40, conv.is_group ? null : conv.others[0] && conv.others[0].user_id, true) +
+        convAvatar(conv, 40) +
         '<div class="msgr-chat-head-info"><div class="msgr-chat-title">' + esc(conv.title) + statusText(conv) + '</div>' +
         '<div class="msgr-chat-sub" id="msgr-chat-sub">' + (conv.is_group ? (conv.members.length + ' участников') : '') + '</div></div>' +
         crmCallButtons(conv.others.map(function (m) { return m.user_id; }), conv.is_group ? conv.title : '', conv.others.reduce(function (o, m) { o[m.user_id] = userLabel(m.user); return o; }, {}), conv.id) +
@@ -682,6 +728,7 @@ async function openChatWindow(rootPage, convId) {
         '<input type="file" id="msgr-file-input" style="display:none">' +
         '<button class="msgr-attach-btn" id="msgr-attach-btn" title="Прикрепить файл"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.19 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>' +
         '<textarea id="msgr-input" placeholder="Написать сообщение…" rows="1"></textarea>' +
+        '<button class="msgr-stk-btn" id="msgr-stk-btn" title="Стикеры"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z" fill="none"/><path d="M15 21v-4a2 2 0 0 1 2-2h4"/><path d="M8 13s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg></button>' +
         '<button class="msgr-send-btn" id="msgr-send-btn" title="Отправить"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 21.5L23 12 2.5 2.5 2.5 10 17 12 2.5 14z"/></svg></button>' +
       '</div>' +
     '</div>' +
@@ -723,6 +770,8 @@ async function openChatWindow(rootPage, convId) {
   // на телефоне не открываем клавиатуру сама по себе — она закрывала бы переписку
   if (!touch) textarea.focus();
 
+  win.querySelector('#msgr-stk-btn').addEventListener('click', function (e) { e.stopPropagation(); toggleStickers(rootPage, win, convId); });
+
   const fileInput = win.querySelector('#msgr-file-input');
   win.querySelector('#msgr-attach-btn').addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', function () {
@@ -761,6 +810,12 @@ async function loadAndRenderMessages(win, convId, isPoll) {
 
   thread.innerHTML = msgs.map(function (m) {
     const own = m.author_id === state.currentUser.id;
+    const stk = stickerPath(m.message);
+    if (stk && !m.attachment) {
+      return '<div class="msgr-msg-row' + (own ? ' own' : '') + '"><div class="msgr-sticker">' +
+        (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') + stickerMedia(stk, true) +
+        '<span class="msgr-time">' + fmtTime(m.created_at) + '</span></div></div>';
+    }
     const att = m.attachment;
     let attHtml = '';
     if (att) {
@@ -817,6 +872,142 @@ function wireFileOpen(scope) {
       } catch (e) {}
     });
   });
+}
+
+// ===== Стикеры: файлы паков в storage/uploads/stickers/<пак>/ (копия — deploy/stickers, сборка — scripts/make_stickers.py),
+// список — packs.json. Стикер — обычное сообщение «::sticker:<пак>/<файл>».
+const STK_BASE = '/storage/uploads/stickers/';
+function stickerPath(text) { const mm = /^::sticker:([\w.-]+\/[\w.-]+)$/.exec(text || ''); return mm ? mm[1] : null; }
+function msgPreview(text) { return stickerPath(text) ? 'Стикер' : (text || ''); }
+function stickerMedia(path, live) {
+  const u = esc(STK_BASE + path);
+  return /\.webm$/.test(path) ? '<video src="' + u + '" muted loop playsinline' + (live ? ' autoplay' : '') + ' preload="metadata"></video>' : '<img src="' + u + '" loading="lazy" alt="">';
+}
+async function loadPacks() {
+  if (!state.packs) {
+    try { const r = await fetch(STK_BASE + 'packs.json?v=' + Math.floor(Date.now() / 3600e3)); state.packs = (await r.json()).packs || []; } catch (e) { state.packs = []; }
+  }
+  return state.packs;
+}
+async function toggleStickers(rootPage, win, convId) {
+  const old = win.querySelector('.msgr-stk-panel'), btn = win.querySelector('#msgr-stk-btn');
+  if (old) { old.remove(); btn.classList.remove('on'); return; }
+  const packs = await loadPacks();
+  if (!packs.length) return;
+  btn.classList.add('on');
+  const panel = document.createElement('div');
+  panel.className = 'msgr-stk-panel';
+  let cur = 0;
+  try { cur = Math.max(0, packs.findIndex(function (p) { return p.key === localStorage.getItem('msgr-stk-pack'); })); } catch (e) { /* без localStorage */ }
+  const draw = function () {
+    const p = packs[cur];
+    panel.innerHTML = '<div class="msgr-stk-tabs">' + packs.map(function (x, i) {
+      return '<button class="msgr-stk-tab' + (i === cur ? ' on' : '') + '" data-pack="' + i + '" title="' + esc(x.title) + '">' + stickerMedia(x.key + '/' + x.cover, false) + '</button>';
+    }).join('') + '</div><div class="msgr-stk-title">' + esc(p.title) + '</div><div class="msgr-stk-grid">' + p.stickers.map(function (st) {
+      return '<button data-stk="' + esc(p.key + '/' + st.file) + '" title="' + esc(st.alt || '') + '">' + stickerMedia(p.key + '/' + st.file, false) + '</button>';
+    }).join('') + '</div>';
+    panel.querySelectorAll('[data-pack]').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); cur = Number(b.getAttribute('data-pack')); try { localStorage.setItem('msgr-stk-pack', packs[cur].key); } catch (x) { /* */ } draw(); }; });
+    panel.querySelectorAll('[data-stk]').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); panel.remove(); btn.classList.remove('on'); sendSticker(rootPage, win, convId, b.getAttribute('data-stk')); };
+      const v = b.querySelector('video');
+      if (v) { b.onmouseenter = function () { v.play().catch(function () {}); }; b.onmouseleave = function () { v.pause(); }; }
+    });
+  };
+  draw();
+  win.querySelector('.msgr-chat-main').appendChild(panel);
+  panel.addEventListener('click', function (e) { e.stopPropagation(); });
+  const away = function (e) { if (!panel.isConnected) { document.removeEventListener('mousedown', away, true); return; } if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) { panel.remove(); btn.classList.remove('on'); document.removeEventListener('mousedown', away, true); } };
+  document.addEventListener('mousedown', away, true);
+}
+async function sendSticker(rootPage, win, convId, path) {
+  try {
+    await ctx.api.resource('chat_messages').create({
+      values: { conversation_id: convId, author_id: state.currentUser.id, message: '::sticker:' + path, created_at: new Date().toISOString() }
+    });
+    await loadAndRenderMessages(win, convId);
+    await loadMyConversations();
+    renderConvList(rootPage, currentSearchValue(rootPage));
+    await notifyOthers(convId, 'Стикер');
+  } catch (e) { /* нет прав / сеть */ }
+}
+
+// ===== Шапка панели «Информация» (как в Telegram) =====
+const HERO_ICONS = {
+  cam: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  pen: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  phone: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
+  mail: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>'
+};
+function renderHero(win, conv) {
+  const hero = win.querySelector('#msgr-hero');
+  if (!hero) return;
+  if (conv.is_group) {
+    hero.innerHTML = '<div class="msgr-hero-ava">' + convAvatar(conv, 84) + '<span class="msgr-hero-cam" id="msgr-hero-cam" title="Сменить фото группы">' + HERO_ICONS.cam + '</span></div>' +
+      '<div class="msgr-hero-title" id="msgr-hero-title"><span>' + esc(conv.title) + '</span><button class="msgr-hero-edit" id="msgr-hero-edit" title="Переименовать">' + HERO_ICONS.pen + '</button></div>' +
+      '<div class="msgr-hero-sub">' + conv.members.length + ' участников</div>';
+    hero.querySelector('#msgr-hero-edit').addEventListener('click', function (e) { e.stopPropagation(); renameGroup(win, conv); });
+    hero.querySelector('#msgr-hero-cam').addEventListener('click', function (e) {
+      e.stopPropagation();
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = async function () {
+        const f = inp.files && inp.files[0]; if (!f) return;
+        try {
+          const att = await uploadFile(f);
+          if (!att || !att.id) return;
+          await ctx.api.resource('chat_conversations').update({ filterByTk: conv.id, values: { avatar_id: att.id } });
+          await refreshConvUi(win, conv.id);
+        } catch (x) { /* нет прав */ }
+      };
+      inp.click();
+    });
+    return;
+  }
+  const o = conv.others[0], uid = o && o.user_id;
+  const u = (window.__crmProf && window.__crmProf.byId[uid]) || (o && o.user) || {};
+  const s = window.crmStatus ? window.crmStatus(uid) : null;
+  const fp = window.crmFmtPhone || function (x) { return x; };
+  hero.innerHTML = '<div class="msgr-hero-ava">' + convAvatar(conv, 84, true) + '</div>' +
+    '<div class="msgr-hero-title">' + esc(conv.title) + '</div>' +
+    (u.position ? '<div class="msgr-hero-sub">' + esc(u.position) + '</div>' : '') +
+    (s ? '<div class="msgr-hero-st">' + esc(((s.emoji || '') + ' ' + (s.text || '')).trim()) + '</div>' : '') +
+    '<div class="msgr-hero-rows">' +
+      (u.phone ? '<div class="msgr-hero-row">' + HERO_ICONS.phone + '<div>' + esc(fp(u.phone)) + '<small>Телефон</small></div></div>' : '') +
+      (u.email ? '<div class="msgr-hero-row">' + HERO_ICONS.mail + '<div>' + esc(u.email) + '<small>Почта</small></div></div>' : '') +
+    '</div>' +
+    (window.crmProfileCard ? '<button class="msgr-hero-btn" id="msgr-hero-prof">Открыть профиль</button>' : '');
+  const pb = hero.querySelector('#msgr-hero-prof');
+  if (pb) pb.addEventListener('click', function (e) { e.stopPropagation(); window.crmProfileCard(uid); });
+}
+function renameGroup(win, conv) {
+  const t = win.querySelector('#msgr-hero-title');
+  t.innerHTML = '<input maxlength="60" value="' + esc(conv.title) + '">';
+  const inp = t.querySelector('input');
+  inp.focus(); inp.select();
+  let done = false;
+  const save = async function (ok) {
+    if (done) return; done = true;
+    const v = inp.value.trim();
+    if (ok && v && v !== conv.title) {
+      try { await ctx.api.resource('chat_conversations').update({ filterByTk: conv.id, values: { name: v } }); } catch (x) { /* нет прав */ }
+    }
+    await refreshConvUi(win, conv.id);
+  };
+  inp.addEventListener('click', function (e) { e.stopPropagation(); });
+  inp.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') save(true); if (e.key === 'Escape') save(false); });
+  inp.addEventListener('blur', function () { save(true); });
+}
+// после переименования / смены фото: список чатов, шапка окна и панель
+async function refreshConvUi(win, convId) {
+  await loadMyConversations();
+  if (state.rootEl) renderConvList(state.rootEl, currentSearchValue(state.rootEl));
+  const conv = state.conversations.find(function (c) { return c.id === convId; });
+  if (!conv) return;
+  const head = win.querySelector('#msgr-chat-head');
+  if (head) {
+    const ti = head.querySelector('.msgr-chat-title'); if (ti) ti.innerHTML = esc(conv.title) + statusText(conv);
+    const av = head.querySelector('.msgr-avatar, .crmp-ava'); if (av) av.outerHTML = convAvatar(conv, 40);
+  }
+  renderHero(win, conv);
 }
 
 async function notifyOthers(convId, textPreview) {
@@ -1116,11 +1307,13 @@ async function renderInfoPanel(win, convId, tab) {
   const panel = win.querySelector('#msgr-info-panel');
   panel.innerHTML =
     '<div class="msgr-info-head"><b>Информация</b><span class="msgr-info-close" id="msgr-info-close">&times;</span></div>' +
+    '<div class="msgr-hero" id="msgr-hero"></div>' +
     '<div class="msgr-info-tabs">' +
       '<div class="msgr-info-tab" data-tab="members">Участники</div>' +
       '<div class="msgr-info-tab" data-tab="media">Медиа</div>' +
     '</div>' +
     '<div class="msgr-info-body" id="msgr-info-body"></div>';
+  renderHero(win, conv);
   panel.querySelector('#msgr-info-close').addEventListener('click', function (e) {
     e.stopPropagation();
     win.classList.remove('with-info');
@@ -1235,6 +1428,7 @@ const shellHtml =
 
 ctx.render(shellHtml);
 const root = ctx.element;
+state.rootEl = root;
 
 root.querySelector('#msgr-new-btn').addEventListener('click', function () { openNewChatModal(root); });
 root.querySelector('#msgr-search-input').addEventListener('input', function (e) {

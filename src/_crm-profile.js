@@ -234,6 +234,7 @@
     }
   }
   window.crmPhoto = function (id) { return photo(P.byId[id]); };
+  window.crmFmtPhone = fmtPhone;
   window.crmStatus = function (id) { return active(P.byId[id]); };
   window.crmStatusBadge = function (id) { const s = active(P.byId[id]); return s && s.emoji ? '<span class="crmp-badge">' + e(s.emoji) + '</span>' : ''; };
   window.crmAvatar = function (id, size, label, card) { return avaHtml(P.byId[id] || { id: id }, size || 32, label, card); };

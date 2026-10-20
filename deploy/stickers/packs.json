@@ -1,0 +1,263 @@
+{
+ "packs": [
+  {
+   "key": "office",
+   "title": "Консалт",
+   "cover": "01.webp",
+   "stickers": [
+    {
+     "file": "01.webp",
+     "alt": "Принято в работу"
+    },
+    {
+     "file": "02.webp",
+     "alt": "Объект сдан"
+    },
+    {
+     "file": "03.webp",
+     "alt": "Арендатор доволен"
+    },
+    {
+     "file": "04.webp",
+     "alt": "Показ в 15:00"
+    },
+    {
+     "file": "05.webp",
+     "alt": "Акт подписан"
+    },
+    {
+     "file": "06.webp",
+     "alt": "Отчёт готов"
+    },
+    {
+     "file": "07.webp",
+     "alt": "Согласовано"
+    },
+    {
+     "file": "08.webp",
+     "alt": "Горит дедлайн"
+    },
+    {
+     "file": "09.webp",
+     "alt": "Сначала кофе"
+    },
+    {
+     "file": "10.webp",
+     "alt": "Договорились"
+    },
+    {
+     "file": "11.webp",
+     "alt": "Договор подписан"
+    },
+    {
+     "file": "12.webp",
+     "alt": "Счёт оплачен?"
+    },
+    {
+     "file": "13.webp",
+     "alt": "Выехал на объект"
+    },
+    {
+     "file": "14.webp",
+     "alt": "Я в офисе"
+    },
+    {
+     "file": "15.webp",
+     "alt": "На удалёнке"
+    },
+    {
+     "file": "16.webp",
+     "alt": "Надо подумать"
+    },
+    {
+     "file": "17.webp",
+     "alt": "Щас исправлю"
+    },
+    {
+     "file": "18.webp",
+     "alt": "Спасибо!"
+    },
+    {
+     "file": "19.webp",
+     "alt": "Ура, сдали!"
+    },
+    {
+     "file": "20.webp",
+     "alt": "Пятница!"
+    },
+    {
+     "file": "21.webp",
+     "alt": "Посмотрю"
+    },
+    {
+     "file": "22.webp",
+     "alt": "Минутку…"
+    },
+    {
+     "file": "23.webp",
+     "alt": "Тушим пожар"
+    },
+    {
+     "file": "24.webp",
+     "alt": "Перезвоню"
+    },
+    {
+     "file": "25.webp",
+     "alt": "Сколько писем!"
+    },
+    {
+     "file": "26.webp",
+     "alt": "Ключи у охраны"
+    },
+    {
+     "file": "27.webp",
+     "alt": "Аренда растёт"
+    },
+    {
+     "file": "28.webp",
+     "alt": "Заявка в работе"
+    },
+    {
+     "file": "29.webp",
+     "alt": "Погнали!"
+    },
+    {
+     "file": "30.webp",
+     "alt": "Оплата пришла"
+    },
+    {
+     "file": "31.webp",
+     "alt": "Внёс в CRM"
+    }
+   ]
+  },
+  {
+   "key": "emotions",
+   "title": "Эмоции",
+   "cover": "01.webp",
+   "stickers": [
+    {
+     "file": "01.webp",
+     "alt": "Face with tears of joy"
+    },
+    {
+     "file": "02.webp",
+     "alt": "Smiling face with sunglasses"
+    },
+    {
+     "file": "03.webp",
+     "alt": "Zany face"
+    },
+    {
+     "file": "04.webp",
+     "alt": "Melting face"
+    },
+    {
+     "file": "05.webp",
+     "alt": "Raising hands"
+    },
+    {
+     "file": "06.webp",
+     "alt": "Clapping hands"
+    },
+    {
+     "file": "07.webp",
+     "alt": "Red heart"
+    },
+    {
+     "file": "08.webp",
+     "alt": "Smiling face with hearts"
+    },
+    {
+     "file": "09.webp",
+     "alt": "Pleading face"
+    },
+    {
+     "file": "10.webp",
+     "alt": "Face with rolling eyes"
+    },
+    {
+     "file": "11.webp",
+     "alt": "Partying face"
+    },
+    {
+     "file": "12.webp",
+     "alt": "Hugging face"
+    },
+    {
+     "file": "13.webp",
+     "alt": "Face screaming in fear"
+    },
+    {
+     "file": "14.webp",
+     "alt": "Crying face"
+    },
+    {
+     "file": "15.webp",
+     "alt": "Winking face"
+    },
+    {
+     "file": "16.webp",
+     "alt": "Star-struck"
+    },
+    {
+     "file": "17.webp",
+     "alt": "Nerd face"
+    },
+    {
+     "file": "18.webp",
+     "alt": "Upside-down face"
+    },
+    {
+     "file": "19.webp",
+     "alt": "OK hand"
+    },
+    {
+     "file": "20.webp",
+     "alt": "Victory hand"
+    },
+    {
+     "file": "21.webp",
+     "alt": "Waving hand"
+    },
+    {
+     "file": "22.webp",
+     "alt": "Face with hand over mouth"
+    },
+    {
+     "file": "23.webp",
+     "alt": "Grimacing face"
+    },
+    {
+     "file": "24.webp",
+     "alt": "Relieved face"
+    },
+    {
+     "file": "25.webp",
+     "alt": "Slightly smiling face"
+    },
+    {
+     "file": "26.webp",
+     "alt": "Unamused face"
+    },
+    {
+     "file": "27.webp",
+     "alt": "Face blowing a kiss"
+    },
+    {
+     "file": "28.webp",
+     "alt": "Hundred points"
+    },
+    {
+     "file": "29.webp",
+     "alt": "Sparkles"
+    },
+    {
+     "file": "30.webp",
+     "alt": "Thinking face"
+    }
+   ]
+  }
+ ],
+ "license": "Fluent Emoji © Microsoft (MIT); шрифт Nunito (OFL)"
+}

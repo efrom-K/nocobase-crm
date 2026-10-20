@@ -34,7 +34,7 @@ if (!document.getElementById('ceo-style')) {
     #ceo .c-tile { border:1px solid #e8ebf0; border-radius:6px; padding:8px 10px; background:#fafbfc; min-width:0; }
     #ceo .c-tile[data-go]:hover { border-color:#1c2d58; }
     #ceo .c-tile b { display:block; font-size:21px; line-height:1.2; font-variant-numeric:tabular-nums; color:#141414; }
-    #ceo .c-tile b.m { font-size:16px; }
+    #ceo .c-tile b.m { font-size:15px; white-space:nowrap; }
     #ceo .c-tile span { font-size:12px; color:#434343; font-weight:600; }
     #ceo .c-tile i { display:block; font-style:normal; font-size:11.5px; color:#595959; margin-top:2px; }
     #ceo .c-bad b, #ceo b.c-bad { color:#cf1322; } #ceo .c-warn b { color:#d46b08; } #ceo .c-ok b { color:#389e0d; }
@@ -302,7 +302,7 @@ function ceoRender() {
   const loadCard = cCard('Загрузка людей <span class="c-sub" style="font-weight:400;">открытые задачи и заявки</span>', '',
     load.length ? '<div style="overflow-x:auto;"><table class="c-t"><thead><tr><th>Сотрудник</th><th class="n">Задач</th><th class="n">из них просрочено</th><th class="n">Заявок</th><th class="n">из них просрочено</th></tr></thead><tbody>'
       + load.map(function(x) { return '<tr><td>' + cEsc(x.n) + '</td><td class="n">' + x.to + '</td><td class="n">' + bad(x.tv) + '</td><td class="n">' + x.ro + '</td><td class="n">' + bad(x.rv) + '</td></tr>'; }).join('') + '</tbody></table></div>'
-      : '<div class="c-empty">Открытых задач и заявок нет</div>');
+      : '<div class="c-empty">Открытых задач и заявок нет</div>', true);
   const evCard = cCard('Ближайшие 14 дней', CEO_URL.calendar,
     c.events.length ? cRows(c.events.map(function(x) { return { l: '<span class="c-tag" style="color:' + x.color + ';border-color:' + x.color + '55;">' + cDd(x.d) + '</span>' + cEsc(x.text), r: cWhen(x.n), go: x.go }; }), 25)
       : '<div class="c-empty">Ничего не запланировано</div>');

@@ -16,5 +16,6 @@
   "calpageblk1": "src/calendar.js",
   "crmblock006": "src/crm-settings.js",
   "vaultblock01": "src/vault.js",
-  "objplanblk01": "src/objects-plans.js"
+  "objplanblk01": "src/objects-plans.js",
+  "ceoblock01": "src/ceo-dashboard.js"
 }

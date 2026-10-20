@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Единая страница «Главная» (/admin/dashpage01): один дашборд для всех, вкладки по ролям.
 
+  - «Сводка» (ceotab01, блок ceoblock01 ← src/ceo-dashboard.js) — первая вкладка, сводка руководителя по всем модулям — admin.
   - «Дашборд» → «Главная», вкладки включены: «Компания» (dashtabs01, блок dashblock001 ← src/dashboard.js) — admin,
     «Кадры» (hometabhr01, блок crmblock007 ← src/crm-hr.js) — admin, hr; «АХО» (hometabaho1, блок crmblock008 ← src/crm-aho.js) — admin, aho.
     NocoBase сам показывает роли только её вкладки.
@@ -41,10 +42,11 @@ def upd(uid, values):
 page = route('dashpage01')
 upd('dashpage01', {'title': 'Главная', 'icon': 'HomeOutlined', 'enableTabs': True})
 upd('dashtabs01', {'title': 'Компания', 'hidden': False})
-TABS = [('hometabhr01', 'Кадры', 'homegridhr1', 'crmblock007', ('hr',)), ('hometabaho1', 'АХО', 'homegridaho', 'crmblock008', ('aho',))]
-for i, (tab, title, grid_uid, block_uid, roles) in enumerate(TABS):
+TABS = [('ceotab01', 'Сводка', 'ceogrid01', 'ceoblock01', (), 0),
+        ('hometabhr01', 'Кадры', 'homegridhr1', 'crmblock007', ('hr',), 2), ('hometabaho1', 'АХО', 'homegridaho', 'crmblock008', ('aho',), 3)]
+for tab, title, grid_uid, block_uid, roles, sort in TABS:
     if not route(tab):
-        print('tab', tab, ok(call('desktopRoutes:create', {'type': 'tabs', 'parentId': page['id'], 'schemaUid': tab, 'title': title, 'hidden': False, 'sort': i + 2})))
+        print('tab', tab, ok(call('desktopRoutes:create', {'type': 'tabs', 'parentId': page['id'], 'schemaUid': tab, 'title': title, 'hidden': False, 'sort': sort})))
     rid = [route(tab)['id']]
     for role in ('admin',) + roles:
         print('menu', role, tab, ok(call('roles/%s/desktopRoutes:add' % role, [page['id']] + rid)))

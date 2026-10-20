@@ -306,9 +306,16 @@ function ceoRender() {
   const evCard = cCard('Ближайшие 14 дней', CEO_URL.calendar,
     c.events.length ? cRows(c.events.map(function(x) { return { l: '<span class="c-tag" style="color:' + x.color + ';border-color:' + x.color + '55;">' + cDd(x.d) + '</span>' + cEsc(x.text), r: cWhen(x.n), go: x.go }; }), 25)
       : '<div class="c-empty">Ничего не запланировано</div>');
-  root.innerHTML = head + ceoAlerts(c) + '<div class="c-grid">' + contracts
-    + ceoWorkCard('Заявки по объектам', c.rq, RQ_ST, CEO_URL.requests, 'req') + ceoWorkCard('Задачи', c.tk, TK_ST, CEO_URL.tasks, 'task')
-    + people + aho + evCard + loadCard + '</div>';
+  // разделы по отделам — сетка сама раскладывает карточки, поэтому новый отдел = своя cCard(...) строкой в этом списке
+  // (+ его «красные» счётчики в ceoAlerts, сроки — в «Ближайшие 14 дней» через add() в ceoCalc). Общие «Ближайшие» и «Загрузка» — всегда последними.
+  const depts = [
+    contracts,
+    ceoWorkCard('Заявки по объектам', c.rq, RQ_ST, CEO_URL.requests, 'req'),
+    ceoWorkCard('Задачи', c.tk, TK_ST, CEO_URL.tasks, 'task'),
+    people,
+    aho
+  ];
+  root.innerHTML = head + ceoAlerts(c) + '<div class="c-grid">' + depts.join('') + evCard + loadCard + '</div>';
 }
 
 ctx.render('<div id="ceo"><div class="c-empty">Загрузка…</div></div>');

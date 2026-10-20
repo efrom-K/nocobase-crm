@@ -350,6 +350,12 @@ function injectStyle() {
     .msgr-msg-row:not(.own) .msgr-bubble { background:#fff; color:#1a1d24; border-bottom-left-radius:5px; }
     .msgr-bubble .msgr-author { font-size:11px; font-weight:700; color:#1c2d58; display:block; margin-bottom:2px; }
     .msgr-bubble .msgr-time { font-size:10px; opacity:.65; margin-left:10px; float:right; margin-top:5px; }
+    .msgr-ticks { display:inline-flex; vertical-align:-2px; margin-left:3px; }
+    .msgr-ticks i { display:none; font-style:normal; }
+    .msgr-ticks .t1 { display:inline-flex; }
+    .msgr-ticks.read .t1 { display:none; }
+    .msgr-ticks.read .t2 { display:inline-flex; color:#7fd3ff; }
+    .msgr-msg-row.own .msgr-bubble .msgr-time { opacity:.85; }
     .msgr-composer { border-top:1px solid #eef0f3; padding:10px 14px; display:flex; gap:9px; align-items:flex-end; background:#fff; }
     .msgr-composer textarea { flex:1; resize:none; border:1px solid #e6e9ee; border-radius:14px; padding:9px 14px; font-size:13.5px; font-family:inherit; outline:none; height:38px; max-height:110px; background:#f7f8fb; transition:border-color .15s; }
     .msgr-composer textarea:focus { border-color:#1c2d58; background:#fff; }
@@ -846,7 +852,18 @@ async function loadAndRenderMessages(win, convId, isPoll) {
     filter: { conversation_id: convId }, appends: ['author', 'attachment'], sort: ['created_at'], pageSize: 500
   });
   const msgs = listPayload(res);
-  if (isPoll && msgs.length === state.lastRenderedMsgCount) return;
+  // отметки прочтения: собеседники — их last_read_at в chat_conversation_members (в группе — прочитал хоть один)
+  let readAt = 0;
+  try {
+    const mr = await ctx.api.resource('chat_conversation_members').list({ filter: { conversation_id: convId }, fields: ['user_id', 'last_read_at'], pageSize: 200 });
+    listPayload(mr).forEach(function (x) { if (x.user_id !== state.currentUser.id && x.last_read_at) readAt = Math.max(readAt, new Date(x.last_read_at).getTime()); });
+  } catch (e) { /* без отметок */ }
+  state.readAt = readAt;
+  if (isPoll && msgs.length === state.lastRenderedMsgCount) {
+    const th = win.querySelector('#msgr-thread');
+    if (th) th.querySelectorAll('.msgr-ticks[data-ts]').forEach(function (t) { const rd = Number(t.getAttribute('data-ts')) <= readAt; t.classList.toggle('read', rd); t.title = rd ? 'Прочитано' : 'Отправлено'; });
+    return;
+  }
   state.lastRenderedMsgCount = msgs.length;
 
   const thread = win.querySelector('#msgr-thread');
@@ -861,18 +878,18 @@ async function loadAndRenderMessages(win, convId, isPoll) {
     if (vn && m.attachment && vn.kind === 'circle') {
       return '<div class="msgr-msg-row' + (own ? ' own' : '') + '"><div class="msgr-sticker">' +
         (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') + circleHtml(m.attachment.url, vn) +
-        '<span class="msgr-time">' + fmtTime(m.created_at) + '</span></div></div>';
+        timeHtml(m, own) + '</div></div>';
     }
     if (vn && m.attachment) {
       return '<div class="msgr-msg-row' + (own ? ' own' : '') + '"><div class="msgr-bubble">' +
         (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') + voiceHtml(m.attachment.url, vn) +
-        '<span class="msgr-time">' + fmtTime(m.created_at) + '</span></div></div>';
+        timeHtml(m, own) + '</div></div>';
     }
     const stk = stickerPath(m.message);
     if (stk && !m.attachment) {
       return '<div class="msgr-msg-row' + (own ? ' own' : '') + '"><div class="msgr-sticker">' +
         (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') + stickerMedia(stk, true) +
-        '<span class="msgr-time">' + fmtTime(m.created_at) + '</span></div></div>';
+        timeHtml(m, own) + '</div></div>';
     }
     const att = m.attachment;
     let attHtml = '';
@@ -892,7 +909,7 @@ async function loadAndRenderMessages(win, convId, isPoll) {
         (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') +
         attHtml +
         (m.message ? '<div' + (att ? ' style="margin-top:5px"' : '') + '>' + esc(m.message) + '</div>' : '') +
-        '<span class="msgr-time">' + fmtTime(m.created_at) + '</span>' +
+        timeHtml(m, own) +
       '</div>' +
     '</div>';
   }).join('') || '<div class="msgr-empty">Сообщений пока нет — напишите первым</div>';
@@ -904,6 +921,16 @@ async function loadAndRenderMessages(win, convId, isPoll) {
   wireNotes(thread);
 
   if (state.activeConvId === convId && conv && conv.unread) await markRead(conv);
+}
+
+const TICK1 = '<svg width="15" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 6l3.2 3.2L11 2"/></svg>';
+const TICK2 = '<svg width="18" height="11" viewBox="0 0 19 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 6l3.2 3.2L11 2"/><path d="M8.3 8.6l.6.6L15.2 2"/></svg>';
+// время сообщения + у своих ✓ (отправлено) / ✓✓ (прочитано), как в Telegram
+function timeHtml(m, own) {
+  if (!own) return '<span class="msgr-time">' + fmtTime(m.created_at) + '</span>';
+  const ts = new Date(m.created_at).getTime(), read = ts <= (state.readAt || 0);
+  return '<span class="msgr-time">' + fmtTime(m.created_at) + '<span class="msgr-ticks' + (read ? ' read' : '') + '" data-ts="' + ts + '" title="' + (read ? 'Прочитано' : 'Отправлено') + '">' +
+    '<i class="t1">' + TICK1 + '</i><i class="t2">' + TICK2 + '</i></span></span>';
 }
 
 function hydrateAttachments(scope) {

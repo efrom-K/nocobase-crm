@@ -1,3 +1,4 @@
+// @include src/_crm-profile.js
 
 if (!document.getElementById('obj-list-style')) {
   const style = document.createElement('style');

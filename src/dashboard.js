@@ -6,6 +6,7 @@
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть

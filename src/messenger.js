@@ -3,6 +3,7 @@
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
 // @include src/_crm-mobile.js
+// @include src/_crm-profile.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
 if (!document.getElementById('crm-controls-style')) {
@@ -142,6 +143,12 @@ function fmtTime(iso) {
   if (d.toDateString() === yesterday.toDateString()) return 'вчера';
   const y = d.getFullYear() === now.getFullYear() ? '' : '.' + String(d.getFullYear()).slice(2);
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + y;
+}
+
+// статус собеседника в личном чате — серым после имени
+function statusText(c) {
+  const s = !c.is_group && c.others[0] && window.crmStatus && window.crmStatus(c.others[0].user_id);
+  return s ? ' <span style="font-weight:400;color:#8c8c8c;font-size:12.5px;">' + esc((s.emoji + ' ' + s.text).trim()) + '</span>' : '';
 }
 
 function userLabel(u) {
@@ -380,7 +387,9 @@ function injectStyle() {
   document.head.appendChild(style);
 }
 
-function avatarHtml(label, id, size) {
+// uid — пользователь: фото и эмодзи статуса из профиля (_crm-profile.js); card — клик открывает карточку человека
+function avatarHtml(label, id, size, uid, card) {
+  if (uid && window.crmPhoto && (window.crmPhoto(uid) || window.crmStatus(uid) || card)) return window.crmAvatar(uid, size || 46, label, card);
   const g = gradientFor(id);
   const s = size ? ('width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * 0.36) + 'px;') : '';
   return '<div class="msgr-avatar" style="background:linear-gradient(135deg,' + g[0] + ',' + g[1] + ');' + s + '">' + esc(initials(label)) + '</div>';
@@ -601,9 +610,9 @@ function renderConvList(root, filterText) {
       : 'Нет сообщений';
     const time = c.lastMessage ? fmtTime(c.lastMessage.created_at) : '';
     return '<div class="msgr-conv-item" data-id="' + c.id + '">' +
-      avatarHtml(c.title, c.id) +
+      avatarHtml(c.title, c.id, 0, c.is_group ? null : c.others[0] && c.others[0].user_id) +
       '<div class="msgr-conv-meta">' +
-        '<div class="msgr-conv-top"><span class="msgr-conv-name">' + esc(c.title) + '</span><span class="msgr-conv-time">' + time + '</span></div>' +
+        '<div class="msgr-conv-top"><span class="msgr-conv-name">' + esc(c.title) + statusText(c) + '</span><span class="msgr-conv-time">' + time + '</span></div>' +
         '<div class="msgr-conv-bottom"><span class="msgr-conv-preview">' + preview + '</span>' +
           (c.unread ? '<span class="msgr-badge">' + c.unread + '</span>' : '') +
         '</div>' +
@@ -662,8 +671,8 @@ async function openChatWindow(rootPage, convId) {
   win.innerHTML =
     '<div class="msgr-chat-main">' +
       '<div class="msgr-chat-head" id="msgr-chat-head">' +
-        avatarHtml(conv.title, conv.id, 40) +
-        '<div class="msgr-chat-head-info"><div class="msgr-chat-title">' + esc(conv.title) + '</div>' +
+        avatarHtml(conv.title, conv.id, 40, conv.is_group ? null : conv.others[0] && conv.others[0].user_id, true) +
+        '<div class="msgr-chat-head-info"><div class="msgr-chat-title">' + esc(conv.title) + statusText(conv) + '</div>' +
         '<div class="msgr-chat-sub" id="msgr-chat-sub">' + (conv.is_group ? (conv.members.length + ' участников') : '') + '</div></div>' +
         crmCallButtons(conv.others.map(function (m) { return m.user_id; }), conv.is_group ? conv.title : '', conv.others.reduce(function (o, m) { o[m.user_id] = userLabel(m.user); return o; }, {}), conv.id) +
         '<span class="msgr-chat-close" id="msgr-chat-close">&times;</span>' +
@@ -894,7 +903,7 @@ function openNewChatModal(root) {
     '<div class="msgr-modal-body">' +
       '<input class="msgr-group-name-input" id="msgr-group-name" placeholder="Название группы">' +
       others.map(function (u) {
-        return '<label class="msgr-user-row">' + avatarHtml(userLabel(u), u.id, 34) +
+        return '<label class="msgr-user-row">' + avatarHtml(userLabel(u), u.id, 34, u.id) +
           '<span>' + esc(userLabel(u)) + '</span>' +
           '<input type="checkbox" data-uid="' + u.id + '"></label>';
       }).join('') +
@@ -960,7 +969,7 @@ function openAddMemberModal(convId) {
     '<div class="msgr-modal-head"><span>Добавить участника</span><span class="msgr-modal-close" id="msgr-addmember-x">&times;</span></div>' +
     '<div class="msgr-modal-body">' +
       (candidates.length ? candidates.map(function (u) {
-        return '<label class="msgr-user-row">' + avatarHtml(userLabel(u), u.id, 34) +
+        return '<label class="msgr-user-row">' + avatarHtml(userLabel(u), u.id, 34, u.id) +
           '<span>' + esc(userLabel(u)) + '</span>' +
           '<input type="checkbox" data-uid="' + u.id + '"></label>';
       }).join('') : '<div class="msgr-empty">Все сотрудники уже в этом чате</div>') +
@@ -1134,7 +1143,7 @@ async function renderInfoPanel(win, convId, tab) {
       const iso = presence[m.user_id];
       const online = iso && (Date.now() - new Date(iso).getTime()) / 1000 < 40;
       const label = m.user_id === state.currentUser.id ? 'это вы' : presenceLabel(iso);
-      return '<div class="msgr-member-row">' + avatarHtml(userLabel(m.user), m.user_id, 38) +
+      return '<div class="msgr-member-row">' + avatarHtml(userLabel(m.user), m.user_id, 38, m.user_id, true) +
         '<div class="msgr-member-meta"><div class="msgr-member-name">' + esc(userLabel(m.user)) + '</div>' +
         '<div class="msgr-member-status"><span class="msgr-status-dot' + (online ? ' online' : '') + '"></span>' +
         '<span class="' + (online ? 'online-text' : 'offline-text') + '">' + esc(label) + '</span></div></div>' +
@@ -1248,6 +1257,8 @@ await loadFolders();
 renderFolders(root);
 await loadMyConversations();
 renderConvList(root, '');
+// фото и статусы приходят из профилей позже первой отрисовки
+window.addEventListener('crm-profiles', function () { if (root.isConnected) renderConvList(root, currentSearchValue(root)); });
 
 if (window.__msgrListTimer) clearInterval(window.__msgrListTimer);
 window.__msgrListTimer = setInterval(function () { if (nbSessionAlive()) refreshLoop(root); }, 4000);

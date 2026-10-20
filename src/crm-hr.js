@@ -297,6 +297,7 @@ if (!document.getElementById('crm-hr-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
 const HR_TASKS_PAGE = '/admin/tskpage01';

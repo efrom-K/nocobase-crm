@@ -233,6 +233,7 @@ if (!document.getElementById('crm-aho-style')) {
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
 // дашборд АХО — вкладка «АХО» на «Главной» (блок crmblock008); старая /admin/ahodash01 (crmblock005) открывается для ссылок из старых уведомлений

@@ -984,14 +984,52 @@ function hOnChange(e) {
   if (am) { const p = am.split('|'); hSaveAct(Number(p[0]), p[1], e.target.checked); return; }
 }
 // выгрузка дашборда HR в Excel: сотрудники, отпуска текущего года, охрана труда, подбор
+// учредители в Excel: доли человека («Юрлицо 30 %»), листы «Учредители» (по компаниям) и «По учредителям» — одни и те же в обеих выгрузках
+function hOwnSharesTxt(e) {
+  return (hr.d.owners || []).filter(function(o) { return o.owner_kind === 'emp' && Number(o.employee_id) === e.id && hOwnNow(o); })
+    .map(function(o) { return ((hLe(o.legal_entity_id) || {}).name || '?') + ' ' + hPct(o.share_pct); }).join(', ');
+}
+function hOwnSheets(leIds) {
+  const t = hToday(), out = [], rows = [];
+  leIds.filter(Boolean).forEach(function(id) {
+    const l = hLe(id) || {}, all = hOwnersOf(id, true), sum = hOwnSum(id), eg = l.egrul_checked_on;
+    const egTxt = eg ? (hDays(eg, t) > 365 ? 'больше года назад' : 'в порядке') : 'не сверяли';
+    if (!all.length) { rows.push([l.name || '', l.inn || '', 'не указаны', '', '', null, null, null, null, 'нет', l.director || '', hD(eg) || null, egTxt, '']); return; }
+    all.forEach(function(x) {
+      const now = hOwnNow(x);
+      rows.push([l.name || '', l.inn || '', hOwnName(x), HR_OWN_KIND[x.owner_kind] || '', x.owner_kind === 'le' ? (hLe(x.owner_le_id) || {}).inn || '' : x.owner_inn || '',
+        Number(x.share_pct) || 0, Number(x.share_nominal) || null, hD(x.since_on) || null, hD(x.until_on) || null,
+        now ? (Math.abs(sum - 100) > 0.001 ? 'итого ' + hPct(sum) + ' — не 100 %' : 'да') : 'вышел', l.director || '', hD(eg) || null, egTxt, x.basis || '']);
+    });
+  });
+  out.push({ name: 'Учредители', title: 'Учредители юрлиц', freezeCols: 1,
+    cols: [{ h: 'Юрлицо', w: 30 }, { h: 'ИНН юрлица', w: 14 }, { h: 'Учредитель', w: 32 }, { h: 'Кто', w: 24 }, { h: 'ИНН учредителя', w: 14 }, { h: 'Доля, %', t: 'num', total: false }, { h: 'Номинал, ₽', t: 'money', total: false },
+      { h: 'С', t: 'date' }, { h: 'Вышел', t: 'date' }, { h: 'Действующий / доли сходятся', w: 26 }, { h: 'Руководитель юрлица', w: 36 }, { h: 'Сверено с ЕГРЮЛ', t: 'date' }, { h: 'Сверка', w: 18 }, { h: 'Основание', w: 34 }],
+    rows: rows });
+  const g = {};
+  (hr.d.owners || []).filter(function(o) { return hOwnNow(o) && leIds.indexOf(Number(o.legal_entity_id)) !== -1; }).forEach(function(o) {
+    const k = hOwnKey(o);
+    (g[k] = g[k] || { name: hOwnName(o), kind: o.owner_kind, emp: o.owner_kind === 'emp' ? hEmp(o.employee_id) : null, list: [] }).list.push(o);
+  });
+  const people = Object.keys(g).map(function(k) { return g[k]; }).sort(function(a, b) { return b.list.length - a.list.length || String(a.name).localeCompare(String(b.name), 'ru'); });
+  if (people.length) out.push({ name: 'По учредителям', title: 'Учредители: в каких юрлицах и с какой долей', freezeCols: 1,
+    cols: [{ h: 'Учредитель', w: 32 }, { h: 'Кто', w: 24 }, { h: 'Компаний', t: 'int' }, { h: 'Доли', w: 70 }, { h: 'Единственный учредитель в', w: 40 }, { h: 'Руководитель в', w: 40 }],
+    rows: people.map(function(p) {
+      const nm = function(o) { return (hLe(o.legal_entity_id) || {}).name || '?'; };
+      const dirIn = p.emp ? hr.d.les.filter(function(l) { return leIds.indexOf(l.id) !== -1 && hIsDirector(l, { owner_kind: 'emp', employee_id: p.emp.id }); }).map(function(l) { return l.name; }) : [];
+      return [p.name, HR_OWN_KIND[p.kind] || '', p.list.length, p.list.map(function(o) { return nm(o) + ' ' + hPct(o.share_pct); }).join(', '),
+        p.list.filter(function(o) { return Number(o.share_pct) >= 100; }).map(nm).join(', '), dirIn.join(', ')];
+    }) });
+  return out;
+}
 function hrExportXlsx() {
   const d = hr.d, y = new Date().getFullYear(), sheets = [];
   const emps = d.emps.slice().sort(function(a, b) { return (a.status === 'fired' ? 1 : 0) - (b.status === 'fired' ? 1 : 0) || String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
   if (emps.length) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: 1,
-    cols: [{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Юрлицо', w: 28 }, { h: 'Тип занятости' }, { h: 'Принят', t: 'date' }, { h: 'Статус' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }],
+    cols: [{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Юрлицо', w: 28 }, { h: 'Тип занятости' }, { h: 'Принят', t: 'date' }, { h: 'Статус' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }].concat(hHasHr() ? [{ h: 'Учредитель в', w: 40 }] : []),
     rows: emps.map(function(e) {
       return [e.full_name || '', e.position || '', e.department || '', hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', '), HR_EMP_TYPE[e.employment_type || 'staff'] || '',
-        hD(e.hired_on) || null, HR_EMP_ST[e.status] || HR_EMP_ST.active, e.phone || '', e.email || ''];
+        hD(e.hired_on) || null, HR_EMP_ST[e.status] || HR_EMP_ST.active, e.phone || '', e.email || ''].concat(hHasHr() ? [hOwnSharesTxt(e)] : []);
     }) });
   const vacs = d.vacs.filter(function(v) { return hD(v.start_date).slice(0, 4) === String(y) && hEmp(v.employee_id); })
     .sort(function(a, b) { return hD(a.start_date).localeCompare(hD(b.start_date)); });
@@ -1011,11 +1049,13 @@ function hrExportXlsx() {
       const cs = d.cands.filter(function(c) { return c.vacancy_id === x.id; }), n = function(st) { return cs.filter(function(c) { return c.stage === st; }).length; };
       return [x.title || '', hLe(x.legal_entity_id) ? hLe(x.legal_entity_id).name : '', x.department || '', x.object_name || '', hD(x.opened_on) || null, hD(x.due_on) || null, cs.length, n('interview'), n('offer'), HR_VACANCY_ST[x.status] || x.status || ''];
     }) });
+  if (hHasHr() && d.les.length) sheets.push.apply(sheets, hOwnSheets(d.les.map(function(l) { return l.id; })));
   if (!sheets.length) return;
   crmXlsx('Дашборд HR', {
     title: 'Дашборд HR', filters: [['Год', y]],
     notes: [['Сотрудники', 'Работающие сверху, уволенные ниже; юрлицо — основное и дополнительные'], ['Отпуска', 'Все отпуска, начавшиеся в ' + y + ' году; «Дней» — как указано в записи'],
-      ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'], ['Подбор', 'Кандидаты считаются по стадиям: все / собеседование / оффер']],
+      ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'], ['Подбор', 'Кандидаты считаются по стадиям: все / собеседование / оффер'],
+      ['Учредители', 'Все юрлица; вышедшие — с датой выхода; «По учредителям» — только действующие доли'], ['Учредитель в', 'Действующие доли сотрудника в юрлицах']],
     sheets: sheets
   });
 }
@@ -1085,6 +1125,7 @@ function hXlsSpec(o, leIds) {
     if (has('mil')) cols.push({ h: 'Военнообязанных', t: 'int' }, { h: 'Сверка с военкоматом', t: 'date', total: false });
     if (has('pos')) cols.push({ h: 'Ставок по штату', t: 'num' }, { h: 'Свободно ставок', t: 'num' });
     if (has('hire')) cols.push({ h: 'Открытых вакансий', t: 'int' });
+    if (has('own') && hHasHr()) cols.push({ h: 'Учредители', w: 50 }, { h: 'Сумма долей, %', t: 'num', total: false });
     const rows = leIds.map(function(id) {
       const all = people(id), act = all.filter(function(e) { return e.status !== 'fired'; }), st = staffOf(id), l = hLe(id) || {};
       const r = [leName(id), l.inn || '', act.length]
@@ -1099,6 +1140,7 @@ function hXlsSpec(o, leIds) {
       if (has('mil')) r.push(act.filter(liable).length, hD(l.mil_check_on) || null);
       if (has('pos')) { const ps = posOf(id); r.push(ps.reduce(function(n, p) { return n + (Number(p.units) || 0); }, 0), ps.reduce(function(n, p) { return n + Math.max(0, hPosFree(p)); }, 0)); }
       if (has('hire')) r.push(d.vacancies.filter(function(v) { return Number(v.legal_entity_id || 0) === id && v.status === 'open'; }).length);
+      if (has('own') && hHasHr()) { const ow = id ? hOwnersOf(id) : []; r.push(ow.map(function(o) { return hOwnName(o) + ' ' + hPct(o.share_pct); }).join(', '), ow.length ? hOwnSum(id) : null); }
       return r;
     });
     sheets.push({ name: 'Сводка', title: 'Сводка по юрлицам за ' + y + ' год', total: !one, freezeCols: 1, cols: cols, rows: rows });
@@ -1106,10 +1148,10 @@ function hXlsSpec(o, leIds) {
   const rowsBy = function(f) { return [].concat.apply([], leIds.map(f)); };
   if (has('emp')) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: one ? 1 : 2,
     cols: lc.concat([{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Тип занятости' }, { h: 'Ставка', t: 'num', total: false }, { h: 'Принят', t: 'date' }, { h: 'Уволен', t: 'date' },
-      { h: 'Статус' }, { h: 'Объект', w: 22 }, { h: 'Договор до', t: 'date' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }]),
+      { h: 'Статус' }, { h: 'Объект', w: 22 }, { h: 'Договор до', t: 'date' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }].concat(has('own') && hHasHr() ? [{ h: 'Учредитель в', w: 40 }] : [])),
     rows: rowsBy(function(id) { return people(id).map(function(e) {
       return lv(id).concat([e.full_name || '', e.position || '', e.department || '', HR_EMP_TYPE[typ(e)] || '', typ(e) === 'staff' ? Number(e.rate || 1) : null, hD(e.hired_on) || null, hD(e.fired_on) || null,
-        HR_EMP_ST[e.status] || HR_EMP_ST.active, e.object_name || '', hD(e.contract_until) || null, e.phone || '', e.email || '']);
+        HR_EMP_ST[e.status] || HR_EMP_ST.active, e.object_name || '', hD(e.contract_until) || null, e.phone || '', e.email || ''].concat(has('own') && hHasHr() ? [hOwnSharesTxt(e)] : []));
     }); }) });
   if (has('vac')) {
     sheets.push({ name: 'Остатки отпусков', title: 'Ежегодный отпуск ' + y + ': норма и остаток (штатные)', total: true, freezeCols: one ? 1 : 2,
@@ -1136,20 +1178,15 @@ function hXlsSpec(o, leIds) {
       const cs = d.cands.filter(function(c) { return c.vacancy_id === x.id; }), n = function(s) { return cs.filter(function(c) { return c.stage === s; }).length; };
       return lv(id).concat([x.title || '', x.department || '', x.object_name || '', hD(x.opened_on) || null, hD(x.due_on) || null, cs.length, n('interview'), n('offer'), HR_VACANCY_ST[x.status] || x.status || '']);
     }); }) });
-  if (has('own') && hHasHr()) sheets.push({ name: 'Учредители', title: 'Учредители юрлиц', freezeCols: 1,
-    cols: [{ h: 'Юрлицо', w: 30 }, { h: 'ИНН юрлица', w: 14 }, { h: 'Учредитель', w: 32 }, { h: 'Кто', w: 22 }, { h: 'ИНН учредителя', w: 14 }, { h: 'Доля, %', t: 'num', total: false }, { h: 'Номинал, ₽', t: 'money', total: false },
-      { h: 'С', t: 'date' }, { h: 'Вышел', t: 'date' }, { h: 'Руководитель юрлица', w: 34 }, { h: 'Сверено с ЕГРЮЛ', t: 'date' }, { h: 'Основание', w: 34 }],
-    rows: [].concat.apply([], leIds.filter(Boolean).map(function(id) { const l = hLe(id) || {}; return hOwnersOf(id, true).map(function(x) {
-      return [l.name || '', l.inn || '', hOwnName(x), HR_OWN_KIND[x.owner_kind] || '', x.owner_kind === 'le' ? (hLe(x.owner_le_id) || {}).inn || '' : x.owner_inn || '', Number(x.share_pct) || 0, Number(x.share_nominal) || null,
-        hD(x.since_on) || null, hD(x.until_on) || null, l.director || '', hD(l.egrul_checked_on) || null, x.basis || ''];
-    }); })) });
+  if (has('own') && hHasHr() && leIds.some(Boolean)) sheets.push.apply(sheets, hOwnSheets(leIds));
   return {
     title: one ? 'HR — ' + leName(leIds[0]) : 'HR по юрлицам',
     filters: [['Год', y], ['Юрлица', leIds.map(leName).join(', ')], ['Кого учитывать', o.types.map(function(k) { return HR_EMP_TYPE[k]; }).join(', ') + (o.fired ? '; уволенные в ' + y : '')]],
     notes: [['Юрлицо', 'Человек, оформленный в нескольких юрлицах (совместительство, директор), учитывается в каждом'],
       ['Отпуска', 'Норма — «дней отпуска в год» из карточки; остаток = норма − ежегодные отпуска, начинающиеся в ' + y + ' году; перенос с прошлых лет не учитывается'],
       ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'],
-      ['Штатное расписание', 'Занято — работающие штатные с той же должностью в этом юрлице, по ставкам']],
+      ['Штатное расписание', 'Занято — работающие штатные с той же должностью в этом юрлице, по ставкам'],
+      ['Учредители', 'Доли — действующие на сегодня; вышедшие — на листе «Учредители» с датой выхода; «Сумма долей» должна быть 100 %']],
     sheets: sheets.length ? sheets : [{ name: 'Пусто', cols: [{ h: 'Нет данных' }], rows: [] }]
   };
 }

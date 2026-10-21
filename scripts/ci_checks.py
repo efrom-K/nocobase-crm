@@ -42,6 +42,14 @@ for f in sorted(glob.glob('**/*.json', recursive=True)):
     if f.startswith(('node_modules/', '.git/')): continue
     try: json.load(open(f, encoding='utf-8'))
     except Exception as e: err('%s: невалидный JSON (%s)' % (f, e))
+# правила заявок (KPI управляющих): кто что может — requests-service/rules.test.js
+if os.path.exists('requests-service/rules.test.js'):
+    r = subprocess.run(['node', 'requests-service/rules.test.js'], capture_output=True, text=True)
+    if r.returncode: err('requests-service/rules.test.js: ' + (r.stderr or r.stdout).strip().splitlines()[-1][:300] if (r.stderr or r.stdout).strip() else 'requests-service/rules.test.js упал')
+    for f in ('requests-service/server.js', 'requests-service/rules.js'):
+        r = subprocess.run(['node', '--check', f], capture_output=True, text=True)
+        if r.returncode: err(f + ': ' + r.stderr.strip()[:300])
+
 if os.path.exists('deploy/blocks.json'):
     for uid, path in json.load(open('deploy/blocks.json', encoding='utf-8')).items():
         if not os.path.exists(path): err('deploy/blocks.json: %s → файла %s нет' % (uid, path))

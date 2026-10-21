@@ -1,0 +1,8 @@
+# Сервис заявок по объектам. Настройки — в .env рядом (в git не попадает), образец — .env.example
+services:
+  requests:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8097:8097"

@@ -12,6 +12,7 @@
   - самозанятые: с 3-го числа — нет акта за прошлый месяц (раз в месяц);
   - дни рождения — за день; мероприятия — за неделю и накануне;
   - подбор: собеседование накануне и в день, оффер без ответа 3 дня, выход на работу без оформления, вакансия не закрыта в срок;
+  - учредители: доли юрлица в сумме не 100 %, сверка с ЕГРЮЛ старше года;
   - 1 ноября и 10 декабря — у кого не запланирован отпуск на следующий год (график утверждается до 17 декабря).
 
 cron на svc:  0 9 * * * /usr/bin/python3 /home/ubuntu/nb_bik/hr_reminders.py >> /home/ubuntu/nb_bik/hr.log 2>&1
@@ -145,6 +146,17 @@ for c in rows("select * from crm_candidates where stage in ('interview', 'offer'
 for v in vac.values():
     if v['status'] == 'open' and v['due_on'] and days(v['due_on']) < 0:
         add('vacancy:%s:%s:late' % (v['id'], v['due_on']), 'Вакансия не закрыта в срок', '«%s» — нужно было до %s' % (v['title'], fmt(d(v['due_on']))), PAGE + '?sec=hire')
+
+# учредители: сумма долей не 100 % (каждый раз, когда сумма меняется), сверка с ЕГРЮЛ старше года (раз в год)
+owners = rows("select * from crm_le_owners where until_on is null or until_on > current_date")
+for l in les.values():
+    own = [o for o in owners if o['legal_entity_id'] == l['id']]
+    if not own: continue
+    total = round(sum(float(o['share_pct'] or 0) for o in own), 2)
+    if abs(total - 100) > 0.001:
+        add('own:%s:sum:%s' % (l['id'], total), 'Учредители: доли не сходятся', '«%s» — в сумме %s %% вместо 100 %%' % (l['name'], ('%g' % total).replace('.', ',')), PAGE + '?sec=own')
+    if not l.get('egrul_checked_on') or (today - d(l['egrul_checked_on'])).days > 365:
+        add('own:%s:egrul:%s' % (l['id'], today.year), 'Учредители: сверить с ЕГРЮЛ', '«%s» — %s' % (l['name'], 'последняя сверка %s' % fmt(d(l['egrul_checked_on'])) if l.get('egrul_checked_on') else 'ни разу не сверяли'), PAGE + '?sec=own')
 
 # график отпусков на следующий год
 if (today.month, today.day) in ((11, 1), (12, 10)):

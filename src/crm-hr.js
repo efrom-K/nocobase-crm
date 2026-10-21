@@ -254,6 +254,17 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-tile-n, .hr-hint, .hr-al-s, .hr-card-t small, .hr-grp span { color:#595959; }
     .hr-tile-go { font-weight:600; }
     .hr-tiles-home { grid-template-columns:repeat(var(--tiles, 6), minmax(0, 1fr)); }
+    .hr-own-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:14px; align-items:start; }
+    .hr-own-grid .hr-card { margin:0; }
+    .hr-own-r { display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:7px 4px; border-top:1px solid #eef1f6; cursor:pointer; }
+    .hr-own-r:hover { background:#eaf0ff; }
+    .hr-own-r.gone { color:#8c8c8c; }
+    .hr-own-r.gone .hr-own-p { text-decoration:line-through; color:#8c8c8c; }
+    .hr-own-n { font-size:14px; color:#1f1f1f; }
+    .hr-own-p { font-size:15px; color:#1c2d58; white-space:nowrap; }
+    .hr-own-bar { grid-column:1 / -1; height:6px; background:#eef1f6; border-radius:3px; overflow:hidden; }
+    .hr-own-bar i { display:block; height:100%; background:#1c2d58; border-radius:3px; }
+    .hr-own-sum { border-top:2px solid #c9d1df; margin-top:4px; padding-top:7px; font-size:14px; text-align:right; }
     @media (max-width: 1200px) { .hr-tiles-home { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 640px) { .hr-tiles-home { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
     .hr-card { border-color:#dfe3ea; padding:14px 16px; }
@@ -342,7 +353,7 @@ const HR_RANKS = ['рядовой', 'ефрейтор', 'младший серж
 const HR_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
 const HR_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const hr = { d: null, me: null, myEmp: null, tab: '', staffView: 'list', le: '', type: '', dept: '', q: '', fired: false, only: null,
-  year: new Date().getFullYear(), orgQ: '', mxLe: '', hireView: 'funnel', hireVac: '' };
+  year: new Date().getFullYear(), orgQ: '', mxLe: '', hireView: 'funnel', hireVac: '', ownView: 'le', ownHist: false };
 
 // ---------- мелочи ----------
 function hEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -465,9 +476,10 @@ async function hLoad() {
     L('crm_staff_positions', { sort: ['department', 'position'] }).catch(function() { return []; }),   // подбор и штат — только admin и hr
     L('crm_vacancies', { sort: ['-opened_on'] }).catch(function() { return []; }),
     L('crm_candidates', { sort: ['interview_on', 'interview_time'] }).catch(function() { return []; }),
-    L('users', { fields: ['id', 'username'] }).catch(function() { return []; })
+    L('users', { fields: ['id', 'username'] }).catch(function() { return []; }),
+    L('crm_le_owners', { sort: ['legal_entity_id', '-share_pct'] }).catch(function() { return []; })   // учредители — только admin и hr
   ]);
-  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], files: r[10], objects: r[11], tasks: r[12], pos: r[13], vacancies: r[14], cands: r[15], users: r[16] };
+  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], files: r[10], objects: r[11], tasks: r[12], pos: r[13], vacancies: r[14], cands: r[15], users: r[16], owners: r[17] };
   hr.myEmp = hr.d.emps.find(function(e) { return hr.me && Number(e.user_id) === Number(hr.me.id); }) || null;
 }
 
@@ -524,7 +536,8 @@ const HR_DOC_KINDS = {
   lna: cfg('hr.docKinds.lna'),
   cand: cfg('hr.docKinds.cand'),
   vacancy: cfg('hr.docKinds.vacancy'),
-  emp: cfg('hr.docKinds.emp')
+  emp: cfg('hr.docKinds.emp'),
+  own: cfg('hr.docKinds.own')
 };
 function hFilesOf(entity, id, doc) {
   return (hr.d.files || []).filter(function(f) { return f.entity === entity && Number(f.record_id) === Number(id) && (doc === undefined || f.doc === doc); });
@@ -676,7 +689,7 @@ const H_WP = [['wp_strengths', 'Сильные стороны в работе', 
   ['wp_assessment', 'Формальная оценка: методика (если проводилась)', 'list', ['DISC', 'Оценка 360°', 'Тест профессиональных знаний', 'Ассессмент-центр']], ['wp_assessed_on', 'Дата оценки', 'date'],
   ['wp_consent_on', 'Письменное согласие на оценку получено', 'date'], ['wp_assessment_result', 'Результат оценки (кратко)', 'textarea']];
 const H_LE_MIL = [['mil_office', 'Военкомат организации', 'text'], ['mil_check_on', 'Последняя ежегодная сверка', 'date'], ['mil_plan_year', 'План воинского учёта получен на год', 'num']];
-const H_LE = [['name', 'Название', 'text', null, 1], ['inn', 'ИНН', 'text'], ['kpp', 'КПП', 'text'], ['ogrn', 'ОГРН', 'text'], ['director', 'Руководитель', 'text']].concat(H_LE_MIL, [['address', 'Адрес', 'textarea'], ['note', 'Заметки', 'textarea']]);
+const H_LE = [['name', 'Название', 'text', null, 1], ['inn', 'ИНН', 'text'], ['kpp', 'КПП', 'text'], ['ogrn', 'ОГРН', 'text'], ['director', 'Руководитель', 'text'], ['egrul_checked_on', 'Учредители сверены с ЕГРЮЛ', 'date']].concat(H_LE_MIL, [['address', 'Адрес', 'textarea'], ['note', 'Заметки', 'textarea']]);
 const H_VAC = [['employee_id', 'Сотрудник', 'select', hEmpOpts, 1], ['kind', 'Вид отпуска', 'select', HR_VAC_KINDS, 1], ['start_date', 'С', 'date', null, 1], ['end_date', 'По (включительно)', 'date', null, 1],
   ['in_schedule', 'По графику? (для ежегодного; пусто — определится по дате)', 'select', HR_VAC_SCHED], ['status', 'Оформление', 'select', HR_VAC_ST, 1], ['note', 'Заметки', 'textarea']];
 const H_SAFETY = [['employee_id', 'Сотрудник (пусто — общее мероприятие)', 'select', hEmpOpts], ['kind', 'Что', 'list', HR_SAFETY.map(function(x) { return x[0]; }).concat(HR_PB_COMMON.map(function(x) { return x[0]; })), 1],
@@ -702,6 +715,60 @@ const H_CAND = [['full_name', 'ФИО', 'text', null, 1], ['vacancy_id', 'Вак
 
 // ---------- «требует внимания»: единая лента для дашборда ----------
 // lvl: 0 — просрочено/срочно, 1 — скоро, 2 — к сведению. go: { emp } | { tab, ... } | { ids, title } (список сотрудников)
+// ---------- учредители юрлиц: доли (crm_le_owners), владелец — сотрудник, наше юрлицо или другое лицо ----------
+const HR_OWN_KIND = { emp: 'Сотрудник', le: 'Наше юрлицо', ext: 'Другое лицо или организация' };
+const H_OWN = [['legal_entity_id', 'Юрлицо', 'select', hLeOpts, 1], ['owner_kind', 'Кто владеет', 'select', HR_OWN_KIND, 1],
+  ['employee_id', 'Сотрудник', 'select', function() { return hr.d.emps.map(function(e) { return [e.id, e.full_name + (e.status === 'fired' ? ' (уволен)' : '')]; }); }],
+  ['owner_le_id', 'Юрлицо-владелец', 'select', hLeOpts], ['owner_name', 'ФИО или название', 'text'], ['owner_inn', 'ИНН владельца', 'text'],
+  ['share_pct', 'Доля, %', 'num', null, 1], ['share_nominal', 'Номинал доли, ₽', 'num'], ['since_on', 'Учредитель с', 'date'], ['until_on', 'Вышел из состава (пусто — сейчас учредитель)', 'date'],
+  ['basis', 'Основание (решение, договор, запись ЕГРЮЛ)', 'textarea'], ['note', 'Заметки', 'textarea']];
+function hOwnNow(o) { return !o.until_on || hD(o.until_on) > hToday(); }
+function hOwnName(o) {
+  if (o.owner_kind === 'emp') { const e = hEmp(o.employee_id); return e ? e.full_name : 'сотрудник удалён'; }
+  if (o.owner_kind === 'le') { const l = hLe(o.owner_le_id); return l ? l.name : 'юрлицо удалено'; }
+  return o.owner_name || '—';
+}
+// один и тот же владелец во всех компаниях: сотрудник по id, юрлицо по id, остальные — по ФИО/названию
+function hOwnKey(o) { return o.owner_kind === 'emp' ? 'emp:' + o.employee_id : o.owner_kind === 'le' ? 'le:' + o.owner_le_id : 'ext:' + hNorm(o.owner_name); }
+function hOwnersOf(leId, all) { return (hr.d.owners || []).filter(function(o) { return Number(o.legal_entity_id) === Number(leId) && (all || hOwnNow(o)); }); }
+function hOwnSum(leId) { return Math.round(hOwnersOf(leId).reduce(function(n, o) { return n + (Number(o.share_pct) || 0); }, 0) * 100) / 100; }
+function hPct(v) { return (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('ru-RU') + ' %'; }
+function hOwnRole(o) { return Number(o.share_pct) >= 100 ? 'единственный учредитель' : 'соучредитель'; }
+// руководитель юрлица из поля «Должность: ФИО» — совпадает ли с владельцем-сотрудником
+function hIsDirector(l, o) {
+  if (!l || o.owner_kind !== 'emp') return false;
+  const e = hEmp(o.employee_id), name = hNorm(String(l.director || '').replace(/^[^:]*:\s*/, ''));
+  return !!(e && name && name.indexOf(hNorm(e.last_name + ' ' + e.first_name)) === 0);
+}
+function hOpenOwn(o, preset, after) {
+  hEdit({ coll: 'crm_le_owners', rec: o, preset: preset, after: after, spec: H_OWN, files: 'own', title: o ? hOwnName(o) + ' — ' + ((hLe(o.legal_entity_id) || {}).name || '') : 'Учредитель',
+    wire: function(m) {   // поля владельца — по виду
+      const kind = m.querySelector('[data-v="owner_kind"]');
+      const sync = function() {
+        const k = kind.value;
+        [['employee_id', 'emp'], ['owner_le_id', 'le'], ['owner_name', 'ext'], ['owner_inn', 'ext']].forEach(function(p) { const f = m.querySelector('[data-fk="' + p[0] + '"]'); if (f) f.style.display = k === p[1] ? '' : 'none'; });
+      };
+      kind.addEventListener('change', sync); sync();
+    },
+    prepare: function(v) {
+      const k = v.owner_kind;
+      if (k === 'emp' && !v.employee_id) return 'Выберите сотрудника';
+      if (k === 'le' && !v.owner_le_id) return 'Выберите юрлицо-владельца';
+      if (k === 'le' && Number(v.owner_le_id) === Number(v.legal_entity_id)) return 'Юрлицо не может владеть само собой';
+      if (k === 'ext' && !v.owner_name) return 'Укажите ФИО или название владельца';
+      if (!(v.share_pct > 0 && v.share_pct <= 100)) return 'Доля — от 0 до 100 %';
+      if (v.since_on && v.until_on && v.until_on < v.since_on) return 'Дата выхода раньше даты входа';
+      if (k !== 'emp') v.employee_id = null;
+      if (k !== 'le') v.owner_le_id = null;
+      if (k !== 'ext') { v.owner_name = null; v.owner_inn = null; }
+      if (hOwnNow(v)) {
+        const other = hOwnersOf(v.legal_entity_id).filter(function(x) { return !o || x.id !== o.id; }).reduce(function(n, x) { return n + (Number(x.share_pct) || 0); }, 0);
+        if (other + v.share_pct > 100.001) return 'Сумма долей станет ' + hPct(other + v.share_pct) + ' — у остальных учредителей уже ' + hPct(other) + '. Сначала отметьте выход или уменьшите долю у них';
+      }
+      return v;
+    } });
+}
+
 function hAlerts() {
   const d = hr.d, t = hToday(), out = [], staff = hStaff();
   let sec = 'safety';   // раздел дашборда, к которому относится пункт (счётчик на плитке)
@@ -813,6 +880,16 @@ function hAlerts() {
   d.vacancies.forEach(function(v) { if (v.status === 'open' && v.due_on && hD(v.due_on) < t) add(0, 'Вакансия «' + v.title + '» не закрыта в срок', 'нужно было до ' + hDate(v.due_on), { vacancy: v.id }, v.due_on); });
   const free = d.pos.filter(function(p) { return hPosFree(p) > 0 && !d.vacancies.some(function(v) { return v.status === 'open' && Number(v.position_id) === p.id; }); });
   if (free.length) add(2, 'Свободные ставки без открытой вакансии: ' + free.length, free.map(function(p) { return p.position + (hLe(p.legal_entity_id) ? ' (' + hLe(p.legal_entity_id).name + ')' : ''); }).join(', '), { tab: 'hire', hire: 'pos' });
+  sec = 'own';
+  // учредители: сумма долей ≠ 100 %, не указаны, давно не сверяли с ЕГРЮЛ
+  d.les.forEach(function(l) {
+    const n = hOwnersOf(l.id).length, sum = hOwnSum(l.id);
+    if (n && Math.abs(sum - 100) > 0.001) add(1, 'Доли учредителей «' + l.name + '» в сумме ' + hPct(sum), 'должно быть 100 % — проверьте доли или отметьте вышедших', { tab: 'own' });
+  });
+  const noOwn = d.les.filter(function(l) { return !hOwnersOf(l.id).length; });
+  if (noOwn.length) add(2, 'Учредители не указаны: ' + noOwn.length + ' ' + hNoun(noOwn.length, 'юрлицо', 'юрлица', 'юрлиц'), noOwn.map(function(l) { return l.name; }).join(', '), { tab: 'own' });
+  const oldEgrul = d.les.filter(function(l) { return hOwnersOf(l.id).length && (!l.egrul_checked_on || hDays(l.egrul_checked_on, t) > 365); });
+  if (oldEgrul.length) add(2, 'Учредителей давно не сверяли с ЕГРЮЛ: ' + oldEgrul.length, oldEgrul.map(function(l) { return l.name; }).join(', ') + ' — больше года или ни разу', { tab: 'own' });
   sec = 'docs';
   // приятное: дни рождения и мероприятия
   hActive().forEach(function(e) {
@@ -858,7 +935,7 @@ hRoot().addEventListener('input', function(e) {
 });
 hStart();
 
-const HR_SECTIONS = { staff: 'Сотрудники', hire: 'Подбор и штат', vac: 'Отпуска', safety: 'Охрана труда и СОУТ', mil: 'Воинский учёт', docs: 'Документы и мероприятия' };
+const HR_SECTIONS = { staff: 'Сотрудники', hire: 'Подбор и штат', vac: 'Отпуска', safety: 'Охрана труда и СОУТ', mil: 'Воинский учёт', docs: 'Документы и мероприятия', own: 'Юрлица и учредители' };
 function hRender() {
   let head;
   if (HR_MODE === 'staff') {   // общий раздел: три вкладки
@@ -873,7 +950,7 @@ function hRender() {
         + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button>' : '') + '</div>';
   }
   hRoot().innerHTML = head + '<div data-hr-body></div>';
-  ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs, hire: hRenderHire })[hr.tab]();
+  ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs, hire: hRenderHire, own: hRenderOwn })[hr.tab]();
 }
 function hGo(go) {
   if (go.emp) return hOpenEmp(go.emp);
@@ -893,6 +970,7 @@ function hOnChange(e) {
   if (f === 'fired') { hr.fired = e.target.checked; hRenderStaffList(); }
   if (f === 'mxLe') { hr.mxLe = e.target.value; hRenderSafety(); }
   if (f === 'hireVac') { hr.hireVac = e.target.value; hRenderHire(); }
+  if (e.target.getAttribute('data-act') === 'ohist') { hr.ownHist = e.target.checked; hRenderOwn(); return; }
   const au = e.target.getAttribute('data-act-up');
   if (au) {   // загруженный акт = акт подписан
     const p = au.split('|'), files = Array.prototype.slice.call(e.target.files || []); e.target.value = '';
@@ -940,10 +1018,10 @@ function hrExportXlsx() {
 }
 // ---------- выгрузка в Excel по юрлицам: окно выбора (год, юрлица, разделы, типы занятости, один файл или по файлу на юрлицо) ----------
 const HR_XLS_PARTS = [['sum', 'Сводная статистика по юрлицам'], ['emp', 'Сотрудники'], ['vac', 'Отпуска и остатки дней'], ['ot', 'Охрана труда'],
-  ['mil', 'Воинский учёт'], ['pos', 'Штатное расписание'], ['hire', 'Подбор (вакансии)']];
+  ['mil', 'Воинский учёт'], ['pos', 'Штатное расписание'], ['hire', 'Подбор (вакансии)'], ['own', 'Учредители']];
 function hOpenExport() {
   const y = new Date().getFullYear(), d = hr.d;
-  const parts = HR_XLS_PARTS.filter(function(p) { return p[0] !== 'mil' || hHasHr(); });
+  const parts = HR_XLS_PARTS.filter(function(p) { return (p[0] !== 'mil' && p[0] !== 'own') || hHasHr(); });
   const chk = function(attr, v, label, on) { return '<label style="display:block;margin:3px 0;"><input type="checkbox" ' + attr + '="' + hEsc(v) + '"' + (on ? ' checked' : '') + '> ' + hEsc(label) + '</label>'; };
   const col = function(t, html) { return '<div style="flex:1 1 240px;min-width:220px;"><div style="font-weight:600;margin-bottom:6px;">' + t + '</div>' + html + '</div>'; };
   const m = hModal('<div class="hr-box-h"><div class="hr-box-t">Выгрузка в Excel по юрлицам</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
@@ -1055,6 +1133,13 @@ function hXlsSpec(o, leIds) {
       const cs = d.cands.filter(function(c) { return c.vacancy_id === x.id; }), n = function(s) { return cs.filter(function(c) { return c.stage === s; }).length; };
       return lv(id).concat([x.title || '', x.department || '', x.object_name || '', hD(x.opened_on) || null, hD(x.due_on) || null, cs.length, n('interview'), n('offer'), HR_VACANCY_ST[x.status] || x.status || '']);
     }); }) });
+  if (has('own') && hHasHr()) sheets.push({ name: 'Учредители', title: 'Учредители юрлиц', freezeCols: 1,
+    cols: [{ h: 'Юрлицо', w: 30 }, { h: 'ИНН юрлица', w: 14 }, { h: 'Учредитель', w: 32 }, { h: 'Кто', w: 22 }, { h: 'ИНН учредителя', w: 14 }, { h: 'Доля, %', t: 'num', total: false }, { h: 'Номинал, ₽', t: 'money', total: false },
+      { h: 'С', t: 'date' }, { h: 'Вышел', t: 'date' }, { h: 'Руководитель юрлица', w: 34 }, { h: 'Сверено с ЕГРЮЛ', t: 'date' }, { h: 'Основание', w: 34 }],
+    rows: [].concat.apply([], leIds.filter(Boolean).map(function(id) { const l = hLe(id) || {}; return hOwnersOf(id, true).map(function(x) {
+      return [l.name || '', l.inn || '', hOwnName(x), HR_OWN_KIND[x.owner_kind] || '', x.owner_kind === 'le' ? (hLe(x.owner_le_id) || {}).inn || '' : x.owner_inn || '', Number(x.share_pct) || 0, Number(x.share_nominal) || null,
+        hD(x.since_on) || null, hD(x.until_on) || null, l.director || '', hD(l.egrul_checked_on) || null, x.basis || ''];
+    }); })) });
   return {
     title: one ? 'HR — ' + leName(leIds[0]) : 'HR по юрлицам',
     filters: [['Год', y], ['Юрлица', leIds.map(leName).join(', ')], ['Кого учитывать', o.types.map(function(k) { return HR_EMP_TYPE[k]; }).join(', ') + (o.fired ? '; уволенные в ' + y : '')]],
@@ -1089,6 +1174,8 @@ function hOnClick(e) {
   if (a === 'newcand') return hOpenCand(null, hr.hireVac ? { vacancy_id: Number(hr.hireVac) } : {});
   if (a === 'newvacancy') return hOpenVacancy(null);
   if (a === 'newpos') return hOpenPos(null);
+  if (a === 'newown') return hOpenOwn(null, { owner_kind: 'emp', legal_entity_id: act.getAttribute('data-le') ? Number(act.getAttribute('data-le')) : null });
+  if (a === 'ov') { hr.ownView = act.getAttribute('data-v'); hRenderOwn(); return; }
   if (a === 'pos2vac') { const p = hr.d.pos.find(function(x) { return x.id === Number(act.getAttribute('data-id')); }); return hOpenVacancy(null, { title: p.position, legal_entity_id: p.legal_entity_id, department: p.department, position_id: p.id, salary: p.salary ? String(p.salary) : '' }); }
   const go = c('[data-go]');
   if (go) return hGo(JSON.parse(go.getAttribute('data-go')));
@@ -1121,6 +1208,7 @@ function hOnClick(e) {
     if (p[0] === 'cand') return hOpenCand(find(hr.d.cands));
     if (p[0] === 'vacancy') return hOpenVacancy(find(hr.d.vacancies));
     if (p[0] === 'pos') return hOpenPos(find(hr.d.pos));
+    if (p[0] === 'own') return hCan() ? hOpenOwn(find(hr.d.owners)) : undefined;
   }
   const dep = c('[data-dep]');
   if (dep) return hOpenDept(Number(dep.getAttribute('data-dep')));
@@ -1150,7 +1238,7 @@ function hRenderHome() {
     const n = function(k) { return l.filter(function(e) { return (e.employment_type || 'staff') === k; }).length; };
     return '<tr data-go="' + hEsc(JSON.stringify({ tab: 'staff', le: x[0] === '' ? '-' : String(x[0]), type: '' })) + '" style="cursor:pointer;"><td>' + hEsc(x[1]) + '</td><td class="n">' + n('staff') + '</td><td class="n">' + n('external') + '</td><td class="n">' + n('self') + '</td><td class="n"><b>' + l.length + '</b></td></tr>';
   }).join('');
-  hBody().innerHTML = '<div class="hr-tiles hr-tiles-home" style="--tiles:6;">'
+  hBody().innerHTML = '<div class="hr-tiles hr-tiles-home" style="--tiles:7;">'
     + tile('staff', act.length, 'штат ' + byType('staff') + ' · внештатные ' + byType('external') + ' · самозанятые ' + byType('self'))
     + tile('hire', d.vacancies.filter(function(v) { return v.status === 'open'; }).length + ' <small style="font-size:13px;font-weight:400;">вакансий</small>',
         'кандидатов в работе ' + d.cands.filter(function(c) { return ['new', 'interview', 'offer'].indexOf(c.stage) !== -1; }).length
@@ -1160,6 +1248,11 @@ function hRenderHome() {
     + tile('safety', lateSafety ? '<span style="color:#cf1322;">' + lateSafety + '</span> <small style="font-size:13px;font-weight:400;">просрочено</small>' : '✓', 'обучение, инструктажи, пожарная безопасность, СОУТ · ' + d.sout.length + ' раб. мест')
     + tile('mil', liable + ' <small style="font-size:13px;font-weight:400;">на учёте</small>', 'организации: сверки и планы; военнообязанные')
     + tile('docs', d.lna.length + ' <small style="font-size:13px;font-weight:400;">ЛНА</small>', (noAck ? 'не ознакомлены: ' + noAck + ' · ' : '') + (nextEv ? 'ближайшее мероприятие ' + hDate(nextEv.event_date).slice(0, 5) : 'мероприятий не запланировано'))
+    + (function() {
+        const withOwn = d.les.filter(function(l) { return hOwnersOf(l.id).length; }).length, owners = {};
+        (d.owners || []).filter(hOwnNow).forEach(function(o) { owners[hOwnKey(o)] = 1; });
+        return tile('own', withOwn + ' <small style="font-size:13px;font-weight:400;">из ' + d.les.length + ' юрлиц</small>', 'учредители указаны · учредителей ' + Object.keys(owners).length);
+      })()
     + '</div><div class="hr-cols"><div>'
     + '<div class="hr-card"><div class="hr-card-t">Требует внимания <small>' + al.length + '</small></div>'
     + (al.length ? al.map(function(x) {
@@ -1197,6 +1290,61 @@ async function hSaveAct(empId, month, on) {
 }
 
 // ---------- воинский учёт: организации (сверка, план) и военнообязанные ----------
+// ---------- юрлица и учредители: по компаниям и по людям ----------
+function hRenderOwn() {
+  const d = hr.d, t = hToday(), byLe = hr.ownView !== 'person';
+  const plus = '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>';
+  const bar = function(p) { return '<div class="hr-own-bar"><i style="width:' + Math.max(0, Math.min(100, Number(p) || 0)) + '%;"></i></div>'; };
+  const head = '<div class="hr-actions" style="margin:0 0 12px;">'
+    + [['le', 'По компаниям'], ['person', 'По учредителям']].map(function(x) { return '<button class="hr-btn' + ((x[0] === 'le') === byLe ? ' pri' : '') + '" data-act="ov" data-v="' + x[0] + '">' + x[1] + '</button>'; }).join('')
+    + '<label style="margin-left:8px;font-size:13.5px;cursor:pointer;"><input type="checkbox" data-act="ohist"' + (hr.ownHist ? ' checked' : '') + '> Показывать вышедших</label>'
+    + (hCan() ? '<button class="hr-new" data-act="newown" style="margin-left:auto;">' + plus + 'Учредитель</button>' : '') + '</div>'
+    + '<div class="hr-hint" style="margin:-4px 0 12px;">Доли — по ЕГРЮЛ и уставу. Вышедшего учредителя не удаляйте: укажите дату выхода — он останется в истории компании.</div>';
+  if (!d.les.length) { hBody().innerHTML = head + '<div class="hr-hint">Юрлица не заведены: «Воинский учёт» → «+ Юрлицо».</div>'; return; }
+  if (byLe) {
+    hBody().innerHTML = head + '<div class="hr-own-grid">' + d.les.map(function(l) {
+      const cur = hOwnersOf(l.id), past = hr.ownHist ? hOwnersOf(l.id, true).filter(function(o) { return !hOwnNow(o); }) : [], sum = hOwnSum(l.id);
+      const dir = String(l.director || '').trim(), eg = l.egrul_checked_on, egOld = !eg || hDays(eg, t) > 365;
+      const row = function(o, gone) {
+        const name = hOwnName(o), emp = o.owner_kind === 'emp' && hEmp(o.employee_id);
+        return '<div class="hr-own-r' + (gone ? ' gone' : '') + '" data-rec="own:' + o.id + '"><div class="hr-own-n">'
+          + (emp ? '<a data-emp="' + emp.id + '" class="hr-link">' + hEsc(name) + '</a>' : hEsc(name))
+          + ' <span class="hr-chip">' + (o.owner_kind === 'le' ? 'юрлицо' : o.owner_kind === 'ext' ? 'не из CRM' : hOwnRole(o)) + '</span>'
+          + (hIsDirector(l, o) ? '<span class="hr-chip blue">он же руководитель</span>' : '')
+          + (gone ? '<span class="hr-hint"> вышел ' + hDate(o.until_on) + '</span>' : o.since_on ? '<span class="hr-hint"> с ' + hDate(o.since_on) + '</span>' : '')
+          + '</div><b class="hr-own-p">' + hPct(o.share_pct) + '</b>' + bar(gone ? 0 : o.share_pct) + '</div>';
+      };
+      return '<div class="hr-card hr-own-c"><div class="hr-card-t"><a data-le="' + l.id + '" class="hr-link">' + hEsc(l.name) + '</a>' + (l.inn ? ' <small>ИНН ' + hEsc(l.inn) + '</small>' : '')
+        + (hCan() ? '<button class="hr-btn sm" data-act="newown" data-le="' + l.id + '">' + plus + 'Учредитель</button>' : '') + '</div>'
+        + '<div class="hr-hint" style="margin:-4px 0 8px;">' + (dir ? hEsc(dir) : 'руководитель не указан') + ' · ЕГРЮЛ: <span class="' + (egOld ? 'hr-soon' : 'hr-ok') + '">' + (eg ? 'сверено ' + hDate(eg) : 'не сверяли') + '</span></div>'
+        + (cur.length ? cur.map(function(o) { return row(o, false); }).join('') : '<div class="hr-hint">Учредители не указаны</div>')
+        + past.map(function(o) { return row(o, true); }).join('')
+        + (cur.length ? '<div class="hr-own-sum">Итого <b class="' + (Math.abs(sum - 100) > 0.001 ? 'hr-late' : 'hr-ok') + '">' + hPct(sum) + '</b>' + (Math.abs(sum - 100) > 0.001 ? ' <span class="hr-late">— должно быть 100 %</span>' : '') + '</div>' : '')
+        + '</div>';
+    }).join('') + '</div>';
+    return;
+  }
+  // по учредителям: один человек / компания — во всех юрлицах сразу
+  const g = {};
+  (d.owners || []).filter(function(o) { return hr.ownHist || hOwnNow(o); }).forEach(function(o) {
+    const k = hOwnKey(o);
+    (g[k] = g[k] || { name: hOwnName(o), kind: o.owner_kind, emp: o.owner_kind === 'emp' ? hEmp(o.employee_id) : null, list: [] }).list.push(o);
+  });
+  const people = Object.keys(g).map(function(k) { return g[k]; }).sort(function(a, b) {
+    const n = function(x) { return x.list.filter(hOwnNow).length; };
+    return n(b) - n(a) || String(a.name).localeCompare(String(b.name), 'ru');
+  });
+  hBody().innerHTML = head + (people.length ? '<div class="hr-card"><table><thead><tr><th>Учредитель</th><th class="n">Компаний</th><th>Доли</th><th>Руководитель в</th></tr></thead><tbody>' + people.map(function(p) {
+      const now = p.list.filter(hOwnNow);
+      const dirIn = p.emp ? d.les.filter(function(l) { return hIsDirector(l, { owner_kind: 'emp', employee_id: p.emp.id }); }) : [];
+      return '<tr><td>' + (p.emp ? '<a data-emp="' + p.emp.id + '" class="hr-link"><b>' + hEsc(p.name) + '</b></a>' : '<b>' + hEsc(p.name) + '</b>') + '<div class="hr-hint">' + hEsc(HR_OWN_KIND[p.kind] || '') + '</div></td>'
+        + '<td class="n"><b>' + now.length + '</b></td><td><div class="hr-chips">' + p.list.map(function(o) {
+          const l = hLe(o.legal_entity_id), gone = !hOwnNow(o);
+          return '<span class="hr-chip' + (gone ? '' : Number(o.share_pct) >= 100 ? ' green' : ' blue') + '" data-rec="own:' + o.id + '" style="cursor:pointer;' + (gone ? 'text-decoration:line-through;' : '') + '">' + hEsc(l ? l.name : '?') + ' — ' + hPct(o.share_pct) + '</span>';
+        }).join('') + '</div></td><td>' + (dirIn.length ? hEsc(dirIn.map(function(l) { return l.name; }).join(', ')) : '<span class="hr-none">—</span>') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<div class="hr-hint">Учредители пока не указаны. Нажмите «+ Учредитель» или переключитесь на «По компаниям».</div>');
+}
+
 function hRenderMil() {
   const d = hr.d, t = hToday(), y = new Date().getFullYear(), act = hActive();
   const liable = act.filter(function(e) { const p = hPriv(e.id); return p && p.mil_status === 'liable'; });
@@ -1480,7 +1628,15 @@ function hEditDept(dep, parent, after) {
     },
     after: after });
 }
-function hOpenLe(l) { hEdit({ coll: 'crm_legal_entities', rec: l, spec: H_LE, title: l ? l.name : 'Новое юрлицо', files: 'le', wide: true }); }
+function hOpenLe(l) {
+  hEdit({ coll: 'crm_legal_entities', rec: l, spec: H_LE, title: l ? l.name : 'Новое юрлицо', files: 'le', wide: true,
+    extra: function(rec) {   // учредители — только посмотреть, правка в «Юрлица и учредители»
+      const own = rec ? hOwnersOf(rec.id) : [];
+      return rec ? '<div class="hr-sec full" style="margin-top:12px;"><div class="hr-sec-t">Учредители</div>' + (own.length ? '<div class="hr-lines">'
+        + own.map(function(o) { return '<div><span>' + hEsc(hOwnName(o)) + '</span><b>' + hPct(o.share_pct) + '</b></div>'; }).join('') + '</div>' : '<div class="hr-hint">Не указаны</div>')
+        + '<div class="hr-hint" style="margin-top:6px;">Изменить — на дашборде HR → «Юрлица и учредители».</div></div>' : '';
+    } });
+}
 function hEmpVals(v) {
   v.full_name = v.last_name + (v.first_name ? ' ' + v.first_name : '');
   if (v.status === 'fired' && !v.fired_on) v.fired_on = hToday();
@@ -1567,6 +1723,12 @@ function hRenderEmp(m, id) {
     + (cand && cand.comp_scores && Object.keys(cand.comp_scores).length ? '<div class="hr-hint" style="margin-top:8px;"><b style="color:#595959;">На собеседовании' + (cand.interview_on ? ' ' + hDate(cand.interview_on) : '') + ':</b> '
       + HR_COMPS.filter(function(k) { return cand.comp_scores[k]; }).map(function(k) { return hEsc(k) + ' ' + cand.comp_scores[k]; }).join(' · ') + (cand.note ? '<div style="white-space:pre-wrap;">' + hEsc(cand.note) + '</div>' : '') + '</div>' : '')
     + '<div class="hr-hint" style="margin-top:8px;">Только факты о работе: без здоровья, личной жизни и оценок характера. Сотрудник вправе запросить и прочитать эту запись.</div>';
+  // доли в юрлицах: сейчас и вышел
+  const ownList = (hr.d.owners || []).filter(function(o) { return o.owner_kind === 'emp' && Number(o.employee_id) === e.id; });
+  const ownView = ownList.length ? lines(ownList.map(function(o) {
+    const l = hLe(o.legal_entity_id), now = hOwnNow(o);
+    return '<div data-rec="own:' + o.id + '"><span' + (now ? '' : ' class="hr-none"') + '>' + hEsc(l ? l.name : '?') + (now ? (hIsDirector(l, o) ? ' · он же руководитель' : '') : ' · вышел ' + hDate(o.until_on)) + '</span><b' + (now ? '' : ' class="hr-none"') + '>' + hPct(o.share_pct) + '</b></div>';
+  }), '') : '';
   const v = hVacNow(e), sen = hSeniority(e);
   box.innerHTML = '<div class="hr-box-h">' + hAva(e.full_name) + '<div class="hr-box-t">' + hEsc([e.last_name, e.first_name, e.middle_name].filter(Boolean).join(' ') || e.full_name)
     + '<small>' + hEsc([e.position, e.department].filter(Boolean).join(' · ') || '—') + '</small>'
@@ -1594,6 +1756,7 @@ function hRenderEmp(m, id) {
     + (can ? sec('pers', 'Личные данные <span class="hr-lock">🔒 видят HR и администратор</span>', H_PERSONAL, p) : '')
     + (can ? sec('file', 'Личное дело', H_FILE, p, true, hFileDocsView(e, p, fileList)) : '')
     + (HR_MODE === 'hr' ? sec('lna', 'Ознакомление с документами', null, null, false, lnaView) + sec('ev', 'Мероприятия', null, null, false, evView) : '')
+    + (HR_MODE === 'hr' && ownView ? sec('own', 'Учредитель юрлиц', null, null, false, ownView) : '')
     + sec('tasks', 'Задачи', null, null, true, taskView)
     + '</div></div>';
   // события карточки
@@ -1633,6 +1796,7 @@ function hRenderEmp(m, id) {
       if (typ === 'vac') { if (can) hOpenVac(hr.d.vacs.find(function(x) { return x.id === Number(val); }), null, back); }
       else if (typ === 'cell') { if (can) hOpenSafetyCell(id, val, back); }
       else if (typ === 'ev') { if (can) hOpenEvent(hr.d.events.find(function(x) { return x.id === Number(val); }), back); }
+      else if (typ === 'own') { if (can) hOpenOwn(hr.d.owners.find(function(x) { return x.id === Number(val); }), null, back); }
       else if (typ === 'prog') hOpenProg(hr.d.progs.find(function(x) { return x.id === Number(val); }));
     });
   });

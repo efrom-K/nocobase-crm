@@ -256,6 +256,9 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-tiles-home { grid-template-columns:repeat(var(--tiles, 6), minmax(0, 1fr)); }
     .hr-own-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:14px; align-items:start; }
     .hr-own-grid .hr-card { margin:0; }
+    .hr-own-c .hr-card-t { display:flex; align-items:flex-start; gap:8px; flex-wrap:nowrap; }
+    .hr-own-c .hr-card-t small { white-space:nowrap; margin-top:3px; }
+    .hr-own-c .hr-card-t .hr-btn { margin-left:auto; white-space:nowrap; flex:none; }
     .hr-own-r { display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:7px 4px; border-top:1px solid #eef1f6; cursor:pointer; }
     .hr-own-r:hover { background:#eaf0ff; }
     .hr-own-r.gone { color:#8c8c8c; }

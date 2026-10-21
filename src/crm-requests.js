@@ -1,8 +1,9 @@
 // «Тестовая страница» (/admin/j3a32zo1jzo, блок crmblock001): заявки по объектам — ремонт, эксплуатация, вопросы
 // арендаторов, расторжения, платежи, проверки. Тестовый контур CRM; коллекции — scripts/setup_crm_requests.py.
-// Процесс (решения владельца 28.09): Новая → В работе → Ждёт → Выполнена (на проверке) → Закрыта автором (или сама через 3 дня),
-// + Отменена. Срок по срочности: обычная 5 рабочих дней, срочно 1, авария — сегодня. Ответственный по умолчанию —
-// управляющий объекта. Напоминания, эскалация старшему управляющему (3 дня просрочки), автозакрытие и сводка по
+// Процесс (решения владельца 28.09, переделка под KPI управляющих 21.10): Новая → В работе → Ждёт / В отделе → Решена (на приёмке)
+// → Закрыта тем, кто принимает работу (не ответственным), + Отменена. Срок — по срочности, ответственный — управляющий объекта;
+// перенос, передача и отмена у управляющего — только запросом руководителю. Все правила и запись — сервис заявок
+// (requests-service/rules.js), этот блок только показывает и отправляет действия. Напоминания, эскалация старшему управляющему (3 дня просрочки), автозакрытие и сводка по
 // понедельникам — scripts/request_reminders.py на сервере. Уведомления из интерфейса — очередь request_notifications.
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
@@ -211,10 +212,20 @@ if (!document.getElementById('crm-req-style')) {
 // @include src/_crm-xlsx.js
 const RQ_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
 const RQ_ST = cfg('requests.status');
-const RQ_OPEN = ['new', 'in_work', 'waiting'];
+const RQ_OPEN = ['new', 'in_work', 'waiting', 'dept'];
 const RQ_URG = cfg('requests.urgency');
 const RQ_KINDS = cfg('requests.kinds');
 const RQ_WAIT = cfg('requests.wait');
+const RQ_SRC = { portal: 'Портал арендатора', phone: 'Звонок или письмо арендатора', inspection: 'Обход, своя находка', order: 'Поручение руководства', dept: 'От отдела', other: 'Другое' };
+// все изменения заявок — через сервис заявок (requests-service): он решает, кто что может (KPI управляющих), и пишет историю и уведомления
+const RQ_SVC = location.port ? location.protocol + '//' + location.hostname + ':8097' : '/rqsvc';
+async function rqSvc(path, body) {
+  const res = await fetch(RQ_SVC + path, body ? { method: 'POST', headers: { Authorization: 'Bearer ' + rqToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    : { headers: { Authorization: 'Bearer ' + rqToken() } });
+  const j = await res.json().catch(function() { return null; });
+  if (!res.ok) { const e = new Error((j && j.error) || 'Сервис заявок недоступен'); e.field = j && j.field; e.status = res.status; throw e; }
+  return j;
+}
 const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr' };
 try { if (localStorage.getItem('crm-req-view') === 'board') rq.view = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 
@@ -251,20 +262,19 @@ async function rqLoad() {
     ctx.api.resource('object_requests').list({ paginate: false, sort: ['-id'] }),
     ctx.api.resource('users').list({ paginate: false, fields: ['id', 'nickname', 'username'] }),
     ctx.api.resource('contract_objects').list({ paginate: false, sort: ['name'] }),
-    ctx.api.resource('rental_contracts').list({ paginate: false, fields: ['id', 'contract_number', 'tenant_name', 'object_name'] }).catch(function() { return null; })
+    ctx.api.resource('rental_contracts').list({ paginate: false, fields: ['id', 'contract_number', 'tenant_name', 'object_name'] }).catch(function() { return null; }),
+    rqSvc('/acts').catch(function() { return { acts: {}, pending: [], me: {}, down: true }; }),
+    ctx.api.resource('crm_departments').list({ paginate: false, fields: ['name', 'sort'], sort: ['sort'] }).catch(function() { return null; })
   ]);
   const users = {};
-  rqRows(all[1]).forEach(function(u) { if (u.username !== 'mail-service') users[u.id] = u; });
-  rq.data = { reqs: rqRows(all[0]), users: users, objects: rqRows(all[2]), contracts: rqRows(all[3]) };
+  rqRows(all[1]).forEach(function(u) { if (u.username !== 'mail-service' && u.username !== 'requests-service') users[u.id] = u; });
+  rq.data = { reqs: rqRows(all[0]), users: users, objects: rqRows(all[2]), contracts: rqRows(all[3]), acts: all[4].acts || {}, pending: all[4].pending || [], svcDown: !!all[4].down,
+    depts: rqRows(all[5]).map(function(d) { return d.name; }).filter(function(n) { return n && n !== 'Руководство компании'; }) };
+  rq.me.__isCtl = !!(all[4].me && all[4].me.isCtl); rq.me.__depts = (all[4].me && all[4].me.depts) || [];
 }
+function rqIsBoss() { return rqIsAdmin() || !!(rq.me && rq.me.__isCtl); }
+function rqPending(r) { return rq.data.pending.filter(function(p) { return Number(p.request_id) === r.id && p.status === 'pending'; }); }
 function rqObj(name) { return (rq.data.objects || []).find(function(o) { return o.name === name; }) || null; }
-function rqNotify(userId, title, text, reqId) {
-  if (!userId || (rq.me && Number(userId) === Number(rq.me.id))) return;
-  ctx.api.resource('request_notifications').create({ values: { user_id: Number(userId), title: title, text: text, url: RQ_PAGE + '?open=req:' + reqId } }).catch(function() { /* уведомление не должно ломать действие */ });
-}
-function rqEvent(reqId, kind, text, fileId) {
-  return ctx.api.resource('request_events').create({ values: { request_id: reqId, author_id: rq.me.id, kind: kind, text: text || '', file_id: fileId || null } });
-}
 async function rqUpload(file) {
   const boundary = '----rqBoundary' + Math.random().toString(16).slice(2);
   const head = '--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + file.name.replace(/"/g, '') + '"\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n';
@@ -306,7 +316,7 @@ function rqRender() {
   const tabs = [['list', 'Заявки'], ['stats', 'Статистика']].concat(rqIsAdmin() ? [['objects', 'Управляющие объектов']] : []);
   rqRoot().innerHTML = '<div class="rq-head"><div class="rq-title">Заявки по объектам</div>' + crmSettingsGear('Заявки') + '<div class="rq-tabs">'
     + tabs.map(function(t) { return '<button class="rq-tab' + (rq.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('')
-    + '</div><button class="rq-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Новая заявка</button></div><div id="rq-body"></div>';
+    + '</div>' + (rq.data && rq.data.svcDown ? '<div class="rq-hint" style="color:#cf1322;font-weight:600;">Сервис заявок недоступен — заявки видны, но менять их сейчас нельзя</div>' : '') + '<button class="rq-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Новая заявка</button></div><div id="rq-body"></div>';
   if (rq.tab === 'list') rqRenderListShell();
   else if (rq.tab === 'stats') rqRenderStats();
   else rqRenderObjects();
@@ -314,10 +324,12 @@ function rqRender() {
 
 // ---------- список ----------
 const RQ_QUICK = [
-  ['mine', 'Мои', function(r) { return RQ_OPEN.concat(['done']).indexOf(r.status) !== -1 && (Number(r.responsible_id) === rq.me.id || Number(r.author_id) === rq.me.id); }],
+  ['mine', 'Мои', function(r) { return RQ_OPEN.concat(['done']).indexOf(r.status) !== -1 && (Number(r.responsible_id) === rq.me.id || Number(r.author_id) === rq.me.id || (r.status === 'dept' && rq.me.__depts.indexOf(r.dept) !== -1)); }],
+  ['decide', 'Ждут решения', function(r) { return rqActs(r).indexOf('decide') !== -1; }],
+  ['accept', 'Принять работу', function(r) { return rqActs(r).indexOf('accept') !== -1; }],
   ['open', 'Открытые', function(r) { return RQ_OPEN.indexOf(r.status) !== -1; }],
   ['late', 'Просроченные', rqLate],
-  ['check', 'На проверке', function(r) { return r.status === 'done'; }],
+  ['check', 'На приёмке', function(r) { return r.status === 'done'; }],
   ['closed', 'Закрытые', function(r) { return r.status === 'closed' || r.status === 'cancelled'; }],
   ['all', 'Все', function() { return true; }]
 ];
@@ -403,17 +415,18 @@ function rqOnClick(e) {
 // Колонки = статусы, одной высоты (до низа экрана), прокрутка внутри колонки. Взяли карточку — колонки, куда её можно
 // перенести, подсвечены, остальные бледные. Перенос = то же действие, что кнопка в карточке (rqCan + rqDo): права, история,
 // уведомления. Где нужен ввод (что сделано, чего ждём, причина) — форма прямо на карточке в новой колонке, без окон.
-const RQ_COLS = [['new', ['new'], 'Новые'], ['in_work', ['in_work'], 'В работе'], ['waiting', ['waiting'], 'Ждут'], ['done', ['done'], 'На проверке'], ['closed', ['closed', 'cancelled'], 'Закрытые']];
+const RQ_COLS = [['new', ['new'], 'Новые'], ['in_work', ['in_work'], 'В работе'], ['waiting', ['waiting'], 'Ждут'], ['dept', ['dept'], 'В отделе'], ['done', ['done'], 'На приёмке'], ['closed', ['closed', 'cancelled'], 'Закрытые']];
 const RQ_CLOSED_DAYS = cfg('requests.closedDays');   // закрытые на доске — только за последний месяц, остальные в списке «Закрытые»
-const RQ_DROP_ASK = { wait: 'Чего ждём', done: 'Что сделано — увидит автор при проверке', reopen: 'Что не так — увидит ответственный', cancel: 'Причина отмены' };
-const RQ_DROP_OK = { take: 'Взята в работу', resume: 'Снова в работе', wait: 'Ждём', done: 'Отправлена на проверку', close: 'Закрыта', reopen: 'Возвращена в работу', cancel: 'Отменена' };
+const RQ_DROP_ASK = { wait: 'Чего ждём', done: 'Что сделано — увидит тот, кто принимает работу', reopen: 'Что не так — увидит ответственный', cancel: 'Причина отмены', dept_back: 'Что сделал отдел — увидит управляющий' };
+const RQ_DROP_OK = { take: 'Взята в работу', resume: 'Снова в работе', wait: 'Ждём', done: 'Отправлена на приёмку', accept: 'Принята и закрыта', reopen: 'Возвращена в работу', cancel: 'Отменена', dept_back: 'Возвращена управляющему' };
 function rqColOf(st) { return (RQ_COLS.find(function(c) { return c[1].indexOf(st) !== -1; }) || [''])[0]; }
 // куда перетащили → какое действие карточки это означает
 function rqDropAction(from, col) {
-  if (col === 'in_work') return from === 'new' ? 'take' : from === 'waiting' ? 'resume' : from === 'done' ? 'reopen' : null;
-  if (col === 'waiting') return (from === 'new' || from === 'in_work') ? 'wait' : null;
+  // передача в отдел и запросы руководителю — только из карточки (там нужен выбор отдела, срока, причины)
+  if (col === 'in_work') return from === 'new' ? 'take' : from === 'waiting' ? 'resume' : from === 'done' ? 'reopen' : from === 'dept' ? 'dept_back' : null;
+  if (col === 'waiting') return from === 'in_work' ? 'wait' : null;
   if (col === 'done') return (from === 'in_work' || from === 'waiting') ? 'done' : null;
-  if (col === 'closed') return from === 'done' ? 'close' : RQ_OPEN.indexOf(from) !== -1 ? 'cancel' : null;
+  if (col === 'closed') return from === 'done' ? 'accept' : RQ_OPEN.indexOf(from) !== -1 ? 'cancel' : null;
   return null;
 }
 function rqDropAllowed(r, col) {
@@ -424,7 +437,7 @@ function rqRenderBoard() {
   document.getElementById('rq-chips').innerHTML = '';
   const rows = rqFiltered(true), d = new Date(); d.setDate(d.getDate() - RQ_CLOSED_DAYS);
   const since = rqIso(d), pd = rq.drop;
-  document.getElementById('rq-list').innerHTML = '<div class="kb" data-kb>' + RQ_COLS.map(function(col) {
+  document.getElementById('rq-list').innerHTML = '<div class="kb" data-kb style="--n:' + RQ_COLS.length + ';">' + RQ_COLS.map(function(col) {
     let items = rows.filter(function(r) { return pd && r.id === pd.id ? col[0] === pd.col : col[1].indexOf(r.status) !== -1; });
     const all = items.length;
     if (col[0] === 'closed') items = items.filter(function(r) { return String(r.closed_at || r.updatedAt || '').slice(0, 10) >= since; }).sort(function(a, b) { return String(b.closed_at || '').localeCompare(String(a.closed_at || '')); });
@@ -559,22 +572,25 @@ function rqOpenNew() {
     + '<div class="rq-f"><label>Срочность</label><div class="rq-seg" data-n="urgency">' + Object.keys(RQ_URG).map(function(k) { return '<button type="button" data-urg="' + k + '" style="--c:' + (k === 'normal' ? '#1c2d58' : RQ_URG[k].c) + ';"' + (k === 'normal' ? ' class="on"' : '') + '>' + RQ_URG[k].l + '</button>'; }).join('') + '</div><div class="rq-hint" data-urg-hint>Срок: ' + RQ_URG.normal.hint + '</div></div>'
     + '<div class="rq-f full"><label>Суть *</label><input type="text" data-n="title" placeholder="Коротко: что случилось или что нужно сделать"></div>'
     + '<div class="rq-f full"><label>Подробности</label><textarea data-n="description" placeholder="Где, что, контакты арендатора, что уже сделано"></textarea></div>'
-    + '<div class="rq-f"><label>Ответственный</label><select data-n="responsible_id"><option value="">—</option>' + rqPeopleOptions(rq.me.id) + '</select><div class="rq-hint" data-resp-hint></div></div>'
-    + '<div class="rq-f"><label>Срок</label><input type="date" data-n="due_date" min="2000-01-01" max="2099-12-31" value="' + rqAddWorkDays(5) + '"></div>'
+    + '<div class="rq-f"><label>Откуда заявка</label><select data-n="source">' + Object.keys(RQ_SRC).filter(function(k) { return k !== 'portal' && (k !== 'order' || rqIsBoss()); })
+      .map(function(k) { return '<option value="' + k + '"' + (k === 'other' ? ' selected' : '') + '>' + RQ_SRC[k] + '</option>'; }).join('') + '</select></div>'
+    + '<div class="rq-f"><label>Ответственный</label>' + (rqIsBoss() ? '<select data-n="responsible_id"><option value="">управляющий объекта</option>' + rqPeopleOptions(null) + '</select>' : '<div class="rq-hint" style="margin-top:6px;">управляющий объекта</div>')
+      + '<div class="rq-hint" data-resp-hint></div></div>'
+    + '<div class="rq-f full"><div class="rq-hint" data-due-hint></div></div>'
     + '<div class="rq-f full"><label>Фото или файл</label><input type="file" data-n="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></div>'
     + '</div><div class="rq-actions"><button class="rq-btn pri" data-save>Создать заявку</button><button class="rq-btn rq-x">Отмена</button></div></div>');
   const q = function(n) { return m.querySelector('[data-n="' + n + '"]'); };
-  let urg = 'normal', dueTouched = false, respTouched = false;
-  q('due_date').addEventListener('change', function() { dueTouched = true; });
-  q('responsible_id').addEventListener('change', function() { respTouched = true; });
+  let urg = 'normal';
+  // срок ставит сервис по срочности — здесь только показываем, какой будет
+  const dueHint = function() { m.querySelector('[data-due-hint]').innerHTML = 'Срок решения: <b>' + rqDate(rqAddWorkDays(RQ_URG[urg].d)) + '</b>, взять в работу — за ' + (RQ_URG[urg].r || 24) + ' ч. Срок считается по срочности; перенести его потом можно только с согласия руководителя.'; };
+  dueHint();
   function onObject() {   // договоры объекта и управляющий по умолчанию
     const name = q('object_name').value;
     q('contract_id').innerHTML = '<option value="">— не по договору —</option>' + d.contracts.filter(function(c) { return c.object_name === name; })
       .map(function(c) { return '<option value="' + c.id + '">' + rqEsc([c.contract_number, c.tenant_name].filter(Boolean).join(' · ') || ('#' + c.id)) + '</option>'; }).join('');
     const o = rqObj(name);
     const hint = m.querySelector('[data-resp-hint]');
-    if (o && o.manager_user_id && !respTouched) q('responsible_id').value = String(o.manager_user_id);
-    hint.textContent = o && (o.manager_name || o.manager_user_id) ? 'Управляющий объекта: ' + (o.manager_user_id ? rqUser(o.manager_user_id) : o.manager_name + ' (нет учётки в CRM)') : '';
+    hint.textContent = o && (o.manager_name || o.manager_user_id) ? 'Управляющий объекта: ' + (o.manager_user_id ? rqUser(o.manager_user_id) : o.manager_name + ' (нет учётки в CRM — заявка уйдёт старшему)') : (name ? 'У объекта не указан управляющий' : '');
   }
   q('object_name').addEventListener('change', onObject);
   onObject();
@@ -583,7 +599,7 @@ function rqOpenNew() {
       urg = b.getAttribute('data-urg');
       m.querySelectorAll('[data-urg]').forEach(function(x) { x.classList.toggle('on', x === b); });
       m.querySelector('[data-urg-hint]').textContent = 'Срок: ' + RQ_URG[urg].hint;
-      if (!dueTouched) q('due_date').value = rqAddWorkDays(RQ_URG[urg].d);
+      dueHint();
     });
   });
   m.querySelector('[data-save]').addEventListener('click', async function(e) {
@@ -591,25 +607,17 @@ function rqOpenNew() {
     if (!v.object_name) { rqToast('Выберите объект'); q('object_name').focus(); return; }
     if (!v.kind) { rqToast('Выберите тип'); q('kind').focus(); return; }
     if (!v.title) { rqToast('Опишите суть заявки'); q('title').focus(); return; }
-    const due = q('due_date').value;
-    if (!/^(19|20)\d{2}-\d{2}-\d{2}$/.test(due)) { rqToast('Укажите срок'); q('due_date').focus(); return; }
     const cid = q('contract_id').value, c = d.contracts.find(function(x) { return String(x.id) === cid; });
     e.target.disabled = true;
     try {
       const fileId = q('file').files[0] ? await rqUpload(q('file').files[0]) : null;
-      const vals = Object.assign(v, { description: q('description').value.trim(), urgency: urg, due_date: due, status: 'new', due_moved: 0,
+      const rec = await rqSvc('/create', Object.assign(v, { description: q('description').value.trim(), urgency: urg, source: q('source').value,
         contract_id: c ? c.id : null, tenant_label: c ? [c.contract_number, c.tenant_name].filter(Boolean).join(' · ') : null,
-        responsible_id: Number(q('responsible_id').value) || rq.me.id, author_id: rq.me.id });
-      const rec = rqRows(await ctx.api.resource('object_requests').create({ values: vals }))[0];
-      await rqEvent(rec.id, 'create', 'Заявка создана' + (fileId ? ', приложен файл' : ''), fileId);
-      const title = 'Заявка №' + rec.id + ' · ' + vals.object_name;
-      rqNotify(vals.responsible_id, title, (urg === 'emergency' ? 'АВАРИЯ: ' : urg === 'urgent' ? 'Срочно: ' : 'Новая заявка: ') + vals.title + ' (срок ' + rqDate(due) + ')', rec.id);
-      const o = rqObj(vals.object_name);
-      if (urg === 'emergency' && o && o.senior_user_id) rqNotify(o.senior_user_id, title, 'АВАРИЯ: ' + vals.title, rec.id);
+        responsible_id: q('responsible_id') ? Number(q('responsible_id').value) || null : null, file_id: fileId }));
       m.remove();
       rqToast('Заявка №' + rec.id + ' создана');
       await rqReload();
-    } catch (err) { rqToast('Не удалось создать заявку'); e.target.disabled = false; }
+    } catch (err) { rqToast(err.message || 'Не удалось создать заявку'); e.target.disabled = false; }
   });
 }
 
@@ -622,18 +630,12 @@ async function rqOpenCard(id) {
   m.__rqId = id;
   await rqRenderCard(m, r);
 }
-function rqCan(r) {
-  const me = rq.me.id, adm = rqIsAdmin(), resp = Number(r.responsible_id) === me || adm, auth = Number(r.author_id) === me || adm;
-  const a = [];
-  if (r.status === 'new' && resp) a.push(['take', 'Взять в работу', 'pri']);
-  if ((r.status === 'new' || r.status === 'in_work') && resp) a.push(['wait', 'Ждём…', '']);
-  if (r.status === 'waiting' && resp) a.push(['resume', 'Вернуть в работу', '']);
-  if ((r.status === 'in_work' || r.status === 'waiting') && resp) a.push(['done', 'Выполнена', 'ok']);
-  if (r.status === 'done' && auth) { a.push(['close', 'Принять и закрыть', 'ok']); a.push(['reopen', 'Не выполнено — вернуть', 'warn']); }
-  if (RQ_OPEN.indexOf(r.status) !== -1 && (resp || auth)) { a.push(['due', 'Перенести срок', '']); a.push(['assign', 'Передать другому', '']); }
-  if (RQ_OPEN.indexOf(r.status) !== -1 && auth) a.push(['cancel', 'Отменить', 'warn']);
-  return a;
-}
+// что можно — решает сервис заявок (rules.js); здесь только подписи кнопок в нужном порядке
+const RQ_ACT = [['take', 'Взять в работу', 'pri'], ['wait', 'Ждём…', ''], ['resume', 'Вернуть в работу', ''], ['to_dept', 'Передать в отдел', ''], ['dept_back', 'Вернуть управляющему', 'ok'],
+  ['done', 'Решена', 'ok'], ['accept', 'Принять и закрыть', 'ok'], ['reopen', 'Не принять — вернуть', 'warn'], ['due', 'Перенести срок', ''], ['assign', 'Передать другому', ''], ['cancel', 'Отменить', 'warn'],
+  ['ask_due', 'Запросить перенос срока', ''], ['ask_assign', 'Запросить передачу', ''], ['ask_cancel', 'Запросить отмену', 'warn']];
+function rqActs(r) { return (rq.data && rq.data.acts[r.id]) || []; }
+function rqCan(r) { const a = rqActs(r); return RQ_ACT.filter(function(x) { return a.indexOf(x[0]) !== -1; }); }
 async function rqRenderCard(m, r) {
   const box = m.querySelector('#rq-card');
   const late = rqLate(r), u = RQ_URG[r.urgency] || RQ_URG.normal;
@@ -650,9 +652,22 @@ async function rqRenderCard(m, r) {
     + '<div><div class="l">Срок</div>' + (RQ_OPEN.indexOf(r.status) !== -1 && late ? '<span class="rq-late">' + rqDate(r.due_date) + ', просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : rqDate(r.due_date)) + (r.due_moved ? ' <span style="color:#8c8c8c;font-size:12px;">(переносили ' + r.due_moved + ' раз)</span>' : '') + '</div>'
     + '<div><div class="l">Ответственный</div>' + rqEsc(rqUser(r.responsible_id)) + '</div>'
     + '<div><div class="l">Автор</div>' + rqEsc(rqUser(r.author_id)) + ' · ' + rqDateTime(r.createdAt) + '</div>'
+    + (r.source ? '<div><div class="l">Откуда</div>' + rqEsc(RQ_SRC[r.source] || r.source) + '</div>' : '')
+    + (r.accept_mode ? '<div><div class="l">Принимает работу</div>' + (r.accept_mode === 'user' ? rqEsc(rqUser(r.accept_user_id)) : r.accept_mode === 'tenant' ? 'арендатор (или руководитель)' : 'руководитель') + '</div>' : '')
+    + (r.react_due_at ? '<div><div class="l">Взять в работу до</div>' + (r.taken_at ? rqDateTime(r.react_due_at) + ' · <span style="color:' + (r.taken_at > r.react_due_at ? '#cf1322' : '#389e0d') + ';">взята ' + rqDateTime(r.taken_at) + '</span>'
+      : (new Date().toISOString() > r.react_due_at ? '<span class="rq-late">' + rqDateTime(r.react_due_at) + ' — время реакции вышло</span>' : rqDateTime(r.react_due_at))) + '</div>' : '')
+    + (r.status === 'dept' ? '<div><div class="l">В отделе</div><b>' + rqEsc(r.dept) + '</b>' + (r.dept_user_id ? ' · ' + rqEsc(rqUser(r.dept_user_id)) : '') + (r.dept_due ? ' · срок отдела ' + (String(r.dept_due).slice(0, 10) < rqToday() ? '<span class="rq-late">' + rqDate(r.dept_due) + '</span>' : rqDate(r.dept_due)) : '') + '</div>' : '')
+    + (r.reopen_count ? '<div><div class="l">Возвратов</div><span style="color:#cf1322;font-weight:600;">' + r.reopen_count + '</span></div>' : '')
     + '</div>'
     + (r.description ? '<div class="rq-desc">' + rqEsc(r.description) + '</div>' : '')
     + (r.result ? '<div class="rq-desc" style="background:#f6ffed;"><b>Результат:</b> ' + rqEsc(r.result) + '</div>' : '')
+    + rqPending(r).map(function(p) {
+        const can = rqActs(r).indexOf('decide') !== -1 && Number(p.author_id) !== rq.me.id;
+        const what = p.kind === 'due' ? 'перенести срок на <b>' + rqDate((p.payload || {}).date) + '</b>' : p.kind === 'assign' ? 'передать: <b>' + rqEsc(rqUser((p.payload || {}).user_id)) + '</b>' : '<b>отменить заявку</b>';
+        return '<div class="rq-desc" style="background:#fffbe6;border-color:#ffe58f;"><b>Запрос на решение</b> · ' + rqEsc(rqUser(p.author_id)) + ' просит ' + what + ': ' + rqEsc(p.reason)
+          + (can ? '<div class="rq-actions" style="margin-top:8px;"><button class="rq-btn ok" data-dec="' + p.id + '" data-yes="1">Одобрить</button><button class="rq-btn warn" data-dec="' + p.id + '">Отказать…</button></div>'
+            : '<div class="rq-hint" style="margin-top:4px;">Ждёт решения руководителя</div>') + '</div>';
+      }).join('')
     + '<div class="rq-actions">' + rqCan(r).map(function(a) { return '<button class="rq-btn ' + a[2] + '" data-a="' + a[0] + '">' + a[1] + '</button>'; }).join('') + '</div>'
     + '<div id="rq-actbox"></div>'
     + '<div class="rq-tl"><div style="font-weight:600;margin-bottom:4px;">Переписка и история</div>'
@@ -664,6 +679,7 @@ async function rqRenderCard(m, r) {
     + '<div class="rq-comment"><textarea placeholder="Комментарий…" id="rq-cmt"></textarea><input type="file" id="rq-cmt-file" style="display:none;"><button class="rq-btn" id="rq-cmt-attach" title="Приложить фото или файл">📎</button><button class="rq-btn pri" id="rq-cmt-send">Отправить</button></div>'
     + '<div id="rq-cmt-fname" class="rq-hint"></div></div></div>';
   box.querySelectorAll('[data-a]').forEach(function(b) { b.addEventListener('click', function() { rqAction(m, r, b.getAttribute('data-a')); }); });
+  box.querySelectorAll('[data-dec]').forEach(function(b) { b.addEventListener('click', function() { rqDecide(m, r, Number(b.getAttribute('data-dec')), !!b.getAttribute('data-yes')); }); });
   box.querySelectorAll('[data-file]').forEach(function(a) {
     a.addEventListener('click', async function() {
       try { const res = await fetch(a.getAttribute('data-file'), { headers: { Authorization: 'Bearer ' + rqToken() } }); window.open(URL.createObjectURL(await res.blob()), '_blank'); }
@@ -679,24 +695,46 @@ async function rqRenderCard(m, r) {
     e.target.disabled = true;
     try {
       const fid = fin.files[0] ? await rqUpload(fin.files[0]) : null;
-      await rqEvent(r.id, 'comment', t || 'Файл', fid);
-      [r.responsible_id, r.author_id].filter(function(v, i, a) { return v && a.indexOf(v) === i; })
-        .forEach(function(uid) { rqNotify(uid, 'Заявка №' + r.id + ' · ' + r.object_name, rqUser(rq.me.id) + ': ' + (t || 'приложил файл'), r.id); });
+      await rqSvc('/act', { id: r.id, a: 'comment', v: t || 'Файл', file_id: fid });
       await rqRenderCard(m, r);
     } catch (err) { rqToast('Не удалось отправить'); e.target.disabled = false; }
   });
 }
+// решение по запросу (перенос / передача / отмена): одобрить — сразу, отказать — с причиной
+function rqDecide(m, r, apId, yes) {
+  const box = m.querySelector('#rq-actbox');
+  const go = async function(note, btn) {
+    if (btn) btn.disabled = true;
+    try { await rqSvc('/act', { id: r.id, a: 'decide', approval_id: apId, approve: yes, v: note }); await rqReload(); await rqRenderCard(m, rq.data.reqs.find(function(x) { return x.id === r.id; }) || r); rqToast(yes ? 'Одобрено' : 'Отказано'); }
+    catch (e) { rqToast(e.message || 'Не удалось сохранить'); if (btn) btn.disabled = false; }
+  };
+  if (yes) { go('', null); return; }
+  box.innerHTML = '<div class="rq-actbox"><label style="font-size:12.5px;color:#595959;">Почему отказ (обязательно — увидит управляющий)</label><textarea id="rq-in" style="width:100%;margin-top:4px;min-height:50px;"></textarea>'
+    + '<div class="rq-actions" style="margin-top:10px;"><button class="rq-btn warn" id="rq-go">Отказать</button><button class="rq-btn" id="rq-no">Отмена</button></div></div>';
+  box.querySelector('#rq-no').addEventListener('click', function() { box.innerHTML = ''; });
+  box.querySelector('#rq-go').addEventListener('click', function(e) { const v = box.querySelector('#rq-in').value.trim(); if (!v) { rqToast('Напишите причину'); return; } go(v, e.target); });
+  box.querySelector('#rq-in').focus();
+}
 // действие по заявке: где нужен ввод (причина, результат, срок, кому) — встроенная форма, без окон браузера
 function rqAction(m, r, a) {
   const box = m.querySelector('#rq-actbox');
+  const L = function(t, gap) { return '<label style="font-size:12.5px;color:#595959;display:block;' + (gap ? 'margin-top:8px;' : '') + '">' + t + '</label>'; };
+  const T = function(id, h) { return '<textarea id="' + id + '" style="width:100%;margin-top:4px;min-height:' + h + 'px;"></textarea>'; };
+  const dueF = function(why) { return L('Новый срок') + '<input type="date" id="rq-in" min="2000-01-01" max="2099-12-31" value="' + rqEsc(String(r.due_date || '').slice(0, 10)) + '" style="width:100%;margin-top:4px;">' + L(why, 1) + '<input type="text" id="rq-in2" style="width:100%;margin-top:4px;">'; };
+  const whoF = function(why) { return L('Кому передать') + '<select id="rq-in" style="width:100%;margin-top:4px;">' + rqPeopleOptions(r.responsible_id) + '</select>' + L(why, 1) + '<input type="text" id="rq-in2" style="width:100%;margin-top:4px;">'; };
   const need = {
     wait: '<label style="font-size:12.5px;color:#595959;">Чего ждём</label><select id="rq-in" style="width:100%;margin-top:4px;">' + RQ_WAIT.map(function(w) { return '<option>' + w + '</option>'; }).join('') + '</select>',
-    done: '<label style="font-size:12.5px;color:#595959;">Что сделано (обязательно — увидит автор при проверке)</label><textarea id="rq-in" style="width:100%;margin-top:4px;min-height:60px;"></textarea>',
-    reopen: '<label style="font-size:12.5px;color:#595959;">Что не так (обязательно)</label><textarea id="rq-in" style="width:100%;margin-top:4px;min-height:60px;"></textarea>',
-    cancel: '<label style="font-size:12.5px;color:#595959;">Причина отмены (обязательно)</label><textarea id="rq-in" style="width:100%;margin-top:4px;min-height:50px;"></textarea>',
-    due: '<label style="font-size:12.5px;color:#595959;">Новый срок</label><input type="date" id="rq-in" min="2000-01-01" max="2099-12-31" value="' + rqEsc(String(r.due_date || '').slice(0, 10)) + '" style="width:100%;margin-top:4px;">'
-      + '<label style="font-size:12.5px;color:#595959;display:block;margin-top:8px;">Причина переноса (обязательно — видна в статистике)</label><input type="text" id="rq-in2" style="width:100%;margin-top:4px;">',
-    assign: '<label style="font-size:12.5px;color:#595959;">Кому передать</label><select id="rq-in" style="width:100%;margin-top:4px;">' + rqPeopleOptions(r.responsible_id) + '</select>'
+    done: L('Что сделано (обязательно — увидит тот, кто принимает работу)') + T('rq-in', 60),
+    reopen: L('Что не так (обязательно — возврат считается в KPI управляющего)') + T('rq-in', 60),
+    cancel: L('Причина отмены (обязательно)') + T('rq-in', 50),
+    ask_cancel: L('Почему отменить (обязательно) — решит руководитель') + T('rq-in', 50),
+    dept_back: L('Что сделал отдел (обязательно — увидит управляющий)') + T('rq-in', 60),
+    to_dept: L('Отдел') + '<select id="rq-in" style="width:100%;margin-top:4px;"><option value="">Выберите отдел</option>' + rq.data.depts.map(function(d) { return '<option>' + rqEsc(d) + '</option>'; }).join('') + '</select>'
+      + L('Что нужно от отдела (обязательно)', 1) + T('rq-in2', 50),
+    due: dueF('Причина переноса (обязательно — видна в статистике)'),
+    ask_due: dueF('Почему нужен перенос (обязательно) — решит руководитель'),
+    assign: whoF('Причина (обязательно)'),
+    ask_assign: whoF('Почему передать (обязательно) — решит руководитель')
   }[a];
   if (need) {
     box.innerHTML = '<div class="rq-actbox">' + need + '<div class="rq-actions" style="margin-top:10px;"><button class="rq-btn pri" id="rq-go">Подтвердить</button><button class="rq-btn" id="rq-no">Отмена</button></div></div>';
@@ -707,36 +745,14 @@ function rqAction(m, r, a) {
 }
 // действие по заявке без интерфейса — его зовут и кнопки карточки, и доска: проверка ввода, запись, история, уведомления.
 // Ошибка ввода → { err, field: 1|2 }; ничего не меняется → { skip: true }; сбой сети → исключение. Перерисовку делает вызывающий.
-async function rqDo(r, a, v, v2) {
-  const now = new Date().toISOString();
-  const title = 'Заявка №' + r.id + ' · ' + r.object_name;
-  let upd = null, ev = '', notify = [];
-  if (a === 'take') { upd = { status: 'in_work' }; ev = 'Взята в работу'; notify = [[r.author_id, 'Взята в работу: ' + r.title]]; }
-  if (a === 'wait') { if (!v) return { err: 'Выберите, чего ждём', field: 1 }; upd = { status: 'waiting', wait_reason: v }; ev = 'Ждём ' + v; notify = [[r.author_id, 'Ждём ' + v + ': ' + r.title]]; }
-  if (a === 'resume') { upd = { status: 'in_work', wait_reason: null }; ev = 'Снова в работе'; }
-  if (a === 'done') { if (!v) return { err: 'Напишите, что сделано', field: 1 }; upd = { status: 'done', result: v, done_at: now, wait_reason: null }; ev = 'Выполнена: ' + v; notify = [[r.author_id, 'Выполнена, проверьте и закройте: ' + r.title]]; }
-  if (a === 'close') { upd = { status: 'closed', closed_at: now }; ev = 'Принята и закрыта'; notify = [[r.responsible_id, 'Закрыта автором: ' + r.title]]; }
-  if (a === 'reopen') { if (!v) return { err: 'Напишите, что не так', field: 1 }; upd = { status: 'in_work', done_at: null }; ev = 'Возвращена в работу: ' + v; notify = [[r.responsible_id, 'Вернули в работу: ' + v]]; }
-  if (a === 'cancel') { if (!v) return { err: 'Укажите причину', field: 1 }; upd = { status: 'cancelled', closed_at: now, result: v }; ev = 'Отменена: ' + v; notify = [[r.responsible_id, 'Отменена: ' + r.title]]; }
-  if (a === 'due') {
-    if (!/^(19|20)\d{2}-\d{2}-\d{2}$/.test(v)) return { err: 'Укажите новый срок', field: 1 };
-    if (!v2) return { err: 'Укажите причину переноса', field: 2 };
-    upd = { due_date: v, due_moved: (Number(r.due_moved) || 0) + 1, reminded_on: null, escalated_at: null };
-    ev = 'Срок перенесён с ' + rqDate(r.due_date) + ' на ' + rqDate(v) + ': ' + v2;
-    notify = [[r.responsible_id, 'Срок перенесён на ' + rqDate(v) + ': ' + v2], [r.author_id, 'Срок перенесён на ' + rqDate(v) + ': ' + v2]];
-  }
-  if (a === 'assign') {
-    const to = Number(v);
-    if (!to || to === Number(r.responsible_id)) return { skip: true };
-    upd = { responsible_id: to, reminded_on: null, escalated_at: null };
-    ev = 'Передана: ' + rqUser(r.responsible_id) + ' → ' + rqUser(to);
-    notify = [[to, 'Вам передана заявка: ' + r.title + ' (срок ' + rqDate(r.due_date) + ')']];
-  }
-  if (!upd) return { skip: true };
-  await ctx.api.resource('object_requests').update({ filterByTk: r.id, values: upd });
-  await rqEvent(r.id, a === 'due' ? 'due' : a === 'assign' ? 'assign' : 'status', ev);
-  notify.forEach(function(n) { rqNotify(n[0], title, n[1], r.id); });
-  Object.assign(r, upd);
+async function rqDo(r, a, v, v2, extra) {
+  const body = Object.assign({ id: r.id, a: a }, extra || {});
+  if (a === 'due' || a === 'ask_due') { body.date = v; body.v2 = v2; }
+  else if (a === 'assign' || a === 'ask_assign') { body.user_id = Number(v) || null; body.v2 = v2; }
+  else if (a === 'cancel' || a === 'ask_cancel') body.v2 = v;
+  else { body.v = v; body.v2 = v2; }
+  try { await rqSvc('/act', body); }
+  catch (e) { if (e.status === 400 || e.status === 403) return { err: e.message, field: e.field === 2 ? 2 : 1 }; throw e; }
   return null;
 }
 async function rqApply(m, r, a, btn) {

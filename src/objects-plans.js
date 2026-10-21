@@ -137,6 +137,19 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid #eef1f6; }
     #crm-objplan .op-kv { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13px; }
     #crm-objplan .op-kv b { color:var(--muted); font-weight:500; }
+    /* карточка помещения (просмотр) */
+    #crm-objplan .op-cs { margin-top:14px; padding-top:12px; border-top:1px solid #eef1f6; }
+    #crm-objplan .op-cs > label { display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#7c869b; margin-bottom:8px; }
+    #crm-objplan .op-big { font-size:22px; font-weight:800; color:var(--ink); line-height:1.15; }
+    #crm-objplan .op-big small { font-size:12.5px; font-weight:500; color:var(--muted); }
+    #crm-objplan .op-tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; color:#fff; }
+    #crm-objplan .op-bar { height:6px; border-radius:3px; background:#eef1f6; overflow:hidden; margin:6px 0 4px; }
+    #crm-objplan .op-bar i { display:block; height:100%; background:var(--brand); }
+    #crm-objplan .op-pay { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+    #crm-objplan .op-pay span { font-size:11.5px; padding:1px 7px; border-radius:9px; background:#f0f2f5; color:#595959; }
+    #crm-objplan .op-pay span.ok { background:#e6f4dc; color:#237804; }
+    #crm-objplan .op-rq { display:block; font-size:12.5px; padding:5px 0; border-bottom:1px dashed #eef1f6; color:var(--ink); text-decoration:none; }
+    #crm-objplan .op-rq:hover { color:var(--brand); }
     #crm-objplan .op-hint { font-size:12.5px; color:var(--muted); line-height:1.45; margin:6px 0 0; }
     #crm-objplan .op-keys { font-size:12px; color:var(--muted); line-height:1.7; margin-top:12px; padding-top:10px; border-top:1px solid #eef1f6; }
     #crm-objplan .op-keys kbd { display:inline-block; min-width:16px; text-align:center; font:inherit; font-size:11px; font-weight:700; color:var(--ink); background:var(--soft); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px; }
@@ -956,6 +969,7 @@ function opSideHtml() {
   }
   const c = opCon(r.contract_id), s = opState(r), poly = opIsPoly(r), drawn = opR(opPolyArea(opRoomPts(r)));
   if (!can) {
+    if (c) return opCardHtml(r, c);
     return '<h4>' + opEsc(r.code) + (r.title ? ' · ' + opEsc(r.title) : '') + '</h4><div class="op-kv">'
       + '<b>Состояние</b><span>' + opStateTitle(s) + '</span><b>Площадь</b><span>' + opArea(r.area_sqm) + '</span><b>Тип</b><span>' + opEsc(OP_KINDS[r.kind] || '—') + '</span>'
       + (r.purpose ? '<b>Назначение</b><span>' + opEsc(r.purpose) + '</span>' : '') + (r.heating ? '<b>Отопление</b><span>' + opEsc(r.heating) + '</span>' : '')
@@ -995,6 +1009,87 @@ function opConRooms(r) {
   const c = opCon(r.contract_id), sum = opR(rs.reduce(function(a, q) { return a + (Number(q.area_sqm) || 0); }, 0)), ca = c ? opNum(c.area_sqm) : null;
   return 'Помещения по договору: ' + rs.map(function(q) { return opEsc(q.code) + (q.area_sqm ? ' (' + opArea(q.area_sqm) + ')' : ''); }).join(', ')
     + (rs.length > 1 ? ' — итого ' + opArea(sum) : '') + (ca ? (Math.abs(sum - ca) > 0.05 ? ' · в договоре ' + opArea(ca) : ' · совпадает с договором') : '');
+}
+// ---------- карточка сданного помещения (просмотр): договор, арендатор, деньги, заявки ----------
+const OP_CST = { '1_problem': ['Проблема', '#cf1322'], '2_terminating': ['На расторжении', '#722ed1'], '2_docs': ['Не хватает документов', '#1c2d58'], '2_attention': ['Требует внимания', '#d48806'], '3_ok': ['В порядке', '#389e0d'] };
+const OP_RQST = { new: 'Новая', in_work: 'В работе', waiting: 'Ждёт', done: 'На проверке', closed: 'Закрыта', cancelled: 'Отменена' };
+const OP_REG = '/admin/b5znz7yxpy3', OP_REQ = '/admin/j3a32zo1jzo';
+function opRub(n) { return n === null || n === undefined || n === '' ? '—' : Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + ' ₽'; }
+// полные данные договора грузим по клику, один раз на договор
+function opCardLoad(id) {
+  op.card = op.card || {};
+  if (op.card[id]) return;
+  op.card[id] = { loading: true };
+  const R = function(c) { return ctx.api.resource(c); };
+  R('rental_contracts').get({ filterByTk: id }).then(function(res) {
+    const c = opRows(res)[0] || {};
+    return Promise.all([
+      R('contract_price_periods').list({ paginate: false, filter: { contract_type: 'active', contract_ref_id: id }, sort: ['date_from'] }).then(opRows).catch(function() { return []; }),
+      R('contract_addendums').list({ paginate: false, filter: { contract_type: 'active', contract_ref_id: id }, fields: ['id'] }).then(opRows).catch(function() { return []; }),
+      R('object_requests').list({ paginate: false, sort: ['-id'], fields: ['id', 'title', 'status', 'due_date', 'createdAt'],
+        filter: { $or: [{ contract_id: id }, { object_name: c.object_name || '-', tenant_label: c.tenant_name || '-' }] } }).then(opRows).catch(function() { return []; })
+    ]).then(function(x) { op.card[id] = { c: c, prices: x[0], adds: x[1].length, reqs: x[2] }; });
+  }).catch(function() { op.card[id] = { err: true }; }).then(opRenderSide);
+}
+function opCardHtml(r, c0) {
+  const d = (op.card || {})[c0.id];
+  if (!d) opCardLoad(c0.id);
+  const c = d && d.c ? d.c : c0, st = OP_CST[c.contract_status], today = new Date().toISOString().slice(0, 10);
+  const end = c.termination_date || c.end_date, start = c.date_act || c.date_signed;
+  let h = '<h4>' + opEsc(r.code) + (r.title ? ' · ' + opEsc(r.title) : '') + '</h4>'
+    + '<div class="op-kv"><b>Площадь</b><span>' + opArea(r.area_sqm) + '</span>' + (r.purpose ? '<b>Назначение</b><span>' + opEsc(r.purpose) + '</span>' : '')
+    + (r.heating ? '<b>Отопление</b><span>' + opEsc(r.heating) + '</span>' : '') + '</div>'
+    + (opConRooms(r) ? '<div class="op-hint">' + opConRooms(r) + '</div>' : '');
+  // арендатор
+  h += '<div class="op-cs"><label>Арендатор</label><div style="font-size:15px;font-weight:700;">' + opEsc(c.tenant_name || '—') + '</div><div class="op-kv" style="margin-top:6px;">'
+    + [['ИНН', c.inn], ['КПП', c.kpp], ['ОГРН', c.ogrn], [c.director_post || 'Руководитель', c.director || c.tenant_fio], ['Контакт', c.contact_person], ['Телефон', c.phone], ['Почта', c.email]]
+      .filter(function(x) { return x[1]; }).map(function(x) {
+        const v = x[0] === 'Телефон' ? '<a href="tel:' + opEsc(String(x[1]).replace(/[^\d+]/g, '')) + '">' + opEsc(x[1]) + '</a>' : x[0] === 'Почта' ? '<a href="mailto:' + opEsc(x[1]) + '">' + opEsc(x[1]) + '</a>' : opEsc(x[1]);
+        return '<b>' + opEsc(x[0]) + '</b><span>' + v + '</span>';
+      }).join('') + '</div></div>';
+  // договор и срок
+  h += '<div class="op-cs"><label>Договор</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><b style="font-size:14px;">№ ' + opEsc(c.contract_number || c.id) + '</b>'
+    + (st ? '<span class="op-tag" style="background:' + st[1] + ';">' + st[0] + '</span>' : '') + '</div><div class="op-kv" style="margin-top:6px;">'
+    + (c.date_signed ? '<b>Подписан</b><span>' + opDate(c.date_signed) + '</span>' : '') + (c.date_act ? '<b>Акт</b><span>' + opDate(c.date_act) + '</span>' : '')
+    + (end ? '<b>' + (c.termination_date ? 'Расторжение' : 'До') + '</b><span>' + opDate(end) + '</span>' : '') + (d && d.adds ? '<b>Допсоглашения</b><span>' + d.adds + '</span>' : '') + '</div>';
+  if (start && end && end < '2099') {
+    const t0 = Date.parse(start), t1 = Date.parse(end), pct = Math.max(0, Math.min(100, (Date.now() - t0) / Math.max(1, t1 - t0) * 100)), left = Math.ceil((t1 - Date.now()) / 864e5);
+    h += '<div class="op-bar"><i style="width:' + pct.toFixed(0) + '%;' + (left < 60 ? 'background:var(--red);' : '') + '"></i></div><div class="op-hint" style="margin:0;' + (left < 60 ? 'color:var(--red);font-weight:600;' : '') + '">'
+      + (left < 0 ? 'срок истёк ' + (-left) + ' дн. назад' : 'осталось ' + left + ' дн.') + '</div>';
+  }
+  h += '</div>';
+  // деньги
+  const per = Number(c.rent_per_sqm) || null, rent = Number(c.rent_amount) || null, ut = Number(c.utility_amount) || null;
+  h += '<div class="op-cs"><label>Деньги</label><div class="op-big">' + opRub(rent) + ' <small>в месяц' + (per ? ' · ' + opRub(per) + '/м²' : '') + '</small></div><div class="op-kv" style="margin-top:8px;">'
+    + (ut ? '<b>Коммунальные</b><span>' + opRub(ut) + ' / мес' + (c.utility_per_sqm ? ' (' + opRub(c.utility_per_sqm) + '/м²)' : '') + '</span>' : '')
+    + (rent || ut ? '<b>Итого в месяц</b><span><b style="color:var(--ink);">' + opRub((rent || 0) + (ut || 0)) + '</b></span>' : '')
+    + (c.deposit_amount ? '<b>Депозит</b><span>' + opRub(c.deposit_amount) + '</span>' : '') + (c.total_amount ? '<b>Сумма договора</b><span>' + opRub(c.total_amount) + '</span>' : '')
+    + (rent && r.area_sqm && opNum(c.area_sqm) && Math.abs(opNum(c.area_sqm) - opNum(r.area_sqm)) > 0.05 ? '<b>На это помещение</b><span>≈ ' + opRub(Math.round(rent * opNum(r.area_sqm) / opNum(c.area_sqm))) + ' / мес (по доле площади)</span>' : '')
+    + '</div><div class="op-pay">' + [['депозит', c.deposit_invoiced, c.deposit_paid, c.deposit_amount], ['аренда', c.rent_invoiced, c.rent_paid, rent], ['КУ', c.utility_invoiced, c.utility_paid, ut]]
+      .filter(function(x) { return x[3]; }).map(function(x) { return '<span' + (x[2] ? ' class="ok"' : '') + ' title="первый счёт при заключении">' + x[0] + ': ' + (x[2] ? 'оплачен' : x[1] ? 'счёт выставлен' : 'счёт не выставлен') + '</span>'; }).join('') + '</div>';
+  const ps = d && d.prices ? d.prices.filter(function(p) { return p.rent_on !== false && p.amount; }) : [];
+  if (ps.length) h += '<div class="op-kv" style="margin-top:10px;">' + ps.map(function(p) {
+    const cur = p.date_from <= today && today <= (p.date_to || '9999'), fut = p.date_from > today;
+    return '<b' + (cur ? ' style="color:var(--ink);font-weight:700;"' : '') + '>' + opDate(p.date_from) + (p.date_to && p.date_to < '2099' ? ' – ' + opDate(p.date_to) : ' →') + '</b><span' + (cur ? ' style="font-weight:700;"' : fut ? '' : ' style="color:var(--muted);"') + '>'
+      + opRub(p.amount) + ((p.basis || 'per_sqm') === 'per_sqm' ? '/м²' : ' / мес') + (cur ? ' · сейчас' : fut ? ' · будет' : '') + '</span>';
+  }).join('') + '</div>';
+  h += '</div>';
+  // заявки
+  if (d && d.reqs) {
+    const open = d.reqs.filter(function(q) { return ['new', 'in_work', 'waiting'].indexOf(q.status) !== -1; });
+    h += '<div class="op-cs"><label>Заявки арендатора · ' + (open.length ? 'открыто ' + open.length : 'открытых нет') + (d.reqs.length ? ', всего ' + d.reqs.length : '') + '</label>'
+      + d.reqs.slice(0, 5).map(function(q) {
+        const late = open.indexOf(q) !== -1 && q.due_date && q.due_date < today;
+        return '<a class="op-rq" href="' + OP_REQ + '?open=req:' + q.id + '">№' + q.id + ' ' + opEsc(q.title || '') + ' <span style="color:' + (late ? 'var(--red)' : 'var(--muted)') + ';">· ' + (OP_RQST[q.status] || q.status) + (late ? ', просрочена' : '') + '</span></a>';
+      }).join('') + '</div>';
+  }
+  if (!d || d.loading) h += '<div class="op-hint" style="margin-top:12px;">Загружаю договор…</div>';
+  if (d && d.err) h += '<div class="op-hint" style="margin-top:12px;color:var(--red);">Не удалось загрузить договор целиком — показано кратко.</div>';
+  if (c.notes) h += '<div class="op-cs"><label>Заметки по договору</label><div class="op-hint" style="margin:0;white-space:pre-wrap;">' + opEsc(c.notes) + '</div></div>';
+  if (r.note) h += '<div class="op-cs"><label>Заметки по помещению</label><div class="op-hint" style="margin:0;white-space:pre-wrap;">' + opEsc(r.note) + '</div></div>';
+  return h + '<div class="op-acts"><a class="op-btn pri" href="' + OP_REG + '?open=active:' + c0.id + '">Открыть договор</a>'
+    + (c.contract_scan_url ? '<a class="op-btn" href="' + opEsc(c.contract_scan_url) + '" target="_blank" rel="noopener">Скан договора</a>' : '')
+    + (c.act_scan_url ? '<a class="op-btn" href="' + opEsc(c.act_scan_url) + '" target="_blank" rel="noopener">Скан акта</a>' : '') + '</div>';
 }
 function opPlanFormHtml(p) {
   const nw = !p || op.newPlan, cnt = p ? opBldPlans(p).length : opObjPlans().length;

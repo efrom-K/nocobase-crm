@@ -215,10 +215,10 @@ async function tenant(auth) {
   const tok = String(auth || '').replace(/^Bearer\s+/i, '');
   const c = tenantCache.get(tok);
   if (c && c.exp > Date.now()) return c.t;
-  let ids = [], email = null;
+  let ids = [], email = null, demo = false;
   if (tok.startsWith('L.') && tok.length > 20) {
     const l = ((await list('portal_links', '&filter=' + q({ token_hash: sha(tok.slice(2)), revoked_at: { $empty: true } }))) || [])[0];
-    if (l) { ids = [Number(l.contract_id)]; nb('POST', 'portal_links:update?filterByTk=' + l.id, { last_used_at: new Date().toISOString() }).catch(() => {}); }
+    if (l) { ids = [Number(l.contract_id)]; demo = !!l.demo; nb('POST', 'portal_links:update?filterByTk=' + l.id, { last_used_at: new Date().toISOString() }).catch(() => {}); }
   } else if (tok.startsWith('S.') && PORTAL_SECRET) {
     const [, data, sig] = tok.split('.');
     const want = hmac(data || '');
@@ -231,7 +231,7 @@ async function tenant(auth) {
   // только действующие договоры (договор ушёл в завершённые — доступ пропадает)
   const cons = await list('rental_contracts', '&fields=id,contract_number,tenant_name,object_name&filter=' + q({ id: { $in: ids } }));
   if (!(cons || []).length) return null;
-  const t = { contracts: cons.map(x => x.id), cons: cons, email: email, name: cons[0].tenant_name || '' };
+  const t = { contracts: cons.map(x => x.id), cons: cons, email: email, name: cons[0].tenant_name || '', demo: demo };
   tenantCache.set(tok, { t: t, exp: Date.now() + 60000 });
   if (tenantCache.size > 500) for (const [k, x] of tenantCache) if (x.exp < Date.now()) tenantCache.delete(k);
   return t;
@@ -289,8 +289,10 @@ async function portalCreate(t, body) {
   const obj = contract ? ((await list('contract_objects', '&filter=' + q({ name: contract.object_name || '' }))) || [])[0] : null;
   const res = R.tenantCreate(t, body, contract, obj, rf.kinds, rf.cfg, new Date());
   if (res.err) throw new ApiError(400, res.err, res.field);
+  if (t.demo) res.values.demo = true;   // демо-ссылка админа: заявка демо, никого не уведомляет
   const rec = await nb('POST', 'object_requests:create', res.values);
   await event(rec, null, 'create', res.event, null, 'public');
+  if (rec.demo) return { id: rec.id };
   for (const n of res.notify) await notify([n[0]], rec, n[1], null);
   if (res.notifyCtl) await notify(rf.ctl, rec, res.notifyCtl, null);
   await mailTo(rec.contact_email, 'Заявка №' + rec.id + ' принята', 'Заявка «' + rec.title + '» принята. Срок — ' + String(rec.due_date).slice(0, 10).split('-').reverse().join('.') + '.');
@@ -313,9 +315,10 @@ async function portalLink(user, body) {
   if (!c) throw new ApiError(404, 'Договор не найден');
   const o = ((await list('contract_objects', '&filter=' + q({ name: c.object_name || '' }))) || [])[0] || {};
   if (!user.isAdmin && !user.isCtl && Number(o.manager_user_id) !== user.id && Number(o.senior_user_id) !== user.id) throw new ApiError(403, 'Ссылку даёт управляющий объекта или руководитель');
-  for (const l of (await list('portal_links', '&filter=' + q({ contract_id: c.id, revoked_at: { $empty: true } }))) || []) await nb('POST', 'portal_links:update?filterByTk=' + l.id, { revoked_at: new Date().toISOString() });
+  const demo = !!body.demo && user.isAdmin;   // демо-ссылка (проверка портала): заявки по ней демо, настоящую ссылку не отменяет
+  for (const l of (await list('portal_links', '&filter=' + q({ contract_id: c.id, revoked_at: { $empty: true }, demo: demo ? true : { $ne: true } }))) || []) await nb('POST', 'portal_links:update?filterByTk=' + l.id, { revoked_at: new Date().toISOString() });
   const tok = crypto.randomBytes(24).toString('base64url');
-  await nb('POST', 'portal_links:create', { contract_id: c.id, token_hash: sha(tok), created_by: user.id });
+  await nb('POST', 'portal_links:create', { contract_id: c.id, token_hash: sha(tok), created_by: user.id, demo: demo });
   tenantCache.clear();
   return { url: PORTAL_URL + '#t=L.' + tok };
 }

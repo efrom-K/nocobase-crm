@@ -119,6 +119,7 @@ if 'portal' in STEPS:
         'name': 'portal_links', 'title': 'Портал арендатора: личные ссылки', 'autoGenId': True, 'createdAt': True, 'updatedAt': True,
         'fields': [NUM('contract_id', 'Договор'), F('token_hash', 'string', 'input', 'Хэш ссылки'), NUM('created_by', 'Кто выдал'),
                    DT('revoked_at', 'Отозвана'), DT('last_used_at', 'Последний вход')]})))
+    print('portal_links.demo', ok(call('collections/portal_links/fields:create', {'name': 'demo', 'type': 'boolean', 'interface': 'checkbox', 'uiSchema': {'type': 'boolean', 'title': 'Демо (проверка)', 'x-component': 'Checkbox'}})))
     for c, acts in (('portal_links', ['view', 'create', 'update']), ('rental_contracts', ['view']), ('contract_contacts', ['view'])):
         print('requests_service', c, acts, grant('requests_service', c, acts))
     for role in STAFF_ROLES: print('portal_links закрыта', role, grant(role, 'portal_links', []))

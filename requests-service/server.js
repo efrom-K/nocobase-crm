@@ -4,8 +4,13 @@
 //   POST /create {...}    — новая заявка (срок и ответственный — по правилам)
 //   POST /act {id, a,...} — действие по заявке
 //   POST /object-person {id, field, user_id} — управляющий / старший управляющий объекта (на нём строится KPI, поэтому только контролёр и админ)
+//   POST /portal-link {contract_id} — личная ссылка арендатора на портал (старая перестаёт работать)
+//   /portal/ и /portal/api/* — портал арендатора (help.ykinvest.ru): вход по коду на почту из договора или по личной ссылке
 'use strict';
 const http = require('http');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const R = require('./rules');
 
 const env = process.env;
@@ -68,7 +73,7 @@ async function refs() {
   const [users, emps, cfgRows] = await Promise.all([
     list('users', '&fields=' + ['id', 'nickname', 'username'].join(',') + '&appends=' + ['roles'].join(',')),
     list('crm_employees', '&fields=' + ['user_id', 'department', 'fired_on'].join(',')),
-    list('crm_config', '&filter=' + q({ key: { $in: ['requests.urgency', 'requests.deptDays'] } }))
+    list('crm_config', '&filter=' + q({ key: { $in: ['requests.urgency', 'requests.deptDays', 'requests.kinds'] } }))
   ]);
   ref.names = {}; ref.ctl = [];
   (users || []).forEach(u => { ref.names[u.id] = u.nickname || u.username; if ((u.roles || []).some(x => x.name === CTL_ROLE)) ref.ctl.push(u.id); });
@@ -81,6 +86,7 @@ async function refs() {
   });
   const c = {}; (cfgRows || []).forEach(x => { c[x.key] = x.value; });
   ref.cfg = { urgency: c['requests.urgency'] || null, deptDays: c['requests.deptDays'] };
+  ref.kinds = Array.isArray(c['requests.kinds']) && c['requests.kinds'].length ? c['requests.kinds'] : KINDS_DEF;
   ref.at = Date.now();
   return ref;
 }
@@ -99,8 +105,8 @@ async function notify(ids, r, text, me) {
       .catch(e => console.error('notify', e.message));   // уведомление не должно ломать действие
   }
 }
-async function event(r, me, kind, text, fileId) {
-  return nb('POST', 'request_events:create', { request_id: r.id, author_id: me, kind: kind, text: text || '', file_id: fileId || null, visibility: 'internal' });
+async function event(r, me, kind, text, fileId, visibility) {   // public — видно арендатору на портале
+  return nb('POST', 'request_events:create', { request_id: r.id, author_id: me || null, kind: kind, text: text || '', file_id: fileId || null, visibility: visibility || 'internal' });
 }
 
 // ---------- обработчики ----------
@@ -137,8 +143,9 @@ async function act(user, body) {
   if (res.upd) await nb('POST', 'object_requests:update?filterByTk=' + r.id, res.upd);
   if (res.approval) await nb('POST', 'request_approvals:create', res.approval);
   if (res.decided) await nb('POST', 'request_approvals:update?filterByTk=' + res.decided.id, res.decided);
-  for (const e of res.events) await event(r, user.id, e[0], e[1], e[2]);
+  for (const e of res.events) await event(r, user.id, e[0], e[1], e[2], e[3]);
   const after = Object.assign({}, r, res.upd || {});
+  await mailTenantAbout(r, after, res.mailTenant);
   for (const n of res.notify) await notify([n[0]], after, n[1], user.id);
   if (res.notifyCtl) await notify(rf.ctl.filter(id => id !== Number(after.responsible_id)), after, res.notifyCtl, user.id);
   if (res.notifyDept) await notify(rf.deptUsers[res.notifyDept] || [], after, 'Заявка для отдела «' + res.notifyDept + '»: ' + r.title, user.id);
@@ -152,6 +159,176 @@ async function objectPerson(user, body) {
   await nb('POST', 'contract_objects:update?filterByTk=' + Number(body.id), v);
   console.log('object-person', body.id, body.field, v[body.field], 'by', user.id);
   return { ok: true };
+}
+
+// ---------- портал арендатора ----------
+const KINDS_DEF = ['Ремонт и эксплуатация', 'Вопрос арендатора', 'Расторжение и выезд', 'Платёж, долг, штраф', 'Проверка, пожарная безопасность', 'Коммуналка, счётчики', 'Прочее'];   // как в src/_crm-config.js
+const PORTAL_SECRET = env.PORTAL_SECRET || '';
+const PORTAL_URL = (env.PORTAL_URL || '').replace(/\/$/, '') + '/';
+const PORTAL_HTML = fs.readFileSync(path.join(__dirname, 'portal.html'));
+// письма арендаторам — только когда в .env есть ящик (SMTP_HOST, SMTP_USER, SMTP_PASS); без него — вход по личной ссылке, без писем
+const SMTP_PORT = Number(env.SMTP_PORT) || 465;
+const mailer = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS
+  ? require('nodemailer').createTransport({ host: env.SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, auth: { user: env.SMTP_USER, pass: env.SMTP_PASS } }) : null;
+if (!PORTAL_SECRET) console.error('PORTAL_SECRET не задан — вход на портал по почте выключен');
+const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+const hmac = (s) => crypto.createHmac('sha256', PORTAL_SECRET).update(s).digest('base64url');
+const normEmail = (e) => String(e || '').trim().toLowerCase();
+const emailsIn = (s) => String(s || '').toLowerCase().split(/[\s,;]+/).filter(Boolean);
+
+async function mailTo(to, subject, text) {
+  if (!mailer || !to) return;
+  await mailer.sendMail({ from: { name: 'Консалт Недвижимость — заявки', address: env.SMTP_USER }, to: to, subject: subject, text: text + '\n\nЗаявки и переписка: ' + PORTAL_URL })
+    .catch(e => console.error('mail', to, e.message));   // письмо не должно ломать действие
+}
+// арендатору — о том, что ему важно: ответ, взяли в работу, нужен его ответ, решена (принять), отменена, закрыта
+async function mailTenantAbout(r, after, reply) {
+  if (r.accept_mode !== 'tenant' || !after.contact_email || r.demo) return;
+  const n = 'Заявка №' + r.id + ' «' + r.title + '»';
+  let text = null;
+  if (reply) text = 'Ответ по заявке:\n\n' + reply;
+  else if (after.status !== r.status) {
+    if (after.status === 'in_work' && r.status === 'new') text = 'Заявка взята в работу. Срок — ' + String(after.due_date || '').slice(0, 10).split('-').reverse().join('.') + '.';
+    else if (after.status === 'waiting' && after.wait_reason === R.TENANT_WAIT) text = 'Нужен ваш ответ — напишите в заявке на портале.';
+    else if (after.status === 'done') text = 'Работа выполнена: ' + (after.result || '') + '\n\nПроверьте и примите работу на портале (или верните, если что-то не так).';
+    else if (after.status === 'cancelled') text = 'Заявка отменена: ' + (after.result || '');
+    else if (after.status === 'closed') text = 'Заявка закрыта.';
+  }
+  if (text) await mailTo(after.contact_email, n, text);
+}
+
+// кто вошёл: «L.<токен>» — личная ссылка (portal_links), «S.<данные>.<подпись>» — вход по коду на почту
+async function contractsByEmail(email) {
+  const e = normEmail(email);
+  if (!e) return [];
+  const [rc, cc] = await Promise.all([
+    list('rental_contracts', '&fields=id,email&filter=' + q({ email: { $includes: e } })),
+    list('contract_contacts', '&fields=contract_ref_id,email&filter=' + q({ contract_type: 'active', email: { $includes: e } }))
+  ]);
+  const ids = new Set();
+  (rc || []).forEach(x => { if (emailsIn(x.email).includes(e)) ids.add(x.id); });
+  (cc || []).forEach(x => { if (emailsIn(x.email).includes(e)) ids.add(Number(x.contract_ref_id)); });
+  return [...ids];
+}
+const tenantCache = new Map();
+async function tenant(auth) {
+  const tok = String(auth || '').replace(/^Bearer\s+/i, '');
+  const c = tenantCache.get(tok);
+  if (c && c.exp > Date.now()) return c.t;
+  let ids = [], email = null;
+  if (tok.startsWith('L.') && tok.length > 20) {
+    const l = ((await list('portal_links', '&filter=' + q({ token_hash: sha(tok.slice(2)), revoked_at: { $empty: true } }))) || [])[0];
+    if (l) { ids = [Number(l.contract_id)]; nb('POST', 'portal_links:update?filterByTk=' + l.id, { last_used_at: new Date().toISOString() }).catch(() => {}); }
+  } else if (tok.startsWith('S.') && PORTAL_SECRET) {
+    const [, data, sig] = tok.split('.');
+    const want = hmac(data || '');
+    if (sig && sig.length === want.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) {
+      let d = {}; try { d = JSON.parse(Buffer.from(data, 'base64url').toString()); } catch (e) { d = {}; }
+      if (d.x > Date.now()) { email = d.e; ids = await contractsByEmail(email); }
+    }
+  }
+  if (!ids.length) { tenantCache.delete(tok); return null; }
+  // только действующие договоры (договор ушёл в завершённые — доступ пропадает)
+  const cons = await list('rental_contracts', '&fields=id,contract_number,tenant_name,object_name&filter=' + q({ id: { $in: ids } }));
+  if (!(cons || []).length) return null;
+  const t = { contracts: cons.map(x => x.id), cons: cons, email: email, name: cons[0].tenant_name || '' };
+  tenantCache.set(tok, { t: t, exp: Date.now() + 60000 });
+  if (tenantCache.size > 500) for (const [k, x] of tenantCache) if (x.exp < Date.now()) tenantCache.delete(k);
+  return t;
+}
+
+// ponytail: лимиты и коды в памяти — после перезапуска сервиса сбрасываются; для одного сервера достаточно
+const hits = new Map(), codes = new Map();
+function limit(key, n, ms) {
+  const h = hits.get(key);
+  if (!h || h.reset < Date.now()) { hits.set(key, { n: 1, reset: Date.now() + ms }); return; }
+  if (++h.n > n) throw new ApiError(429, 'Слишком много попыток — подождите несколько минут');
+}
+async function portalCode(ip, body) {
+  if (!mailer || !PORTAL_SECRET) throw new ApiError(503, 'Вход по почте пока не подключён — попросите у управляющего личную ссылку на портал');
+  const e = normEmail(body.email);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new ApiError(400, 'Проверьте адрес почты', 'email');
+  limit('ip:' + ip, 20, 600000); limit('mail:' + e, 3, 600000);
+  if ((await contractsByEmail(e)).length) {   // нет такой почты в договорах — ответ тот же, чтобы по порталу нельзя было проверять адреса
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    codes.set(e, { h: sha(code), exp: Date.now() + 15 * 60000, tries: 0 });
+    await mailTo(e, 'Код для входа: ' + code, 'Код для входа на портал заявок: ' + code + '\nДействует 15 минут. Если вы не запрашивали код — просто удалите это письмо.');
+  }
+  return { ok: true };
+}
+async function portalLogin(ip, body) {
+  limit('ip:' + ip, 20, 600000);
+  const e = normEmail(body.email), c = codes.get(e);
+  if (!c || c.exp < Date.now() || c.tries >= 5) throw new ApiError(400, 'Код устарел — запросите новый', 'code');
+  c.tries++;
+  if (sha(String(body.code || '').trim()) !== c.h) throw new ApiError(400, 'Неверный код', 'code');
+  codes.delete(e);
+  const data = Buffer.from(JSON.stringify({ e: e, x: Date.now() + 30 * 864e5 })).toString('base64url');
+  return { token: 'S.' + data + '.' + hmac(data) };
+}
+async function portalMe(t) {
+  const rf = await refs();
+  const reqs = await list('object_requests', '&sort=-id&fields=' + ['id', 'title', 'description', 'kind', 'urgency', 'status', 'createdAt', 'due_date', 'result', 'done_at', 'closed_at', 'rating', 'contract_id', 'object_name', 'accept_mode', 'wait_reason', 'responsible_id'].join(',')
+    + '&filter=' + q({ contract_id: { $in: t.contracts }, accept_mode: 'tenant' }));
+  const ids = (reqs || []).map(r => r.id);
+  const evs = ids.length ? await list('request_events', '&sort=createdAt&fields=request_id,author_id,text,createdAt&filter=' + q({ request_id: { $in: ids }, visibility: 'public' })) : [];
+  const u = R.DEF.urgency, cu = (rf.cfg && rf.cfg.urgency) || {};
+  return {
+    name: t.name, email: t.email, mail: !!mailer, kinds: rf.kinds,
+    urgency: Object.keys(u).map(k => ({ k: k, l: (cu[k] && cu[k].l) || u[k].l })),
+    contracts: t.cons.map(c => ({ id: c.id, number: c.contract_number, object: c.object_name, tenant: c.tenant_name })),
+    requests: (reqs || []).map(r => ({ id: r.id, title: r.title, description: r.description, kind: r.kind, urgency: r.urgency, status: r.status, createdAt: r.createdAt, due_date: r.due_date,
+      result: r.result, done_at: r.done_at, closed_at: r.closed_at, rating: r.rating, object: r.object_name, waitingYou: r.status === 'waiting' && r.wait_reason === R.TENANT_WAIT,
+      manager: r.responsible_id ? rf.names[r.responsible_id] || null : null, acts: R.tenantActions(t, r),
+      events: (evs || []).filter(e => e.request_id === r.id).map(e => ({ at: e.createdAt, mine: !e.author_id, who: e.author_id ? rf.names[e.author_id] || 'Сотрудник' : null, text: e.text })) }))
+  };
+}
+async function portalCreate(t, body) {
+  const rf = await refs();
+  const contract = t.cons.find(c => c.id === Number(body.contract_id)) || (t.cons.length === 1 ? t.cons[0] : null);
+  const obj = contract ? ((await list('contract_objects', '&filter=' + q({ name: contract.object_name || '' }))) || [])[0] : null;
+  const res = R.tenantCreate(t, body, contract, obj, rf.kinds, rf.cfg, new Date());
+  if (res.err) throw new ApiError(400, res.err, res.field);
+  const rec = await nb('POST', 'object_requests:create', res.values);
+  await event(rec, null, 'create', res.event, null, 'public');
+  for (const n of res.notify) await notify([n[0]], rec, n[1], null);
+  if (res.notifyCtl) await notify(rf.ctl, rec, res.notifyCtl, null);
+  await mailTo(rec.contact_email, 'Заявка №' + rec.id + ' принята', 'Заявка «' + rec.title + '» принята. Срок — ' + String(rec.due_date).slice(0, 10).split('-').reverse().join('.') + '.');
+  return { id: rec.id };
+}
+async function portalAct(t, body) {
+  const r = await nb('GET', 'object_requests:get?filterByTk=' + Number(body.id));
+  if (!r || !R.tenantSees(t, r)) throw new ApiError(404, 'Заявка не найдена');
+  const res = R.tenantApply(t, r, body.a, body, new Date());
+  if (res.err) throw new ApiError(res.code || 400, res.err, res.field);
+  if (res.upd) await nb('POST', 'object_requests:update?filterByTk=' + r.id, res.upd);
+  for (const e of res.events) await event(r, null, e[0], e[1], e[2], e[3]);
+  for (const n of res.notify) await notify([n[0]], r, n[1], null);
+  return { ok: true };
+}
+// личная ссылка — даёт контролёр, админ или управляющий объекта договора; новая отменяет прежние ссылки договора
+async function portalLink(user, body) {
+  if (!env.PORTAL_URL) throw new ApiError(503, 'Адрес портала не настроен (PORTAL_URL)');
+  const c = ((await list('rental_contracts', '&fields=id,object_name&filter=' + q({ id: Number(body.contract_id) || 0 }))) || [])[0];
+  if (!c) throw new ApiError(404, 'Договор не найден');
+  const o = ((await list('contract_objects', '&filter=' + q({ name: c.object_name || '' }))) || [])[0] || {};
+  if (!user.isAdmin && !user.isCtl && Number(o.manager_user_id) !== user.id && Number(o.senior_user_id) !== user.id) throw new ApiError(403, 'Ссылку даёт управляющий объекта или руководитель');
+  for (const l of (await list('portal_links', '&filter=' + q({ contract_id: c.id, revoked_at: { $empty: true } }))) || []) await nb('POST', 'portal_links:update?filterByTk=' + l.id, { revoked_at: new Date().toISOString() });
+  const tok = crypto.randomBytes(24).toString('base64url');
+  await nb('POST', 'portal_links:create', { contract_id: c.id, token_hash: sha(tok), created_by: user.id });
+  tenantCache.clear();
+  return { url: PORTAL_URL + '#t=L.' + tok };
+}
+async function portal(req, res, p, origin) {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  if (p === '/portal/api/code' && req.method === 'POST') return send(res, 200, await portalCode(ip, await readJson(req)), origin);
+  if (p === '/portal/api/login' && req.method === 'POST') return send(res, 200, await portalLogin(ip, await readJson(req)), origin);
+  const t = await tenant(req.headers.authorization);
+  if (!t) throw new ApiError(401, 'Войдите заново');
+  if (p === '/portal/api/me') return send(res, 200, await portalMe(t), origin);
+  if (p === '/portal/api/create' && req.method === 'POST') { limit('create:' + t.contracts.join(','), 30, 3600000); return send(res, 200, await portalCreate(t, await readJson(req)), origin); }
+  if (p === '/portal/api/act' && req.method === 'POST') return send(res, 200, await portalAct(t, await readJson(req)), origin);
+  throw new ApiError(404, 'Нет такого адреса');
 }
 
 // ---------- HTTP ----------
@@ -177,11 +354,18 @@ http.createServer(async (req, res) => {
   const p = new URL(req.url, 'http://x').pathname;
   try {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
+    if (p === '/portal' || p === '/portal/' || (p === '/' && /^help\./.test(String(req.headers.host || '')))) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
+        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'" });
+      return res.end(PORTAL_HTML);
+    }
+    if (p.startsWith('/portal/api/')) return await portal(req, res, p, origin);
     const user = await whoami(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
     if (p === '/acts' && req.method === 'GET') return send(res, 200, await acts(user), origin);
     if (p === '/create' && req.method === 'POST') return send(res, 200, await create(user, await readJson(req)), origin);
     if (p === '/act' && req.method === 'POST') return send(res, 200, await act(user, await readJson(req)), origin);
+    if (p === '/portal-link' && req.method === 'POST') return send(res, 200, await portalLink(user, await readJson(req)), origin);
     if (p === '/object-person' && req.method === 'POST') return send(res, 200, await objectPerson(user, await readJson(req)), origin);
     throw new ApiError(404, 'Нет такого адреса');
   } catch (e) {

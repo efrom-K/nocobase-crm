@@ -82,4 +82,30 @@ const has = (ctx, a) => R.actions(ctx).indexOf(a) !== -1;
   const w2 = req({ status: 'waiting', wait_reason: 'подрядчика', waiting_since: '2026-10-18T10:00:00Z' });
   assert(!R.apply(as(MGR, w2), 'resume', {}, {}, now).upd.due_date, 'ждали подрядчика — срок не сдвигается');
 }
+
+// портал арендатора: видит только свои договоры и заявки, которые принимает сам; принять/вернуть — только решённую
+{
+  const T = { contracts: [5], email: 'user@example.ru', name: 'ООО Ромашка' };
+  const mine = req({ contract_id: 5, accept_mode: 'tenant', status: 'done' });
+  assert(R.tenantSees(T, mine));
+  assert(!R.tenantSees(T, req({ contract_id: 6, accept_mode: 'tenant' })), 'чужой договор');
+  assert(!R.tenantSees(T, req({ contract_id: 5, accept_mode: 'user' })), 'внутренняя заявка по его договору');
+  assert.deepStrictEqual(R.tenantActions(T, mine), ['accept', 'reopen', 'comment']);
+  assert.deepStrictEqual(R.tenantActions(T, req({ contract_id: 5, accept_mode: 'tenant', status: 'in_work' })), ['comment']);
+  assert.strictEqual(R.tenantApply(T, req({ contract_id: 6, accept_mode: 'tenant', status: 'done' }), 'accept', {}, now).code, 403);
+  const acc = R.tenantApply(T, mine, 'accept', { rating: 4 }, now);
+  assert.deepStrictEqual([acc.upd.status, acc.upd.rating, acc.events[0][3]], ['closed', 4, 'public']);
+  assert(R.tenantApply(T, mine, 'reopen', {}, now).err, 'вернуть без причины нельзя');
+  assert.strictEqual(R.tenantApply(T, mine, 'reopen', { v: 'течёт' }, now).upd.reopen_count, 1);
+  // создание: только по своему договору, ответственный — управляющий объекта, принимает арендатор
+  const c = R.tenantCreate(T, { kind: 'Прочее', title: 'Не работает свет' }, { id: 5, object_name: 'Объект', tenant_name: 'ООО Ромашка' }, { manager_user_id: MGR }, ['Прочее'], {}, now);
+  assert.deepStrictEqual([c.values.responsible_id, c.values.accept_mode, c.values.source, c.values.author_id, c.values.contact_email], [MGR, 'tenant', 'portal', null, 'user@example.ru']);
+  assert(R.tenantCreate(T, { kind: 'Прочее', title: 'x' }, { id: 6 }, null, ['Прочее'], {}, now).err, 'чужой договор');
+  assert(R.tenantCreate(T, { kind: 'Взлом', title: 'x' }, { id: 5 }, null, ['Прочее'], {}, now).err, 'тип не из списка');
+  assert(R.tenantCreate(T, { kind: 'Прочее', title: 'x' }, { id: 5, object_name: 'О' }, null, ['Прочее'], {}, now).notifyCtl, 'без управляющего — контролёрам');
+  // сотрудник отвечает арендатору только по заявкам арендатора
+  assert(has(as(MGR, req({ accept_mode: 'tenant' })), 'reply'));
+  assert(!has(as(MGR, req({ accept_mode: 'user' })), 'reply'));
+  assert.strictEqual(R.apply(as(MGR, req({ accept_mode: 'tenant' })), 'reply', { v: 'Мастер будет завтра' }, {}, now).events[0][3], 'public');
+}
 console.log('rules ok');

@@ -1,0 +1,10 @@
+{
+  "name": "nocobase-requests-service",
+  "private": true,
+  "description": "Сервис заявок по объектам и портал арендатора: правила KPI управляющих, все изменения заявок — через него",
+  "main": "server.js",
+  "license": "MIT",
+  "dependencies": {
+    "nodemailer": "^6.9.0"
+  }
+}

@@ -7,9 +7,11 @@
   managers  — проставить объектам управляющего и старшего с учёткой по имени из Pyrus (только пустые, печатает что сделал);
   lock      — ролям сотрудников на заявки только чтение (включать ПОСЛЕ выкладки блока, который пишет через сервис);
   access    — (22.10) страница «Объекты» в меню всех ролей сотрудников (что видно — решает блок по человеку);
-              управляющего объекта меняет только сервис (по решению контролёра/админа), роли сотрудников — без этих полей.
+              управляющего объекта меняет только сервис (по решению контролёра/админа), роли сотрудников — без этих полей;
+  portal    — (22.10) портал арендатора: коллекция portal_links (личные ссылки, хранится только хэш), права сервиса на договоры и контакты;
+              ролям сотрудников portal_links закрыта (общая стратегия ролей разрешала бы создать ссылку на чужой договор).
 
-    NB_URL=http://<сервер>:13000 NB_TOKEN=<токен root> python3 setup_requests_v2.py fields roles managers [lock] [access]
+    NB_URL=http://<сервер>:13000 NB_TOKEN=<токен root> python3 setup_requests_v2.py fields roles managers [lock] [access] [portal]
 """
 import json, os, secrets, sys, urllib.parse, urllib.request, urllib.error
 
@@ -29,7 +31,7 @@ def ok(r): return 'ok' if 'data' in r else r.get('body', r)
 def rows(path): return call(path).get('data') or []
 def J(o): return urllib.parse.quote(json.dumps(o))
 _fields = {}
-TS = {'object_requests': ['createdAt', 'updatedAt'], 'request_events': ['createdAt'], 'request_approvals': ['createdAt', 'updatedAt'], 'request_notifications': ['createdAt']}   # столбцы есть, а полей NocoBase у них нет
+TS = {'portal_links': ['createdAt', 'updatedAt'], 'object_requests': ['createdAt', 'updatedAt'], 'request_events': ['createdAt'], 'request_approvals': ['createdAt', 'updatedAt'], 'request_notifications': ['createdAt']}   # столбцы есть, а полей NocoBase у них нет
 def fields_of(c):   # все поля коллекции: в этой версии NocoBase пустой список полей у действия роли = никаких полей
     if c not in _fields: _fields[c] = [f['name'] for f in rows('collections/%s/fields:list?paginate=false' % c)] + ['id'] + TS.get(c, [])
     return sorted(set(_fields[c]))
@@ -111,3 +113,12 @@ if 'access' in STEPS:
     # общая стратегия этих ролей давала менять любые поля объекта, в т.ч. управляющего, а на нём KPI; создавать и удалять объекты им не нужно
     for role in STAFF_ROLES: print('contract_objects', role, grant(role, 'contract_objects', ['view', 'update'], skip=('manager_user_id', 'senior_user_id', 'manager_name', 'senior_name')))
     print('contract_objects requests_service', grant('requests_service', 'contract_objects', ['view', 'update']))
+
+if 'portal' in STEPS:
+    print('collection portal_links', ok(call('collections:create', {
+        'name': 'portal_links', 'title': 'Портал арендатора: личные ссылки', 'autoGenId': True, 'createdAt': True, 'updatedAt': True,
+        'fields': [NUM('contract_id', 'Договор'), F('token_hash', 'string', 'input', 'Хэш ссылки'), NUM('created_by', 'Кто выдал'),
+                   DT('revoked_at', 'Отозвана'), DT('last_used_at', 'Последний вход')]})))
+    for c, acts in (('portal_links', ['view', 'create', 'update']), ('rental_contracts', ['view']), ('contract_contacts', ['view'])):
+        print('requests_service', c, acts, grant('requests_service', c, acts))
+    for role in STAFF_ROLES: print('portal_links закрыта', role, grant(role, 'portal_links', []))

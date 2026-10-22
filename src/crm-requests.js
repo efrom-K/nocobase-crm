@@ -152,6 +152,7 @@ if (!document.getElementById('crm-req-style')) {
     .rq-ev { display:flex; gap:10px; padding:7px 0; font-size:13px; }
     .rq-ev-d { color:#8c8c8c; font-size:12px; white-space:nowrap; min-width:92px; }
     .rq-ev.sys { color:#8c8c8c; }
+    .rq-pub { display:inline-block; background:#e6f4ff; color:#0958d9; border-radius:4px; padding:0 5px; font-size:11px; line-height:16px; }
     .rq-ev a { color:#1c2d58; cursor:pointer; }
     .rq-comment { display:flex; gap:8px; margin-top:10px; align-items:flex-start; }
     .rq-comment textarea { flex:1; min-height:38px; resize:vertical; }
@@ -642,7 +643,7 @@ async function rqOpenCard(id) {
   await rqRenderCard(m, r);
 }
 // что можно — решает сервис заявок (rules.js); здесь только подписи кнопок в нужном порядке
-const RQ_ACT = [['take', 'Взять в работу', 'pri'], ['wait', 'Ждём…', ''], ['resume', 'Вернуть в работу', ''], ['to_dept', 'Передать в отдел', ''], ['dept_back', 'Вернуть управляющему', 'ok'],
+const RQ_ACT = [['take', 'Взять в работу', 'pri'], ['reply', 'Ответить арендатору', ''], ['wait', 'Ждём…', ''], ['resume', 'Вернуть в работу', ''], ['to_dept', 'Передать в отдел', ''], ['dept_back', 'Вернуть управляющему', 'ok'],
   ['done', 'Решена', 'ok'], ['accept', 'Принять и закрыть', 'ok'], ['reopen', 'Не принять — вернуть', 'warn'], ['due', 'Перенести срок', ''], ['assign', 'Передать другому', ''], ['cancel', 'Отменить', 'warn'],
   ['ask_due', 'Запросить перенос срока', ''], ['ask_assign', 'Запросить передачу', ''], ['ask_cancel', 'Запросить отмену', 'warn']];
 function rqActs(r) { return (rq.data && rq.data.acts[r.id]) || []; }
@@ -658,7 +659,8 @@ async function rqRenderCard(m, r) {
     + (RQ_URG[r.urgency] && r.urgency !== 'normal' ? ' <span class="rq-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + rqEsc(u.l) + '</span>' : '') + '</div></div><button class="rq-x">✕</button></div>'
     + '<div class="rq-box-b"><div class="rq-meta">'
     + '<div><div class="l">Объект</div>' + rqEsc(r.object_name) + '</div>'
-    + '<div><div class="l">Договор / арендатор</div>' + (r.contract_id ? '<a href="/admin/b5znz7yxpy3?open=active:' + r.contract_id + '" style="color:#1c2d58;">' + rqEsc(r.tenant_label || '#' + r.contract_id) + '</a>' : '—') + '</div>'
+    + '<div><div class="l">Договор / арендатор</div>' + (r.contract_id ? '<a href="/admin/b5znz7yxpy3?open=active:' + r.contract_id + '" style="color:#1c2d58;">' + rqEsc(r.tenant_label || '#' + r.contract_id) + '</a>'
+      + (rqCanLink(r.object_name) ? ' · <a data-plink="' + r.contract_id + '" style="color:#1c2d58;cursor:pointer;">ссылка на портал</a>' : '') : '—') + '</div>'
     + '<div><div class="l">Тип</div>' + rqEsc(r.kind || '—') + '</div>'
     + '<div><div class="l">Срок</div>' + (RQ_OPEN.indexOf(r.status) !== -1 && late ? '<span class="rq-late">' + rqDate(r.due_date) + ', просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : rqDate(r.due_date)) + (r.due_moved ? ' <span style="color:#8c8c8c;font-size:12px;">(переносили ' + r.due_moved + ' раз)</span>' : '') + '</div>'
     + '<div><div class="l">Ответственный</div>' + rqEsc(rqUser(r.responsible_id)) + '</div>'
@@ -668,6 +670,7 @@ async function rqRenderCard(m, r) {
     + (r.react_due_at ? '<div><div class="l">Взять в работу до</div>' + (r.taken_at ? rqDateTime(r.react_due_at) + ' · <span style="color:' + (r.taken_at > r.react_due_at ? '#cf1322' : '#389e0d') + ';">взята ' + rqDateTime(r.taken_at) + '</span>'
       : (new Date().toISOString() > r.react_due_at ? '<span class="rq-late">' + rqDateTime(r.react_due_at) + ' — время реакции вышло</span>' : rqDateTime(r.react_due_at))) + '</div>' : '')
     + (r.status === 'dept' ? '<div><div class="l">В отделе</div><b>' + rqEsc(r.dept) + '</b>' + (r.dept_user_id ? ' · ' + rqEsc(rqUser(r.dept_user_id)) : '') + (r.dept_due ? ' · срок отдела ' + (String(r.dept_due).slice(0, 10) < rqToday() ? '<span class="rq-late">' + rqDate(r.dept_due) + '</span>' : rqDate(r.dept_due)) : '') + '</div>' : '')
+    + (r.contact_name || r.contact_phone || r.contact_email ? '<div><div class="l">Контакт арендатора</div>' + rqEsc([r.contact_name, r.contact_phone, r.contact_email].filter(Boolean).join(' · ')) + '</div>' : '')
     + (r.reopen_count ? '<div><div class="l">Возвратов</div><span style="color:#cf1322;font-weight:600;">' + r.reopen_count + '</span></div>' : '')
     + '</div>'
     + (r.description ? '<div class="rq-desc">' + rqEsc(r.description) + '</div>' : '')
@@ -684,12 +687,15 @@ async function rqRenderCard(m, r) {
     + '<div class="rq-tl"><div style="font-weight:600;margin-bottom:4px;">Переписка и история</div>'
     + evs.map(function(x) {
         const f = x.file;
-        return '<div class="rq-ev' + (x.kind === 'comment' ? '' : ' sys') + '"><div class="rq-ev-d">' + rqDateTime(x.createdAt) + '</div><div style="min-width:0;"><b style="color:#434343;">' + rqEsc(rqUser(x.author_id)) + ':</b> ' + rqEsc(x.text)
+        const pub = x.visibility === 'public';   // видно арендатору на портале; без автора — написал сам арендатор
+        return '<div class="rq-ev' + (x.kind === 'comment' ? '' : ' sys') + '"><div class="rq-ev-d">' + rqDateTime(x.createdAt) + '</div><div style="min-width:0;">' + (pub ? '<span class="rq-pub">видно арендатору</span> ' : '')
+          + '<b style="color:' + (pub && !x.author_id ? '#1c2d58' : '#434343') + ';">' + rqEsc(pub && !x.author_id ? 'Арендатор' : rqUser(x.author_id)) + ':</b> ' + rqEsc(x.text)
           + (f ? ' <a data-file="' + rqEsc(f.url) + '" data-fname="' + rqEsc((f.title || 'файл') + (f.extname || '')) + '">📎 ' + rqEsc((f.title || 'файл') + (f.extname || '')) + '</a>' : '') + '</div></div>';
       }).join('')
     + '<div class="rq-comment"><textarea placeholder="Комментарий…" id="rq-cmt"></textarea><input type="file" id="rq-cmt-file" style="display:none;"><button class="rq-btn" id="rq-cmt-attach" title="Приложить фото или файл">📎</button><button class="rq-btn pri" id="rq-cmt-send">Отправить</button></div>'
     + '<div id="rq-cmt-fname" class="rq-hint"></div></div></div>';
   box.querySelectorAll('[data-a]').forEach(function(b) { b.addEventListener('click', function() { rqAction(m, r, b.getAttribute('data-a')); }); });
+  box.querySelectorAll('[data-plink]').forEach(function(a) { a.addEventListener('click', function() { rqPortalLink(Number(a.getAttribute('data-plink')), box.querySelector('#rq-actbox')); }); });
   box.querySelectorAll('[data-dec]').forEach(function(b) { b.addEventListener('click', function() { rqDecide(m, r, Number(b.getAttribute('data-dec')), !!b.getAttribute('data-yes')); }); });
   box.querySelectorAll('[data-file]').forEach(function(a) {
     a.addEventListener('click', async function() {
@@ -710,6 +716,23 @@ async function rqRenderCard(m, r) {
       await rqRenderCard(m, r);
     } catch (err) { rqToast('Не удалось отправить'); e.target.disabled = false; }
   });
+}
+// личная ссылка арендатора на портал заявок: даёт управляющий объекта или руководитель; новая отменяет прежнюю
+function rqCanLink(objName) { const o = rqObj(objName); return rqIsBoss() || !!(o && (Number(o.manager_user_id) === rq.me.id || Number(o.senior_user_id) === rq.me.id)); }
+function rqPortalLink(contractId, box) {   // confirm() в блоках NocoBase не работает — подтверждение в карточке
+  box.innerHTML = '<div class="rq-actbox">Выдать арендатору новую ссылку на портал заявок? Прежняя ссылка этого договора перестанет работать.'
+    + '<div class="rq-actions" style="margin-top:10px;"><button class="rq-btn pri" id="rq-go">Выдать ссылку</button><button class="rq-btn" id="rq-no">Отмена</button></div></div>';
+  box.querySelector('#rq-no').addEventListener('click', function() { box.innerHTML = ''; });
+  box.querySelector('#rq-go').addEventListener('click', function(e) { e.target.disabled = true; rqPortalLinkGo(contractId, box); });
+}
+async function rqPortalLinkGo(contractId, box) {
+  try {
+    const j = await rqSvc('/portal-link', { contract_id: contractId });
+    box.innerHTML = '<div class="rq-actbox"><label style="font-size:12.5px;color:#595959;">Ссылка для арендатора (отправьте ему сами — по почте или в мессенджер). По ней он видит заявки только этого договора</label>'
+      + '<input type="text" readonly value="' + rqEsc(j.url) + '" style="width:100%;margin-top:4px;" id="rq-plink"></div>';
+    const f = box.querySelector('#rq-plink'); f.focus(); f.select();
+    try { await navigator.clipboard.writeText(j.url); rqToast('Ссылка скопирована'); } catch (e) { /* буфер недоступен — ссылка выделена в поле */ }
+  } catch (e) { rqToast(e.message || 'Не удалось выдать ссылку'); }
 }
 // решение по запросу (перенос / передача / отмена): одобрить — сразу, отказать — с причиной
 function rqDecide(m, r, apId, yes) {
@@ -740,6 +763,7 @@ function rqAction(m, r, a) {
     cancel: L('Причина отмены (обязательно)') + T('rq-in', 50),
     ask_cancel: L('Почему отменить (обязательно) — решит руководитель') + T('rq-in', 50),
     dept_back: L('Что сделал отдел (обязательно — увидит управляющий)') + T('rq-in', 60),
+    reply: L('Ответ арендатору — увидит на портале' + (r.contact_email ? ' и получит письмом на ' + rqEsc(r.contact_email) : '') + '. Внутренние комментарии арендатору не видны') + T('rq-in', 70),
     to_dept: L('Отдел') + '<select id="rq-in" style="width:100%;margin-top:4px;"><option value="">Выберите отдел</option>' + rq.data.depts.map(function(d) { return '<option>' + rqEsc(d) + '</option>'; }).join('') + '</select>'
       + L('Что нужно от отдела (обязательно)', 1) + T('rq-in2', 50),
     due: dueF('Причина переноса (обязательно — видна в статистике)'),

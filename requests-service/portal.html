@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Заявки арендатора</title>
+<style>
+  :root { --bg:#f3f5f9; --card:#fff; --ink:#1f2433; --muted:#646b7a; --line:#e2e6ee; --brand:#1c2d58; --brand-ink:#fff; --ok:#2f7d32; --warn:#b85c00; --bad:#c62828; --soft:#eef2fa; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171e; --card:#1d212b; --ink:#e8eaf0; --muted:#9aa1b0; --line:#2e3442; --brand:#8fa8e8; --brand-ink:#0f1830; --ok:#7cc47f; --warn:#f0a35a; --bad:#ff7b7b; --soft:#252b38; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  header { background:var(--card); border-bottom:1px solid var(--line); }
+  .wrap { max-width:860px; margin:0 auto; padding:0 16px; }
+  .top { display:flex; align-items:center; gap:12px; min-height:58px; }
+  .logo { font-weight:800; letter-spacing:.02em; color:var(--brand); }
+  .who { margin-left:auto; color:var(--muted); font-size:13.5px; text-align:right; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  button, input, select, textarea { font:inherit; color:inherit; }
+  .btn { border:1px solid var(--line); background:var(--card); border-radius:9px; padding:9px 14px; cursor:pointer; font-weight:600; }
+  .btn.pri { background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }
+  .btn.ok { color:var(--ok); border-color:currentColor; }
+  .btn.warn { color:var(--warn); border-color:currentColor; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  .link { background:none; border:0; color:var(--brand); cursor:pointer; padding:0; font-weight:600; }
+  main { padding:18px 0 40px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:12px; }
+  h1 { font-size:21px; margin:0 0 4px; } h2 { font-size:17px; margin:0 0 10px; }
+  .muted { color:var(--muted); } .small { font-size:13px; }
+  label { display:block; font-size:13px; color:var(--muted); font-weight:600; margin:12px 0 5px; }
+  input, select, textarea { width:100%; border:1px solid var(--line); border-radius:9px; padding:10px 12px; background:var(--card); }
+  textarea { min-height:90px; resize:vertical; }
+  input:focus, select:focus, textarea:focus { outline:2px solid var(--brand); outline-offset:-1px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .err { color:var(--bad); font-size:13.5px; margin-top:8px; min-height:1em; }
+  .tabs { display:flex; gap:4px; background:var(--soft); border-radius:10px; padding:3px; }
+  .tabs button { border:0; background:none; padding:7px 14px; border-radius:8px; cursor:pointer; color:var(--muted); font-weight:600; }
+  .tabs button.on { background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  .rq { display:block; width:100%; text-align:left; cursor:pointer; }
+  .rq:hover { border-color:var(--brand); }
+  .rq-t { font-weight:700; font-size:15.5px; margin:6px 0 2px; overflow-wrap:anywhere; }
+  .pill { display:inline-block; border-radius:20px; padding:1px 10px; font-size:12.5px; font-weight:700; border:1px solid currentColor; }
+  .s-new { color:var(--brand); } .s-work { color:var(--warn); } .s-done { color:#0b8a8a; } .s-closed { color:var(--ok); } .s-cancelled { color:var(--muted); }
+  .you { background:var(--warn); color:#fff; border-color:var(--warn); }
+  .urg { display:grid; gap:8px; }
+  .urg label { display:flex; gap:10px; align-items:flex-start; border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin:0; color:var(--ink); font-weight:600; cursor:pointer; }
+  .urg input { width:auto; margin-top:3px; }
+  .urg small { display:block; font-weight:400; color:var(--muted); }
+  .ev { border-left:3px solid var(--line); padding:4px 0 4px 12px; margin:10px 0; }
+  .ev.mine { border-color:var(--brand); }
+  .ev-h { font-size:12.5px; color:var(--muted); }
+  .ev-t { white-space:pre-wrap; overflow-wrap:anywhere; }
+  .box { background:var(--soft); border-radius:9px; padding:12px; margin:12px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .stars { display:flex; gap:4px; } .stars button { border:0; background:none; font-size:28px; cursor:pointer; color:var(--line); padding:0 2px; } .stars button.on { color:#f5a623; }
+  .empty { text-align:center; padding:36px 10px; color:var(--muted); }
+  .back { margin-bottom:12px; }
+  @media (max-width:560px) { .card { padding:14px; } h1 { font-size:19px; } .top .btn { padding:7px 10px; } }
+</style>
+</head>
+<body>
+<header><div class="wrap top"><span class="logo">КОНСАЛТ НЕДВИЖИМОСТЬ</span><span class="who" id="who"></span><button class="btn" id="out" hidden>Выйти</button></div></header>
+<main class="wrap" id="app"><div class="empty">Загрузка…</div></main>
+<script>
+'use strict';
+// API — рядом со страницей: /portal/api (help.<домен>/) или /<префикс>/portal/api (через CRM)
+var i = location.pathname.indexOf('/portal'), API = (i === -1 ? '' : location.pathname.slice(0, i)) + '/portal/api';
+var KEY = 'help-token', S = { me: null, tab: 'open', open: null, view: 'list', email: '' };
+var ST = { new: ['Новая', 's-new'], in_work: ['В работе', 's-work'], waiting: ['Ждёт', 's-work'], dept: ['В работе', 's-work'], done: ['Выполнена — проверьте', 's-done'], closed: ['Закрыта', 's-closed'], cancelled: ['Отменена', 's-cancelled'] };
+var OPEN = ['new', 'in_work', 'waiting', 'dept', 'done'];
+function $(s) { return document.querySelector(s); }
+function esc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function d(v) { var m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+function dt(v) { if (!v) return ''; var x = new Date(v); return x.toLocaleDateString('ru-RU') + ' ' + x.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); }
+function tok() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return S.tok || ''; } }
+function setTok(t) { S.tok = t; try { if (t) localStorage.setItem(KEY, t); else localStorage.removeItem(KEY); } catch (e) { /* без хранилища — до закрытия вкладки */ } }
+function api(p, body) {
+  return fetch(API + p, { method: body ? 'POST' : 'GET', headers: Object.assign({ Authorization: 'Bearer ' + tok() }, body ? { 'Content-Type': 'application/json' } : {}), body: body ? JSON.stringify(body) : undefined })
+    .then(function(r) { return r.json().catch(function() { return {}; }).then(function(j) { if (!r.ok) { var e = new Error(j.error || 'Нет связи с сервером, попробуйте ещё раз'); e.status = r.status; e.field = j.field; throw e; } return j; }); });
+}
+
+// ---------- вход ----------
+function login(step, msg) {
+  $('#who').textContent = ''; $('#out').hidden = true;
+  $('#app').innerHTML = '<div class="card" style="max-width:440px;margin:30px auto;"><h1>Заявки арендатора</h1><p class="muted small">Подать заявку управляющему, следить за ней и принять работу.</p>'
+    + (step === 'code'
+      ? '<label for="code">Код из письма на ' + esc(S.email) + '</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"><div class="err" id="err">' + esc(msg || '') + '</div><div class="row" style="margin-top:10px;"><button class="btn pri" id="go">Войти</button><button class="link" id="back">Другая почта</button></div>'
+      : '<label for="email">Почта, указанная в договоре аренды</label><input id="email" type="email" autocomplete="email" value="' + esc(S.email) + '"><div class="err" id="err">' + esc(msg || '') + '</div><button class="btn pri" id="go" style="margin-top:10px;">Получить код</button>'
+        + '<p class="muted small" style="margin-top:16px;">Пришлём шестизначный код на эту почту. Если управляющий прислал вам личную ссылку — просто откройте её.</p>')
+    + '</div>';
+  var f = $(step === 'code' ? '#code' : '#email'); f.focus();
+  f.addEventListener('keydown', function(e) { if (e.key === 'Enter') $('#go').click(); });
+  if (step === 'code') $('#back').onclick = function() { login('email'); };
+  $('#go').onclick = function() {
+    var b = this; b.disabled = true; $('#err').textContent = '';
+    var p = step === 'code' ? api('/login', { email: S.email, code: $('#code').value }).then(function(j) { setTok(j.token); return load(); })
+      : (S.email = $('#email').value.trim(), api('/code', { email: S.email }).then(function() { login('code', ''); }));
+    p.catch(function(e) { $('#err').textContent = e.message; b.disabled = false; });
+  };
+}
+
+// ---------- данные ----------
+function load() {
+  return api('/me').then(function(me) { S.me = me; render(); }).catch(function(e) { if (e.status === 401) { setTok(''); login('email'); } else $('#app').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+}
+function render() {
+  var me = S.me;
+  $('#who').textContent = me.name || me.email || ''; $('#out').hidden = false;
+  if (S.view === 'new') return renderNew();
+  if (S.open) { var r = me.requests.filter(function(x) { return x.id === S.open; })[0]; if (r) return renderOne(r); S.open = null; }
+  var list = me.requests.filter(function(r) { return (OPEN.indexOf(r.status) !== -1) === (S.tab === 'open'); });
+  var nOpen = me.requests.filter(function(r) { return OPEN.indexOf(r.status) !== -1; }).length;
+  $('#app').innerHTML = '<div class="row" style="justify-content:space-between;margin-bottom:14px;"><div class="tabs"><button data-tab="open"' + (S.tab === 'open' ? ' class="on"' : '') + '>Текущие (' + nOpen + ')</button><button data-tab="closed"' + (S.tab === 'closed' ? ' class="on"' : '') + '>Закрытые</button></div>'
+    + '<button class="btn pri" id="new">+ Новая заявка</button></div>'
+    + (list.length ? list.map(function(r) {
+        var s = ST[r.status] || [r.status, ''];
+        return '<button class="card rq" data-open="' + r.id + '"><div class="row"><span class="pill ' + s[1] + '">' + s[0] + '</span>' + (r.waitingYou ? '<span class="pill you">Нужен ваш ответ</span>' : '') + '<span class="muted small">№' + r.id + ' · ' + d(r.createdAt) + (OPEN.indexOf(r.status) !== -1 && r.status !== 'done' && r.due_date ? ' · срок ' + d(r.due_date) : '') + '</span></div>'
+          + '<div class="rq-t">' + esc(r.title) + '</div><div class="muted small">' + esc(r.object || '') + (r.kind ? ' · ' + esc(r.kind) : '') + '</div></button>';
+      }).join('') : '<div class="card empty">' + (S.tab === 'open' ? 'Текущих заявок нет. Что-то случилось — нажмите «Новая заявка».' : 'Закрытых заявок пока нет.') + '</div>');
+  document.querySelectorAll('[data-tab]').forEach(function(b) { b.onclick = function() { S.tab = b.getAttribute('data-tab'); render(); }; });
+  document.querySelectorAll('[data-open]').forEach(function(b) { b.onclick = function() { S.open = Number(b.getAttribute('data-open')); render(); window.scrollTo(0, 0); }; });
+  $('#new').onclick = function() { S.view = 'new'; render(); };
+}
+
+// ---------- одна заявка ----------
+function renderOne(r) {
+  var s = ST[r.status] || [r.status, ''];
+  var h = '<button class="link back" id="back">← Все заявки</button><div class="card"><div class="row"><span class="pill ' + s[1] + '">' + s[0] + '</span>' + (r.waitingYou ? '<span class="pill you">Нужен ваш ответ</span>' : '') + '<span class="muted small">№' + r.id + '</span></div>'
+    + '<h1 style="margin-top:8px;">' + esc(r.title) + '</h1><div class="muted small">' + esc(r.object || '') + (r.kind ? ' · ' + esc(r.kind) : '') + ' · подана ' + dt(r.createdAt)
+    + (r.due_date && OPEN.indexOf(r.status) !== -1 ? ' · срок ' + d(r.due_date) : '') + (r.manager ? ' · управляющий ' + esc(r.manager) : '') + '</div>'
+    + (r.description ? '<div class="box">' + esc(r.description) + '</div>' : '')
+    + (r.result && (r.status === 'done' || r.status === 'closed' || r.status === 'cancelled') ? '<div class="box"><b>' + (r.status === 'cancelled' ? 'Отменена' : 'Что сделано') + ':</b> ' + esc(r.result) + '</div>' : '')
+    + (r.rating ? '<div class="muted small">Ваша оценка: ' + '★'.repeat(r.rating) + '</div>' : '');
+  if (r.acts.indexOf('accept') !== -1) h += '<div class="box" style="white-space:normal;"><b>Проверьте работу.</b> Всё в порядке — примите и оцените; если нет — верните с пояснением.'
+    + '<div class="stars" id="stars">' + [1, 2, 3, 4, 5].map(function(n) { return '<button data-star="' + n + '" aria-label="' + n + ' из 5">★</button>'; }).join('') + '</div>'
+    + '<textarea id="note" placeholder="Комментарий (необязательно, а при возврате — обязательно)"></textarea><div class="err" id="err2"></div>'
+    + '<div class="row" style="margin-top:8px;"><button class="btn ok" id="acc">Принять работу</button><button class="btn warn" id="reo">Не принимаю — вернуть</button></div></div>';
+  h += '<h2 style="margin-top:18px;">Переписка</h2>' + (r.events.length ? r.events.map(function(e) {
+      return '<div class="ev' + (e.mine ? ' mine' : '') + '"><div class="ev-h">' + (e.mine ? 'Вы' : esc(e.who || 'Управляющий')) + ' · ' + dt(e.at) + '</div><div class="ev-t">' + esc(e.text) + '</div></div>';
+    }).join('') : '<div class="muted small">Сообщений пока нет.</div>');
+  if (r.acts.indexOf('comment') !== -1) h += '<label for="msg">Написать управляющему</label><textarea id="msg"></textarea><div class="err" id="err"></div><button class="btn pri" id="send" style="margin-top:8px;">Отправить</button>';
+  $('#app').innerHTML = h + '</div>';
+  $('#back').onclick = function() { S.open = null; render(); };
+  var stars = 0;
+  document.querySelectorAll('[data-star]').forEach(function(b) {
+    b.onclick = function() { stars = Number(b.getAttribute('data-star')); document.querySelectorAll('[data-star]').forEach(function(x) { x.classList.toggle('on', Number(x.getAttribute('data-star')) <= stars); }); };
+  });
+  function act(a, body, btn, errEl) {
+    btn.disabled = true; errEl.textContent = '';
+    api('/act', Object.assign({ id: r.id, a: a }, body)).then(load).catch(function(e) { errEl.textContent = e.message; btn.disabled = false; });
+  }
+  if ($('#acc')) {
+    $('#acc').onclick = function() { act('accept', { rating: stars || null, v: $('#note').value }, this, $('#err2')); };
+    $('#reo').onclick = function() { if (!$('#note').value.trim()) { $('#err2').textContent = 'Напишите, что не так'; $('#note').focus(); return; } act('reopen', { v: $('#note').value }, this, $('#err2')); };
+  }
+  if ($('#send')) $('#send').onclick = function() { if ($('#msg').value.trim()) act('comment', { v: $('#msg').value }, this, $('#err')); };
+}
+
+// ---------- новая заявка ----------
+function renderNew() {
+  var me = S.me, cons = me.contracts;
+  $('#app').innerHTML = '<button class="link back" id="back">← Все заявки</button><div class="card"><h1>Новая заявка</h1>'
+    + (cons.length > 1 ? '<label for="c">Помещение (договор)</label><select id="c">' + cons.map(function(c) { return '<option value="' + c.id + '">' + esc(c.object || '') + ' — договор № ' + esc(c.number || c.id) + '</option>'; }).join('') + '</select>'
+      : '<p class="muted small">' + esc(cons[0].object || '') + ' — договор № ' + esc(cons[0].number || cons[0].id) + '</p>')
+    + '<label for="k">Что случилось</label><select id="k"><option value="">Выберите</option>' + me.kinds.map(function(k) { return '<option>' + esc(k) + '</option>'; }).join('') + '</select>'
+    + '<label for="t">Коротко</label><input id="t" maxlength="250" placeholder="Например: не работает свет в коридоре">'
+    + '<label for="ds">Подробнее (необязательно)</label><textarea id="ds" placeholder="Где именно, с какого времени, что уже пробовали"></textarea>'
+    + '<label>Срочность</label><div class="urg">' + me.urgency.map(function(u, n) {
+        var hint = { normal: 'решим в течение нескольких рабочих дней', urgent: 'мешает работать — займёмся в течение рабочего дня', emergency: 'протечка, нет света или тепла, угроза людям или имуществу' }[u.k] || '';
+        return '<label><input type="radio" name="u" value="' + u.k + '"' + (n === 0 ? ' checked' : '') + '><span>' + esc(u.l) + '<small>' + hint + '</small></span></label>';
+      }).join('') + '</div>'
+    + '<label for="cn">Контактное лицо</label><input id="cn" autocomplete="name"><label for="cp">Телефон для связи</label><input id="cp" type="tel" autocomplete="tel">'
+    + '<div class="err" id="err"></div><div class="row" style="margin-top:10px;"><button class="btn pri" id="go">Отправить заявку</button><button class="btn" id="cancel">Отмена</button></div>'
+    + '<p class="muted small">При аварии, кроме заявки, позвоните управляющему.</p></div>';
+  var back = function() { S.view = 'list'; render(); };
+  $('#back').onclick = back; $('#cancel').onclick = back;
+  $('#go').onclick = function() {
+    var b = this; b.disabled = true; $('#err').textContent = '';
+    var u = document.querySelector('input[name=u]:checked');
+    api('/create', { contract_id: $('#c') ? Number($('#c').value) : cons[0].id, kind: $('#k').value, title: $('#t').value, description: $('#ds').value, urgency: u ? u.value : 'normal', contact_name: $('#cn').value, contact_phone: $('#cp').value })
+      .then(function(j) { S.view = 'list'; S.open = j.id; return load(); })
+      .catch(function(e) { $('#err').textContent = e.message; b.disabled = false; var f = { kind: '#k', title: '#t' }[e.field]; if (f) $(f).focus(); });
+  };
+}
+
+// ---------- старт ----------
+$('#out').onclick = function() { setTok(''); S.me = null; S.open = null; S.view = 'list'; login('email'); };
+var m = location.hash.match(/[#&]t=([\w.-]+)/);
+if (m) { setTok(m[1]); history.replaceState(null, '', location.pathname); }   // личная ссылка: запомнить и убрать из адресной строки
+if (tok()) load(); else login('email');
+setInterval(function() { if (S.me && document.visibilityState === 'visible' && S.view === 'list' && !document.activeElement.matches('textarea, input')) load(); }, 60000);
+</script>
+</body>
+</html>

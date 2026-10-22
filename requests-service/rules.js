@@ -55,6 +55,7 @@ function actions(ctx) {
   if (open && x.boss) a.push('due', 'assign', 'cancel');
   else if (open && x.resp) ['due', 'assign', 'cancel'].forEach(function(k) { if (ask(k)) a.push('ask_' + k); });
   if ((ctx.pending || []).some(function(p) { return p.status === 'pending' && Number(p.author_id) !== Number(ctx.me); }) && (ctx.isAdmin || ctx.isCtl) && !x.resp) a.push('decide');
+  if (r.accept_mode === 'tenant' && (open || st === 'done') && (x.resp || x.boss || x.dept)) a.push('reply');   // ответ арендатору — виден на портале
   a.push('comment');
   return a;
 }
@@ -162,6 +163,11 @@ function apply(ctx, a, inp, cfg, now, ap) {
     else out.events.push(['ask', 'Отказано: ' + askText(ap.kind, ap.payload || {}, ctx) + ' — ' + v]);
     out.notify.push([ap.author_id, (yes ? 'Одобрено: ' : 'Отказано: ') + askText(ap.kind, ap.payload || {}, ctx) + (v ? ' — ' + v : '')]);
   }
+  if (a === 'reply') {
+    if (!v) return { err: 'Напишите ответ арендатору', field: 1 };
+    out.events.push(['comment', v, inp && inp.file_id ? Number(inp.file_id) : null, 'public']);
+    out.mailTenant = v;
+  }
   if (a === 'comment') {
     if (!v && !(inp && inp.file_id)) return { err: 'Напишите сообщение', field: 1 };
     out.events.push(['comment', v, inp && inp.file_id ? Number(inp.file_id) : null]);
@@ -183,4 +189,63 @@ function change(r, kind, p, reason, note, nowIso) {
     events: [['status', 'Отменена: ' + reason + extra]], notify: [[r.responsible_id, 'Отменена: ' + r.title]] };
 }
 
-module.exports = { OPEN, SOURCES, TENANT_WAIT, DEF, addWorkDays, actions, create, apply, role };
+// ---------- портал арендатора ----------
+// t: { contracts: [id договоров], email, name } — кто вошёл (по коду на почту из договора или по личной ссылке).
+// Арендатор видит заявки своих договоров, которые принимает он сам (accept_mode = tenant), — свои с портала и записанные со звонка.
+// Его события — видимость public (их показывает портал); внутренняя переписка сотрудников ему не видна.
+function tenantSees(t, r) { return !!r && r.accept_mode === 'tenant' && (t.contracts || []).indexOf(Number(r.contract_id)) !== -1; }
+function tenantActions(t, r) {
+  if (!tenantSees(t, r)) return [];
+  if (r.status === 'done') return ['accept', 'reopen', 'comment'];
+  return OPEN.indexOf(r.status) !== -1 ? ['comment'] : [];
+}
+// contract — договор (rental_contracts), obj — его объект (contract_objects), kinds — допустимые типы
+function tenantCreate(t, input, contract, obj, kinds, cfg, now) {
+  const v = input || {};
+  if (!contract || (t.contracts || []).indexOf(Number(contract.id)) === -1) return { err: 'Выберите договор', field: 'contract_id' };
+  if (!v.kind || (kinds || []).indexOf(v.kind) === -1) return { err: 'Выберите, что случилось', field: 'kind' };
+  if (!String(v.title || '').trim()) return { err: 'Коротко опишите проблему', field: 'title' };
+  const k = DEF.urgency[v.urgency] ? v.urgency : 'normal', u = urg(cfg, k);
+  const resp = Number(obj && obj.manager_user_id) || Number(obj && obj.senior_user_id) || null;
+  const values = {
+    object_name: contract.object_name, contract_id: Number(contract.id), tenant_label: contract.tenant_name || null, kind: v.kind, urgency: k,
+    title: String(v.title).trim().slice(0, 250), description: String(v.description || '').trim().slice(0, 5000), status: 'new', source: 'portal',
+    responsible_id: resp, author_id: null, accept_mode: 'tenant', accept_user_id: null,
+    due_date: addWorkDays(now, u.d), react_due_at: new Date(now.getTime() + u.r * 3600e3).toISOString(), due_moved: 0, reopen_count: 0,
+    contact_name: String(v.contact_name || '').trim().slice(0, 200) || null, contact_email: t.email || String(v.contact_email || '').trim().slice(0, 200) || null,
+    contact_phone: String(v.contact_phone || '').trim().slice(0, 50) || null
+  };
+  const head = (k === 'emergency' ? 'АВАРИЯ с портала: ' : k === 'urgent' ? 'Срочно, с портала: ' : 'Заявка с портала: ') + values.title;
+  const notify = resp ? [[resp, head + ' (срок ' + ru(values.due_date) + ')']] : [];
+  if (k === 'emergency' && obj && obj.senior_user_id && Number(obj.senior_user_id) !== resp) notify.push([obj.senior_user_id, head]);
+  return { values: values, event: 'Заявка подана арендатором на портале · срок ' + ru(values.due_date) + ' по срочности «' + u.l + '»' + (resp ? '' : ' · у объекта нет управляющего с учёткой'),
+    notify: notify, notifyCtl: resp ? null : head + ' — некому назначить, назначьте ответственного' };
+}
+// in: { v, rating } ; результат как у apply: { err } | { upd, events: [[kind, text, file, visibility]], notify }
+function tenantApply(t, r, a, inp, now) {
+  if (tenantActions(t, r).indexOf(a) === -1) return { err: 'Это действие недоступно', code: 403 };
+  const v = String((inp && inp.v) || '').trim().slice(0, 5000);   // автор событий арендатора — пустой (author_id null, видимость public)
+  const out = { upd: null, events: [], notify: [] }, resp = r.responsible_id;
+  if (a === 'comment') {
+    if (!v) return { err: 'Напишите сообщение', field: 1 };
+    out.events.push(['comment', v, null, 'public']);
+    out.notify.push([resp, 'Арендатор пишет: ' + v.slice(0, 200)]);
+  }
+  if (a === 'accept') {
+    const rating = Math.round(Number(inp && inp.rating));
+    out.upd = { status: 'closed', closed_at: now.toISOString() };
+    if (rating >= 1 && rating <= 5) { out.upd.rating = rating; out.upd.rating_note = v || null; }
+    out.events.push(['status', 'Работа принята, заявка закрыта' + (out.upd.rating ? ' · оценка ' + rating + ' из 5' : '') + (v ? ': ' + v : ''), null, 'public']);
+    out.notify.push([resp, 'Арендатор принял работу' + (out.upd.rating ? ', оценка ' + rating + ' из 5' : '') + ': ' + r.title]);
+  }
+  if (a === 'reopen') {
+    if (!v) return { err: 'Напишите, что не так', field: 1 };
+    out.upd = { status: 'in_work', done_at: null, reopen_count: (Number(r.reopen_count) || 0) + 1 };
+    out.events.push(['status', 'Работа не принята, возвращена в работу: ' + v, null, 'public']);
+    out.notify.push([resp, 'Арендатор вернул в работу: ' + v.slice(0, 200)]);
+  }
+  out.notify = out.notify.filter(function(n) { return n[0]; });
+  return out;
+}
+
+module.exports = { OPEN, SOURCES, TENANT_WAIT, DEF, addWorkDays, actions, create, apply, role, tenantSees, tenantActions, tenantCreate, tenantApply };

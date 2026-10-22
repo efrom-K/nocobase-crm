@@ -212,7 +212,8 @@ function crmXlsx(fileName, spec) {
 // прочитать первый лист .xlsx (загрузка из 1С и т. п.): массив строк, строка — массив значений по колонкам (A = 0), пустые — ''.
 // zip разбирается по центральному каталогу, сжатые части — встроенным DecompressionStream('deflate-raw'), без библиотек.
 async function crmXlsxRead(file) {
-  const b = new Uint8Array(await file.arrayBuffer()), v = new DataView(b.buffer), utf = new TextDecoder();
+  const W = document.defaultView;   // в песочнице JS-блока NocoBase нет TextDecoder/DOMParser/DecompressionStream — берём у окна страницы
+  const b = new Uint8Array(await file.arrayBuffer()), v = new DataView(b.buffer), utf = new W.TextDecoder();
   let eo = b.length - 22;
   while (eo >= 0 && v.getUint32(eo, true) !== 0x06054b50) eo--;
   if (eo < 0) throw new Error('Это не файл Excel (.xlsx)');
@@ -226,9 +227,9 @@ async function crmXlsxRead(file) {
     const f = files[name]; if (!f) return '';
     const raw = b.subarray(f.at, f.at + f.size);
     if (f.method === 0) return utf.decode(raw);
-    return await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+    return await new W.Response(new W.Blob([raw]).stream().pipeThrough(new W.DecompressionStream('deflate-raw'))).text();
   };
-  const xml = function(s) { return new DOMParser().parseFromString(s, 'application/xml'); };
+  const xml = function(s) { return new W.DOMParser().parseFromString(s, 'application/xml'); };
   const all = function(d, tag) { return Array.prototype.slice.call(d.getElementsByTagNameNS('*', tag)); };
   const ss = all(xml(await text('xl/sharedStrings.xml')), 'si').map(function(x) { return x.textContent; });
   const sheet = Object.keys(files).filter(function(n) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(n); }).sort(function(a, c) { return parseInt(a.slice(19), 10) - parseInt(c.slice(19), 10); })[0];

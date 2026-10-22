@@ -5,9 +5,11 @@
   fields    — новые поля заявки и переписки, коллекция request_approvals (запросы на перенос/передачу/отмену);
   roles     — роль «Контроль заявок» (Коледа, операционный директор), роль и учётка сервиса (пароль печатается один раз);
   managers  — проставить объектам управляющего и старшего с учёткой по имени из Pyrus (только пустые, печатает что сделал);
-  lock      — ролям сотрудников на заявки только чтение (включать ПОСЛЕ выкладки блока, который пишет через сервис).
+  lock      — ролям сотрудников на заявки только чтение (включать ПОСЛЕ выкладки блока, который пишет через сервис);
+  access    — (22.10) страница «Объекты» в меню всех ролей сотрудников (что видно — решает блок по человеку);
+              управляющего объекта меняет только сервис (по решению контролёра/админа), роли сотрудников — без этих полей.
 
-    NB_URL=http://<сервер>:13000 NB_TOKEN=<токен root> python3 setup_requests_v2.py fields roles managers [lock]
+    NB_URL=http://<сервер>:13000 NB_TOKEN=<токен root> python3 setup_requests_v2.py fields roles managers [lock] [access]
 """
 import json, os, secrets, sys, urllib.parse, urllib.request, urllib.error
 
@@ -31,9 +33,9 @@ TS = {'object_requests': ['createdAt', 'updatedAt'], 'request_events': ['created
 def fields_of(c):   # все поля коллекции: в этой версии NocoBase пустой список полей у действия роли = никаких полей
     if c not in _fields: _fields[c] = [f['name'] for f in rows('collections/%s/fields:list?paginate=false' % c)] + ['id'] + TS.get(c, [])
     return sorted(set(_fields[c]))
-def grant(role, c, acts):   # права роли на коллекцию: старые записи этой роли на эту коллекцию заменяются
+def grant(role, c, acts, skip=()):   # права роли на коллекцию: старые записи этой роли на эту коллекцию заменяются; skip — поля, которые роль не меняет
     for x in rows('roles/%s/resources:list?paginate=false&filter=%s' % (role, J({'name': c}))): call('roles/%s/resources:destroy?filterByTk=%s' % (role, x['id']), {})
-    fl = fields_of(c)
+    fl = [f for f in fields_of(c) if f not in skip]
     return ok(call('roles/%s/resources:create' % role, {'name': c, 'usingActionsConfig': True, 'actions': [{'name': a, 'fields': fl if a in ('view', 'create', 'update') else []} for a in acts]}))
 
 def F(name, typ, iface, title, comp='Input'):
@@ -99,3 +101,12 @@ if 'lock' in STEPS:
         for c in REQ_COLLS:
             print('view-only', role, c, grant(role, c, ['view']))
         print('no access', role, 'request_notifications', grant(role, 'request_notifications', []))
+
+STAFF_ROLES = ('crm_test', 'rental_dept', 'legal_dept', 'accounting_dept', 'hr', 'aho', 'requests_control')
+if 'access' in STEPS:
+    page = rows('desktopRoutes:list?paginate=false&filter=' + J({'schemaUid': 'j3a32zo1jzo'}))
+    ids = [r['id'] for r in page] + [r['id'] for r in rows('desktopRoutes:list?paginate=false&filter=' + J({'parentId': page[0]['id']}))]
+    for role in STAFF_ROLES: print('menu «Объекты»', role, ok(call('roles/%s/desktopRoutes:add' % role, ids)))
+    # общая стратегия этих ролей давала менять любые поля объекта, в т.ч. управляющего, а на нём KPI; создавать и удалять объекты им не нужно
+    for role in STAFF_ROLES: print('contract_objects', role, grant(role, 'contract_objects', ['view', 'update'], skip=('manager_user_id', 'senior_user_id', 'manager_name', 'senior_name')))
+    print('contract_objects requests_service', grant('requests_service', 'contract_objects', ['view', 'update']))

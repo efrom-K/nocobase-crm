@@ -3,6 +3,7 @@
 //   GET  /acts            — что текущему пользователю можно по каждой открытой заявке + запросы на решение
 //   POST /create {...}    — новая заявка (срок и ответственный — по правилам)
 //   POST /act {id, a,...} — действие по заявке
+//   POST /object-person {id, field, user_id} — управляющий / старший управляющий объекта (на нём строится KPI, поэтому только контролёр и админ)
 'use strict';
 const http = require('http');
 const R = require('./rules');
@@ -144,6 +145,15 @@ async function act(user, body) {
   return { ok: true };
 }
 
+async function objectPerson(user, body) {
+  if (!user.isAdmin && !user.isCtl) throw new ApiError(403, 'Назначать управляющих может только руководитель');
+  if (['manager_user_id', 'senior_user_id'].indexOf(body.field) === -1) throw new ApiError(400, 'Неверный запрос');
+  const v = {}; v[body.field] = Number(body.user_id) || null;
+  await nb('POST', 'contract_objects:update?filterByTk=' + Number(body.id), v);
+  console.log('object-person', body.id, body.field, v[body.field], 'by', user.id);
+  return { ok: true };
+}
+
 // ---------- HTTP ----------
 function cors(origin) {
   if (!origin || !ORIGINS.includes(origin)) return {};
@@ -172,6 +182,7 @@ http.createServer(async (req, res) => {
     if (p === '/acts' && req.method === 'GET') return send(res, 200, await acts(user), origin);
     if (p === '/create' && req.method === 'POST') return send(res, 200, await create(user, await readJson(req)), origin);
     if (p === '/act' && req.method === 'POST') return send(res, 200, await act(user, await readJson(req)), origin);
+    if (p === '/object-person' && req.method === 'POST') return send(res, 200, await objectPerson(user, await readJson(req)), origin);
     throw new ApiError(404, 'Нет такого адреса');
   } catch (e) {
     if (!(e instanceof ApiError)) console.error(e);

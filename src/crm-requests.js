@@ -210,7 +210,7 @@ if (!document.getElementById('crm-req-style')) {
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
-const RQ_PAGE = '/admin/j3a32zo1jzo';   // «Тестовая страница» — тестовый контур CRM
+const RQ_PAGE = '/admin/j3a32zo1jzo';   // страница «Объекты», вкладка «Заявки»
 const RQ_ST = cfg('requests.status');
 const RQ_OPEN = ['new', 'in_work', 'waiting', 'dept'];
 const RQ_URG = cfg('requests.urgency');
@@ -271,6 +271,14 @@ async function rqLoad() {
   rq.data = { reqs: rqRows(all[0]), users: users, objects: rqRows(all[2]), contracts: rqRows(all[3]), acts: all[4].acts || {}, pending: all[4].pending || [], svcDown: !!all[4].down,
     depts: rqRows(all[5]).map(function(d) { return d.name; }).filter(function(n) { return n && n !== 'Руководство компании'; }) };
   rq.me.__isCtl = !!(all[4].me && all[4].me.isCtl); rq.me.__depts = (all[4].me && all[4].me.depts) || [];
+  if (!rqIsBoss()) {   // управляющий — заявки своих объектов, остальные — свои и своего отдела; контролёр и админ — все
+    // ponytail: фильтр только на странице, читать заявки через API могут все роли — ограничить правами роли, если заявки станут закрытыми
+    const me = Number(rq.me.id), mine = {};
+    rq.data.objects.forEach(function(o) { if (Number(o.manager_user_id) === me || Number(o.senior_user_id) === me) mine[o.name] = 1; });
+    rq.data.reqs = rq.data.reqs.filter(function(r) {
+      return mine[r.object_name] || [r.responsible_id, r.author_id, r.accept_user_id, r.dept_user_id].some(function(x) { return Number(x) === me; }) || (r.dept && rq.me.__depts.indexOf(r.dept) !== -1);
+    });
+  }
 }
 function rqIsBoss() { return rqIsAdmin() || !!(rq.me && rq.me.__isCtl); }
 function rqPending(r) { return rq.data.pending.filter(function(p) { return Number(p.request_id) === r.id && p.status === 'pending'; }); }
@@ -313,12 +321,13 @@ rqRoot().addEventListener('input', function(e) { if (e.target.getAttribute('data
 rqStart();
 
 function rqRender() {
-  const tabs = [['list', 'Заявки'], ['stats', 'Статистика']].concat(rqIsAdmin() ? [['objects', 'Управляющие объектов']] : []);
+  const tabs = [['list', 'Заявки'], ['stats', 'Статистика']].concat(rqIsBoss() ? [['kpi', 'KPI управляющих'], ['objects', 'Управляющие объектов']] : []);
   rqRoot().innerHTML = '<div class="rq-head"><div class="rq-title">Заявки по объектам</div>' + crmSettingsGear('Заявки') + '<div class="rq-tabs">'
     + tabs.map(function(t) { return '<button class="rq-tab' + (rq.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('')
     + '</div>' + (rq.data && rq.data.svcDown ? '<div class="rq-hint" style="color:#cf1322;font-weight:600;">Сервис заявок недоступен — заявки видны, но менять их сейчас нельзя</div>' : '') + '<button class="rq-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Новая заявка</button></div><div id="rq-body"></div>';
   if (rq.tab === 'list') rqRenderListShell();
   else if (rq.tab === 'stats') rqRenderStats();
+  else if (rq.tab === 'kpi') rqRenderKpi();
   else rqRenderObjects();
 }
 
@@ -397,8 +406,8 @@ function rqOnClick(e) {
   const sb = c('[data-by]');
   if (sb) { rq.statsBy = sb.getAttribute('data-by'); rqRenderStats(); return; }
   const pr = c('[data-period]');
-  if (pr) { rq.statsDays = Number(pr.getAttribute('data-period')); rqRenderStats(); return; }
-  if (c('[data-act="xlsx"]')) { try { rqExportStats(); } catch (err) { rqToast('Не удалось выгрузить'); } return; }
+  if (pr) { rq.statsDays = Number(pr.getAttribute('data-period')); if (rq.tab === 'kpi') rqRenderKpi(); else rqRenderStats(); return; }
+  if (c('[data-act="xlsx"]')) { try { if (rq.tab === 'kpi') rqExportKpi(); else rqExportStats(); } catch (err) { rqToast('Не удалось выгрузить'); } return; }
   const vw = c('[data-view]');
   if (vw) { rq.view = vw.getAttribute('data-view'); try { localStorage.setItem('crm-req-view', rq.view); } catch (err) { /* не запомним — не страшно */ } rqRenderListShell(); return; }
   const go = c('[data-go]');
@@ -944,6 +953,86 @@ function rqExportStats() {
   });
 }
 
+// ---------- KPI управляющих (видят контролёры и админы) ----------
+// Считается по ответственному: он отвечает за реакцию и срок. Демо-заявки не считаются. Период — как в статистике;
+// «открыто / просрочено» — на сегодня. Те же цифры выгружает Excel.
+const RQ_KPI_COLS = [['open', 'Открыто', 'Открытые заявки сейчас'], ['late', 'Просрочено', 'Открытые с прошедшим сроком сейчас'],
+  ['got', 'Поступило', 'Заявки, созданные за период'], ['react', 'Реакция в срок, %', 'Взял в работу до срока реакции (по срочности); не взятые с прошедшим сроком реакции — тоже мимо'],
+  ['done', 'Выполнено', 'Решены за период'], ['ontime', 'В срок, %', 'Решены не позже срока'], ['med', 'Медиана, дн.', 'Медиана дней от создания до решения'],
+  ['reopen', 'Возвраты', 'Сколько раз работу, решённую за период, не приняли и вернули'], ['asks', 'Запросы', 'Запросы на перенос срока, передачу и отмену за период'],
+  ['asksOk', 'Одобрено', 'Из запросов одобрено руководителем'], ['esc', 'Эскалации', 'Эскалации старшему за период'], ['rating', 'Оценка', 'Средняя оценка арендатора за период']];
+function rqKpi() {
+  const days = rq.statsDays, d0 = new Date(); d0.setDate(d0.getDate() - days);
+  const from = days ? rqIso(d0) : '0000', nowIso = new Date().toISOString();
+  const inP = function(v) { return !!v && String(v).slice(0, 10) >= from; };
+  const g = {};
+  const row = function(id) { return g[id] = g[id] || { k: String(id), label: rqUser(Number(id)), l: [], ap: [] }; };
+  rq.data.reqs.forEach(function(r) { if (r.responsible_id && !r.demo) row(r.responsible_id).l.push(r); });
+  (rq.data.approvals || []).forEach(function(p) { if (p.author_id && inP(p.createdAt)) row(p.author_id).ap.push(p); });
+  function m(x) {
+    const l = x.l, open = l.filter(function(r) { return RQ_OPEN.indexOf(r.status) !== -1; }), got = l.filter(function(r) { return inP(r.createdAt); });
+    let rOk = 0, rBad = 0;
+    got.forEach(function(r) {
+      if (!r.react_due_at) return;
+      if (r.taken_at) { if (r.taken_at <= r.react_due_at) rOk++; else rBad++; }
+      else if (r.status === 'new' && r.react_due_at < nowIso) rBad++;
+    });
+    const done = l.filter(function(r) { return inP(r.done_at); });
+    const rated = done.filter(function(r) { return Number(r.rating) > 0; });
+    return Object.assign(x, { open: open.length, late: open.filter(rqLate).length, got: got.length,
+      react: rOk + rBad ? Math.round(100 * rOk / (rOk + rBad)) : null, done: done.length,
+      ontime: done.length ? Math.round(100 * done.filter(function(r) { return !r.due_date || String(r.done_at).slice(0, 10) <= String(r.due_date).slice(0, 10); }).length / done.length) : null,
+      med: rqMedian(done.map(function(r) { return rqDays(String(r.createdAt).slice(0, 10), String(r.done_at).slice(0, 10)); })),
+      reopen: done.reduce(function(n, r) { return n + (Number(r.reopen_count) || 0); }, 0),
+      asks: x.ap.length, asksOk: x.ap.filter(function(p) { return p.status === 'approved'; }).length,
+      askKinds: ['due', 'assign', 'cancel'].map(function(k) { return x.ap.filter(function(p) { return p.kind === k; }).length; }),
+      esc: l.filter(function(r) { return inP(r.escalated_at); }).length,
+      rating: rated.length ? Math.round(10 * rated.reduce(function(n, r) { return n + Number(r.rating); }, 0) / rated.length) / 10 : null });
+  }
+  return Object.keys(g).map(function(k) { return m(g[k]); })
+    .sort(function(a, b) { return b.late - a.late || (a.ontime === null) - (b.ontime === null) || (a.ontime || 0) - (b.ontime || 0) || a.label.localeCompare(b.label, 'ru'); });
+}
+function rqKpiCell(x, k) {
+  const v = k === 'med' ? (x.med === null ? null : Math.round(x.med * 10) / 10) : x[k];
+  if (v === null || v === undefined) return '<span class="st-mute">—</span>';
+  if (k === 'late') return v ? '<span class="st-bad">' + v + '</span>' : '<span class="st-mute">0</span>';
+  if (k === 'react' || k === 'ontime') return '<span class="' + (v >= 80 ? 'st-ok' : v >= 50 ? 'st-warn' : 'st-badt') + '">' + v + '%</span>';
+  if (k === 'asks' && v) return '<span title="перенос ' + x.askKinds[0] + ', передача ' + x.askKinds[1] + ', отмена ' + x.askKinds[2] + '">' + v + '</span>';
+  if ((k === 'reopen' || k === 'esc') && v) return '<span class="st-badt">' + v + '</span>';
+  return v === 0 ? '<span class="st-mute">0</span>' : v;
+}
+async function rqRenderKpi() {
+  const body = document.getElementById('rq-body');
+  if (!rq.data.approvals) {
+    body.innerHTML = '<div class="rq-empty">Считаю…</div>';
+    try { rq.data.approvals = rqRows(await ctx.api.resource('request_approvals').list({ fields: ['author_id', 'kind', 'status', 'createdAt'], paginate: false })); }
+    catch (e) { rq.data.approvals = []; }
+    if (rq.tab !== 'kpi') return;
+  }
+  const rows = rqKpi(), per = (RQ_PERIODS.find(function(p) { return p[0] === rq.statsDays; }) || [0, ''])[1];
+  body.innerHTML = '<div class="st">'
+    + '<div class="st-bar"><span class="st-lbl">Период</span><div class="rq-view">' + RQ_PERIODS.map(function(p) { return '<button data-period="' + p[0] + '"' + (rq.statsDays === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'
+    + '<button class="rq-btn" data-act="xlsx" style="margin-left:auto;">⬇ Выгрузить в Excel</button></div>'
+    + '<div class="st-card"><div class="st-ch"><div class="st-ct">KPI по ответственным</div><span class="st-hint">открыто и просрочено — на ' + rqDate(rqToday()) + '; остальное — за ' + per + '. Наведите на заголовок — что считается. Клик по строке — его заявки</span></div>'
+    + (rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th class="st-name">Ответственный</th>'
+      + RQ_KPI_COLS.map(function(c, n) { return '<th class="n' + (n === 2 || n === 8 ? ' st-sep' : '') + '" title="' + rqEsc(c[2]) + '">' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>'
+      + rows.map(function(x) {
+          return '<tr class="st-link" data-go="' + rqEsc(JSON.stringify({ resp: x.k, quick: 'all' })) + '"><td class="st-name">' + rqEsc(x.label) + '</td>'
+            + RQ_KPI_COLS.map(function(c, n) { return '<td class="n' + (n === 2 || n === 8 ? ' st-sep' : '') + '">' + rqKpiCell(x, c[0]) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>' : '<div class="rq-empty">Данных пока нет</div>')
+    + '</div></div>';
+}
+function rqExportKpi() {
+  const rows = rqKpi(), per = (RQ_PERIODS.find(function(p) { return p[0] === rq.statsDays; }) || [0, ''])[1];
+  const T = { react: 'pct', ontime: 'pct', med: 'days', rating: 'num' };
+  crmXlsx('Заявки — KPI управляющих', {
+    title: 'Заявки по объектам — KPI управляющих', filters: [['Период', per]], notes: RQ_KPI_COLS.map(function(c) { return [c[1], c[2]]; }),
+    sheets: [{ name: 'KPI', title: 'KPI управляющих за период: ' + per, freezeCols: 1,
+      cols: [{ h: 'Ответственный', w: 28 }].concat(RQ_KPI_COLS.map(function(c) { return { h: c[1], t: T[c[0]] || 'int' }; }), [{ h: 'Переносов', t: 'int' }, { h: 'Передач', t: 'int' }, { h: 'Отмен', t: 'int' }]),
+      rows: rows.map(function(x) { return [x.label].concat(RQ_KPI_COLS.map(function(c) { return c[0] === 'med' && x.med !== null ? Math.round(x.med * 10) / 10 : x[c[0]]; }), x.askKinds); }) }]
+  });
+}
+
 // ---------- управляющие объектов (кому по умолчанию уходят заявки и кому эскалация) ----------
 function rqRenderObjects() {
   const sel = function(o, f) { return '<select data-objset="' + f + '" data-id="' + o.id + '"><option value="">— нет учётки —</option>' + rqPeopleOptions(o[f]) + '</select>'; };
@@ -957,8 +1046,7 @@ function rqRenderObjects() {
 async function rqSaveObjectPerson(el, field) {
   const id = Number(el.getAttribute('data-id')), val = Number(el.value) || null;
   try {
-    const values = {}; values[field] = val;
-    await ctx.api.resource('contract_objects').update({ filterByTk: id, values: values });
+    await rqSvc('/object-person', { id: id, field: field, user_id: val });   // через сервис: кто управляющий — основа KPI
     const o = rq.data.objects.find(function(x) { return x.id === id; }); if (o) o[field] = val;
     rqToast('Сохранено');
   } catch (e) { rqToast('Не удалось сохранить'); }

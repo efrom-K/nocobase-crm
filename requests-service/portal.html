@@ -88,6 +88,7 @@ function login(step, msg) {
   $('#app').innerHTML = '<div class="card" style="max-width:440px;margin:30px auto;"><h1>Заявки арендатора</h1><p class="muted small">Подать заявку управляющему, следить за ней и принять работу.</p>'
     + (step === 'code'
       ? '<label for="code">Код из письма на ' + esc(S.email) + '</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"><div class="err" id="err">' + esc(msg || '') + '</div><div class="row" style="margin-top:10px;"><button class="btn pri" id="go">Войти</button><button class="link" id="back">Другая почта</button></div>'
+        + '<p class="muted small" style="margin-top:16px;">Код приходит, только если эта почта указана в договоре аренды или в контактах по договору — обычно в течение минуты, проверьте и «Спам». Нет письма — введите другую почту из договора или попросите у управляющего личную ссылку.</p>'
       : '<label for="email">Почта, указанная в договоре аренды</label><input id="email" type="email" autocomplete="email" value="' + esc(S.email) + '"><div class="err" id="err">' + esc(msg || '') + '</div><button class="btn pri" id="go" style="margin-top:10px;">Получить код</button>'
         + '<p class="muted small" style="margin-top:16px;">Пришлём шестизначный код на эту почту. Если управляющий прислал вам личную ссылку — просто откройте её.</p>')
     + '</div>';

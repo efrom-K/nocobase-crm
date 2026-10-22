@@ -1734,9 +1734,15 @@ function hRenderEmp(m, id) {
     }), e)
     + (e.note && HR_MODE === 'hr' ? '<div class="hr-hint" style="white-space:pre-wrap;margin-top:8px;">' + hEsc(e.note) + '</div>' : '');
   // отпуска
-  const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.end_date).slice(0, 4) >= String(y); });
+  // вся история отпусков за время работы — по годам, новые сверху; у каждого года — сколько дней ежегодного использовано
+  const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id; }).sort(function(a, b) { return hD(b.start_date).localeCompare(hD(a.start_date)); });
+  const vacYears = vacs.map(function(v) { return hD(v.start_date).slice(0, 4); }).filter(function(x, i, a) { return a.indexOf(x) === i; });
+  const vacLine = function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; };
   const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + (can ? ' <a data-vdays style="color:#1c2d58;cursor:pointer;margin-left:6px;">✎ изменить норму</a>' : '') + '</div>' : '')
-    + lines(vacs.map(function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; }), 'Отпусков не запланировано')
+    + (vacYears.length ? vacYears.map(function(yy) {
+        return '<div style="margin:10px 0 4px;font-weight:600;font-size:13.5px;">' + yy + ' <span class="hr-hint" style="font-weight:400;">· ежегодного ' + hVacUsed(e, yy) + ' дн.</span></div>'
+          + lines(vacs.filter(function(v) { return hD(v.start_date).slice(0, 4) === yy; }).map(vacLine), '');
+      }).join('') : lines([], 'Отпусков нет'))
     + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button></div>' : '');
   // охрана труда
   const so = hSout(e.sout_id);
@@ -1935,7 +1941,7 @@ function hRenderVac() {
     return grp + '<tr><td class="nm" data-emp="' + e.id + '">' + hEsc(e.full_name) + '</td><td><div class="hr-track"' + (can ? ' data-track="' + e.id + '"' : '') + '>' + bg + bars + now + '</div></td>'
       + '<td class="rest' + (left < 0 ? ' hr-late' : left > 0 && y <= new Date().getFullYear() ? '' : ' hr-ok') + '"' + (can ? ' data-vdays="' + e.id + '" style="cursor:pointer;"' : '') + ' title="осталось из ' + (e.vacation_days || 28) + (can ? ' — нажмите, чтобы изменить норму' : '') + '">' + left + ' <span class="hr-hint">из ' + (e.vacation_days || 28) + '</span></td></tr>';
   }).join('');
-  hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1">‹</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">›</button>'
+  hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1" title="Отпуска прошлого года">‹ ' + (y - 1) + '</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">' + (y + 1) + ' ›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
       + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — оформление «—» (приказа пока нет)</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
     + (can ? '<button class="hr-btn" data-act="vac1c" style="margin-left:auto;margin-right:8px;" title="Отчёт 1С «Отпуска сотрудников», сохранённый в Excel">⬆ Загрузить из 1С</button>' : '')

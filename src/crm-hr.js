@@ -314,6 +314,7 @@ if (!document.getElementById('crm-hr-style')) {
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
+// @include src/_crm-live.js
 const HR_TASKS_PAGE = '/admin/tskpage01';
 // дашборд HR — вкладка «Кадры» на «Главной» (блок crmblock007); старая страница /admin/hrdash01 (crmblock004) открывается для ссылок из старых уведомлений
 const HR_STAFF_PAGE = '/admin/hrpage01', HR_DASH_PAGE = '/admin/dashpage01/tab/hometabhr01';
@@ -917,6 +918,7 @@ async function hStart() {
     hr.tab = HR_MODE === 'hr' ? 'home' : 'staff';
     if (HR_MODE === 'hr') hr.staffView = 'table';
     hRender();
+    hLive = crmLive('hr-' + HR_MODE, ['crm_candidates', 'crm_vacations', 'crm_employees'], hReload, hRoot);
     const sc = HR_OWN_URL && location.search.match(/[?&]sec=(\w+)/);
     if (sc && HR_MODE === 'hr' && HR_SECTIONS[sc[1]]) { hr.tab = sc[1]; hRender(); try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
     const m = HR_OWN_URL && location.search.match(/[?&]open=emp:(\d+)/);
@@ -928,7 +930,8 @@ async function hStart() {
     hRoot().innerHTML = '<div class="hr-empty" style="color:#cf1322;">Не удалось загрузить данные. Обновите страницу.</div>';
   }
 }
-async function hReload() { await hLoad(); hRender(); }
+let hLive = function() {};   // crmLive: отметить своё изменение, чтобы блок не перерисовался второй раз
+async function hReload() { await hLoad(); hRender(); hLive(); }
 hRoot().addEventListener('click', hOnClick);
 hRoot().addEventListener('change', hOnChange);
 hRoot().addEventListener('input', function(e) {

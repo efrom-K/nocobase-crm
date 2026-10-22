@@ -211,6 +211,7 @@ if (!document.getElementById('crm-req-style')) {
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
+// @include src/_crm-live.js
 const RQ_PAGE = '/admin/j3a32zo1jzo';   // страница «Объекты», вкладка «Заявки»
 const RQ_ST = cfg('requests.status');
 const RQ_OPEN = ['new', 'in_work', 'waiting', 'dept'];
@@ -309,13 +310,15 @@ async function rqStart() {
     rq.me = await rqMe();
     await rqLoad();
     rqRender();
+    rqLive = crmLive('requests', ['object_requests'], rqReload, rqRoot);
     const m = location.search.match(/[?&]open=req:(\d+)/);
     if (m) { rqOpenCard(Number(m[1])); try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
   } catch (e) {
     rqRoot().innerHTML = '<div class="rq-empty" style="color:#cf1322;">Не удалось загрузить заявки</div>';
   }
 }
-async function rqReload() { await rqLoad(); rqRender(); }
+let rqLive = function() {};   // crmLive: отметить своё изменение, чтобы блок не перерисовался второй раз
+async function rqReload() { await rqLoad(); rqRender(); rqLive(); }
 rqRoot().addEventListener('click', rqOnClick);
 rqRoot().addEventListener('change', rqOnChange);
 rqRoot().addEventListener('input', function(e) { if (e.target.getAttribute('data-f') === 'q') { rq.q = e.target.value; rqRenderList(); } });

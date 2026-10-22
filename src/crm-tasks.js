@@ -245,6 +245,7 @@ if (!document.getElementById('crm-tk-style')) {
 // @include src/_crm-calls.js
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
+// @include src/_crm-live.js
 const TK_PAGE = '/admin/tskpage01';   // «Задачи (тест)»
 const TK_HR_PAGE = '/admin/hrpage01'; // «Персонал (тест)»: сотрудники, структура, кадры
 const TK_ST = cfg('tasks.status');
@@ -415,6 +416,7 @@ async function tkStart() {
     await tkLoad();
     tk.view = TK_VIEWS[0][2](tk.data.tasks).length ? 'mine' : TK_VIEWS[2][2](tk.data.tasks).length ? 'check' : 'open';
     tkRender();
+    tkLive = crmLive('tasks', ['crm_tasks'], tkReload, tkRoot);
     const m = location.search.match(/[?&]open=(task|emp):(\d+)/);
     if (m) {
       if (m[1] === 'task') tkOpenCard(Number(m[2])); else tkOpenEmp(Number(m[2]));
@@ -430,7 +432,8 @@ async function tkStart() {
     tkRoot().innerHTML = '<div class="tk-empty" style="color:#cf1322;">Не удалось загрузить задачи. Обновите страницу.</div>';
   }
 }
-async function tkReload() { await tkLoad(); tkRender(); }
+let tkLive = function() {};   // crmLive: отметить своё изменение, чтобы блок не перерисовался второй раз
+async function tkReload() { await tkLoad(); tkRender(); tkLive(); }
 tkRoot().addEventListener('click', tkOnClick);
 tkRoot().addEventListener('change', tkOnChange);
 tkRoot().addEventListener('input', function(e) {

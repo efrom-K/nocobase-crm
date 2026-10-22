@@ -236,6 +236,7 @@ if (!document.getElementById('crm-aho-style')) {
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-xlsx.js
+// @include src/_crm-live.js
 // дашборд АХО — вкладка «АХО» на «Главной» (блок crmblock008); старая /admin/ahodash01 (crmblock005) открывается для ссылок из старых уведомлений
 const AHO_PAGE = '/admin/dashpage01/tab/hometabaho1', AHO_MAIL_PAGE = '/admin/mailpage01';
 const A_OWN_URL = location.pathname.indexOf('/dashpage01') === -1 || location.pathname.indexOf('hometabaho1') !== -1;   // на «Главной» параметры читает только открытая вкладка
@@ -593,13 +594,15 @@ async function aStart() {
     const sc = A_OWN_URL && location.search.match(/[?&]sec=(\w+)/), op = A_OWN_URL && location.search.match(/[?&]open=(\w+):(\d+)/);
     if (sc && A_SECTIONS[sc[1]]) ah.tab = sc[1];
     aRender();
+    aLive = crmLive('aho', ['crm_aho_expenses', 'crm_aho_routines', 'crm_aho_mail', 'crm_aho_poa'], aReload, aRoot);
     if (op) aGo(JSON.parse('{"' + op[1] + '":' + op[2] + '}'));
     if (sc || op) { try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
   } catch (e) {
     aRoot().innerHTML = '<div class="hr-empty" style="color:#cf1322;">Не удалось загрузить данные. Обновите страницу.</div>';
   }
 }
-async function aReload() { await aLoad(); aRender(); }
+let aLive = function() {};   // crmLive: отметить своё изменение, чтобы блок не перерисовался второй раз
+async function aReload() { await aLoad(); aRender(); aLive(); }
 function aRender() {
   const head = ah.tab === 'home'
     ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div>' + crmSettingsGear('АХО') + '<button class="hr-btn" data-act="ahoxlsx">⬇ Выгрузить в Excel</button>' + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'

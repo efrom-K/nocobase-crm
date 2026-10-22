@@ -209,4 +209,40 @@ function crmXlsx(fileName, spec) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function() { URL.revokeObjectURL(a.href); }, 3000);
 }
+// прочитать первый лист .xlsx (загрузка из 1С и т. п.): массив строк, строка — массив значений по колонкам (A = 0), пустые — ''.
+// zip разбирается по центральному каталогу, сжатые части — встроенным DecompressionStream('deflate-raw'), без библиотек.
+async function crmXlsxRead(file) {
+  const b = new Uint8Array(await file.arrayBuffer()), v = new DataView(b.buffer), utf = new TextDecoder();
+  let eo = b.length - 22;
+  while (eo >= 0 && v.getUint32(eo, true) !== 0x06054b50) eo--;
+  if (eo < 0) throw new Error('Это не файл Excel (.xlsx)');
+  const files = {};
+  for (let i = 0, p = v.getUint32(eo + 16, true); i < v.getUint16(eo + 10, true); i++) {
+    const n = v.getUint16(p + 28, true), name = utf.decode(b.subarray(p + 46, p + 46 + n)), lo = v.getUint32(p + 42, true);
+    files[name] = { method: v.getUint16(p + 10, true), size: v.getUint32(p + 20, true), at: lo + 30 + v.getUint16(lo + 26, true) + v.getUint16(lo + 28, true) };
+    p += 46 + n + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+  }
+  const text = async function(name) {
+    const f = files[name]; if (!f) return '';
+    const raw = b.subarray(f.at, f.at + f.size);
+    if (f.method === 0) return utf.decode(raw);
+    return await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  };
+  const xml = function(s) { return new DOMParser().parseFromString(s, 'application/xml'); };
+  const all = function(d, tag) { return Array.prototype.slice.call(d.getElementsByTagNameNS('*', tag)); };
+  const ss = all(xml(await text('xl/sharedStrings.xml')), 'si').map(function(x) { return x.textContent; });
+  const sheet = Object.keys(files).filter(function(n) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(n); }).sort(function(a, c) { return parseInt(a.slice(19), 10) - parseInt(c.slice(19), 10); })[0];
+  if (!sheet) throw new Error('В файле нет листов');
+  return all(xml(await text(sheet)), 'row').map(function(r) {
+    const out = [];
+    all(r, 'c').forEach(function(c) {
+      const ref = (c.getAttribute('r') || '').replace(/\d+/g, ''), t = c.getAttribute('t'), vv = all(c, 'v')[0];
+      let col = 0; for (let k = 0; k < ref.length; k++) col = col * 26 + ref.charCodeAt(k) - 64;
+      const val = t === 's' ? ss[Number(vv && vv.textContent)] : t === 'inlineStr' ? c.textContent : vv ? (t === 'str' || t === 'b' || isNaN(Number(vv.textContent)) ? vv.textContent : Number(vv.textContent)) : '';
+      while (out.length < col - 1) out.push('');
+      out[(col || out.length + 1) - 1] = val == null ? '' : val;
+    });
+    return out;
+  });
+}
 // ===== конец фрагмента выгрузок =====

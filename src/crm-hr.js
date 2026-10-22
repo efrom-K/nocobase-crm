@@ -1205,6 +1205,7 @@ function hOnClick(e) {
   if (a === 'newle') return hOpenLe(null);
   if (a === 'year') { hr.year += Number(act.getAttribute('data-d')); (hr.tab === 'hire' ? hRenderHire : hRenderVac)(); return; }
   if (a === 'newvac') return hOpenVac(null, {});
+  if (a === 'vac1c') return hVacImport1c();
   if (a === 'newpb') return hOpenSafety(null, { kind: HR_PB_COMMON[0][0] });
   if (a === 'newsout') return hOpenSout(null);
   if (a === 'newlna') return hOpenLna(null);
@@ -1934,7 +1935,8 @@ function hRenderVac() {
   hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1">‹</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
       + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — оформление «—» (приказа пока нет)</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
-    + (can ? '<button class="hr-new" data-act="newvac"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button>' : '') + '</div>'
+    + (can ? '<button class="hr-btn" data-act="vac1c" style="margin-left:auto;margin-right:8px;" title="Отчёт 1С «Отпуска сотрудников», сохранённый в Excel">⬆ Загрузить из 1С</button>' : '')
+    + (can ? '<button class="hr-new" data-act="newvac" style="margin-left:0;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button>' : '') + '</div>'
     + (can ? '<div class="hr-hint" style="margin-bottom:8px;">Нажмите на пустое место в строке сотрудника — откроется новый отпуск с этой даты. Нажмите на отпуск — изменить. Справа — сколько дней ежегодного отпуска осталось запланировать и из скольких; нажмите на число, чтобы изменить норму дней в году.</div>' : '')
     + (function() {   // итог года по видам: сколько дней и у скольких людей
         const yv = hr.d.vacs.filter(function(v) { const e = hEmp(v.employee_id); return e && e.status !== 'fired' && hD(v.start_date).slice(0, 4) === String(y); });
@@ -1947,6 +1949,108 @@ function hRenderVac() {
     + '<div class="hr-card"><table class="hr-tl"><thead><tr><td class="nm"></td><td><div class="hr-months">' + HR_MONTHS.map(function(x, i) { return '<i style="width:' + mw[i] + '%;">' + x + '</i>'; }).join('') + '</div></td><td class="rest hr-hint">осталось</td></tr></thead><tbody>'
     + (rows || '<tr><td colspan="3" class="hr-hint">Нет штатных сотрудников</td></tr>') + '</tbody></table></div>'
     + '<div class="hr-hint">В графике — только штатные сотрудники. Праздничные дни в длительность отпуска не пересчитываются.</div>';
+}
+
+// ---------- загрузка из 1С: отчёт «Отпуска сотрудников», сохранённый в Excel ----------
+// Колонки ищутся по заголовкам (Сотрудник, Вид отпуска, Компенс., Начало, Окончание, Приказ → строкой ниже Дата/Номер), поэтому порядок колонок не важен.
+// Сотрудник — по «Фамилия Имя», иначе по фамилии и отчеству (в CRM «Алена», в 1С «Елена»). Денежные компенсации при увольнении не грузятся.
+// Такой же отпуск (те же даты) уже есть без приказа — ему ставится «По приказу» и номер; пересечение с другими датами — не грузится, показывается списком.
+function hVacImport1c() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.xlsx';
+  inp.addEventListener('change', async function() {
+    const f = inp.files[0]; if (!f) return;
+    let rows;
+    try { rows = await crmXlsxRead(f); } catch (e) { hToast(e.message || 'Не удалось прочитать файл'); return; }
+    const p = hVac1cParse(rows);
+    if (typeof p === 'string') { hToast(p); return; }
+    hVac1cPreview(f.name, p);
+  });
+  inp.click();
+}
+function hVac1cKind(s) {
+  s = String(s || '').toLowerCase();
+  return /без сохранения|за свой/.test(s) ? HR_VAC_KINDS[1] : /учеб/.test(s) ? HR_VAC_KINDS[2] : /беремен|родам/.test(s) ? HR_VAC_KINDS[3] : /уход/.test(s) ? HR_VAC_KINDS[4] : HR_VAC_KINDS[0];
+}
+function hVac1cDate(v) {
+  if (typeof v === 'number' && v > 20000 && v < 80000) return hIso(new Date(1899, 11, 30 + Math.floor(v)));   // дата числом Excel
+  const m = String(v || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : '';
+}
+function hVac1cParse(rows) {
+  const t = function(x) { return String(x == null ? '' : x).trim(); };
+  const hi = rows.findIndex(function(r) { return r.some(function(x) { return t(x) === 'Сотрудник'; }) && r.some(function(x) { return t(x) === 'Начало'; }); });
+  if (hi < 0) return 'Не похоже на отчёт 1С «Отпуска сотрудников»: нет колонок «Сотрудник» и «Начало»';
+  const h = rows[hi], sub = rows[hi + 1] || [], col = function(re) { return h.findIndex(function(x) { return re.test(t(x)); }); };
+  const c = { emp: col(/^Сотрудник$/), kind: col(/^Вид отпуска/), comp: col(/^Компенс/), start: col(/^Начало$/), end: col(/^Окончание$/), order: col(/^Приказ/) };
+  if (c.end < 0) return 'В отчёте нет колонки «Окончание»';
+  const after = function(name) { return c.order < 0 ? -1 : sub.findIndex(function(x, i) { return i >= c.order && t(x) === name; }); };
+  c.oDate = after('Дата'); c.oNum = after('Номер');
+  const norm = function(s) { return t(s).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' '); };
+  const byFi = {}, byFo = {}, push = function(o, k, e) { (o[k] = o[k] || []).push(e); };
+  hr.d.emps.forEach(function(e) {
+    const p = norm(e.full_name).split(' ');
+    push(byFi, p[0] + ' ' + p[1], e);
+    if (e.middle_name) push(byFo, norm(e.last_name || p[0]) + ' ' + norm(e.middle_name), e);
+  });
+  const find = function(name) {
+    const p = norm(name).split(' '), a = byFi[p[0] + ' ' + p[1]], b = byFo[p[0] + ' ' + p[2]];
+    return a && a.length === 1 ? a[0] : b && b.length === 1 ? b[0] : null;
+  };
+  const out = { add: [], upd: [], same: 0, clash: [], miss: {}, comp: 0, bad: 0 };
+  const known = hr.d.vacs.slice();
+  rows.slice(hi + 2).forEach(function(r) {
+    const name = t(r[c.emp]); if (!name || (!t(r[c.start]) && !t(r[c.end]))) return;
+    if (c.comp >= 0 && /^да$/i.test(t(r[c.comp]))) { out.comp++; return; }
+    const e = find(name);
+    if (!e) { out.miss[name] = (out.miss[name] || 0) + 1; return; }
+    const s = hVac1cDate(r[c.start]), en = hVac1cDate(r[c.end]);
+    if (!s || !en || en < s) { out.bad++; return; }
+    const num = c.oNum >= 0 ? t(r[c.oNum]) : '', od = c.oDate >= 0 ? hVac1cDate(r[c.oDate]) : '';
+    const v = { employee_id: e.id, kind: hVac1cKind(c.kind >= 0 ? r[c.kind] : ''), start_date: s, end_date: en, days: hDays(s, en) + 1, status: num ? 'ordered' : 'none',
+      note: (num ? 'Приказ № ' + num + (od ? ' от ' + hDate(od) : '') + ' ' : '') + '(1С)' };
+    const hit = known.filter(function(x) { return Number(x.employee_id) === e.id && hD(x.start_date) <= en && hD(x.end_date) >= s; });
+    if (!hit.length) { out.add.push(v); known.push(v); return; }
+    const same = hit.length === 1 && hD(hit[0].start_date) === s && hD(hit[0].end_date) === en ? hit[0] : null;
+    if (same && same.id && same.status !== 'ordered' && num) out.upd.push({ id: same.id, e: e, v: v, values: { status: 'ordered', kind: v.kind, note: (same.note ? same.note + ' · ' : '') + v.note } });
+    else if (same) out.same++;
+    else out.clash.push({ e: e, v: v, x: hit[0] });
+  });
+  return out;
+}
+function hVac1cPreview(fileName, p) {
+  const nm = function(id) { return (hEmp(id) || {}).full_name || ''; };
+  const line = function(v) { return '<tr><td>' + hEsc(nm(v.employee_id)) + '</td><td>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + '</td><td>' + v.days + '</td><td>' + hEsc(v.kind === HR_VAC_KINDS[0] ? 'ежегодный' : v.kind) + '</td><td class="hr-hint">' + hEsc(v.note) + '</td></tr>'; };
+  const by = function(a, b) { return nm(a.employee_id).localeCompare(nm(b.employee_id), 'ru') || a.start_date.localeCompare(b.start_date); };
+  const years = {}; p.add.forEach(function(v) { years[v.start_date.slice(0, 4)] = (years[v.start_date.slice(0, 4)] || 0) + 1; });
+  const miss = Object.keys(p.miss).sort();
+  const box = function(html) { return '<div style="max-height:300px;overflow:auto;border:1px solid #f0f0f0;border-radius:8px;margin:6px 0 14px;"><table>' + html + '</table></div>'; };
+  const m = hModal('<div class="hr-box-h"><div class="hr-box-t">Загрузка отпусков из 1С</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
+    + '<div class="hr-hint" style="margin-bottom:10px;">' + hEsc(fileName) + '</div>'
+    + '<div style="line-height:1.8;"><b>Добавить: ' + p.add.length + '</b>' + (p.add.length ? ' <span class="hr-hint">(' + Object.keys(years).sort().reverse().map(function(y) { return y + ' — ' + years[y]; }).join(', ') + ')</span>' : '')
+    + '<br>Отметить приказ у уже внесённых: <b>' + p.upd.length + '</b><br>Уже есть в CRM: ' + p.same
+    + (p.comp ? '<br><span class="hr-hint">Компенсации при увольнении не загружаются: ' + p.comp + '</span>' : '')
+    + (p.bad ? '<br><span class="hr-hint">Строк без понятных дат: ' + p.bad + '</span>' : '') + '</div>'
+    + (p.add.length ? '<div style="margin-top:12px;font-weight:600;">Будут добавлены</div>' + box(p.add.slice().sort(by).map(line).join('')) : '')
+    + (p.upd.length ? '<div style="font-weight:600;">Получат «По приказу»</div>' + box(p.upd.map(function(u) { return line(u.v); }).join('')) : '')
+    + (p.clash.length ? '<div style="font-weight:600;">Не загружены — в CRM на эти дни уже другой отпуск (проверьте вручную)</div>' + box(p.clash.map(function(k) {
+        return '<tr><td>' + hEsc(k.e.full_name) + '</td><td>1С: ' + hDate(k.v.start_date) + ' – ' + hDate(k.v.end_date) + '</td><td>в CRM: ' + hDate(k.x.start_date) + ' – ' + hDate(k.x.end_date) + '</td></tr>'; }).join('')) : '')
+    + (miss.length ? '<div style="font-weight:600;">Нет в CRM — пропущены (уволенные или не заведены)</div><div class="hr-hint" style="margin:6px 0 14px;">' + miss.map(function(n) { return hEsc(n) + ' (' + p.miss[n] + ')'; }).join(', ') + '</div>' : '')
+    + '<div class="hr-actions"><button class="hr-btn pri" data-go' + (p.add.length || p.upd.length ? '' : ' disabled') + '>Загрузить</button><button class="hr-btn hr-x">Отмена</button></div></div>', true);
+  const go = m.querySelector('[data-go]');
+  go.addEventListener('click', async function() {
+    const jobs = p.add.map(function(v) { return function() { return ctx.api.resource('crm_vacations').create({ values: v }); }; })
+      .concat(p.upd.map(function(u) { return function() { return ctx.api.resource('crm_vacations').update({ filterByTk: u.id, values: u.values }); }; }));
+    let done = 0, fail = 0, i = 0;
+    go.disabled = true; m.querySelectorAll('.hr-x').forEach(function(x) { x.style.display = 'none'; });
+    const worker = async function() {
+      while (i < jobs.length) { const j = jobs[i++]; try { await j(); } catch (e) { fail++; } done++; go.textContent = 'Загружено ' + done + ' из ' + jobs.length + '…'; }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    m.remove();
+    await hReload();
+    hToast(fail ? 'Загружено ' + (done - fail) + ', не удалось ' + fail + ' — повторите загрузку, загруженное не задвоится' : 'Загружено: добавлено ' + p.add.length + ', отмечен приказ ' + p.upd.length);
+  });
 }
 
 // ---------- охрана труда: инструктажи (матрица), пожарная безопасность, СОУТ ----------

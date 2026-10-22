@@ -35,8 +35,9 @@ def fields_of(c):   # все поля коллекции: в этой верси
     return sorted(set(_fields[c]))
 def grant(role, c, acts, skip=()):   # права роли на коллекцию: старые записи этой роли на эту коллекцию заменяются; skip — поля, которые роль не меняет
     for x in rows('roles/%s/resources:list?paginate=false&filter=%s' % (role, J({'name': c}))): call('roles/%s/resources:destroy?filterByTk=%s' % (role, x['id']), {})
-    fl = [f for f in fields_of(c) if f not in skip]
-    return ok(call('roles/%s/resources:create' % role, {'name': c, 'usingActionsConfig': True, 'actions': [{'name': a, 'fields': fl if a in ('view', 'create', 'update') else []} for a in acts]}))
+    fl = fields_of(c)
+    return ok(call('roles/%s/resources:create' % role, {'name': c, 'usingActionsConfig': True, 'actions': [
+        {'name': a, 'fields': fl if a == 'view' else [f for f in fl if f not in skip] if a in ('create', 'update') else []} for a in acts]}))
 
 def F(name, typ, iface, title, comp='Input'):
     return {'name': name, 'type': typ, 'interface': iface, 'uiSchema': {'type': 'number' if typ in ('bigInt', 'integer', 'double') else 'string', 'title': title, 'x-component': comp}}

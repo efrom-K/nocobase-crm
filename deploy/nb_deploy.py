@@ -2,9 +2,11 @@
 """Агент выкладки JS-блоков реестра из git-репозитория в NocoBase.
 
 Схема: GitHub Actions проверяет коммит (CI), а этот скрипт на сервере раз в минуту (cron) смотрит в GitHub,
-и если на main появился коммит с зелёным CI — записывает изменённые блоки из src/ в таблицу flowModels.
+и если на main появился коммит с зелёным CI — записывает изменённые блоки из src/ в таблицу flowModels,
+а скрипты и сервисы из deploy/services.json — в их каталоги на сервере (сервисы пересобираются и проверяются по health).
 Соединение только исходящее, секретов на сервере нет. Скрипт устанавливается на сервер ОТДЕЛЬНО (копированием) и из репозитория
-сам не обновляется: вытянутый код не исполняется, он только записывается в NocoBase как данные страницы.
+сам не обновляется. С 22.10 код из зелёного коммита main ИСПОЛНЯЕТСЯ на сервере (cron-скрипты, контейнеры сервисов) —
+право push в main = право запускать код на сервере.
 
 Команды:
   init                  запомнить текущее состояние как «уже выложено» (когда репозиторий и NocoBase совпадают)
@@ -22,7 +24,7 @@
   NB_NOTIFY_USER_IDS    через запятую id пользователей NocoBase, кому положить сообщение в колокольчик о результате
   NB_CI_REQUIRED        1 (по умолчанию): выкладывать только коммиты с успешным CI; 0 — не проверять
 """
-import datetime, hashlib, json, os, re, subprocess, sys, urllib.request, urllib.error
+import datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request, urllib.error
 
 HOME = os.path.expanduser(os.environ.get('NB_DEPLOY_HOME', '~/nb_deploy'))
 REPO = os.path.expanduser(os.environ.get('NB_REPO_DIR', os.path.join(HOME, 'repo')))
@@ -144,11 +146,16 @@ def deploy(force=False, why=''):
                   '(export → закоммитить, либо deploy --force)' % ', '.join(drift))
     st = load_state()
     sha = git('rev-parse', 'HEAD')
+    sdone, sdrift = deploy_services(st, force)
+    save_state(st)
+    if sdone: log('выложено: %s (коммит %s)' % ('; '.join(sdone), sha[:7]))
+    if sdrift: log('ВНИМАНИЕ: файлы %s правили прямо на сервере, автовыкладка их не перезаписывает (перенести в репозиторий, либо deploy --force)' % ', '.join(sdrift))
+    drift = drift + sdrift
     if not todo:
         st['sha'] = sha
         st.setdefault('blocks', {}).update({u: h(live_code(u)) for u, p, s in rows if s in ('same',)})
         save_state(st)
-        return [], drift
+        return sdone, drift
     bdir = backup([u for u, p in todo])
     done = []
     for uid, path in todo:
@@ -162,6 +169,62 @@ def deploy(force=False, why=''):
     save_state(st)
     subj = git('log', '-1', '--format=%s')
     log('выложено: %s (коммит %s «%s»)%s; резервная копия %s' % (', '.join(done), sha[:7], subj, ' ' + why if why else '', bdir))
+    return done + sdone, drift
+
+# ---------- скрипты и сервисы (deploy/services.json) ----------
+def fhash(path):
+    try: return hashlib.sha256(open(path, 'rb').read()).hexdigest()[:16]
+    except FileNotFoundError: return None
+
+def healthy(url):
+    for _ in range(20):
+        try:
+            if urllib.request.urlopen(url, timeout=3).status == 200: return True
+        except Exception: pass
+        time.sleep(2)
+    return False
+
+def put(src, dst):   # атомарно, права старого файла сохраняются, бит исполнения из репозитория добавляется
+    tmp = dst + '.nbdeploy'
+    shutil.copyfile(src, tmp)
+    mode = os.stat(dst).st_mode if os.path.exists(dst) else 0o644
+    os.chmod(tmp, (mode | (os.stat(src).st_mode & 0o111)) & 0o7777)
+    os.replace(tmp, dst)
+
+def deploy_services(st, force=False):
+    """Файлы, отличающиеся от репозитория, — на сервер (старые — в backups). Правленные на сервере вручную после прошлой
+    выкладки не трогаем без --force (как блоки). Сервис не поднялся — старые файлы обратно, пересборка, ошибка."""
+    try: conf = json.load(open(os.path.join(REPO, 'deploy', 'services.json'), encoding='utf-8'))
+    except FileNotFoundError: return [], []
+    known = st.setdefault('files', {})
+    done, drift = [], []
+    for name, sv in conf.items():
+        if name.startswith('_'): continue
+        dest = os.path.expanduser(sv['dest'])
+        todo = []
+        for f in sv['files']:
+            src, dst = os.path.join(REPO, sv['src'], f), os.path.join(dest, f)
+            new, live = fhash(src), fhash(dst)
+            if new == live: known[dst] = new; continue
+            if live and dst in known and known[dst] != live and not force: drift.append(dst); continue
+            todo.append((src, dst, new))
+        if not todo: continue
+        bdir = os.path.join(HOME, 'backups', datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + name)
+        os.makedirs(bdir, exist_ok=True)
+        for src, dst, new in todo:
+            if os.path.exists(dst): shutil.copy2(dst, bdir)
+        for src, dst, new in todo: put(src, dst)
+        if sv.get('build'):
+            r = run(['sudo', '-n', 'docker', 'compose', 'up', '-d', '--build'], cwd=dest)
+            if r.returncode or not healthy(sv['health']):
+                for src, dst, new in todo:
+                    old = os.path.join(bdir, os.path.basename(dst))
+                    if os.path.exists(old): put(old, dst)
+                    else: os.remove(dst)
+                run(['sudo', '-n', 'docker', 'compose', 'up', '-d', '--build'], cwd=dest)
+                raise RuntimeError('%s не поднялся после выкладки, возвращены старые файлы из %s: %s' % (name, bdir, (r.stderr or '').strip()[-300:]))
+        for src, dst, new in todo: known[dst] = new
+        done.append('%s (%s)' % (name, ', '.join(os.path.basename(d) for s_, d, n in todo)))
     return done, drift
 
 def ci_state(sha):
@@ -199,7 +262,8 @@ def cmd_auto():
     try:
         done, drift = deploy()
     except Exception as e:
-        log('ОШИБКА выкладки коммита %s: %s' % (remote[:7], e)); notify('Выкладка CRM: ошибка', str(e)[:200]); return
+        st = load_state(); st['hold'] = remote; save_state(st)   # не повторять каждую минуту (пересборка сервисов) — ждать исправляющий коммит
+        log('ОШИБКА выкладки коммита %s: %s; автовыкладка заморожена до нового коммита' % (remote[:7], e)); notify('Выкладка CRM: ошибка', str(e)[:200]); return
     subj = git('log', '-1', '--format=%s')
     if done: notify('Выкладка CRM: обновлено', '%s — %s' % (remote[:7], subj))
     if drift: notify('Выкладка CRM: ручные правки', 'Блоки %s правили в интерфейсе, автовыкладка их не трогает' % ', '.join(drift))

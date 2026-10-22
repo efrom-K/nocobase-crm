@@ -1,5 +1,5 @@
 #!/bin/bash
-# Бэкап NocoBase: полный дамп PostgreSQL + загруженные файлы (storage/uploads). Хранит 30 последних дней.
+# Бэкап NocoBase: полный дамп PostgreSQL + загруженные файлы (storage/uploads). База — 30 дней, файлы — 7 дней.
 # cron на svc (три раза в день, чтобы дневная работа не терялась до ночи):
 #   45 2,13,19 * * * /home/ubuntu/nb_bik/backup_nocobase.sh >> /home/ubuntu/nb_bik/backup.log 2>&1
 # Копия вне svc: DC забирает db_latest / uploads_latest через ключ с forced-command (serve_backup.sh) в C:\NocoBase-Backup,
@@ -30,10 +30,14 @@ zcat "$DIR/db_$T.sql.gz.tmp" | tail -5 | grep -q 'PostgreSQL database dump compl
 mv "$DIR/db_$T.sql.gz.tmp" "$DIR/db_$T.sql.gz"
 sudo -n docker exec nocobase-app-1 tar -C /app/nocobase/storage -czf - uploads > "$DIR/uploads_$T.tar.gz.tmp"
 gzip -t "$DIR/uploads_$T.tar.gz.tmp" || fail "архив файлов повреждён"
+prev=$(readlink -f "$DIR/uploads_latest.tar.gz" || true)
 mv "$DIR/uploads_$T.tar.gz.tmp" "$DIR/uploads_$T.tar.gz"
+# файлы не менялись — жёсткая ссылка на прошлый архив вместо копии; touch обновляет общий mtime, чтобы find -mtime +7 не снёс все имена разом
+if [ -f "$prev" ] && cmp -s "$prev" "$DIR/uploads_$T.tar.gz"; then ln -f "$prev" "$DIR/uploads_$T.tar.gz"; touch "$DIR/uploads_$T.tar.gz"; fi
 ln -sf "db_$T.sql.gz" "$DIR/db_latest.sql.gz"
 ln -sf "uploads_$T.tar.gz" "$DIR/uploads_latest.tar.gz"
 find "$DIR" -name 'db_20*.sql.gz' -mtime +30 -delete
-find "$DIR" -name 'uploads_20*.tar.gz' -mtime +30 -delete
+# ponytail: вложения 7 дней (полный архив 3×/день по ~100 МБ, при 30 днях svc забивался); база — 30
+find "$DIR" -name 'uploads_20*.tar.gz' -mtime +7 -delete
 /home/ubuntu/nb_bik/encrypt_latest.sh || fail "не удалось зашифровать копию для DC"
 echo "$(date '+%F %T') ok $(du -h "$DIR/db_$T.sql.gz" | cut -f1) db, $(du -h "$DIR/uploads_$T.tar.gz" | cut -f1) uploads"

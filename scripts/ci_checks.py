@@ -55,6 +55,20 @@ if os.path.exists('deploy/blocks.json'):
         if not os.path.exists(path): err('deploy/blocks.json: %s → файла %s нет' % (uid, path))
         elif os.path.getsize(path) < 200: err('%s: подозрительно маленький файл блока' % path)
 
+# скрипты и сервисы, которые выкладываются на сервер (deploy/services.json): файлы есть, shell-скрипты без синтаксических ошибок
+if os.path.exists('deploy/services.json'):
+    for name, sv in json.load(open('deploy/services.json', encoding='utf-8')).items():
+        if name.startswith('_'): continue
+        for f in sv['files']:
+            path = os.path.join(sv['src'], f)
+            if not os.path.exists(path): err('deploy/services.json: %s → файла %s нет' % (name, path)); continue
+            if f.endswith('.sh'):
+                r = subprocess.run(['bash', '-n', path], capture_output=True, text=True)
+                if r.returncode: err(path + ': ' + r.stderr.strip()[:300])
+            if f.endswith('.js'):
+                r = subprocess.run(['node', '--check', path], capture_output=True, text=True)
+                if r.returncode: err(path + ': ' + r.stderr.strip()[:300])
+
 # ---- 3. личные данные и секреты ----
 tracked = subprocess.run(['git', 'ls-files'], capture_output=True, text=True).stdout.split()
 FORBIDDEN_FILES = re.compile(r'(^|/)(\.env|.*\.pem|.*\.key|id_(rsa|ed25519).*|.*\.dump|.*\.pfx|.*\.kdbx)$')

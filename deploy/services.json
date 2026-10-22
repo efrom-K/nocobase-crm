@@ -1,0 +1,17 @@
+{
+  "_": "Что ещё, кроме JS-блоков, выкладывает deploy/nb_deploy.py на сервер из зелёного коммита: файлы src → dest; build — пересобрать контейнер (docker compose в dest) и дождаться health, иначе вернуть старые файлы",
+  "scripts": {
+    "src": "scripts", "dest": "~/nb_bik",
+    "files": ["aho_reminders.py", "apply_price_schedule.py", "backup_nocobase.sh", "bik_load.py", "encrypt_latest.sh", "expiry_reminders.py",
+              "export_contracts_xlsx.py", "hr_reminders.py", "normalize_data.py", "purge_read_notifications.sh", "purge_stale_drafts.py",
+              "request_reminders.py", "serve_backup.sh", "skud_sync.py"]
+  },
+  "mail-service": {
+    "src": "mail-service", "dest": "~/nb_mail", "build": true, "health": "http://127.0.0.1:8096/health",
+    "files": ["server.js", "Dockerfile", "docker-compose.yml", "package.json"]
+  },
+  "requests-service": {
+    "src": "requests-service", "dest": "~/nb_requests", "build": true, "health": "http://127.0.0.1:8097/health",
+    "files": ["server.js", "rules.js", "Dockerfile", "docker-compose.yml"]
+  }
+}

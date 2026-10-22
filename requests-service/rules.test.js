@@ -97,6 +97,9 @@ const has = (ctx, a) => R.actions(ctx).indexOf(a) !== -1;
   assert.deepStrictEqual([acc.upd.status, acc.upd.rating, acc.events[0][3]], ['closed', 4, 'public']);
   assert(R.tenantApply(T, mine, 'reopen', {}, now).err, 'вернуть без причины нельзя');
   assert.strictEqual(R.tenantApply(T, mine, 'reopen', { v: 'течёт' }, now).upd.reopen_count, 1);
+  const photo = R.tenantApply(T, req({ contract_id: 5, accept_mode: 'tenant', status: 'in_work' }), 'comment', { file_ids: [9] }, now);
+  assert(!photo.err && photo.events.length === 0, 'сообщение из одних фото можно, текстового события нет');
+  assert(R.tenantApply(T, req({ contract_id: 5, accept_mode: 'tenant', status: 'in_work' }), 'comment', {}, now).err, 'пустое сообщение нельзя');
   // создание: только по своему договору, ответственный — управляющий объекта, принимает арендатор
   const c = R.tenantCreate(T, { kind: 'Прочее', title: 'Не работает свет' }, { id: 5, object_name: 'Объект', tenant_name: 'ООО Ромашка' }, { manager_user_id: MGR }, ['Прочее'], {}, now);
   assert.deepStrictEqual([c.values.responsible_id, c.values.accept_mode, c.values.source, c.values.author_id, c.values.contact_email], [MGR, 'tenant', 'portal', null, 'user@example.ru']);

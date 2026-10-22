@@ -68,6 +68,13 @@ if os.path.exists('deploy/services.json'):
             if f.endswith('.js'):
                 r = subprocess.run(['node', '--check', path], capture_output=True, text=True)
                 if r.returncode: err(path + ': ' + r.stderr.strip()[:300])
+            if f.endswith('.html'):   # встроенный скрипт страницы (портал арендатора)
+                for code in re.findall(r'<script>(.*?)</script>', open(path, encoding='utf-8').read(), re.S):
+                    with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as t:
+                        t.write(code); tmp = t.name
+                    r = subprocess.run(['node', '--check', tmp], capture_output=True, text=True)
+                    os.unlink(tmp)
+                    if r.returncode: err(path + ': синтаксическая ошибка в <script>\n' + r.stderr.strip()[:300])
 
 # ---- 3. личные данные и секреты ----
 tracked = subprocess.run(['git', 'ls-files'], capture_output=True, text=True).stdout.split()

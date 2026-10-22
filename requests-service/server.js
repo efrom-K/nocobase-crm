@@ -231,10 +231,69 @@ async function tenant(auth) {
   // только действующие договоры (договор ушёл в завершённые — доступ пропадает)
   const cons = await list('rental_contracts', '&fields=id,contract_number,tenant_name,object_name&filter=' + q({ id: { $in: ids } }));
   if (!(cons || []).length) return null;
-  const t = { contracts: cons.map(x => x.id), cons: cons, email: email, name: cons[0].tenant_name || '', demo: demo };
+  const t = { contracts: cons.map(x => x.id), cons: cons, email: email, name: cons[0].tenant_name || '', demo: demo, key: sha(tok) };
   tenantCache.set(tok, { t: t, exp: Date.now() + 60000 });
   if (tenantCache.size > 500) for (const [k, x] of tenantCache) if (x.exp < Date.now()) tenantCache.delete(k);
   return t;
+}
+
+// ---------- фото и файлы арендатора ----------
+// Загружает сервис своей учёткой в хранилище NocoBase; id файла запоминается за тем, кто загрузил, — чужой id к заявке не приложить.
+// ponytail: «чей файл» в памяти — после перезапуска загруженные, но не отправленные файлы надо загрузить заново
+const FILE_TYPES = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/heic': '.heic', 'image/heif': '.heif', 'application/pdf': '.pdf' };
+const MAX_FILE = 12 * 1024 * 1024, MAX_FILES = 5;
+const uploads = new Map();   // file_id → { who, exp }
+function readRaw(req, max) {
+  return new Promise((resolve, reject) => {
+    const chunks = []; let size = 0;
+    req.on('data', c => { size += c.length; if (size > max) { reject(new ApiError(413, 'Файл больше 12 МБ')); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+async function svcFetch(pathName, opts) {   // как nb(), но с произвольным телом/ответом
+  for (let i = 0; i < 2; i++) {
+    if (!svcToken) await nb('GET', 'auth:check');
+    const r = await fetch(NB_URL + pathName, Object.assign({}, opts, { headers: Object.assign({ Authorization: 'Bearer ' + svcToken, 'X-Authenticator': 'basic' }, (opts || {}).headers || {}) }));
+    if (r.status === 401) { svcToken = null; continue; }
+    return r;
+  }
+  throw new ApiError(502, 'Сервис заявок не смог войти в CRM');
+}
+async function portalUpload(t, req) {
+  const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  if (!FILE_TYPES[type]) throw new ApiError(415, 'Можно приложить фото (JPG, PNG, HEIC) или PDF');
+  limit('upload:' + t.key, 60, 3600000);
+  const buf = await readRaw(req, MAX_FILE);
+  if (!buf.length) throw new ApiError(400, 'Пустой файл');
+  const form = new FormData();
+  form.append('file', new Blob([buf], { type: type }), 'portal-' + Date.now() + FILE_TYPES[type]);
+  const r = await svcFetch('/api/attachments:upload', { method: 'POST', body: form });
+  const j = await r.json().catch(() => null);
+  const id = j && j.data && j.data.id;
+  if (!r.ok || !id) { console.error('upload', r.status, JSON.stringify(j).slice(0, 300)); throw new ApiError(502, 'Не удалось сохранить файл'); }
+  uploads.set(id, { who: t.key, exp: Date.now() + 6 * 3600e3 });
+  for (const [k, x] of uploads) if (x.exp < Date.now()) uploads.delete(k);
+  return { file_id: id };
+}
+function ownFiles(t, ids) {   // только свои недавно загруженные, не больше MAX_FILES
+  const out = [...new Set((Array.isArray(ids) ? ids : []).map(Number))].filter(id => { const u = uploads.get(id); return u && u.who === t.key && u.exp > Date.now(); });
+  if ((ids || []).length && out.length !== new Set(ids).size) throw new ApiError(400, 'Файл не найден — приложите его заново');
+  if (out.length > MAX_FILES) throw new ApiError(400, 'Не больше ' + MAX_FILES + ' файлов за раз');
+  return out;
+}
+async function attachFiles(r, ids) { for (const id of ids) { await event(r, null, 'comment', 'Фото', id, 'public'); uploads.delete(id); } }
+// файл из переписки — только публичное событие заявки, которую арендатор видит
+async function portalFile(t, res, evId) {
+  const e = await nb('GET', 'request_events:get?filterByTk=' + Number(evId) + '&appends=file');
+  if (!e || e.visibility !== 'public' || !e.file) throw new ApiError(404, 'Файл не найден');
+  const r = await nb('GET', 'object_requests:get?filterByTk=' + Number(e.request_id));
+  if (!R.tenantSees(t, r)) throw new ApiError(404, 'Файл не найден');
+  const f = await svcFetch('/storage/uploads/' + encodeURIComponent(e.file.filename));
+  if (!f.ok) throw new ApiError(404, 'Файл не найден');
+  res.writeHead(200, { 'Content-Type': e.file.mimetype || 'application/octet-stream', 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff',
+    'Content-Disposition': (/^image\//.test(e.file.mimetype || '') ? 'inline' : 'attachment') + '; filename="file' + (e.file.extname || '') + '"' });
+  res.end(Buffer.from(await f.arrayBuffer()));
 }
 
 // ponytail: лимиты и коды в памяти — после перезапуска сервиса сбрасываются; для одного сервера достаточно
@@ -271,7 +330,7 @@ async function portalMe(t) {
   const reqs = await list('object_requests', '&sort=-id&fields=' + ['id', 'title', 'description', 'kind', 'urgency', 'status', 'createdAt', 'due_date', 'result', 'done_at', 'closed_at', 'rating', 'contract_id', 'object_name', 'accept_mode', 'wait_reason', 'responsible_id'].join(',')
     + '&filter=' + q({ contract_id: { $in: t.contracts }, accept_mode: 'tenant' }));
   const ids = (reqs || []).map(r => r.id);
-  const evs = ids.length ? await list('request_events', '&sort=createdAt&fields=request_id,author_id,text,createdAt&filter=' + q({ request_id: { $in: ids }, visibility: 'public' })) : [];
+  const evs = ids.length ? await list('request_events', '&sort=createdAt&fields=id,request_id,author_id,text,createdAt,file_id&filter=' + q({ request_id: { $in: ids }, visibility: 'public' })) : [];
   const u = R.DEF.urgency, cu = (rf.cfg && rf.cfg.urgency) || {};
   return {
     name: t.name, email: t.email, mail: !!mailer, kinds: rf.kinds,
@@ -280,7 +339,7 @@ async function portalMe(t) {
     requests: (reqs || []).map(r => ({ id: r.id, title: r.title, description: r.description, kind: r.kind, urgency: r.urgency, status: r.status, createdAt: r.createdAt, due_date: r.due_date,
       result: r.result, done_at: r.done_at, closed_at: r.closed_at, rating: r.rating, object: r.object_name, waitingYou: r.status === 'waiting' && r.wait_reason === R.TENANT_WAIT,
       manager: r.responsible_id ? rf.names[r.responsible_id] || null : null, acts: R.tenantActions(t, r),
-      events: (evs || []).filter(e => e.request_id === r.id).map(e => ({ at: e.createdAt, mine: !e.author_id, who: e.author_id ? rf.names[e.author_id] || 'Сотрудник' : null, text: e.text })) }))
+      events: (evs || []).filter(e => e.request_id === r.id).map(e => ({ id: e.id, at: e.createdAt, mine: !e.author_id, who: e.author_id ? rf.names[e.author_id] || 'Сотрудник' : null, text: e.text, file: !!e.file_id })) }))
   };
 }
 async function portalCreate(t, body) {
@@ -289,9 +348,11 @@ async function portalCreate(t, body) {
   const obj = contract ? ((await list('contract_objects', '&filter=' + q({ name: contract.object_name || '' }))) || [])[0] : null;
   const res = R.tenantCreate(t, body, contract, obj, rf.kinds, rf.cfg, new Date());
   if (res.err) throw new ApiError(400, res.err, res.field);
+  const files = ownFiles(t, body.file_ids);
   if (t.demo) res.values.demo = true;   // демо-ссылка админа: заявка демо, никого не уведомляет
   const rec = await nb('POST', 'object_requests:create', res.values);
-  await event(rec, null, 'create', res.event, null, 'public');
+  await event(rec, null, 'create', res.event + (files.length ? ' · фото: ' + files.length : ''), null, 'public');
+  await attachFiles(rec, files);
   if (rec.demo) return { id: rec.id };
   for (const n of res.notify) await notify([n[0]], rec, n[1], null);
   if (res.notifyCtl) await notify(rf.ctl, rec, res.notifyCtl, null);
@@ -301,10 +362,12 @@ async function portalCreate(t, body) {
 async function portalAct(t, body) {
   const r = await nb('GET', 'object_requests:get?filterByTk=' + Number(body.id));
   if (!r || !R.tenantSees(t, r)) throw new ApiError(404, 'Заявка не найдена');
-  const res = R.tenantApply(t, r, body.a, body, new Date());
+  const files = body.a === 'comment' ? ownFiles(t, body.file_ids) : [];
+  const res = R.tenantApply(t, r, body.a, Object.assign({}, body, { file_ids: files }), new Date());
   if (res.err) throw new ApiError(res.code || 400, res.err, res.field);
   if (res.upd) await nb('POST', 'object_requests:update?filterByTk=' + r.id, res.upd);
   for (const e of res.events) await event(r, null, e[0], e[1], e[2], e[3]);
+  await attachFiles(r, files);
   for (const n of res.notify) await notify([n[0]], r, n[1], null);
   return { ok: true };
 }
@@ -331,6 +394,8 @@ async function portal(req, res, p, origin) {
   if (p === '/portal/api/me') return send(res, 200, await portalMe(t), origin);
   if (p === '/portal/api/create' && req.method === 'POST') { limit('create:' + t.contracts.join(','), 30, 3600000); return send(res, 200, await portalCreate(t, await readJson(req)), origin); }
   if (p === '/portal/api/act' && req.method === 'POST') return send(res, 200, await portalAct(t, await readJson(req)), origin);
+  if (p === '/portal/api/upload' && req.method === 'POST') return send(res, 200, await portalUpload(t, req), origin);
+  if (p === '/portal/api/file') return await portalFile(t, res, new URL(req.url, 'http://x').searchParams.get('ev'));
   throw new ApiError(404, 'Нет такого адреса');
 }
 
@@ -359,7 +424,7 @@ http.createServer(async (req, res) => {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
     if (p === '/portal' || p === '/portal/' || (p === '/' && /^help\./.test(String(req.headers.host || '')))) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'" });
+        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'" });
       return res.end(PORTAL_HTML);
     }
     if (p.startsWith('/portal/api/')) return await portal(req, res, p, origin);

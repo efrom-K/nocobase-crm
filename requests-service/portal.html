@@ -52,6 +52,11 @@
   .box { background:var(--soft); border-radius:9px; padding:12px; margin:12px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
   .stars { display:flex; gap:4px; } .stars button { border:0; background:none; font-size:28px; cursor:pointer; color:var(--line); padding:0 2px; } .stars button.on { color:#f5a623; }
   .empty { text-align:center; padding:36px 10px; color:var(--muted); }
+  .files { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+  .th { position:relative; width:72px; height:72px; border:1px solid var(--line); border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--muted); }
+  .th img { width:100%; height:100%; object-fit:cover; }
+  .th button { position:absolute; top:3px; right:3px; border:0; background:rgba(0,0,0,.6); color:#fff; border-radius:50%; width:22px; height:22px; line-height:20px; cursor:pointer; padding:0; }
+  .evf img { max-width:min(240px, 100%); max-height:240px; border-radius:8px; margin-top:6px; display:block; }
   .back { margin-bottom:12px; }
   @media (max-width:560px) { .card { padding:14px; } h1 { font-size:19px; } .top .btn { padding:7px 10px; } }
 </style>
@@ -134,10 +139,14 @@ function renderOne(r) {
     + '<textarea id="note" placeholder="Комментарий (необязательно, а при возврате — обязательно)"></textarea><div class="err" id="err2"></div>'
     + '<div class="row" style="margin-top:8px;"><button class="btn ok" id="acc">Принять работу</button><button class="btn warn" id="reo">Не принимаю — вернуть</button></div></div>';
   h += '<h2 style="margin-top:18px;">Переписка</h2>' + (r.events.length ? r.events.map(function(e) {
-      return '<div class="ev' + (e.mine ? ' mine' : '') + '"><div class="ev-h">' + (e.mine ? 'Вы' : esc(e.who || 'Управляющий')) + ' · ' + dt(e.at) + '</div><div class="ev-t">' + esc(e.text) + '</div></div>';
+      return '<div class="ev' + (e.mine ? ' mine' : '') + '"><div class="ev-h">' + (e.mine ? 'Вы' : esc(e.who || 'Управляющий')) + ' · ' + dt(e.at) + '</div>'
+        + (e.file && e.text === 'Фото' ? '' : '<div class="ev-t">' + esc(e.text) + '</div>') + (e.file ? '<div class="evf small muted" data-ev="' + e.id + '">Загрузка файла…</div>' : '') + '</div>';
     }).join('') : '<div class="muted small">Сообщений пока нет.</div>');
-  if (r.acts.indexOf('comment') !== -1) h += '<label for="msg">Написать управляющему</label><textarea id="msg"></textarea><div class="err" id="err"></div><button class="btn pri" id="send" style="margin-top:8px;">Отправить</button>';
+  if (r.acts.indexOf('comment') !== -1) h += '<label for="msg">Написать управляющему</label><textarea id="msg"></textarea>' + filePicker('cf')
+    + '<div class="err" id="err"></div><button class="btn pri" id="send" style="margin-top:8px;">Отправить</button>';
   $('#app').innerHTML = h + '</div>';
+  showFiles();
+  var getC = $('#cf') ? bindPicker('cf') : null;
   $('#back').onclick = function() { S.open = null; render(); };
   var stars = 0;
   document.querySelectorAll('[data-star]').forEach(function(b) {
@@ -151,7 +160,13 @@ function renderOne(r) {
     $('#acc').onclick = function() { act('accept', { rating: stars || null, v: $('#note').value }, this, $('#err2')); };
     $('#reo').onclick = function() { if (!$('#note').value.trim()) { $('#err2').textContent = 'Напишите, что не так'; $('#note').focus(); return; } act('reopen', { v: $('#note').value }, this, $('#err2')); };
   }
-  if ($('#send')) $('#send').onclick = function() { if ($('#msg').value.trim()) act('comment', { v: $('#msg').value }, this, $('#err')); };
+  if ($('#send')) $('#send').onclick = function() {
+    var b = this, v = $('#msg').value.trim(), fl = getC();
+    if (!v && !fl.length) return;
+    b.disabled = true; $('#err').textContent = '';
+    uploadAll(fl).then(function(ids) { return api('/act', { id: r.id, a: 'comment', v: v, file_ids: ids }); }).then(load)
+      .catch(function(e) { $('#err').textContent = e.message; b.disabled = false; });
+  };
 }
 
 // ---------- новая заявка ----------
@@ -167,18 +182,73 @@ function renderNew() {
         var hint = { normal: 'решим в течение нескольких рабочих дней', urgent: 'мешает работать — займёмся в течение рабочего дня', emergency: 'протечка, нет света или тепла, угроза людям или имуществу' }[u.k] || '';
         return '<label><input type="radio" name="u" value="' + u.k + '"' + (n === 0 ? ' checked' : '') + '><span>' + esc(u.l) + '<small>' + hint + '</small></span></label>';
       }).join('') + '</div>'
+    + '<label>Фото (если есть — так быстрее разберёмся)</label>' + filePicker('nf')
     + '<label for="cn">Контактное лицо</label><input id="cn" autocomplete="name"><label for="cp">Телефон для связи</label><input id="cp" type="tel" autocomplete="tel">'
     + '<div class="err" id="err"></div><div class="row" style="margin-top:10px;"><button class="btn pri" id="go">Отправить заявку</button><button class="btn" id="cancel">Отмена</button></div>'
     + '<p class="muted small">При аварии, кроме заявки, позвоните управляющему.</p></div>';
   var back = function() { S.view = 'list'; render(); };
   $('#back').onclick = back; $('#cancel').onclick = back;
+  var getN = bindPicker('nf');
   $('#go').onclick = function() {
     var b = this; b.disabled = true; $('#err').textContent = '';
     var u = document.querySelector('input[name=u]:checked');
-    api('/create', { contract_id: $('#c') ? Number($('#c').value) : cons[0].id, kind: $('#k').value, title: $('#t').value, description: $('#ds').value, urgency: u ? u.value : 'normal', contact_name: $('#cn').value, contact_phone: $('#cp').value })
+    uploadAll(getN()).then(function(ids) {
+      return api('/create', { contract_id: $('#c') ? Number($('#c').value) : cons[0].id, kind: $('#k').value, title: $('#t').value, description: $('#ds').value, urgency: u ? u.value : 'normal',
+        contact_name: $('#cn').value, contact_phone: $('#cp').value, file_ids: ids });
+    })
       .then(function(j) { S.view = 'list'; S.open = j.id; return load(); })
       .catch(function(e) { $('#err').textContent = e.message; b.disabled = false; var f = { kind: '#k', title: '#t' }[e.field]; if (f) $(f).focus(); });
   };
+}
+
+// ---------- фото и файлы ----------
+// Фото ужимаются в браузере до 1600 px (JPEG) — с телефона грузится быстро; PDF и то, что браузер не открыл (HEIC), — как есть
+var MAXF = 5, fileUrls = {};
+function filePicker(id) {
+  return '<div class="files" id="' + id + '"></div><input type="file" id="' + id + '-in" accept="image/*,application/pdf" multiple hidden>'
+    + '<button type="button" class="btn" id="' + id + '-add">📷 Приложить фото</button> <span class="muted small">до ' + MAXF + ' шт.</span>';
+}
+function bindPicker(id) {
+  var list = [], box = $('#' + id), inp = $('#' + id + '-in');
+  function draw() {
+    box.innerHTML = list.map(function(f, i) { return '<span class="th">' + (f.url ? '<img src="' + f.url + '" alt="">' : '<b>' + (/pdf/.test(f.blob.type) ? 'PDF' : 'Фото') + '</b>') + '<button type="button" data-rm="' + i + '" aria-label="Убрать">×</button></span>'; }).join('');
+    box.querySelectorAll('[data-rm]').forEach(function(b) { b.onclick = function() { var f = list.splice(Number(b.getAttribute('data-rm')), 1)[0]; if (f.url) URL.revokeObjectURL(f.url); draw(); }; });
+  }
+  $('#' + id + '-add').onclick = function() { inp.click(); };
+  inp.onchange = function() {
+    Array.prototype.slice.call(inp.files, 0, Math.max(0, MAXF - list.length)).forEach(function(f) {
+      shrink(f).then(function(b) { if (list.length < MAXF) { list.push({ blob: b, url: /^image\/(jpeg|png|webp)$/.test(b.type) ? URL.createObjectURL(b) : null }); draw(); } });
+    });
+    inp.value = '';
+  };
+  return function() { return list; };
+}
+function shrink(f) {
+  if (!/^image\/(jpeg|png|webp)$/.test(f.type) || !window.createImageBitmap) return Promise.resolve(f);
+  return createImageBitmap(f).then(function(bm) {
+    var k = Math.min(1, 1600 / Math.max(bm.width, bm.height)), c = document.createElement('canvas');
+    c.width = Math.round(bm.width * k); c.height = Math.round(bm.height * k);
+    c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height);
+    return new Promise(function(ok) { c.toBlob(function(b) { ok(b && b.size < f.size ? b : f); }, 'image/jpeg', 0.82); });
+  }).catch(function() { return f; });
+}
+function uploadAll(list) {   // по одному файлу на запрос
+  var ids = [];
+  return list.reduce(function(p, f) {
+    return p.then(function() {
+      return fetch(API + '/upload', { method: 'POST', headers: { Authorization: 'Bearer ' + tok(), 'Content-Type': f.blob.type || 'application/octet-stream' }, body: f.blob })
+        .then(function(r) { return r.json().catch(function() { return {}; }).then(function(j) { if (!r.ok) throw new Error(j.error || 'Не удалось загрузить фото'); ids.push(j.file_id); }); });
+    });
+  }, Promise.resolve()).then(function() { return ids; });
+}
+function showFiles() {   // фото из переписки — через сервис, по токену арендатора
+  document.querySelectorAll('[data-ev]').forEach(function(el) {
+    var id = el.getAttribute('data-ev');
+    var put = function(x) { el.innerHTML = /^image\//.test(x.type) ? '<a href="' + x.url + '" target="_blank" rel="noopener"><img src="' + x.url + '" alt="Фото"></a>' : '<a href="' + x.url + '" download="файл.pdf">📎 Открыть файл</a>'; };
+    if (fileUrls[id]) return put(fileUrls[id]);
+    fetch(API + '/file?ev=' + encodeURIComponent(id), { headers: { Authorization: 'Bearer ' + tok() } }).then(function(r) { if (!r.ok) throw new Error(); return r.blob(); })
+      .then(function(b) { fileUrls[id] = { url: URL.createObjectURL(b), type: b.type }; put(fileUrls[id]); }).catch(function() { el.textContent = 'Файл недоступен'; });
+  });
 }
 
 // ---------- старт ----------
@@ -186,7 +256,7 @@ $('#out').onclick = function() { setTok(''); S.me = null; S.open = null; S.view 
 var m = location.hash.match(/[#&]t=([\w.-]+)/);
 if (m) { setTok(m[1]); history.replaceState(null, '', location.pathname); }   // личная ссылка: запомнить и убрать из адресной строки
 if (tok()) load(); else login('email');
-setInterval(function() { if (S.me && document.visibilityState === 'visible' && S.view === 'list' && !document.activeElement.matches('textarea, input')) load(); }, 60000);
+setInterval(function() { if (S.me && document.visibilityState === 'visible' && S.view === 'list' && !S.open && !document.activeElement.matches('textarea, input')) load(); }, 60000);
 </script>
 </body>
 </html>

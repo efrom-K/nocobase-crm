@@ -226,10 +226,11 @@ function tenantApply(t, r, a, inp, now) {
   if (tenantActions(t, r).indexOf(a) === -1) return { err: 'Это действие недоступно', code: 403 };
   const v = String((inp && inp.v) || '').trim().slice(0, 5000);   // автор событий арендатора — пустой (author_id null, видимость public)
   const out = { upd: null, events: [], notify: [] }, resp = r.responsible_id;
-  if (a === 'comment') {
-    if (!v) return { err: 'Напишите сообщение', field: 1 };
-    out.events.push(['comment', v, null, 'public']);
-    out.notify.push([resp, 'Арендатор пишет: ' + v.slice(0, 200)]);
+  if (a === 'comment') {   // файлы (фото) — отдельными событиями, их добавляет сервер
+    const files = (inp && inp.file_ids || []).length;
+    if (!v && !files) return { err: 'Напишите сообщение или приложите фото', field: 1 };
+    if (v) out.events.push(['comment', v, null, 'public']);
+    out.notify.push([resp, 'Арендатор пишет: ' + (v ? v.slice(0, 200) : 'приложил фото')]);
   }
   if (a === 'accept') {
     const rating = Math.round(Number(inp && inp.rating));

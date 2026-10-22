@@ -226,6 +226,9 @@ function opToast(t) {
   const d = document.createElement('div'); d.className = 'op-toast'; d.textContent = t; opRoot().appendChild(d);
   setTimeout(function() { d.remove(); }, 2600);
 }
+// деньги договора — тем, кто видит их в реестре (аренда, юристы, бухгалтерия), руководству и админам; остальным раздел не показывается
+// ponytail: скрыто только на странице, суммы договора читаются через API — закрыть правами роли на rental_contracts, если понадобится
+function opCanMoney() { return !!(op.me && (op.me.roles || []).some(function(r) { return ['admin', 'root', 'requests_control', 'rental_dept', 'legal_dept', 'accounting_dept'].indexOf(r.name) !== -1; })); }
 function opCanEdit() { return !!(op.me && (op.me.roles || []).some(function(r) { return r.name === 'admin' || r.name === 'root'; })); }
 function opPlan() { return op.plans.find(function(p) { return p.id === op.planId; }) || null; }
 function opRoom(id) { return op.rooms.find(function(r) { return r.id === id; }) || null; }
@@ -1024,7 +1027,7 @@ function opCardLoad(id) {
   R('rental_contracts').get({ filterByTk: id }).then(function(res) {
     const c = opRows(res)[0] || {};
     return Promise.all([
-      R('contract_price_periods').list({ paginate: false, filter: { contract_type: 'active', contract_ref_id: id }, sort: ['date_from'] }).then(opRows).catch(function() { return []; }),
+      opCanMoney() ? R('contract_price_periods').list({ paginate: false, filter: { contract_type: 'active', contract_ref_id: id }, sort: ['date_from'] }).then(opRows).catch(function() { return []; }) : [],
       R('contract_addendums').list({ paginate: false, filter: { contract_type: 'active', contract_ref_id: id }, fields: ['id'] }).then(opRows).catch(function() { return []; }),
       R('object_requests').list({ paginate: false, sort: ['-id'], fields: ['id', 'title', 'status', 'due_date', 'createdAt'],
         filter: { $or: [{ contract_id: id }, { object_name: c.object_name || '-', tenant_label: c.tenant_name || '-' }] } }).then(opRows).catch(function() { return []; })
@@ -1060,6 +1063,7 @@ function opCardHtml(r, c0) {
   h += '</div>';
   // деньги
   const per = Number(c.rent_per_sqm) || null, rent = Number(c.rent_amount) || null, ut = Number(c.utility_amount) || null;
+  if (opCanMoney()) {
   h += '<div class="op-cs"><label>Деньги</label><div class="op-big">' + opRub(rent) + ' <small>в месяц' + (per ? ' · ' + opRub(per) + '/м²' : '') + '</small></div><div class="op-kv" style="margin-top:8px;">'
     + (ut ? '<b>Коммунальные</b><span>' + opRub(ut) + ' / мес' + (c.utility_per_sqm ? ' (' + opRub(c.utility_per_sqm) + '/м²)' : '') + '</span>' : '')
     + (rent || ut ? '<b>Итого в месяц</b><span><b style="color:var(--ink);">' + opRub((rent || 0) + (ut || 0)) + '</b></span>' : '')
@@ -1074,6 +1078,7 @@ function opCardHtml(r, c0) {
       + opRub(p.amount) + ((p.basis || 'per_sqm') === 'per_sqm' ? '/м²' : ' / мес') + (cur ? ' · сейчас' : fut ? ' · будет' : '') + '</span>';
   }).join('') + '</div>';
   h += '</div>';
+  }
   // заявки
   if (d && d.reqs) {
     const open = d.reqs.filter(function(q) { return ['new', 'in_work', 'waiting'].indexOf(q.status) !== -1; });

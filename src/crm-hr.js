@@ -1726,12 +1726,13 @@ function hRenderEmp(m, id) {
         : (view || hKv(spec, rec))) + '</div>';
   };
   const lines = function(arr, empty) { return arr.length ? '<div class="hr-lines">' + arr.join('') + '</div>' : '<div class="hr-hint">' + empty + '</div>'; };
-  // основное: только заполненное + главное
+  // основное: полное ФИО первой строкой; HR видит все поля (пустые — прочерком, чтобы было видно, что не заполнено), остальные — справочник
   const PUBLIC = ['position', 'department', 'legal_entity_id', 'extra_le_ids', 'object_name', 'phone', 'email', 'work_schedule', 'birthday'];   // справочник для всех
-  const mainView = hKv(H_MAIN.filter(function(f) {
+  const fio = [e.last_name, e.first_name, e.middle_name].filter(Boolean).join(' ') || e.full_name;
+  const mainView = hKv([['__fio', 'ФИО', 'text']].concat(H_MAIN.filter(function(f) {
       if (HR_MODE !== 'hr') return PUBLIC.indexOf(f[0]) !== -1 && (e[f[0]] || f[0] === 'phone') && !(Array.isArray(e[f[0]]) && !e[f[0]].length);
-      return f[0] !== 'note' && f[0] !== 'last_name' && f[0] !== 'first_name' && (e[f[0]] || ['position', 'department', 'legal_entity_id', 'phone', 'hired_on'].indexOf(f[0]) !== -1) && !(f[0] === 'contract_until' && staff);
-    }), e)
+      return ['note', 'last_name', 'first_name', 'middle_name'].indexOf(f[0]) === -1 && !(f[0] === 'contract_until' && staff) && !(f[0] === 'fired_on' && e.status !== 'fired');
+    })), Object.assign({}, e, { __fio: fio }))
     + (e.note && HR_MODE === 'hr' ? '<div class="hr-hint" style="white-space:pre-wrap;margin-top:8px;">' + hEsc(e.note) + '</div>' : '');
   // отпуска
   // вся история отпусков за время работы — по годам, новые сверху; у каждого года — сколько дней ежегодного использовано

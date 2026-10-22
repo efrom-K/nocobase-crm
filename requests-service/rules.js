@@ -203,7 +203,7 @@ function tenantActions(t, r) {
 function tenantCreate(t, input, contract, obj, kinds, cfg, now) {
   const v = input || {};
   if (!contract || (t.contracts || []).indexOf(Number(contract.id)) === -1) return { err: 'Выберите договор', field: 'contract_id' };
-  if (!v.kind || (kinds || []).indexOf(v.kind) === -1) return { err: 'Выберите, что случилось', field: 'kind' };
+  if (!v.kind || (kinds || []).indexOf(v.kind) === -1) return { err: 'Выберите тему заявки', field: 'kind' };
   if (!String(v.title || '').trim()) return { err: 'Коротко опишите проблему', field: 'title' };
   const k = DEF.urgency[v.urgency] ? v.urgency : 'normal', u = urg(cfg, k);
   const resp = Number(obj && obj.manager_user_id) || Number(obj && obj.senior_user_id) || null;

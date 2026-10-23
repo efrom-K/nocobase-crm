@@ -30,7 +30,7 @@ function ru(v) { const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/); re
 function urg(cfg, k) { const u = Object.assign({}, DEF.urgency, (cfg && cfg.urgency) || {}); return Object.assign({}, DEF.urgency[k] || DEF.urgency.normal, u[k] || {}); }
 
 // ---------- кто есть кто ----------
-// ctx: { me, isAdmin, isCtl, depts: [названия отделов пользователя], r: заявка, pending: [запросы на решение по заявке] }
+// ctx: { me, isAdmin, isCtl, depts: [названия отделов пользователя], r: заявка, pending: [запросы на решение по заявке], doneBy: кто отметил «Решена» }
 function role(ctx) {
   const r = ctx.r || {}, me = Number(ctx.me);
   const resp = Number(r.responsible_id) === me;
@@ -38,7 +38,7 @@ function role(ctx) {
 }
 function canAccept(ctx) {
   const r = ctx.r, x = role(ctx);
-  if (x.resp) return false;
+  if (x.resp || (ctx.doneBy && Number(ctx.doneBy) === Number(ctx.me))) return false;   // кто отметил «Решена», тот её и не принимает
   return x.boss || (r.accept_mode === 'user' && Number(r.accept_user_id) === Number(ctx.me));
 }
 
@@ -115,7 +115,10 @@ function apply(ctx, a, inp, cfg, now, ap) {
     if (!v) return { err: 'Выберите отдел', field: 1 };
     if (!v2) return { err: 'Напишите, что нужно от отдела', field: 2 };
     const days = Number(cfg && cfg.deptDays) >= 0 ? Number(cfg.deptDays) : DEF.deptDays;
-    st({ status: 'dept', dept: v, dept_user_id: Number(inp.user_id) || null, dept_since: nowIso, dept_due: addWorkDays(now, days) }, 'dept', 'Передана в отдел «' + v + '» (срок отдела ' + ru(addWorkDays(now, days)) + '): ' + v2);
+    // срок отдела не позже срока заявки (если тот ещё не прошёл) — иначе управляющий получает просрочку, пока отдел «в срок»
+    let dd = addWorkDays(now, days); const rd = String(r.due_date || '').slice(0, 10);
+    if (rd && rd >= iso(now) && rd < dd) dd = rd;
+    st({ status: 'dept', dept: v, dept_user_id: Number(inp.user_id) || null, dept_since: nowIso, dept_due: dd }, 'dept', 'Передана в отдел «' + v + '» (срок отдела ' + ru(dd) + '): ' + v2);
     if (Number(inp.user_id)) out.notify.push([Number(inp.user_id), 'Вам заявка из отдела «' + v + '»: ' + r.title]);
     out.notifyDept = v;
   }

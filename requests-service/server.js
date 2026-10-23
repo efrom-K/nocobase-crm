@@ -90,8 +90,16 @@ async function refs() {
   ref.at = Date.now();
   return ref;
 }
-function ctxFor(user, rf, r, pending) {
-  return { me: user.id, isAdmin: user.isAdmin, isCtl: user.isCtl, depts: rf.depts[user.id] || [], r: r, pending: pending || [], userName: id => rf.names[id] || '#' + id };
+function ctxFor(user, rf, r, pending, doneBy) {
+  return { me: user.id, isAdmin: user.isAdmin, isCtl: user.isCtl, depts: rf.depts[user.id] || [], r: r, pending: pending || [], doneBy: doneBy || null, userName: id => rf.names[id] || '#' + id };
+}
+// кто отметил «Решена» (последнее такое событие) — по заявкам на приёмке; он же их принять не может
+async function doneByOf(ids) {
+  const out = {};
+  if (!ids.length) return out;
+  const evs = await list('request_events', '&sort=id&fields=request_id,author_id&filter=' + q({ request_id: { $in: ids }, kind: 'status', text: { $startsWith: 'Решена' } }));
+  (evs || []).forEach(e => { out[e.request_id] = e.author_id; });
+  return out;
 }
 
 async function notify(ids, r, text, me) {
@@ -116,8 +124,8 @@ async function acts(user) {
     list('object_requests', '&fields=' + ['id', 'status', 'responsible_id', 'author_id', 'accept_mode', 'accept_user_id', 'dept', 'dept_user_id'].join(',') + '&filter=' + q({ status: { $in: R.OPEN.concat(['done']) } })),
     list('request_approvals', '&filter=' + q({ status: 'pending' }))
   ]);
-  const out = {};
-  (reqs || []).forEach(r => { out[r.id] = R.actions(ctxFor(user, rf, r, (aps || []).filter(p => Number(p.request_id) === r.id))); });
+  const out = {}, by = await doneByOf((reqs || []).filter(r => r.status === 'done').map(r => r.id));
+  (reqs || []).forEach(r => { out[r.id] = R.actions(ctxFor(user, rf, r, (aps || []).filter(p => Number(p.request_id) === r.id), by[r.id])); });
   return { me: { isCtl: user.isCtl, isAdmin: user.isAdmin, depts: rf.depts[user.id] || [] }, acts: out, pending: aps || [] };
 }
 async function create(user, body) {
@@ -137,7 +145,7 @@ async function act(user, body) {
   if (!r) throw new ApiError(404, 'Заявка не найдена');
   const pending = await list('request_approvals', '&filter=' + q({ request_id: r.id, status: 'pending' }));
   const ap = body.a === 'decide' ? (pending || []).find(p => p.id === Number(body.approval_id)) : null;
-  const ctx = ctxFor(user, rf, r, pending);
+  const ctx = ctxFor(user, rf, r, pending, r.status === 'done' ? (await doneByOf([r.id]))[r.id] : null);
   const res = R.apply(ctx, body.a, body, rf.cfg, new Date(), ap);
   if (res.err) throw new ApiError(res.code || 400, res.err, res.field);
   if (res.upd) await nb('POST', 'object_requests:update?filterByTk=' + r.id, res.upd);

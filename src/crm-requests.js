@@ -410,7 +410,7 @@ function rqOnClick(e) {
   const sb = c('[data-by]');
   if (sb) { rq.statsBy = sb.getAttribute('data-by'); rqRenderStats(); return; }
   const kd = c('[data-kpidemo]');
-  if (kd) { rq.kpiDemo = kd.getAttribute('data-kpidemo') === '1'; rqRenderKpi(); return; }
+  if (kd) { rq.kpiDemo = kd.getAttribute('data-kpidemo') === '1'; if (rq.tab === 'kpi') rqRenderKpi(); else rqRenderStats(); return; }
   const pr = c('[data-period]');
   if (pr) { rq.statsDays = Number(pr.getAttribute('data-period')); if (rq.tab === 'kpi') rqRenderKpi(); else rqRenderStats(); return; }
   if (c('[data-act="xlsx"]')) { try { if (rq.tab === 'kpi') rqExportKpi(); else rqExportStats(); } catch (err) { rqToast('Не удалось выгрузить'); } return; }
@@ -812,25 +812,44 @@ async function rqApply(m, r, a, btn) {
 // Период (30 / 90 / 365 дней / всё время) — для «поступило, выполнено, в срок, медиана, переносы, эскалации, возвраты»;
 // «открыто / просрочено / аварии» — всегда на сегодня.
 const RQ_PERIODS = [[30, '30 дней'], [90, '3 месяца'], [365, 'год'], [0, 'всё время']];
+// день события по местному времени (createdAt, done_at… приходят в UTC; due_date — уже дата)
+function rqDay(v) { if (!v) return ''; const x = String(v); return /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : rqIso(new Date(x)); }
+// «в срок»: решённые не позже срока + открытые, у которых срок уже прошёл, считаются сорванными
+function rqOnTime(done, open) {
+  const ok = done.filter(function(r) { return !r.due_date || rqDay(r.done_at) <= String(r.due_date).slice(0, 10); }).length, n = done.length + open.filter(rqLate).length;
+  return n ? Math.round(100 * ok / n) : null;
+}
+// события, по которым считаются возвраты и эскалации (из истории: поля заявки при переносе срока обнуляются)
+async function rqLoadMarks() {
+  if (rq.data.marks) return;
+  try {
+    const ev = rqRows(await ctx.api.resource('request_events').list({ filter: { $or: [{ kind: 'status', text: { $includes: 'возвращена в работу' } }, { kind: 'system', text: { $startsWith: 'Эскалация старшему' } }] }, fields: ['request_id', 'kind', 'createdAt'], paginate: false }));
+    rq.data.marks = { reopen: ev.filter(function(e) { return e.kind === 'status'; }), esc: ev.filter(function(e) { return e.kind === 'system'; }) };
+  } catch (e) { rq.data.marks = { reopen: [], esc: [] }; }
+}
+function rqMarkCount(list, from) { const n = {}; list.forEach(function(e) { if (rqDay(e.createdAt) >= from) n[e.request_id] = (n[e.request_id] || 0) + 1; }); return n; }
+function rqDemoBtns() {
+  const demo = rq.data.reqs.filter(function(r) { return r.demo; }).length;
+  return demo ? '<div class="rq-view"><button data-kpidemo="0"' + (rq.kpiDemo ? '' : ' class="on"') + '>Без демо</button><button data-kpidemo="1"' + (rq.kpiDemo ? ' class="on"' : '') + '>С демо-заявками (' + demo + ')</button></div>' : '';
+}
 function rqMgrKey(o) { return !o ? '' : o.manager_user_id ? 'u' + o.manager_user_id : o.manager_name ? 'n' + o.manager_name : ''; }
 function rqMgrLabel(k) { return !k ? 'Без управляющего' : k[0] === 'u' ? rqUser(Number(k.slice(1))) : k.slice(1) + ' (нет учётки в CRM)'; }
 function rqStats() {
-  const reqs = rq.data.reqs, days = rq.statsDays;
+  const reqs = rq.data.reqs.filter(function(r) { return !r.demo || rq.kpiDemo; }), days = rq.statsDays;
   const sinceD = function(n) { const d = new Date(); d.setDate(d.getDate() - n); return rqIso(d); };
   const from = days ? sinceD(days) : '0000';
-  const inP = function(v) { return !!v && String(v).slice(0, 10) >= from; };
+  const inP = function(v) { return !!v && rqDay(v) >= from; };
   const isOpen = function(r) { return RQ_OPEN.indexOf(r.status) !== -1; };
-  const inTime = function(r) { return !r.due_date || String(r.done_at).slice(0, 10) <= String(r.due_date).slice(0, 10); };
-  const reopenOf = {};
-  (rq.data.reopens || []).forEach(function(e) { if (inP(e.createdAt)) reopenOf[e.request_id] = (reopenOf[e.request_id] || 0) + 1; });
+  const inTime = function(r) { return !r.due_date || rqDay(r.done_at) <= String(r.due_date).slice(0, 10); };
+  const mk = rq.data.marks || { reopen: [], esc: [] }, reopenOf = rqMarkCount(mk.reopen, from), escOf = rqMarkCount(mk.esc, from);
   function metrics(l) {
     const o = l.filter(isOpen), done = l.filter(function(r) { return inP(r.done_at); });
-    const med = rqMedian(done.map(function(r) { return rqDays(String(r.createdAt).slice(0, 10), String(r.done_at).slice(0, 10)); }));
+    const med = rqMedian(done.map(function(r) { return rqDays(rqDay(r.createdAt), rqDay(r.done_at)); }));
     return { total: l.length, open: o.length, late: o.filter(rqLate).length, em: o.filter(function(r) { return r.urgency === 'emergency'; }).length,
       created: l.filter(function(r) { return inP(r.createdAt); }).length, done: done.length,
-      ontime: done.length ? Math.round(100 * done.filter(inTime).length / done.length) : null, med: med,
+      ontime: rqOnTime(done, o), med: med,
       moved: l.filter(function(r) { return inP(r.createdAt) && r.due_moved > 0; }).length,
-      esc: l.filter(function(r) { return inP(r.escalated_at); }).length,
+      esc: l.reduce(function(n, r) { return n + (escOf[r.id] || 0); }, 0),
       reopen: l.reduce(function(n, r) { return n + (reopenOf[r.id] || 0); }, 0) };
   }
   function group(keyFn, labelFn) {
@@ -849,7 +868,7 @@ function rqStats() {
   const weeks = [];
   const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
   for (let i = 7; i >= 0; i--) { const s = new Date(mon); s.setDate(s.getDate() - 7 * i); const e = new Date(s); e.setDate(e.getDate() + 7); weeks.push([rqIso(s), rqIso(e)]); }
-  const inW = function(v, w) { const x = String(v || '').slice(0, 10); return x >= w[0] && x < w[1]; };
+  const inW = function(v, w) { const x = rqDay(v); return x >= w[0] && x < w[1]; };
   return {
     all: all, byMgr: byMgr,
     byObj: group(function(r) { return r.object_name || null; }, function(k) { return k; }),
@@ -858,7 +877,7 @@ function rqStats() {
     weeks: weeks.map(function(w) {
       const done = reqs.filter(function(r) { return inW(r.done_at, w); });
       const openEnd = reqs.filter(function(r) {   // висело открытыми на конец недели
-        const c = String(r.createdAt || '').slice(0, 10), d = String(r.done_at || '').slice(0, 10), x = String(r.closed_at || '').slice(0, 10);
+        const c = rqDay(r.createdAt), d = rqDay(r.done_at), x = rqDay(r.closed_at);
         return c && c < w[1] && !(d && d < w[1]) && !(x && x < w[1]);
       }).length;
       return { from: w[0], created: reqs.filter(function(r) { return inW(r.createdAt, w); }).length, done: done.length, ontime: done.filter(inTime).length, openEnd: openEnd };
@@ -866,8 +885,8 @@ function rqStats() {
   };
 }
 const RQ_COLS_STAT = [['open', 'Открыто'], ['late', 'Просрочено'], ['em', 'Аварии'], ['created', 'Поступило'], ['done', 'Выполнено'], ['ontime', 'В срок, %'], ['med', 'Медиана, дн.'], ['moved', 'Переносили срок'], ['esc', 'Эскалации'], ['reopen', 'Возвраты']];
-const RQ_COLS_HINT = { open: 'Сейчас', late: 'Сейчас, срок прошёл', em: 'Открытые аварии сейчас', created: 'Поступило за период', done: 'Выполнено за период', ontime: 'Доля выполненных за период не позже срока',
-  med: 'Медиана дней от создания до выполнения (за период)', moved: 'Заявки за период, срок которых переносили', esc: 'Эскалации старшему управляющему за период', reopen: 'Сколько раз за период автор вернул «не выполнено»' };
+const RQ_COLS_HINT = { open: 'Сейчас', late: 'Сейчас, срок прошёл', em: 'Открытые аварии сейчас', created: 'Поступило за период', done: 'Выполнено за период', ontime: 'Выполненные за период не позже срока — от выполненных плюс открытых, у которых срок уже прошёл (просрочка = мимо срока)',
+  med: 'Медиана дней от создания до выполнения (за период)', moved: 'Заявки за период, срок которых переносили', esc: 'Эскалации старшему управляющему за период (по истории заявки)', reopen: 'Сколько раз за период работу не приняли и вернули (арендатор, поручивший или контролёр)' };
 function rqCell(x, k) { const v = x[k]; return v === null || v === undefined ? '—' : k === 'med' ? Math.round(v * 10) / 10 : v; }
 const RQ_BY = [['mgr', 'Управляющие', 'byMgr', null], ['obj', 'Объекты', 'byObj', 'obj'], ['resp', 'Ответственные', 'byResp', 'resp'], ['kind', 'Типы заявок', 'byKind', 'kind']];
 const RQ_MAIN = [['open', 'Открыто', 'now'], ['late', 'Просрочено', 'now'], ['em', 'Аварии', 'now'], ['created', 'Поступило', 'per'], ['done', 'Выполнено', 'per'], ['ontime', 'В срок', 'per'], ['med', 'Медиана, дн.', 'per']];
@@ -888,13 +907,12 @@ function rqProblems(x) {
 }
 async function rqRenderStats() {
   const body = document.getElementById('rq-body');
-  if (!rq.data.reopens) {
+  if (!rq.data.marks) {
     body.innerHTML = '<div class="rq-empty">Считаю…</div>';
-    try { rq.data.reopens = rqRows(await ctx.api.resource('request_events').list({ filter: { kind: 'status', text: { $includes: 'Возвращена в работу' } }, fields: ['request_id', 'createdAt'], paginate: false })); }
-    catch (e) { rq.data.reopens = []; }
+    await rqLoadMarks();
     if (rq.tab !== 'stats') return;
   }
-  const st = rqStats(), a = st.all, urgent = rq.data.reqs.filter(function(r) { return RQ_OPEN.indexOf(r.status) !== -1 && r.urgency === 'urgent'; }).length;
+  const st = rqStats(), a = st.all, urgent = rq.data.reqs.filter(function(r) { return RQ_OPEN.indexOf(r.status) !== -1 && r.urgency === 'urgent' && (!r.demo || rq.kpiDemo); }).length;
   const per = (RQ_PERIODS.find(function(p) { return p[0] === rq.statsDays; }) || [0, ''])[1];
   const tiles = [
     ['Открыто сейчас', a.open, a.late ? '<span class="st-bad">просрочено ' + a.late + '</span>' : 'просрочек нет', { quick: 'open' }],
@@ -932,6 +950,7 @@ async function rqRenderStats() {
   const trend = last > first ? '<span class="st-badt">очередь выросла с ' + first + ' до ' + last + '</span>' : last < first ? '<span class="st-ok">очередь сократилась с ' + first + ' до ' + last + '</span>' : 'очередь не изменилась: ' + last;
   body.innerHTML = '<div class="st">'
     + '<div class="st-bar"><span class="st-lbl">Период</span><div class="rq-view">' + RQ_PERIODS.map(function(p) { return '<button data-period="' + p[0] + '"' + (rq.statsDays === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'
+    + rqDemoBtns()
     + '<button class="rq-btn" data-act="xlsx" style="margin-left:auto;">⬇ Выгрузить в Excel</button></div>'
     + '<div class="st-tiles">' + tiles.map(function(t) {
         return '<div class="st-tile" data-go="' + rqEsc(JSON.stringify(t[3])) + '"><div class="st-tl">' + t[0] + '</div><div class="st-tv">' + t[1] + '</div><div class="st-tn">' + t[2] + '</div></div>';
@@ -955,14 +974,14 @@ function rqExportStats() {
       rows: rows.map(function(x) { return [x.label].concat(extra ? extra.v(x) : [], RQ_COLS_STAT.map(function(c) { return val(x, c[0]); })); }) };
   };
   const a = st.all;
-  const list = rq.data.reqs.slice().sort(function(x, y) { return y.id - x.id; }).map(function(r) {
+  const list = rq.data.reqs.filter(function(r) { return !r.demo || rq.kpiDemo; }).sort(function(x, y) { return y.id - x.id; }).map(function(r) {
     const o = (rq.data.objects || []).find(function(z) { return z.name === r.object_name; });
     return [r.id, r.createdAt, r.object_name || '', rqMgrKey(o) ? rqMgrLabel(rqMgrKey(o)) : '', r.kind || '', r.title || '', r.tenant_label || '', (RQ_URG[r.urgency] || RQ_URG.normal).l,
       (RQ_ST[r.status] || { l: r.status }).l, rqUser(r.responsible_id), rqUser(r.author_id), r.due_date || null,
       rqLate(r) ? rqDays(String(r.due_date).slice(0, 10), rqToday()) : null, Number(r.due_moved) || null, r.done_at || null, r.closed_at || null, r.result || ''];
   });
   crmXlsx('Заявки по объектам — статистика', {
-    title: 'Заявки по объектам — статистика', filters: [['Период', per]],
+    title: 'Заявки по объектам — статистика', filters: [['Период', per], ['Демо-заявки', rq.kpiDemo ? 'считаются' : 'не считаются']],
     notes: RQ_COLS_STAT.map(function(c) { return [c[1], RQ_COLS_HINT[c[0]]]; }),
     sheets: [
       { name: 'Сводка', title: 'Заявки по объектам — сводка за период: ' + per, cols: [{ h: 'Показатель', w: 26 }, { h: 'Значение', t: 'num', w: 14 }, { h: 'Что это', t: 'long', w: 70 }],
@@ -987,13 +1006,14 @@ function rqExportStats() {
 // «открыто / просрочено» — на сегодня. Те же цифры выгружает Excel.
 const RQ_KPI_COLS = [['open', 'Открыто', 'Открытые заявки сейчас'], ['late', 'Просрочено', 'Открытые с прошедшим сроком сейчас'],
   ['got', 'Поступило', 'Заявки, созданные за период'], ['react', 'Реакция в срок, %', 'Взял в работу до срока реакции (по срочности); не взятые с прошедшим сроком реакции — тоже мимо'],
-  ['done', 'Выполнено', 'Решены за период'], ['ontime', 'В срок, %', 'Решены не позже срока'], ['med', 'Медиана, дн.', 'Медиана дней от создания до решения'],
-  ['reopen', 'Возвраты', 'Сколько раз работу, решённую за период, не приняли и вернули'], ['asks', 'Запросы', 'Запросы на перенос срока, передачу и отмену за период'],
-  ['asksOk', 'Одобрено', 'Из запросов одобрено руководителем'], ['esc', 'Эскалации', 'Эскалации старшему за период'], ['rating', 'Оценка', 'Средняя оценка арендатора за период']];
+  ['done', 'Выполнено', 'Решены за период'], ['ontime', 'В срок, %', 'Решены за период не позже срока — от решённых плюс открытых с уже прошедшим сроком (просрочка = мимо срока)'], ['med', 'Медиана, дн.', 'Медиана дней от создания до решения'],
+  ['reopen', 'Возвраты', 'Сколько раз за период работу не приняли и вернули'], ['asks', 'Запросы', 'Запросы на перенос срока, передачу и отмену за период'],
+  ['asksOk', 'Одобрено', 'Из запросов одобрено руководителем'], ['esc', 'Эскалации', 'Эскалации старшему за период (по истории — перенос срока их не стирает)'], ['rating', 'Оценка', 'Средняя оценка арендатора за период']];
 function rqKpi() {
   const days = rq.statsDays, d0 = new Date(); d0.setDate(d0.getDate() - days);
   const from = days ? rqIso(d0) : '0000', nowIso = new Date().toISOString();
-  const inP = function(v) { return !!v && String(v).slice(0, 10) >= from; };
+  const inP = function(v) { return !!v && rqDay(v) >= from; };
+  const mk = rq.data.marks || { reopen: [], esc: [] }, reopenOf = rqMarkCount(mk.reopen, from), escOf = rqMarkCount(mk.esc, from);
   const g = {};
   const row = function(id) { return g[id] = g[id] || { k: String(id), label: rqUser(Number(id)), l: [], ap: [] }; };
   rq.data.reqs.forEach(function(r) { if (r.responsible_id && (!r.demo || rq.kpiDemo)) row(r.responsible_id).l.push(r); });
@@ -1010,12 +1030,12 @@ function rqKpi() {
     const rated = done.filter(function(r) { return Number(r.rating) > 0; });
     return Object.assign(x, { open: open.length, late: open.filter(rqLate).length, got: got.length,
       react: rOk + rBad ? Math.round(100 * rOk / (rOk + rBad)) : null, done: done.length,
-      ontime: done.length ? Math.round(100 * done.filter(function(r) { return !r.due_date || String(r.done_at).slice(0, 10) <= String(r.due_date).slice(0, 10); }).length / done.length) : null,
-      med: rqMedian(done.map(function(r) { return rqDays(String(r.createdAt).slice(0, 10), String(r.done_at).slice(0, 10)); })),
-      reopen: done.reduce(function(n, r) { return n + (Number(r.reopen_count) || 0); }, 0),
+      ontime: rqOnTime(done, open),
+      med: rqMedian(done.map(function(r) { return rqDays(rqDay(r.createdAt), rqDay(r.done_at)); })),
+      reopen: l.reduce(function(n, r) { return n + (reopenOf[r.id] || 0); }, 0),
       asks: x.ap.length, asksOk: x.ap.filter(function(p) { return p.status === 'approved'; }).length,
       askKinds: ['due', 'assign', 'cancel'].map(function(k) { return x.ap.filter(function(p) { return p.kind === k; }).length; }),
-      esc: l.filter(function(r) { return inP(r.escalated_at); }).length,
+      esc: l.reduce(function(n, r) { return n + (escOf[r.id] || 0); }, 0),
       rating: rated.length ? Math.round(10 * rated.reduce(function(n, r) { return n + Number(r.rating); }, 0) / rated.length) / 10 : null });
   }
   return Object.keys(g).map(function(k) { return m(g[k]); })
@@ -1032,17 +1052,17 @@ function rqKpiCell(x, k) {
 }
 async function rqRenderKpi() {
   const body = document.getElementById('rq-body');
-  if (!rq.data.approvals) {
+  if (!rq.data.approvals || !rq.data.marks) {
     body.innerHTML = '<div class="rq-empty">Считаю…</div>';
+    await rqLoadMarks();
     try { rq.data.approvals = rqRows(await ctx.api.resource('request_approvals').list({ fields: ['author_id', 'kind', 'status', 'createdAt'], paginate: false })); }
     catch (e) { rq.data.approvals = []; }
     if (rq.tab !== 'kpi') return;
   }
   const rows = rqKpi(), per = (RQ_PERIODS.find(function(p) { return p[0] === rq.statsDays; }) || [0, ''])[1];
-  const demo = rq.data.reqs.filter(function(r) { return r.demo; }).length;
   body.innerHTML = '<div class="st">'
     + '<div class="st-bar"><span class="st-lbl">Период</span><div class="rq-view">' + RQ_PERIODS.map(function(p) { return '<button data-period="' + p[0] + '"' + (rq.statsDays === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'
-    + (demo ? '<div class="rq-view"><button data-kpidemo="0"' + (rq.kpiDemo ? '' : ' class="on"') + '>Без демо</button><button data-kpidemo="1"' + (rq.kpiDemo ? ' class="on"' : '') + '>С демо-заявками (' + demo + ')</button></div>' : '')
+    + rqDemoBtns()
     + '<button class="rq-btn" data-act="xlsx" style="margin-left:auto;">⬇ Выгрузить в Excel</button></div>'
     + '<div class="st-card"><div class="st-ch"><div class="st-ct">KPI по ответственным</div><span class="st-hint">открыто и просрочено — на ' + rqDate(rqToday()) + '; остальное — за ' + per + '. Наведите на заголовок — что считается. Клик по строке — его заявки</span></div>'
     + (rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th class="st-name">Ответственный</th>'

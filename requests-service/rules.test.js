@@ -111,4 +111,17 @@ const has = (ctx, a) => R.actions(ctx).indexOf(a) !== -1;
   assert(!has(as(MGR, req({ accept_mode: 'user' })), 'reply'));
   assert.strictEqual(R.apply(as(MGR, req({ accept_mode: 'tenant' })), 'reply', { v: 'Мастер будет завтра' }, {}, now).events[0][3], 'public');
 }
+// контролёр, который сам отметил «Решена», её не принимает (другой контролёр — да)
+{
+  const d = req({ status: 'done', accept_mode: 'tenant' });
+  assert(!has(as(OPDIR, d, { doneBy: OPDIR }), 'accept'), 'сам решил — сам не принимает');
+  assert(has(as(KOLEDA, d, { doneBy: OPDIR }), 'accept'));
+}
+// срок отдела не позже срока заявки; прошедший срок заявки не ограничивает
+{
+  const t = { v: 'Юридический отдел', v2: 'нужен ответ' };
+  assert.strictEqual(R.apply(as(MGR, req({ due_date: '2026-10-22' })), 'to_dept', t, { deptDays: 3 }, now).upd.dept_due, '2026-10-22');
+  assert.strictEqual(R.apply(as(MGR, req({ due_date: '2026-10-28' })), 'to_dept', t, { deptDays: 3 }, now).upd.dept_due, '2026-10-26');
+  assert.strictEqual(R.apply(as(MGR, req({ due_date: '2026-10-20' })), 'to_dept', t, { deptDays: 3 }, now).upd.dept_due, '2026-10-26');
+}
 console.log('rules ok');

@@ -55,6 +55,9 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .rq-row-title { font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #crm-req .rq-row-sub { font-size:12.5px; color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #crm-req .rq-row-side { text-align:right; font-size:12.5px; white-space:nowrap; }
+    .rq-from { display:inline-block; padding:1px 7px; border-radius:4px; font-size:12px; font-weight:600; margin-right:6px; white-space:nowrap; }
+    .rq-from.t { color:#0b5cad; background:#e6f1fc; border:1px solid #9cc7f0; }
+    .rq-from.c { color:#5b4a00; background:#fdf6dc; border:1px solid #e6d28a; }
     .rq-pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; border:1px solid; white-space:nowrap; }
     .rq-late { color:#cf1322; font-weight:600; }
     #crm-req .rq-empty { color:#bfbfbf; padding:24px 0; text-align:center; }
@@ -228,7 +231,7 @@ async function rqSvc(path, body) {
   if (!res.ok) { const e = new Error((j && j.error) || 'Сервис заявок недоступен'); e.field = j && j.field; e.status = res.status; throw e; }
   return j;
 }
-const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr', kpiDemo: true };
+const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', from: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr', kpiDemo: true };
 try { if (localStorage.getItem('crm-req-view') === 'board') rq.view = 'board'; } catch (e) { /* хранилище недоступно — список */ }
 // демо-заявки (проверка системы) по умолчанию считаются; «Без демо» запоминается у человека
 try { if (localStorage.getItem('crm-req-demo') === '0') rq.kpiDemo = false; } catch (e) { /* не запомнили — считаем с демо */ }
@@ -251,6 +254,12 @@ function rqAddWorkDays(n) {
 function rqUser(id) { const u = rq.data && rq.data.users[id]; return u ? (u.nickname || u.username) : (id ? '#' + id : 'Система'); }
 function rqIsAdmin() { return !!(rq.me && rq.me.__isAdmin); }
 function rqLate(r) { return RQ_OPEN.indexOf(r.status) !== -1 && r.due_date && String(r.due_date).slice(0, 10) < rqToday(); }
+// откуда заявка: от арендатора (портал или звонок/письмо) или выдал кто-то из компании (обход, поручение, отдел, другое)
+function rqFromTenant(r) { return r.source === 'portal' || r.source === 'phone'; }
+function rqFromTag(r) {
+  return rqFromTenant(r) ? '<span class="rq-from t" title="' + rqEsc(RQ_SRC[r.source]) + '">Арендатор · ' + (r.source === 'portal' ? 'портал' : 'звонок') + '</span>'
+    : '<span class="rq-from c" title="' + rqEsc(RQ_SRC[r.source] || 'Внутренняя заявка') + '">Компания' + (r.author_id ? ' · ' + rqEsc(rqUser(r.author_id)) : '') + '</span>';
+}
 function rqPill(s) { const x = RQ_ST[s] || { l: s, c: '#8c8c8c' }; return '<span class="rq-pill" style="color:' + x.c + ';border-color:' + x.c + '55;background:' + x.c + '10;">' + rqEsc(x.l) + '</span>'; }
 function rqNoun(n, a, b, c) { const x = Math.abs(n) % 100, y = x % 10; return (x > 10 && x < 20) ? c : y === 1 ? a : (y >= 2 && y <= 4) ? b : c; }
 function rqMedian(a) { if (!a.length) return null; const s = a.slice().sort(function(x, y) { return x - y; }); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
@@ -355,6 +364,7 @@ function rqRenderListShell() {
   document.getElementById('rq-body').innerHTML = '<div class="rq-chips" id="rq-chips"></div><div class="rq-filters">'
     + '<select data-f="obj"><option value="">Все объекты</option>' + objs.map(function(o) { return '<option' + (rq.obj === o ? ' selected' : '') + '>' + rqEsc(o) + '</option>'; }).join('') + '</select>'
     + '<select data-f="kind"><option value="">Все типы</option>' + RQ_KINDS.map(function(k) { return '<option' + (rq.kind === k ? ' selected' : '') + '>' + rqEsc(k) + '</option>'; }).join('') + '</select>'
+    + '<select data-f="from"><option value="">От всех</option>' + [['tenant', 'От арендаторов'], ['company', 'От компании']].map(function(x) { return '<option value="' + x[0] + '"' + (rq.from === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>'
     + '<select data-f="resp"><option value="">Все ответственные</option>' + people.map(function(id) { return '<option value="' + id + '"' + (String(rq.resp) === String(id) ? ' selected' : '') + '>' + rqEsc(rqUser(id)) + '</option>'; }).join('') + '</select>'
     + '<input type="text" data-f="q" placeholder="Поиск: суть, арендатор, номер" value="' + rqEsc(rq.q) + '">'
     + '<div class="rq-view">' + [['list', 'Список'], ['board', 'Доска']].map(function(v) { return '<button data-view="' + v[0] + '"' + (rq.view === v[0] ? ' class="on"' : '') + '>' + v[1] + '</button>'; }).join('') + '</div>'
@@ -367,6 +377,7 @@ function rqFiltered(skipQuick) {
     if (rq.obj && r.object_name !== rq.obj) return false;
     if (rq.kind && r.kind !== rq.kind) return false;
     if (rq.resp && String(r.responsible_id) !== String(rq.resp)) return false;
+    if (rq.from && (rq.from === 'tenant') !== rqFromTenant(r)) return false;
     if (q && [r.title, r.tenant_label, r.object_name, '№' + r.id, String(r.id)].join(' ').toLowerCase().indexOf(q) === -1) return false;
     if (!skipQuick) { const qf = RQ_QUICK.find(function(x) { return x[0] === rq.quick; }); if (qf && !qf[2](r)) return false; }
     return true;
@@ -391,14 +402,14 @@ function rqRowHtml(r) {
   const due = r.due_date ? (late ? '<span class="rq-late">просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн. (срок ' + rqDate(r.due_date) + ')</span>' : 'срок ' + rqDate(r.due_date)) : '';
   return '<div class="rq-row" data-open="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
     + '<div style="min-width:0;"><div class="rq-row-title">' + ((r.urgency === 'urgent' || r.urgency === 'emergency') && open ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
-    + '<div class="rq-row-sub">' + (r.demo ? '<span class="rq-pill" style="color:#8c8c8c;border-color:#d9d9d9;margin-right:6px;">демо</span>' : '') + '№' + r.id + ' · ' + rqEsc([r.object_name, r.tenant_label, r.kind].filter(Boolean).join(' · ')) + '</div></div>'
+    + '<div class="rq-row-sub">' + rqFromTag(r) + (r.demo ? '<span class="rq-pill" style="color:#8c8c8c;border-color:#d9d9d9;margin-right:6px;">демо</span>' : '') + '№' + r.id + ' · ' + rqEsc([r.object_name, r.tenant_label, r.kind].filter(Boolean).join(' · ')) + '</div></div>'
     + '<div class="rq-row-side">' + rqPill(r.status) + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
     + '<div style="margin-top:3px;color:#595959;">' + rqEsc(rqUser(r.responsible_id)) + (open && due ? ' · ' + due : '') + '</div></div></div>';
 }
 
 function rqOnChange(e) {
   const f = e.target.getAttribute('data-f');
-  if (f === 'obj' || f === 'kind' || f === 'resp') { rq[f] = e.target.value; rqRenderList(); }
+  if (f === 'obj' || f === 'kind' || f === 'resp' || f === 'from') { rq[f] = e.target.value; rqRenderList(); }
   const om = e.target.getAttribute('data-objset');
   if (om) rqSaveObjectPerson(e.target, om);
 }
@@ -421,7 +432,7 @@ function rqOnClick(e) {
   const go = c('[data-go]');
   if (go) {   // из статистики — в список с фильтром
     const p = JSON.parse(go.getAttribute('data-go'));
-    rq.obj = p.obj || ''; rq.kind = p.kind || ''; rq.resp = p.resp || ''; rq.quick = p.quick || 'open'; rq.q = ''; rq.tab = 'list';
+    rq.obj = p.obj || ''; rq.kind = p.kind || ''; rq.resp = p.resp || ''; rq.from = ''; rq.quick = p.quick || 'open'; rq.q = ''; rq.tab = 'list';
     rqRender(); return;
   }
   const op = c('[data-open]');
@@ -474,7 +485,7 @@ function rqCardHtml(r) {
   const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal, pd = rq.drop && rq.drop.id === r.id ? rq.drop : null;
   return '<div class="kb-card' + (pd ? ' pending' : '') + '"' + (pd ? '' : ' draggable="true" data-open="' + r.id + '"') + ' data-id="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
     + '<div class="kb-t">' + (r.urgency !== 'normal' && open && RQ_URG[r.urgency] ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
-    + '<div class="kb-s">№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
+    + '<div class="kb-s">' + rqFromTag(r) + '№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
     + '<div class="kb-s">' + rqEsc(rqUser(r.responsible_id))
     + (open && r.due_date ? ' · ' + (late ? '<span class="rq-late">просрочено ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : 'до ' + rqDate(r.due_date)) : '')
     + (r.status === 'waiting' && r.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
@@ -659,7 +670,7 @@ async function rqRenderCard(m, r) {
   let evs = [];
   // файл — связь file (belongsTo attachments): отдельный attachments:list в этой версии NocoBase недоступен (404)
   try { evs = rqRows(await ctx.api.resource('request_events').list({ filter: { request_id: r.id }, sort: ['createdAt'], appends: ['file'], paginate: false })); } catch (e) { evs = []; }
-  box.innerHTML = '<div class="rq-box-h"><div class="rq-box-t">№' + r.id + ' · ' + rqEsc(r.title) + '<div style="margin-top:6px;font-size:13px;font-weight:400;">' + rqPill(r.status)
+  box.innerHTML = '<div class="rq-box-h"><div class="rq-box-t">№' + r.id + ' · ' + rqEsc(r.title) + '<div style="margin-top:6px;font-size:13px;font-weight:400;">' + rqFromTag(r) + rqPill(r.status)
     + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
     + (RQ_URG[r.urgency] && r.urgency !== 'normal' ? ' <span class="rq-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + rqEsc(u.l) + '</span>' : '') + '</div></div><button class="rq-x">✕</button></div>'
     + '<div class="rq-box-b"><div class="rq-meta">'
@@ -876,6 +887,7 @@ function rqStats() {
     byObj: group(function(r) { return r.object_name || null; }, function(k) { return k; }),
     byResp: group(function(r) { return r.responsible_id ? String(r.responsible_id) : null; }, function(k) { return rqUser(Number(k)); }),
     byKind: group(function(r) { return r.kind || null; }, function(k) { return k; }),
+    bySrc: group(function(r) { return r.source || 'other'; }, function(k) { return (RQ_SRC[k] ? (k === 'portal' || k === 'phone' ? 'Арендатор: ' : 'Компания: ') + RQ_SRC[k].toLowerCase() : k); }),
     weeks: weeks.map(function(w) {
       const done = reqs.filter(function(r) { return inW(r.done_at, w); });
       const openEnd = reqs.filter(function(r) {   // висело открытыми на конец недели
@@ -890,7 +902,7 @@ const RQ_COLS_STAT = [['open', 'Открыто'], ['late', 'Просрочено
 const RQ_COLS_HINT = { open: 'Сейчас', late: 'Сейчас, срок прошёл', em: 'Открытые аварии сейчас', created: 'Поступило за период', done: 'Выполнено за период', ontime: 'Выполненные за период не позже срока — от выполненных плюс открытых, у которых срок уже прошёл (просрочка = мимо срока)',
   med: 'Медиана дней от создания до выполнения (за период)', moved: 'Заявки за период, срок которых переносили', esc: 'Эскалации старшему управляющему за период (по истории заявки)', reopen: 'Сколько раз за период работу не приняли и вернули (арендатор, поручивший или контролёр)' };
 function rqCell(x, k) { const v = x[k]; return v === null || v === undefined ? '—' : k === 'med' ? Math.round(v * 10) / 10 : v; }
-const RQ_BY = [['mgr', 'Управляющие', 'byMgr', null], ['obj', 'Объекты', 'byObj', 'obj'], ['resp', 'Ответственные', 'byResp', 'resp'], ['kind', 'Типы заявок', 'byKind', 'kind']];
+const RQ_BY = [['mgr', 'Управляющие', 'byMgr', null], ['obj', 'Объекты', 'byObj', 'obj'], ['resp', 'Ответственные', 'byResp', 'resp'], ['kind', 'Типы заявок', 'byKind', 'kind'], ['src', 'Откуда', 'bySrc', null]];
 const RQ_MAIN = [['open', 'Открыто', 'now'], ['late', 'Просрочено', 'now'], ['em', 'Аварии', 'now'], ['created', 'Поступило', 'per'], ['done', 'Выполнено', 'per'], ['ontime', 'В срок', 'per'], ['med', 'Медиана, дн.', 'per']];
 function rqStatCell(x, k) {
   const v = rqCell(x, k);

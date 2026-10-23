@@ -228,8 +228,10 @@ async function rqSvc(path, body) {
   if (!res.ok) { const e = new Error((j && j.error) || 'Сервис заявок недоступен'); e.field = j && j.field; e.status = res.status; throw e; }
   return j;
 }
-const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr', kpiDemo: false };
+const rq = { data: null, me: null, tab: 'list', quick: 'open', obj: '', kind: '', resp: '', q: '', view: 'list', drop: null, statsDays: 30, statsBy: 'mgr', kpiDemo: true };
 try { if (localStorage.getItem('crm-req-view') === 'board') rq.view = 'board'; } catch (e) { /* хранилище недоступно — список */ }
+// демо-заявки (проверка системы) по умолчанию считаются; «Без демо» запоминается у человека
+try { if (localStorage.getItem('crm-req-demo') === '0') rq.kpiDemo = false; } catch (e) { /* не запомнили — считаем с демо */ }
 
 function rqEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function rqToken() { try { return localStorage.getItem('NOCOBASE_TOKEN'); } catch (e) { return null; } }
@@ -410,7 +412,7 @@ function rqOnClick(e) {
   const sb = c('[data-by]');
   if (sb) { rq.statsBy = sb.getAttribute('data-by'); rqRenderStats(); return; }
   const kd = c('[data-kpidemo]');
-  if (kd) { rq.kpiDemo = kd.getAttribute('data-kpidemo') === '1'; if (rq.tab === 'kpi') rqRenderKpi(); else rqRenderStats(); return; }
+  if (kd) { rq.kpiDemo = kd.getAttribute('data-kpidemo') === '1'; try { localStorage.setItem('crm-req-demo', rq.kpiDemo ? '1' : '0'); } catch (err) { /* не запомним — не страшно */ } if (rq.tab === 'kpi') rqRenderKpi(); else rqRenderStats(); return; }
   const pr = c('[data-period]');
   if (pr) { rq.statsDays = Number(pr.getAttribute('data-period')); if (rq.tab === 'kpi') rqRenderKpi(); else rqRenderStats(); return; }
   if (c('[data-act="xlsx"]')) { try { if (rq.tab === 'kpi') rqExportKpi(); else rqExportStats(); } catch (err) { rqToast('Не удалось выгрузить'); } return; }

@@ -652,8 +652,9 @@ function rqOpenNew() {
 // ---------- карточка заявки ----------
 async function rqOpenCard(id) {
   let r = rq.data.reqs.find(function(x) { return x.id === id; });
-  if (!r) { try { r = rqRows(await ctx.api.resource('object_requests').get({ filterByTk: id }))[0]; } catch (e) { r = null; } }
-  if (!r) { rqToast('Заявка №' + id + ' не найдена'); return; }
+  // не из своего списка — только руководителю (ссылка из уведомления не открывает заявку чужого объекта)
+  if (!r && rqIsBoss()) { try { r = rqRows(await ctx.api.resource('object_requests').get({ filterByTk: id }))[0]; } catch (e) { r = null; } }
+  if (!r) { rqToast('Заявка №' + id + ' не найдена или недоступна'); return; }
   const m = rqModal('<div id="rq-card"></div>');
   m.__rqId = id;
   await rqRenderCard(m, r);

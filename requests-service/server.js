@@ -156,7 +156,8 @@ async function act(user, body) {
   await mailTenantAbout(r, after, res.mailTenant);
   for (const n of res.notify) await notify([n[0]], after, n[1], user.id);
   if (res.notifyCtl) await notify(rf.ctl.filter(id => id !== Number(after.responsible_id)), after, res.notifyCtl, user.id);
-  if (res.notifyDept) await notify(rf.deptUsers[res.notifyDept] || [], after, 'Заявка для отдела «' + res.notifyDept + '»: ' + r.title, user.id);
+  if (res.notifyDept) await notify((rf.deptUsers[res.notifyDept] || []).filter(id => id !== Number(body.user_id)), after,   // названному сотруднику уже ушло «Вам заявка из отдела»
+    'Заявка для отдела «' + res.notifyDept + '»: ' + r.title, user.id);
   return { ok: true };
 }
 

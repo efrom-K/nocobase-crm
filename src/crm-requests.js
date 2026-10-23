@@ -256,9 +256,9 @@ function rqIsAdmin() { return !!(rq.me && rq.me.__isAdmin); }
 function rqLate(r) { return RQ_OPEN.indexOf(r.status) !== -1 && r.due_date && String(r.due_date).slice(0, 10) < rqToday(); }
 // откуда заявка: от арендатора (портал или звонок/письмо) или выдал кто-то из компании (обход, поручение, отдел, другое)
 function rqFromTenant(r) { return r.source === 'portal' || r.source === 'phone'; }
-function rqFromTag(r) {
-  return rqFromTenant(r) ? '<span class="rq-from t" title="' + rqEsc(RQ_SRC[r.source]) + '">Арендатор · ' + (r.source === 'portal' ? 'портал' : 'звонок') + '</span>'
-    : '<span class="rq-from c" title="' + rqEsc(RQ_SRC[r.source] || 'Внутренняя заявка') + '">Компания' + (r.author_id ? ' · ' + rqEsc(rqUser(r.author_id)) : '') + '</span>';
+function rqFromTag(r, short) {   // short — на узкой карточке доски, подробности в подсказке
+  return rqFromTenant(r) ? '<span class="rq-from t" title="' + rqEsc(RQ_SRC[r.source]) + '">Арендатор' + (short ? '' : ' · ' + (r.source === 'portal' ? 'портал' : 'звонок')) + '</span>'
+    : '<span class="rq-from c" title="' + rqEsc((RQ_SRC[r.source] || 'Внутренняя заявка') + (r.author_id ? ' · ' + rqUser(r.author_id) : '')) + '">Компания' + (r.author_id && !short ? ' · ' + rqEsc(rqUser(r.author_id)) : '') + '</span>';
 }
 function rqPill(s) { const x = RQ_ST[s] || { l: s, c: '#8c8c8c' }; return '<span class="rq-pill" style="color:' + x.c + ';border-color:' + x.c + '55;background:' + x.c + '10;">' + rqEsc(x.l) + '</span>'; }
 function rqNoun(n, a, b, c) { const x = Math.abs(n) % 100, y = x % 10; return (x > 10 && x < 20) ? c : y === 1 ? a : (y >= 2 && y <= 4) ? b : c; }
@@ -485,7 +485,7 @@ function rqCardHtml(r) {
   const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal, pd = rq.drop && rq.drop.id === r.id ? rq.drop : null;
   return '<div class="kb-card' + (pd ? ' pending' : '') + '"' + (pd ? '' : ' draggable="true" data-open="' + r.id + '"') + ' data-id="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
     + '<div class="kb-t">' + (r.urgency !== 'normal' && open && RQ_URG[r.urgency] ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
-    + '<div class="kb-s">' + rqFromTag(r) + '№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
+    + '<div class="kb-s">' + rqFromTag(r, true) + '№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
     + '<div class="kb-s">' + rqEsc(rqUser(r.responsible_id))
     + (open && r.due_date ? ' · ' + (late ? '<span class="rq-late">просрочено ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : 'до ' + rqDate(r.due_date)) : '')
     + (r.status === 'waiting' && r.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
@@ -680,7 +680,7 @@ async function rqRenderCard(m, r) {
     + '<div><div class="l">Тип</div>' + rqEsc(r.kind || '—') + '</div>'
     + '<div><div class="l">Срок</div>' + (RQ_OPEN.indexOf(r.status) !== -1 && late ? '<span class="rq-late">' + rqDate(r.due_date) + ', просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : rqDate(r.due_date)) + (r.due_moved ? ' <span style="color:#8c8c8c;font-size:12px;">(переносили ' + r.due_moved + ' раз)</span>' : '') + '</div>'
     + '<div><div class="l">Ответственный</div>' + rqEsc(rqUser(r.responsible_id)) + '</div>'
-    + '<div><div class="l">Автор</div>' + rqEsc(rqUser(r.author_id)) + ' · ' + rqDateTime(r.createdAt) + '</div>'
+    + '<div><div class="l">Автор</div>' + (r.author_id || !rqFromTenant(r) ? rqEsc(rqUser(r.author_id)) : 'Арендатор' + (r.contact_name ? ' (' + rqEsc(r.contact_name) + ')' : '')) + ' · ' + rqDateTime(r.createdAt) + '</div>'
     + (r.source ? '<div><div class="l">Откуда</div>' + rqEsc(RQ_SRC[r.source] || r.source) + '</div>' : '')
     + (r.accept_mode ? '<div><div class="l">Принимает работу</div>' + (r.accept_mode === 'user' ? rqEsc(rqUser(r.accept_user_id)) : r.accept_mode === 'tenant' ? 'арендатор (или руководитель)' : 'руководитель') + '</div>' : '')
     + (r.react_due_at ? '<div><div class="l">Взять в работу до</div>' + (r.taken_at ? rqDateTime(r.react_due_at) + ' · <span style="color:' + (r.taken_at > r.react_due_at ? '#cf1322' : '#389e0d') + ';">взята ' + rqDateTime(r.taken_at) + '</span>'

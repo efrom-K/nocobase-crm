@@ -1018,6 +1018,9 @@ function rqKpi() {
   const mk = rq.data.marks || { reopen: [], esc: [] }, reopenOf = rqMarkCount(mk.reopen, from), escOf = rqMarkCount(mk.esc, from);
   const g = {};
   const row = function(id) { return g[id] = g[id] || { k: String(id), label: rqUser(Number(id)), l: [], ap: [] }; };
+  // в KPI — только управляющие объектов (manager / senior в «Управляющих объектов»), все, даже без заявок; заявки у других — строкой под таблицей
+  const mgr = {};
+  (rq.data.objects || []).forEach(function(o) { [o.manager_user_id, o.senior_user_id].forEach(function(id) { if (id) { mgr[id] = 1; row(id); } }); });
   rq.data.reqs.forEach(function(r) { if (r.responsible_id && (!r.demo || rq.kpiDemo)) row(r.responsible_id).l.push(r); });
   (rq.data.approvals || []).forEach(function(p) { if (p.author_id && inP(p.createdAt)) row(p.author_id).ap.push(p); });
   function m(x) {
@@ -1040,8 +1043,11 @@ function rqKpi() {
       esc: l.reduce(function(n, r) { return n + (escOf[r.id] || 0); }, 0),
       rating: rated.length ? Math.round(10 * rated.reduce(function(n, r) { return n + Number(r.rating); }, 0) / rated.length) / 10 : null });
   }
-  return Object.keys(g).map(function(k) { return m(g[k]); })
+  const others = Object.keys(g).filter(function(k) { return !mgr[k] && g[k].l.length; }).map(function(k) { return { label: g[k].label, n: g[k].l.length }; });
+  const out = Object.keys(g).filter(function(k) { return mgr[k]; }).map(function(k) { return m(g[k]); })
     .sort(function(a, b) { return b.late - a.late || (a.ontime === null) - (b.ontime === null) || (a.ontime || 0) - (b.ontime || 0) || a.label.localeCompare(b.label, 'ru'); });
+  out.others = others;
+  return out;
 }
 function rqKpiCell(x, k) {
   const v = k === 'med' ? (x.med === null ? null : Math.round(x.med * 10) / 10) : x[k];
@@ -1066,13 +1072,14 @@ async function rqRenderKpi() {
     + '<div class="st-bar"><span class="st-lbl">Период</span><div class="rq-view">' + RQ_PERIODS.map(function(p) { return '<button data-period="' + p[0] + '"' + (rq.statsDays === p[0] ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>'
     + rqDemoBtns()
     + '<button class="rq-btn" data-act="xlsx" style="margin-left:auto;">⬇ Выгрузить в Excel</button></div>'
-    + '<div class="st-card"><div class="st-ch"><div class="st-ct">KPI по ответственным</div><span class="st-hint">открыто и просрочено — на ' + rqDate(rqToday()) + '; остальное — за ' + per + '. Наведите на заголовок — что считается. Клик по строке — его заявки</span></div>'
+    + '<div class="st-card"><div class="st-ch"><div class="st-ct">KPI управляющих объектов</div><span class="st-hint">открыто и просрочено — на ' + rqDate(rqToday()) + '; остальное — за ' + per + '. Наведите на заголовок — что считается. Клик по строке — его заявки</span></div>'
     + (rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th class="st-name">Ответственный</th>'
       + RQ_KPI_COLS.map(function(c, n) { return '<th class="n' + (n === 2 || n === 8 ? ' st-sep' : '') + '" title="' + rqEsc(c[2]) + '">' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>'
       + rows.map(function(x) {
           return '<tr class="st-link" data-go="' + rqEsc(JSON.stringify({ resp: x.k, quick: 'all' })) + '"><td class="st-name">' + rqEsc(x.label) + '</td>'
             + RQ_KPI_COLS.map(function(c, n) { return '<td class="n' + (n === 2 || n === 8 ? ' st-sep' : '') + '">' + rqKpiCell(x, c[0]) + '</td>'; }).join('') + '</tr>';
         }).join('') + '</tbody></table></div>' : '<div class="rq-empty">Данных пока нет</div>')
+    + (rows.others.length ? '<div class="st-hint" style="margin-top:8px;">Не управляющие объектов, в KPI не входят (у них заявки как у ответственных): ' + rows.others.map(function(o) { return rqEsc(o.label) + ' — ' + o.n; }).join(', ') + '. Управляющих назначают во вкладке «Управляющие объектов».</div>' : '')
     + '</div></div>';
 }
 function rqExportKpi() {

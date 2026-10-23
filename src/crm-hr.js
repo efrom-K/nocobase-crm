@@ -1684,6 +1684,8 @@ function hOpenLe(l) {
 function hEmpVals(v) {
   v.full_name = v.last_name + (v.first_name ? ' ' + v.first_name : '');
   if (v.status === 'fired' && !v.fired_on) v.fired_on = hToday();
+  // дата увольнения наступила — значит уволен (HR ставит дату и забывает статус); будущая дата — ещё работает. Вернуть на работу — очистить дату
+  if (v.fired_on && hD(v.fired_on) <= hToday()) v.status = 'fired';
   if (!v.employment_type) v.employment_type = 'staff';
   if (!v.status) v.status = 'active';
   return v;
@@ -1731,7 +1733,7 @@ function hRenderEmp(m, id) {
   const fio = [e.last_name, e.first_name, e.middle_name].filter(Boolean).join(' ') || e.full_name;
   const mainView = hKv([['__fio', 'ФИО', 'text']].concat(H_MAIN.filter(function(f) {
       if (HR_MODE !== 'hr') return PUBLIC.indexOf(f[0]) !== -1 && (e[f[0]] || f[0] === 'phone') && !(Array.isArray(e[f[0]]) && !e[f[0]].length);
-      return ['note', 'last_name', 'first_name', 'middle_name'].indexOf(f[0]) === -1 && !(f[0] === 'contract_until' && staff) && !(f[0] === 'fired_on' && e.status !== 'fired');
+      return ['note', 'last_name', 'first_name', 'middle_name'].indexOf(f[0]) === -1 && !(f[0] === 'contract_until' && staff) && !(f[0] === 'fired_on' && e.status !== 'fired' && !e.fired_on);
     })), Object.assign({}, e, { __fio: fio }))
     + (e.note && HR_MODE === 'hr' ? '<div class="hr-hint" style="white-space:pre-wrap;margin-top:8px;">' + hEsc(e.note) + '</div>' : '');
   // отпуска

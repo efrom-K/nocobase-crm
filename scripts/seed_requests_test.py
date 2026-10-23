@@ -184,7 +184,8 @@ class Req:
                 s.ev.append((first, None, 'system', 'Закрыта автоматически: работу не проверили за %d дн.' % AUTO_CLOSE, 'internal'))
             elif first:
                 s.ev.append((first, None, 'system', 'Напоминание о приёмке: %d дн. без проверки' % (first.date() - s.f['done_at'].date()).days, 'internal'))
-        s.f['reminded_on'] = None
+        # о просрочке уже напоминали (как сделал бы скрипт в первый день просрочки) — иначе первый прогон пришлёт всё разом
+        s.f['reminded_on'] = min(due + dt.timedelta(days=1), NOW.date()) if s.f['status'] in ('new', 'in_work', 'waiting', 'dept') and due < NOW.date() else None
 
 NAMES = {12: 'Алексей Коледа', 16: 'Игорь Панкратьев', 31: 'Виталий Ермолин', 34: 'Сергей Котов', 35: 'Александр Кривицкий', 39: 'Александр Одинцов', 45: 'Игорь Фалеев', 46: 'Даниял Хомяков', 27: 'Сергей Бузин', 38: 'Сергей Новиков'}
 R = []

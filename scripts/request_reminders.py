@@ -87,7 +87,8 @@ for r in reqs:
         continue
     if r['status'] == 'new' and r.get('react_due_at') and dt(r['react_due_at']) < now and not mark(r, 'Не взята в работу'):
         notify(r['responsible_id'], r, 'Не взята в работу вовремя: ' + r['title'])
-        notify(r['senior_user_id'], r, 'Не взята в работу вовремя (ответственный #%s): ' % r['responsible_id'] + r['title'])
+        if r['senior_user_id'] != r['responsible_id']:   # старший сам ответственный — одного уведомления хватит
+            notify(r['senior_user_id'], r, 'Не взята в работу вовремя (ответственный #%s): ' % r['responsible_id'] + r['title'])
         event(r, 'Не взята в работу вовремя — сообщено старшему управляющему')
     if r['status'] == 'dept' and r.get('dept_due') and d(r['dept_due']) < today:
         late = (today - d(r['dept_due'])).days

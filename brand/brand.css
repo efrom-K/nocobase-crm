@@ -1,0 +1,42 @@
+/* Консалт Недвижимость — фирменные токены (брендбук v1.2). Общие для сайта, help.*, remote.* и CRM.
+   Шрифты лежат рядом с этим файлом. Меняя значения здесь, меняйте и брендбук (ykinvest-site/brandbook). */
+@font-face { font-family: "Fira Sans"; font-weight: 400; font-display: swap; src: url(fira-sans-400.woff2) format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-weight: 500; font-display: swap; src: url(fira-sans-500.woff2) format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-weight: 600; font-display: swap; src: url(fira-sans-600.woff2) format("woff2"); }
+@font-face { font-family: "Fira Sans Condensed"; font-weight: 600; font-display: swap; src: url(fira-sans-condensed-600.woff2) format("woff2"); }
+@font-face { font-family: "Fira Mono"; font-weight: 400; font-display: swap; src: url(fira-mono-400.woff2) format("woff2"); }
+@font-face { font-family: "Fira Mono"; font-weight: 500; font-display: swap; src: url(fira-mono-500.woff2) format("woff2"); }
+
+:root {
+  /* основные */
+  --kn-navy: #1c2d58;     /* знак, заголовки, кнопки — единственный акцент */
+  --kn-navy-2: #2f4a8a;   /* наведение */
+  --kn-deep: #121d3a;     /* тёмные фоны */
+  /* нейтральные */
+  --kn-ice: #dde5f3;      /* подсветка, плашки */
+  --kn-ice-soft: #eef2f9; /* наведение строк, выбранное */
+  --kn-paper: #f3f5f9;    /* основной фон */
+  --kn-paper-2: #e9edf5;
+  --kn-white: #ffffff;
+  --kn-ink: #1f2433;      /* основной текст */
+  --kn-ink-2: #3a4256;
+  --kn-muted: #5b6478;    /* вторичный текст — только на светлом */
+  --kn-line: #dfe3ec;
+  --kn-line-2: #c3cad8;
+  /* служебные — только статусы в интерфейсах, не графика */
+  --kn-ok: #2f7d4f;   --kn-ok-soft: #e5f1ea;
+  --kn-warn: #8a5a00; --kn-warn-soft: #f6eedb;   /* «внимание»: срок близко, ждёт ответа */
+  --kn-err: #c23b3b;  --kn-err-soft: #f9e6e6;
+  /* шрифты */
+  --kn-cond: "Fira Sans Condensed", "Fira Sans", system-ui, sans-serif;
+  --kn-sans: "Fira Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --kn-mono: "Fira Mono", ui-monospace, Menlo, monospace;
+  /* форма: клиентские сервисы — 22/14 и капсулы, плотные рабочие экраны (CRM) — 8/6 */
+  --kn-r: 22px;
+  --kn-r-sm: 14px;
+  --kn-r-dense: 8px;
+  --kn-r-dense-sm: 6px;
+  --kn-pill: 999px;
+  --kn-shadow: 0 1px 2px rgba(18, 29, 58, .04), 0 12px 32px -12px rgba(18, 29, 58, .18);
+  --kn-focus: 0 0 0 3px rgba(47, 74, 138, .28);
+}

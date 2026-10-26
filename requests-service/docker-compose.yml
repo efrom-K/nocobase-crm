@@ -6,3 +6,5 @@ services:
     env_file: .env
     ports:
       - "8097:8097"
+    volumes:
+      - ./brand:/app/brand:ro   # фирменный кит из brand/ репозитория (выкладывает nb_deploy, запись «brand»)

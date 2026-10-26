@@ -175,6 +175,7 @@ const KINDS_DEF = ['Ремонт и эксплуатация', 'Вопрос а�
 const PORTAL_SECRET = env.PORTAL_SECRET || '';
 const PORTAL_URL = (env.PORTAL_URL || '').replace(/\/$/, '') + '/';
 const PORTAL_HTML = fs.readFileSync(path.join(__dirname, 'portal.html'));
+const BRAND_TYPES = { css: 'text/css; charset=utf-8', svg: 'image/svg+xml', woff2: 'font/woff2' };
 // письма арендаторам — только когда в .env есть ящик (SMTP_HOST, SMTP_USER, SMTP_PASS); без него — вход по личной ссылке, без писем
 const SMTP_PORT = Number(env.SMTP_PORT) || 465;
 const mailer = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS
@@ -433,9 +434,15 @@ http.createServer(async (req, res) => {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
     if (p === '/portal' || p === '/portal/' || (p === '/' && /^help\./.test(String(req.headers.host || '')))) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'" });
+        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'" });
       return res.end(PORTAL_HTML);
     }
+    const bf = p.match(/^\/portal\/brand\/([a-z0-9-]+\.(css|svg|woff2))$/);   // фирменный кит (каталог brand/ монтируется из репозитория)
+    if (bf) return fs.readFile(path.join(__dirname, 'brand', bf[1]), (err, buf) => {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': BRAND_TYPES[bf[2]], 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+      res.end(buf);
+    });
     if (p.startsWith('/portal/api/')) return await portal(req, res, p, origin);
     const user = await whoami(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');

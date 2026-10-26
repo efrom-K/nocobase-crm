@@ -238,7 +238,7 @@ function injectStyle() {
   style.id = 'msgr-style';
   style.textContent = `
     .msgr-root { --msgr-accent:#1c2d58; --msgr-accent2:#2f4a8a; --msgr-bg:#ffffff; --msgr-panel:#f3f5f9;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: inherit;
       border:1px solid #dfe3ec; border-radius:14px; overflow:hidden; background:#ffffff;
       box-shadow: 0 2px 18px rgba(20,30,60,.06); }
     .msgr-head { padding:16px 18px 10px; display:flex; align-items:center; justify-content:space-between; }

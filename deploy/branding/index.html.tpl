@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Loading...</title>
-<link rel="stylesheet" href="{{env.APP_PUBLIC_PATH}}global.css?v=20261026"><script>window['__webpack_public_path__'] = '{{env.CDN_BASE_URL}}';
+<link rel="stylesheet" href="{{env.APP_PUBLIC_PATH}}global.css?v=20261026b"><script>window['__webpack_public_path__'] = '{{env.CDN_BASE_URL}}';
 window['__nocobase_public_path__'] = '{{env.APP_PUBLIC_PATH}}';
 window['__nocobase_modern_client_prefix__'] = '{{env.APP_MODERN_CLIENT_PREFIX}}';
 window['__nocobase_app_client_entry_mode__'] = '{{env.APP_CLIENT_ENTRY_MODE}}';

@@ -90,3 +90,6 @@ div[style*="padding-top: 20vh"] > h1::before { content: ""; display: block; widt
 header.ant-layout-header img[src*="kn-logo-header"] { width: auto !important; max-width: none !important; height: 36px !important; object-fit: contain; }
 /* заголовки страниц и модалок — Condensed, как в брендбуке */
 .ant-pro-page-container .ant-page-header-heading-title, .ant-modal-title, .ant-drawer-title { font-family: var(--kn-cond); font-weight: 600; letter-spacing: 0; }
+/* страница входа: до входа тема ещё не загружена — шрифт и заголовок задаём здесь */
+body { font-family: var(--kn-sans); }
+div[style*="padding-top: 20vh"] > h1 { font-family: var(--kn-cond); font-weight: 600; color: var(--kn-ink); }

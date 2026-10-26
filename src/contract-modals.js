@@ -7,19 +7,19 @@ if (!document.getElementById('crm-controls-style')) {
   st.id = 'crm-controls-style';
   st.textContent = `
     select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
-      background-color:#fff; border:1px solid #d9d9d9; border-radius:6px; color:#262626; font-family:inherit; line-height:1.4;
+      background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
       padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
       background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
-    select:not([multiple]):not([size]):hover { border-color:#4b5f8f; }
+    select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
     select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    select:not([multiple]):not([size]):disabled { background-color:#f5f5f5 !important; color:#bfbfbf; cursor:not-allowed; border-color:#d9d9d9; }
-    select option { color:#262626; background:#fff; }
-    select option:disabled { color:#bfbfbf; }
-    input[type=file] { font-family:inherit; font-size:13px; color:#595959; max-width:100%; }
-    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #d9d9d9; border-radius:6px;
+    select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
+    select option { color:#1f2433; background:#fff; }
+    select option:disabled { color:#8a92a3; }
+    input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
+    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
       padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
-    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#f3f5fa; }
+    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
   `;
   document.head.appendChild(st);
 }
@@ -121,7 +121,7 @@ if (!window.__mlBadgeTimer) {
         b = document.createElement('span');
         b.className = 'ml-menu-badge';
         // кружок в углу пункта меню (как у колокольчика): не меняет ширину пункта и не ломает строку меню
-        b.style.cssText = 'position:absolute;top:5px;right:2px;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;background:#ff4d4f;color:#fff;font-size:10.5px;font-weight:600;text-align:center;box-sizing:border-box;pointer-events:none;z-index:1;';
+        b.style.cssText = 'position:absolute;top:5px;right:2px;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;background:#c23b3b;color:#fff;font-size:10.5px;font-weight:600;text-align:center;box-sizing:border-box;pointer-events:none;z-index:1;';
         it.style.position = 'relative';   // getComputedStyle в песочнице блоков недоступен
         it.appendChild(b);
       }
@@ -155,36 +155,36 @@ if (!document.getElementById('contract-modal-style')) {
   style.id = 'contract-modal-style';
   style.textContent = `
     /* каждый блок карточки — отдельная «плашка» на сером фоне колонки данных */
-    .cm-data-col { background: #f5f7fa; }
-    .cm-section { margin-bottom: 14px !important; background: #fff; border: 1px solid #e8ebf0; border-radius: 10px; padding: 0 16px 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
+    .cm-data-col { background: #f3f5f9; }
+    .cm-section { margin-bottom: 14px !important; background: #fff; border: 1px solid #dfe3ec; border-radius: 10px; padding: 0 16px 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
     .cm-section:last-child { margin-bottom: 0 !important; }
-    .cm-section-title { font-weight: 600; font-size: 14.5px; margin-bottom: 10px; color: #1a1a1a; }
-    .cm-section > .cm-section-title, .cm-section > .cm-section-title-row { margin: 0 -16px 12px !important; padding: 11px 16px; background: #fafbfc; border-bottom: 1px solid #eef0f3; border-radius: 10px 10px 0 0; min-height: 22px; }
+    .cm-section-title { font-weight: 600; font-size: 14.5px; margin-bottom: 10px; color: #1f2433; }
+    .cm-section > .cm-section-title, .cm-section > .cm-section-title-row { margin: 0 -16px 12px !important; padding: 11px 16px; background: #f3f5f9; border-bottom: 1px solid #dfe3ec; border-radius: 10px 10px 0 0; min-height: 22px; }
     .cm-section > .cm-section-title::before, .cm-section > .cm-section-title-row > .cm-section-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: #1c2d58; border-radius: 2px; margin-right: 9px; vertical-align: -2px; }
     .cm-stage-form > .cm-section { box-shadow: none; }
     .cm-section > .cm-save-status:empty, .cm-stage-content > .cm-save-status:empty { min-height: 0; margin: 0; }
     /* этапы оформления: у свёрнутых и будущих этапов — только шапка, без пустой полосы под ней */
     .cm-section[data-stage-section] { padding-bottom: 0; }
     .cm-section[data-stage-section] > .cm-section-title-row { margin-bottom: 0 !important; border-bottom: none; border-radius: 9px; }
-    .cm-section[data-stage-section] > .cm-stage-content { margin: 0 -16px; padding: 12px 16px 10px; border-top: 1px solid #eef0f3; }
+    .cm-section[data-stage-section] > .cm-stage-content { margin: 0 -16px; padding: 12px 16px 10px; border-top: 1px solid #dfe3ec; }
     .cm-section[data-stage-section] > .cm-stage-content:not(:has(> .cm-grid, > .cm-stage-form:not([style*="none"]))) { display: none !important; }
     .cm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 24px; }
-    .cm-row { padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
+    .cm-row { padding: 6px 0; border-bottom: 1px solid #f3f5f9; }
     .cm-row.full { grid-column: 1 / -1; }
-    .cm-label { color: #8c8c8c; font-size: 12px; margin-bottom: 2px; }
-    .cm-value { color: #262626; font-size: 14px; }
-    .cm-file-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f0f0f0; }
+    .cm-label { color: #5b6478; font-size: 12px; margin-bottom: 2px; }
+    .cm-value { color: #1f2433; font-size: 14px; }
+    .cm-file-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #dfe3ec; }
     .cm-file-row:last-child { border-bottom: none; }
     .cm-al { grid-column: 1 / -1; }
     .cm-al-table { display:grid; grid-template-columns: 140px 170px 150px 24px; gap:6px 12px; align-items:center; margin-top:8px; }
     .cm-al-table input.cm-field-input { text-align:right; width:100% !important; min-width:0; max-width:none; box-sizing:border-box; margin:0; }   /* в периоде поля иначе 200px */
-    .cm-al-line { grid-column: 1 / -1; border-top:1px solid #e8e8e8; height:0; margin-top:2px; }
-    .cm-al-head { font-size:12px; color:#8c8c8c; }
+    .cm-al-line { grid-column: 1 / -1; border-top:1px solid #dfe3ec; height:0; margin-top:2px; }
+    .cm-al-head { font-size:12px; color:#5b6478; }
     .cm-al-head.num, .cm-al-sum { text-align:right; }
-    .cm-al-sum { font-size:13px; color:#262626; font-variant-numeric:tabular-nums; white-space:nowrap; }
-    .cm-al-del { color:#bfbfbf; cursor:pointer; text-align:center; font-size:15px; line-height:1; text-decoration:none; }
-    .cm-al-del:hover { color:#ff4d4f; }
-    .cm-al-foot { font-size:13px; font-weight:600; color:#262626; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .cm-al-sum { font-size:13px; color:#1f2433; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .cm-al-del { color:#8a92a3; cursor:pointer; text-align:center; font-size:15px; line-height:1; text-decoration:none; }
+    .cm-al-del:hover { color:#c23b3b; }
+    .cm-al-foot { font-size:13px; font-weight:600; color:#1f2433; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .cm-al-foot.num { text-align:right; }
     #contract-modal-root .ant-modal-mask { opacity: 0; transition: opacity .22s cubic-bezier(0.36,0.66,0.04,1); }
     #contract-modal-root .ant-modal { transform: scale(0.82) translateY(-8px); opacity: 0; transition: transform .25s cubic-bezier(0.34,1.56,0.64,1), opacity .2s ease; }
@@ -192,41 +192,41 @@ if (!document.getElementById('contract-modal-style')) {
     #contract-modal-root.cm-open .ant-modal { transform: scale(1) translateY(0); opacity: 1; }
 
     .cm-body-flex { display: flex; align-items: stretch; min-height: 0; }
-    .cm-chat-col { width: clamp(320px, 34vw, 560px); flex: 0 0 clamp(320px, 34vw, 560px); border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; min-height: 0; background: #fafafa; }
-    .cm-chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; color: #1a1a1a; border-bottom: 1px solid #f0f0f0; background: #fff; cursor: pointer; transition: background .12s; flex-shrink: 0; }
-    .cm-chat-head:hover { background: #f5f8ff; }
+    .cm-chat-col { width: clamp(320px, 34vw, 560px); flex: 0 0 clamp(320px, 34vw, 560px); border-right: 1px solid #dfe3ec; display: flex; flex-direction: column; min-height: 0; background: #f3f5f9; }
+    .cm-chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; color: #1f2433; border-bottom: 1px solid #dfe3ec; background: #fff; cursor: pointer; transition: background .12s; flex-shrink: 0; }
+    .cm-chat-head:hover { background: #eef2f9; }
     .cm-chat-title { font-weight: 700; font-size: 14px; }
-    .cm-chat-head-hint { font-size: 11px; color: #9aa1ac; white-space: nowrap; }
-    .cm-info-panel { width: 300px; flex: 0 0 300px; border-right: 1px solid #f0f0f0; display: none; flex-direction: column; background: #fbfcfe; min-height: 0; }
+    .cm-chat-head-hint { font-size: 11px; color: #8a92a3; white-space: nowrap; }
+    .cm-info-panel { width: 300px; flex: 0 0 300px; border-right: 1px solid #dfe3ec; display: none; flex-direction: column; background: #f3f5f9; min-height: 0; }
     .cm-info-panel.open { display: flex; }
-    .cm-info-head { padding: 13px 16px; border-bottom: 1px solid #eef0f3; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .cm-info-head { padding: 13px 16px; border-bottom: 1px solid #dfe3ec; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
     .cm-info-head b { font-size: 14px; }
-    .cm-info-close { cursor: pointer; color: #9aa1ac; font-size: 18px; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-    .cm-info-close:hover { background: #eef0f3; }
+    .cm-info-close { cursor: pointer; color: #8a92a3; font-size: 18px; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .cm-info-close:hover { background: #dfe3ec; }
     .cm-info-tabs { display: flex; padding: 8px 12px 0; gap: 4px; flex-shrink: 0; }
-    .cm-info-tab { flex: 1; text-align: center; padding: 8px 6px; font-size: 12.5px; font-weight: 600; color: #9aa1ac; cursor: pointer; border-bottom: 2px solid transparent; }
+    .cm-info-tab { flex: 1; text-align: center; padding: 8px 6px; font-size: 12.5px; font-weight: 600; color: #8a92a3; cursor: pointer; border-bottom: 2px solid transparent; }
     .cm-info-tab.active { color: #1c2d58; border-bottom-color: #1c2d58; }
     .cm-info-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px 14px; }
     .cm-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px; }
-    .cm-member-row:hover { background: #f2f5fa; }
+    .cm-member-row:hover { background: #e9edf5; }
     .cm-member-row-meta { flex: 1; min-width: 0; }
-    .cm-member-row-name { font-size: 13px; font-weight: 600; color: #1a1d24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cm-member-row-name { font-size: 13px; font-weight: 600; color: #1f2433; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cm-member-row-status { font-size: 11.5px; display: flex; align-items: center; gap: 5px; margin-top: 1px; }
-    .cm-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #c5cad3; flex-shrink: 0; }
-    .cm-status-dot.online { background: #3ba55c; box-shadow: 0 0 0 2px rgba(59,165,92,.18); }
-    .cm-status-online-text { color: #3ba55c; }
-    .cm-status-offline-text { color: #9aa1ac; }
+    .cm-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #c3cad8; flex-shrink: 0; }
+    .cm-status-dot.online { background: #2f7d4f; box-shadow: 0 0 0 2px rgba(59,165,92,.18); }
+    .cm-status-online-text { color: #2f7d4f; }
+    .cm-status-offline-text { color: #8a92a3; }
     .cm-media-search { margin: 2px 4px 10px; position: relative; }
-    .cm-media-search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #b7bcc7; }
-    .cm-media-search input { width: 100%; box-sizing: border-box; padding: 7px 10px 7px 28px; border-radius: 16px; border: 1px solid #e9ebf0; background: #fff; font-size: 12.5px; outline: none; }
+    .cm-media-search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #8a92a3; }
+    .cm-media-search input { width: 100%; box-sizing: border-box; padding: 7px 10px 7px 28px; border-radius: 16px; border: 1px solid #dfe3ec; background: #fff; font-size: 12.5px; outline: none; }
     .cm-media-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; padding: 0 4px; }
-    .cm-media-thumb { width: 100%; aspect-ratio: 1; border-radius: 8px; background: #eef0f3 center/cover no-repeat; cursor: pointer; }
+    .cm-media-thumb { width: 100%; aspect-ratio: 1; border-radius: 8px; background: #dfe3ec center/cover no-repeat; cursor: pointer; }
     .cm-info-file-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px; cursor: pointer; }
-    .cm-info-file-row:hover { background: #f2f5fa; }
-    .cm-info-file-icon { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg,#1c2d58,#3a5aa0); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cm-info-file-row:hover { background: #e9edf5; }
+    .cm-info-file-icon { width: 36px; height: 36px; border-radius: 9px; background: #1c2d58; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .cm-info-file-meta { flex: 1; min-width: 0; }
-    .cm-info-file-name { font-size: 12.5px; font-weight: 600; color: #1a1d24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cm-info-file-size { font-size: 11px; color: #9aa1ac; }
+    .cm-info-file-name { font-size: 12.5px; font-weight: 600; color: #1f2433; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cm-info-file-size { font-size: 11px; color: #8a92a3; }
     .cm-chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 200px; }
     .cm-chat-msg-row { display: flex; margin-bottom: 6px; animation: cmFadeIn .15s ease; }
     .cm-chat-msg-row.own { justify-content: flex-end; }
@@ -235,58 +235,58 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-chat-msg-row.own .cm-bubble-wrap { flex-direction: row-reverse; }
     .cm-chat-msg-avatar { width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .cm-bubble { padding: 7px 10px; border-radius: 13px; font-size: 12.5px; line-height: 1.42; word-wrap: break-word; white-space: pre-wrap; position: relative; box-shadow: 0 1px 2px rgba(20,30,60,.06); }
-    .cm-chat-msg-row.own .cm-bubble { background: linear-gradient(135deg,#1c2d58,#3a5aa0); color: #fff; border-bottom-right-radius: 4px; }
-    .cm-chat-msg-row:not(.own) .cm-bubble { background: #fff; color: #1a1d24; border: 1px solid #eceff1; border-bottom-left-radius: 4px; }
+    .cm-chat-msg-row.own .cm-bubble { background: #1c2d58; color: #fff; border-bottom-right-radius: 4px; }
+    .cm-chat-msg-row:not(.own) .cm-bubble { background: #fff; color: #1f2433; border: 1px solid #dfe3ec; border-bottom-left-radius: 4px; }
     .cm-bubble-author { font-size: 10px; font-weight: 700; color: #1c2d58; display: block; margin-bottom: 2px; }
     .cm-chat-msg-row.own .cm-bubble-author { color: rgba(255,255,255,.85); }
     .cm-bubble-time { font-size: 9px; opacity: .65; margin-left: 8px; float: right; margin-top: 4px; }
-    .cm-att-image { max-width: 170px; max-height: 170px; border-radius: 9px; display: block; cursor: pointer; background: #eef0f3; }
+    .cm-att-image { max-width: 170px; max-height: 170px; border-radius: 9px; display: block; cursor: pointer; background: #dfe3ec; }
     .cm-att-file { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 9px; background: rgba(255,255,255,.18); min-width: 140px; cursor: pointer; }
-    .cm-chat-msg-row:not(.own) .cm-att-file { background: #f7f8fb; }
+    .cm-chat-msg-row:not(.own) .cm-att-file { background: #f3f5f9; }
     .cm-att-file-icon { width: 26px; height: 26px; border-radius: 7px; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .cm-chat-msg-row.own .cm-att-file-icon { background: rgba(255,255,255,.3); color: #fff; }
-    .cm-chat-msg-row:not(.own) .cm-att-file-icon { background: linear-gradient(135deg,#1c2d58,#3a5aa0); color: #fff; }
+    .cm-chat-msg-row:not(.own) .cm-att-file-icon { background: #1c2d58; color: #fff; }
     .cm-att-file-name { font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
     .cm-att-file-size { font-size: 9px; opacity: .75; }
-    .cm-chat-empty { color: #b0b0b0; font-size: 13px; text-align: center; padding: 24px 8px; }
-    .cm-chat-input-wrap { border-top: 1px solid #f0f0f0; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; background: #fff; }
-    .cm-attach-btn { width: 32px; height: 32px; border-radius: 50%; background: #f7f8fb; border: 1px solid #e6e9ee; color: #8a90a0; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background .12s; }
-    .cm-attach-btn:hover { background: #eef2f8; color: #1c2d58; }
-    .cm-chat-textarea { flex: 1; resize: none; border: 1px solid #d9d9d9; border-radius: 16px; padding: 7px 12px; font-size: 13px; font-family: inherit; min-height: 34px; max-height: 90px; background: #f7f8fb; }
-    .cm-chat-textarea:focus { outline: none; border-color: #2f4373; background: #fff; }
-    .cm-chat-send { border: none; background: linear-gradient(135deg,#1c2d58,#3a5aa0); color: #fff; border-radius: 50%; width: 34px; height: 34px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-    .cm-chat-send:disabled { background: #bfbfbf; cursor: default; }
-    .cm-chat-readonly { padding: 14px 16px; font-size: 12.5px; color: #b0851f; background: #fffbe6; border-top: 1px solid #ffe58f; text-align: center; }
+    .cm-chat-empty { color: #8a92a3; font-size: 13px; text-align: center; padding: 24px 8px; }
+    .cm-chat-input-wrap { border-top: 1px solid #dfe3ec; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; background: #fff; }
+    .cm-attach-btn { width: 32px; height: 32px; border-radius: 50%; background: #f3f5f9; border: 1px solid #dfe3ec; color: #5b6478; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background .12s; }
+    .cm-attach-btn:hover { background: #eef2f9; color: #1c2d58; }
+    .cm-chat-textarea { flex: 1; resize: none; border: 1px solid #c3cad8; border-radius: 16px; padding: 7px 12px; font-size: 13px; font-family: inherit; min-height: 34px; max-height: 90px; background: #f3f5f9; }
+    .cm-chat-textarea:focus { outline: none; border-color: #2f4a8a; background: #fff; }
+    .cm-chat-send { border: none; background: #1c2d58; color: #fff; border-radius: 50%; width: 34px; height: 34px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .cm-chat-send:disabled { background: #8a92a3; cursor: default; }
+    .cm-chat-readonly { padding: 14px 16px; font-size: 12.5px; color: #8a5a00; background: #f6eedb; border-top: 1px solid #e8d3a6; text-align: center; }
 
     .cm-data-col { flex: 1; padding: 20px 24px; overflow-y: auto; min-width: 0; }
 
-    .cm-members-footer { border-top: 1px solid #f0f0f0; padding: 14px 24px; flex-shrink: 0; }
+    .cm-members-footer { border-top: 1px solid #dfe3ec; padding: 14px 24px; flex-shrink: 0; }
     .cm-members-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; position: relative; }
-    .cm-members-title { font-weight: 700; font-size: 14px; color: #1a1a1a; }
+    .cm-members-title { font-weight: 700; font-size: 14px; color: #1f2433; }
     .cm-members-add-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #1c2d58; background: #fff; color: #1c2d58; font-size: 16px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
     .cm-members-add-btn:hover { background: #1c2d58; color: #fff; }
-    .cm-members-add-btn:disabled { border-color: #e0e0e0; color: #ccc; cursor: default; background: #fff; }
+    .cm-members-add-btn:disabled { border-color: #dfe3ec; color: #c3cad8; cursor: default; background: #fff; }
     .cm-members-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .cm-member-chip { display: inline-flex; align-items: center; gap: 6px; background: #f5f5f5; border-radius: 16px; padding: 4px 8px 4px 4px; font-size: 13px; color: #262626; }
+    .cm-member-chip { display: inline-flex; align-items: center; gap: 6px; background: #f3f5f9; border-radius: 16px; padding: 4px 8px 4px 4px; font-size: 13px; color: #1f2433; }
     .cm-member-avatar { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .cm-member-remove { border: none; background: transparent; cursor: pointer; color: #999; font-size: 12px; padding: 0 2px; line-height: 1; margin-left: 2px; }
-    .cm-member-remove:hover { color: #c0392b; }
-    .cm-members-empty { color: #b0b0b0; font-size: 13px; }
+    .cm-member-remove { border: none; background: transparent; cursor: pointer; color: #5b6478; font-size: 12px; padding: 0 2px; line-height: 1; margin-left: 2px; }
+    .cm-member-remove:hover { color: #c23b3b; }
+    .cm-members-empty { color: #8a92a3; font-size: 13px; }
 
-    .cm-add-popover { position: absolute; bottom: calc(100% + 8px); top: auto; right: 0; width: 250px; max-height: min(320px, 60vh); display: flex; flex-direction: column; background: #fff; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); border: 1px solid #f0f0f0; z-index: 10; overflow: hidden; opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
+    .cm-add-popover { position: absolute; bottom: calc(100% + 8px); top: auto; right: 0; width: 250px; max-height: min(320px, 60vh); display: flex; flex-direction: column; background: #fff; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); border: 1px solid #dfe3ec; z-index: 10; overflow: hidden; opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
     .cm-add-popover.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    .cm-add-popover-title { font-size: 12px; color: #8c8c8c; padding: 10px 12px 6px; flex-shrink: 0; }
+    .cm-add-popover-title { font-size: 12px; color: #5b6478; padding: 10px 12px 6px; flex-shrink: 0; }
     .cm-add-popover-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px; }
-    .cm-add-popover-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #262626; }
-    .cm-add-popover-item:hover { background: #f0f6ff; }
-    .cm-add-popover-empty { padding: 16px 12px; text-align: center; color: #b0b0b0; font-size: 13px; }
+    .cm-add-popover-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #1f2433; }
+    .cm-add-popover-item:hover { background: #eef2f9; }
+    .cm-add-popover-empty { padding: 16px 12px; text-align: center; color: #8a92a3; font-size: 13px; }
 
     .cm-modal-toolbar { position: absolute; top: 12px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; }
 
     @media (max-width: 900px) {
       .cm-body-flex { flex-direction: column; }
-      .cm-chat-col { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #f0f0f0; max-height: 300px; }
-      .cm-info-panel { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #f0f0f0; max-height: 300px; }
+      .cm-chat-col { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #dfe3ec; max-height: 300px; }
+      .cm-info-panel { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #dfe3ec; max-height: 300px; }
     }
 
     @media (max-width: 560px) {
@@ -304,15 +304,15 @@ if (!document.getElementById('contract-modal-style')) {
       #contract-modal-root .cm-body-flex, #forming-modal-root .cm-body-flex { display: flex; flex-direction: column; }
       #contract-modal-root .cm-data-col, #forming-modal-root .cm-data-col { order: 1; overflow: visible !important; max-height: none !important; }
       #contract-modal-root .cm-info-panel, #forming-modal-root .cm-info-panel { order: 2; }
-      #contract-modal-root .cm-chat-col, #forming-modal-root .cm-chat-col { order: 3; max-height: 70vh; border-bottom: none; border-top: 1px solid #f0f0f0; }
+      #contract-modal-root .cm-chat-col, #forming-modal-root .cm-chat-col { order: 3; max-height: 70vh; border-bottom: none; border-top: 1px solid #dfe3ec; }
       #contract-modal-root .cm-modal-toolbar, #forming-modal-root .cm-modal-toolbar { position: sticky !important; top: 0; background: #fff; z-index: 5; padding: 8px 12px !important; }
     }
 
     .cm-stage-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
-    .cm-stage-pill { font-size: 11.5px; padding: 4px 10px; border-radius: 12px; background: #f5f5f5; color: #999; white-space: nowrap; }
-    .cm-stage-pill.done { background: #e6f7e6; color: #389e0d; }
+    .cm-stage-pill { font-size: 11.5px; padding: 4px 10px; border-radius: 12px; background: #f3f5f9; color: #5b6478; white-space: nowrap; }
+    .cm-stage-pill.done { background: #e5f1ea; color: #2f7d4f; }
     .cm-stage-pill.active { background: #1c2d58; color: #fff; font-weight: 600; }
-    .cm-stage-done-badge { font-size: 11px; font-weight: 400; color: #389e0d; background: #e6f7e6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+    .cm-stage-done-badge { font-size: 11px; font-weight: 400; color: #2f7d4f; background: #e5f1ea; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
     /* формы редактирования: везде одна сетка в две равные колонки, поля одной высоты и ширины, строки выровнены по полю ввода */
     .cm-stage-form:not([style*="none"]) { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: stretch; }
     .cm-stage-form > :not(.cm-field-row), .cm-stage-form > .cm-field-row:has(textarea), .cm-field-row.full { grid-column: 1 / -1; }
@@ -332,41 +332,41 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-stage-form > .cm-field-row, .cm-stage-form > .cm-section > .cm-field-row, .cm-price-form-grid > .cm-field-row, .cm-contact-form-grid > .cm-field-row { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
     .cm-field-row > .cm-label { align-self: end; }
     .cm-field-foot:empty { display: none; }
-    .cm-field-input { width: 100%; height: 34px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; font-size: 13.5px; line-height: 32px; font-family: inherit; box-sizing: border-box; background: #fff; color: #262626; margin: 0; }
+    .cm-field-input { width: 100%; height: 34px; border: 1px solid #c3cad8; border-radius: 6px; padding: 0 10px; font-size: 13.5px; line-height: 32px; font-family: inherit; box-sizing: border-box; background: #fff; color: #1f2433; margin: 0; }
     select.cm-field-input { padding-right: 6px; }
     textarea.cm-field-input { height: auto; min-height: 60px; line-height: 1.45; padding: 6px 10px; resize: vertical; }
-    .cm-field-input.cm-field-calc { background: #f5f7fa; color: #262626; font-weight: 600; cursor: default; }
-    .cm-field-input:focus { outline: none; border-color: #2f4373; }
-    .cm-field-input.cm-field-calc:focus { border-color: #d9d9d9; }
+    .cm-field-input.cm-field-calc { background: #f3f5f9; color: #1f2433; font-weight: 600; cursor: default; }
+    .cm-field-input:focus { outline: none; border-color: #2f4a8a; }
+    .cm-field-input.cm-field-calc:focus { border-color: #c3cad8; }
     @media (max-width: 700px) { .cm-stage-form:not([style*="none"]), .cm-stage-form > .cm-section, .cm-price-form-grid, .cm-contact-form-grid { grid-template-columns: minmax(0, 1fr) !important; } }
     .cm-field-checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 10px; cursor: pointer; }
     .cm-stage-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
-    .cm-btn-save { border: 1px solid #d9d9d9; background: #fff; color: #262626; border-radius: 6px; padding: 0 16px; height: 34px; font-size: 13px; line-height: 32px; cursor: pointer; font-family: inherit; }
-    .cm-btn-save:hover:not(:disabled) { border-color: #2f4373; color: #1c2d58; }
-    .cm-btn-save:disabled { color: #ccc; cursor: default; }
+    .cm-btn-save { border: 1px solid #c3cad8; background: #fff; color: #1f2433; border-radius: 6px; padding: 0 16px; height: 34px; font-size: 13px; line-height: 32px; cursor: pointer; font-family: inherit; }
+    .cm-btn-save:hover:not(:disabled) { border-color: #2f4a8a; color: #1c2d58; }
+    .cm-btn-save:disabled { color: #c3cad8; cursor: default; }
     /* все кнопки «Сохранить» — одинаковые синие */
     .cm-btn-save.cm-btn-primary { background: #1c2d58; border-color: #1c2d58; color: #fff; font-weight: 600; }
-    .cm-btn-save.cm-btn-primary:hover:not(:disabled) { background: #2f4373; border-color: #2f4373; color: #fff; }
-    .cm-btn-save.cm-btn-primary:disabled { background: #d9d9d9; border-color: #d9d9d9; color: #fff; }
-    .cm-btn-advance { border: none; background: #52c41a; color: #fff; border-radius: 6px; padding: 0 16px; height: 34px; font-size: 13px; cursor: pointer; font-weight: 600; font-family: inherit; }
-    .cm-btn-advance:disabled { background: #d9d9d9; cursor: not-allowed; }
+    .cm-btn-save.cm-btn-primary:hover:not(:disabled) { background: #2f4a8a; border-color: #2f4a8a; color: #fff; }
+    .cm-btn-save.cm-btn-primary:disabled { background: #c3cad8; border-color: #c3cad8; color: #fff; }
+    .cm-btn-advance { border: none; background: #2f7d4f; color: #fff; border-radius: 6px; padding: 0 16px; height: 34px; font-size: 13px; cursor: pointer; font-weight: 600; font-family: inherit; }
+    .cm-btn-advance:disabled { background: #c3cad8; cursor: not-allowed; }
     .cm-btn-finalize { background: #1c2d58; }
-    .cm-role-hint { font-size: 12px; color: #999; }
+    .cm-role-hint { font-size: 12px; color: #5b6478; }
     .cm-upload-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-    .cm-upload-btn { border: 1px dashed #d9d9d9; background: #fafafa; color: #595959; border-radius: 6px; padding: 6px 14px; font-size: 12.5px; cursor: pointer; }
-    .cm-upload-btn:disabled { color: #ccc; cursor: default; }
-    .cm-combo-list { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: #fff; border: 1px solid #d9d9d9; border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 18px rgba(0,0,0,0.14); z-index: 20; }
-    .cm-combo-item { padding: 7px 12px; cursor: pointer; font-size: 13.5px; color: #262626; }
-    .cm-combo-item:hover { background: #f0f6ff; }
+    .cm-upload-btn { border: 1px dashed #c3cad8; background: #f3f5f9; color: #3a4256; border-radius: 6px; padding: 6px 14px; font-size: 12.5px; cursor: pointer; }
+    .cm-upload-btn:disabled { color: #c3cad8; cursor: default; }
+    .cm-combo-list { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: #fff; border: 1px solid #c3cad8; border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 18px rgba(0,0,0,0.14); z-index: 20; }
+    .cm-combo-item { padding: 7px 12px; cursor: pointer; font-size: 13.5px; color: #1f2433; }
+    .cm-combo-item:hover { background: #eef2f9; }
     .cm-section-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .cm-stage-collapse-btn { border: none; background: transparent; cursor: pointer; font-size: 12px; color: #8c8c8c; padding: 2px 4px; flex-shrink: 0; }
+    .cm-stage-collapse-btn { border: none; background: transparent; cursor: pointer; font-size: 12px; color: #5b6478; padding: 2px 4px; flex-shrink: 0; }
     .cm-stage-collapse-btn:hover { color: #1c2d58; }
-    .cm-stage-edit-toggle { border: 1px solid #d9d9d9; background: #fff; color: #595959; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
+    .cm-stage-edit-toggle { border: 1px solid #c3cad8; background: #fff; color: #3a4256; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
     .cm-stage-edit-toggle:hover { border-color: #1c2d58; color: #1c2d58; }
-    .cm-save-status { font-size: 11.5px; color: #b0b0b0; margin-top: 6px; min-height: 15px; }
+    .cm-save-status { font-size: 11.5px; color: #8a92a3; margin-top: 6px; min-height: 15px; }
     .cm-stage-edit-actions { display: flex; gap: 8px; margin-top: 4px; align-items: center; flex-wrap: wrap; }
-    .cm-file-delete { color: #999; text-decoration: none; margin-left: 4px; }
-    .cm-file-delete:hover { color: #c0392b; }
+    .cm-file-delete { color: #5b6478; text-decoration: none; margin-left: 4px; }
+    .cm-file-delete:hover { color: #c23b3b; }
   `;
   document.head.appendChild(style);
 }
@@ -389,7 +389,7 @@ function row(label, value, full) {
 function fileDisplayName(f) { return f.title ? (f.title + (f.extname || '')) : f.filename; }
 // scans (только в активной карточке): { contract, act } — имена файлов-сканов; у файла пометка или ссылки «это скан …»
 function renderFilesList(files, currentUser, scans) {
-  if (!files.length) return '<span style="color:#999;">Файлы не загружены</span>';
+  if (!files.length) return '<span style="color:#5b6478;">Файлы не загружены</span>';
   return files.map(function(f) {
     const raw = fileDisplayName(f);
     const name = esc(raw);
@@ -397,13 +397,13 @@ function renderFilesList(files, currentUser, scans) {
     if (scans) {
       const isC = scans.contract === raw, isA = scans.act === raw;
       const tag = function(t, color) { return '<span style="font-size:11px;color:' + color + ';border:1px solid ' + color + '55;border-radius:8px;padding:0 6px;white-space:nowrap;">' + t + '</span>'; };
-      scanHtml = (isC ? tag('скан договора', '#389e0d') : '') + (isA ? tag('скан акта', '#389e0d') : '')
+      scanHtml = (isC ? tag('скан договора', '#2f7d4f') : '') + (isA ? tag('скан акта', '#2f7d4f') : '')
         + (scans.canEdit ? '<a href="#" class="cm-scan-mark" data-scan-kind="contract" data-scan-name="' + escAttr(raw) + '" title="' + (isC ? 'Снять отметку' : 'Отметить как скан подписанного договора') + '" style="font-size:11.5px;white-space:nowrap;">' + (isC ? 'не скан договора' : 'это скан договора') + '</a>'
           + '<a href="#" class="cm-scan-mark" data-scan-kind="act" data-scan-name="' + escAttr(raw) + '" title="' + (isA ? 'Снять отметку' : 'Отметить как скан подписанного акта') + '" style="font-size:11.5px;white-space:nowrap;">' + (isA ? 'не скан акта' : 'это скан акта') + '</a>' : '');
     }
     const canDelete = !!(currentUser && (currentUser.__isAdmin || currentUser.id === f.createdById));
     return '<div class="cm-file-row" data-file-id="' + f.id + '"><span style="flex:1;">' + name + '</span>' + scanHtml
-      + '<span style="color:#999;font-size:12px;">' + fmtSize(f.size) + '</span>'
+      + '<span style="color:#5b6478;font-size:12px;">' + fmtSize(f.size) + '</span>'
       + '<a href="#" class="cm-file-open" data-url="' + esc(f.url) + '">Открыть</a>'
       + '<a href="' + esc(f.url) + '" download="' + name + '">Скачать</a>'
       + (canDelete ? '<a href="#" class="cm-file-delete" data-file-id="' + f.id + '" title="Удалить файл">✕</a>' : '')
@@ -510,7 +510,7 @@ function cmToast(msg) {
   if (!el) {
     el = document.createElement('div');
     el.id = 'cm-toast';
-    el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#262626;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;z-index:3000;box-shadow:0 4px 16px rgba(0,0,0,0.25);max-width:80vw;text-align:center;';
+    el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1f2433;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;z-index:3000;box-shadow:0 4px 16px rgba(0,0,0,0.25);max-width:80vw;text-align:center;';
     document.body.appendChild(el);
   }
   el.textContent = msg;
@@ -524,9 +524,9 @@ function cmConfirm(msg) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3001;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = '<div style="background:#fff;border-radius:8px;padding:22px;max-width:380px;box-shadow:0 8px 28px rgba(0,0,0,0.22);">'
-      + '<div style="font-size:14px;color:#262626;margin-bottom:20px;line-height:1.5;">' + esc(msg) + '</div>'
+      + '<div style="font-size:14px;color:#1f2433;margin-bottom:20px;line-height:1.5;">' + esc(msg) + '</div>'
       + '<div style="display:flex;gap:10px;justify-content:flex-end;">'
-      + '<button id="cm-confirm-no" style="border:1px solid #d9d9d9;background:#fff;color:#262626;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;">Отмена</button>'
+      + '<button id="cm-confirm-no" style="border:1px solid #c3cad8;background:#fff;color:#1f2433;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;">Отмена</button>'
       + '<button id="cm-confirm-yes" style="border:none;background:#1c2d58;color:#fff;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;">Да</button>'
       + '</div></div>';
     document.body.appendChild(overlay);
@@ -541,11 +541,11 @@ function cmChoice(msg, options) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3001;display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML = '<div style="background:#fff;border-radius:8px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 28px rgba(0,0,0,0.22);">'
-      + '<div style="font-size:14px;color:#262626;margin-bottom:16px;line-height:1.5;">' + esc(msg) + '</div>'
+      + '<div style="font-size:14px;color:#1f2433;margin-bottom:16px;line-height:1.5;">' + esc(msg) + '</div>'
       + '<div style="display:flex;flex-direction:column;gap:8px;">' + options.map(function(o, i) {
-          return '<button data-i="' + i + '" style="border:1px solid ' + (i === 0 ? '#1c2d58' : '#d9d9d9') + ';background:' + (i === 0 ? '#1c2d58' : '#fff') + ';color:' + (i === 0 ? '#fff' : '#262626') + ';border-radius:6px;padding:8px 14px;font-size:13.5px;cursor:pointer;text-align:left;">' + esc(o.label) + '</button>';
+          return '<button data-i="' + i + '" style="border:1px solid ' + (i === 0 ? '#1c2d58' : '#c3cad8') + ';background:' + (i === 0 ? '#1c2d58' : '#fff') + ';color:' + (i === 0 ? '#fff' : '#1f2433') + ';border-radius:6px;padding:8px 14px;font-size:13.5px;cursor:pointer;text-align:left;">' + esc(o.label) + '</button>';
         }).join('')
-      + '<button data-i="-1" style="border:none;background:transparent;color:#8c8c8c;padding:6px;font-size:13px;cursor:pointer;">Отмена</button></div></div>';
+      + '<button data-i="-1" style="border:none;background:transparent;color:#5b6478;padding:6px;font-size:13px;cursor:pointer;">Отмена</button></div></div>';
     document.body.appendChild(overlay);
     overlay.querySelectorAll('[data-i]').forEach(function(b) {
       b.addEventListener('click', function() { const i = Number(b.getAttribute('data-i')); overlay.remove(); resolve(i < 0 ? null : options[i].value); });
@@ -1213,7 +1213,7 @@ function dateProblem(v) {
 }
 function validateElement(el, strict) {
   const name = el.getAttribute('data-field');
-  if (el.type === 'date') { const dp = dateProblem(el.value); if (dp) { el.style.borderColor = '#ff4d4f'; return dp; } el.style.borderColor = ''; }
+  if (el.type === 'date') { const dp = dateProblem(el.value); if (dp) { el.style.borderColor = '#c23b3b'; return dp; } el.style.borderColor = ''; }
   if (!FIELD_RULES[name]) return '';
   const norm = normalizeValue(name, el.value);
   if (!strict && norm === el.__origNorm) return '';
@@ -1222,7 +1222,7 @@ function validateElement(el, strict) {
 function showFieldState(el) {
   const err = validateElement(el, false);
   el.__cmErr = err;
-  el.style.borderColor = err ? '#ff4d4f' : (el.__bikState === 'ok' ? '#52c41a' : '');
+  el.style.borderColor = err ? '#c23b3b' : (el.__bikState === 'ok' ? '#2f7d4f' : '');
   if (el.__cmMsg && el.getAttribute('data-field') !== 'bik') el.__cmMsg.textContent = err ? '✗ ' + err : '';
 }
 function revalidateAccounts(scope) {
@@ -1299,7 +1299,7 @@ function mountAreaLinesEditor(body, initial, onChange) {
       const i = Number(inp.getAttribute('data-al-area') || inp.getAttribute('data-al-rate')), k = inp.hasAttribute('data-al-area') ? 'area' : 'rate';
       inp.addEventListener('input', function() {
         lines[i][k] = inp.value.replace(/[\s ]/g, '').replace(/\./g, ',');
-        inp.style.borderColor = lines[i][k] && !okNum(lines[i][k]) ? '#ff4d4f' : '';
+        inp.style.borderColor = lines[i][k] && !okNum(lines[i][k]) ? '#c23b3b' : '';
         body.querySelector('[data-al-sum="' + i + '"]').textContent = sum(lines[i]);
         commit();
       });
@@ -1569,10 +1569,10 @@ function expiryBadge(terminationVal) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const days = Math.round((d.getTime() - today.getTime()) / 86400000);
   let text, bg, fg;
-  if (days < 0) { text = 'расторгнут ' + (-days) + ' дней назад'; bg = '#f5f5f5'; fg = '#8c8c8c'; }
-  else if (days === 0) { text = 'расторжение сегодня'; bg = '#fff1f0'; fg = '#cf1322'; }
-  else if (days <= 30) { text = 'до расторжения ' + days + ' дней'; bg = '#fff1f0'; fg = '#cf1322'; }
-  else { text = 'до расторжения ' + days + ' дней'; bg = '#fffbe6'; fg = '#d48806'; }
+  if (days < 0) { text = 'расторгнут ' + (-days) + ' дней назад'; bg = '#f3f5f9'; fg = '#5b6478'; }
+  else if (days === 0) { text = 'расторжение сегодня'; bg = '#f9e6e6'; fg = '#c23b3b'; }
+  else if (days <= 30) { text = 'до расторжения ' + days + ' дней'; bg = '#f9e6e6'; fg = '#c23b3b'; }
+  else { text = 'до расторжения ' + days + ' дней'; bg = '#f6eedb'; fg = '#8a5a00'; }
   return ' <span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;font-size:12px;background:' + bg + ';color:' + fg + ';">' + text + '</span>';
 }
 
@@ -1589,15 +1589,15 @@ function histShort(v, field) {
   return s.length > 140 ? s.slice(0, 140) + '…' : s;
 }
 function renderHistoryList(items) {
-  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Изменений пока нет</div>';
+  if (!items.length) return '<div style="color:#8a92a3;font-size:12px;">Изменений пока нет</div>';
   return items.map(function(h) {
     const who = h.author ? (h.author.nickname || h.author.username) : 'Система';
     let body;
     if (h.action === 'field') {
       body = '<b>' + esc(fieldLabel(h.field)) + '</b>: '
-        + '<span style="color:#8c8c8c;">' + (h.old_value ? esc(histShort(h.old_value, h.field)) : 'пусто') + '</span>'
-        + ' → <span style="color:#262626;">' + (h.new_value ? esc(histShort(h.new_value, h.field)) : 'пусто') + '</span>'
-        + (h.text ? '<div style="color:#8c8c8c;font-size:12px;">' + esc(h.text) + '</div>' : '');   // автоматическая смена статуса — с причиной
+        + '<span style="color:#5b6478;">' + (h.old_value ? esc(histShort(h.old_value, h.field)) : 'пусто') + '</span>'
+        + ' → <span style="color:#1f2433;">' + (h.new_value ? esc(histShort(h.new_value, h.field)) : 'пусто') + '</span>'
+        + (h.text ? '<div style="color:#5b6478;font-size:12px;">' + esc(h.text) + '</div>' : '');   // автоматическая смена статуса — с причиной
     } else {
       body = esc(h.text || h.action);
     }
@@ -1621,9 +1621,9 @@ function wireHistory(overlay, prefix, type, id) {
     if (open) { listEl.style.display = 'none'; btn.textContent = 'Показать'; return; }
     listEl.style.display = 'block'; btn.textContent = 'Скрыть';
     if (loaded) return;
-    listEl.innerHTML = '<div style="color:#999;font-size:12px;">Загрузка…</div>';
+    listEl.innerHTML = '<div style="color:#5b6478;font-size:12px;">Загрузка…</div>';
     try { listEl.innerHTML = renderHistoryList(await loadHistory(type, id)); loaded = true; }
-    catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить историю</span>'; }
+    catch (e) { listEl.innerHTML = '<span style="color:#c23b3b;font-size:12px;">Не удалось загрузить историю</span>'; }
   });
 }
 
@@ -1930,7 +1930,7 @@ function renderPricesSection(prefix) {
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные расчёты аренды</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Период</button></div>'
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
-    + '<div id="' + prefix + '-price-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
+    + '<div id="' + prefix + '-price-list"><div style="color:#5b6478;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
     + '<div class="cm-price-form-grid">'
     + '<div class="cm-field-row"><div class="cm-label">Начало периода</div><input type="date" class="cm-field-input"' + DATE_ATTRS + ' id="' + prefix + '-price-from"></div>'
@@ -1940,7 +1940,7 @@ function renderPricesSection(prefix) {
     + '</div>'
     + '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" id="' + prefix + '-price-save">Сохранить</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-price-cancel">Отмена</button>'
-    + '<span id="' + prefix + '-price-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
+    + '<span id="' + prefix + '-price-status" style="font-size:12px;color:#5b6478;align-self:center;"></span></div>'
     + '</div>'
     + '</div>';
 }
@@ -2006,7 +2006,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   }
 
   function renderList() {
-    if (!items.length) { listEl.innerHTML = '<div style="color:#bbb;font-size:12px;">Периодов пока нет' + (canEdit ? ' — добавьте кнопкой «+ Период»' : '') + '</div>'; return; }
+    if (!items.length) { listEl.innerHTML = '<div style="color:#8a92a3;font-size:12px;">Периодов пока нет' + (canEdit ? ' — добавьте кнопкой «+ Период»' : '') + '</div>'; return; }
     const t = today(), a0 = area();
     listEl.innerHTML = items.map(function(p) {
       const a = isoToDate(p.date_from), b = isoToDate(p.date_to);
@@ -2016,8 +2016,8 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
         return '<div class="cm-price-line">' + escRaw(c.title) + ': ' + escRaw(compLabel(c, p)) + (mo !== null ? ' · <span class="cm-price-total">' + escRaw(formatNum(mo)) + ' ₽ в месяц</span>' : '') + '</div>';
       }).join('');
       return '<div class="cm-price-row' + (now ? ' now' : '') + '"><div class="cm-price-main">'
-        + '<div class="cm-price-dates">' + escRaw(periodRange(p)) + (now ? ' <span style="color:#389e0d;font-weight:400;font-size:12px;">· сейчас</span>' : '') + '</div>'
-        + lines + (p.note ? '<div class="cm-price-line" style="color:#8c8c8c;">' + escRaw(p.note) + '</div>' : '')
+        + '<div class="cm-price-dates">' + escRaw(periodRange(p)) + (now ? ' <span style="color:#2f7d4f;font-weight:400;font-size:12px;">· сейчас</span>' : '') + '</div>'
+        + lines + (p.note ? '<div class="cm-price-line" style="color:#5b6478;">' + escRaw(p.note) + '</div>' : '')
         + '</div>'
         + (canEdit ? '<div class="cm-contact-actions"><a data-price-edit="' + p.id + '" title="Изменить">✎</a><a data-price-del="' + p.id + '" title="Удалить">✕</a></div>' : '')
         + '</div>';
@@ -2042,7 +2042,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
   }
   async function refresh() {
     try { items = await loadPricePeriods(type, id); }
-    catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить дополнительные расчёты</span>'; return; }
+    catch (e) { listEl.innerHTML = '<span style="color:#c23b3b;font-size:12px;">Не удалось загрузить дополнительные расчёты</span>'; return; }
     renderList(); renderSummary();
     if (overlay.__cmRefreshStatus) overlay.__cmRefreshStatus();
   }
@@ -2223,10 +2223,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
 
 // ---------- статусы-светофоры (только активные договоры) ----------
 const STATUS_TONES = {
-  green: { bg: '#f6ffed', border: '#b7eb8f', fg: '#389e0d' },
-  amber: { bg: '#fffbe6', border: '#ffe58f', fg: '#d48806' },
-  red: { bg: '#fff2f0', border: '#ffccc7', fg: '#cf1322' },
-  blue: { bg: '#eef1f8', border: '#b4bfd9', fg: '#142142' },
+  green: { bg: '#e5f1ea', border: '#b9d9c5', fg: '#2f7d4f' },
+  amber: { bg: '#f6eedb', border: '#e8d3a6', fg: '#8a5a00' },
+  red: { bg: '#f9e6e6', border: '#e7b9b9', fg: '#c23b3b' },
+  blue: { bg: '#eef2f9', border: '#dde5f3', fg: '#121d3a' },
   purple: { bg: '#f9f0ff', border: '#d3adf7', fg: '#531dab' }
 };
 // значения имеют числовой префикс, чтобы при сортировке по столбцу проблемные («красные») шли первыми
@@ -2240,7 +2240,7 @@ const STATUS_OPTIONS = {
   ]
 };
 function statusPill(name, value) {
-  if (!value) return '<span style="color:#bfbfbf;">Не задан</span>';
+  if (!value) return '<span style="color:#8a92a3;">Не задан</span>';
   const o = (STATUS_OPTIONS[name] || []).find(function(x) { return x.value === value; });
   if (!o) return escRaw(value);
   const t = STATUS_TONES[o.tone];
@@ -2253,49 +2253,49 @@ if (!document.getElementById('cm-extra-style')) {
   st.id = 'cm-extra-style';
   st.textContent = `
     .cm-bik-hint { font-size: 12px; margin-top: 3px; min-height: 0; }
-    .cm-field-msg { font-size: 12px; color: #cf1322; margin-top: 3px; }
+    .cm-field-msg { font-size: 12px; color: #c23b3b; margin-top: 3px; }
     .cm-pill { display: inline-block; border: 1px solid; border-radius: 6px; padding: 4px 12px; font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
-    .cm-derived-hint { font-size: 12px; color: #8c8c8c; margin-top: 3px; }
+    .cm-derived-hint { font-size: 12px; color: #5b6478; margin-top: 3px; }
     .cm-derived-hint a { color: #1c2d58; text-decoration: none; font-weight: 600; }
-    .cm-price-hint { font-size: 12px; color: #8c8c8c; margin: 0 0 8px; }
-    .cm-price-summary { background: #fafafa; border: 1px solid #f0f0f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 8px; line-height: 1.6; }
-    .cm-price-summary b { color: #262626; }
-    .cm-price-base { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: #f0f7ff; border: 1px solid #d6e8ff; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 8px; }
-    .cm-sched-badge { display: inline-block; font-size: 11px; color: #ad6800; background: #fff7e6; border: 1px solid #ffd591; border-radius: 4px; padding: 0 6px; margin-left: 6px; font-weight: 500; }
-    .cm-price-summary .warn { color: #d48806; }
-    .cm-price-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
-    .cm-price-row.now { background: #f6ffed; margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }
+    .cm-price-hint { font-size: 12px; color: #5b6478; margin: 0 0 8px; }
+    .cm-price-summary { background: #f3f5f9; border: 1px solid #dfe3ec; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 8px; line-height: 1.6; }
+    .cm-price-summary b { color: #1f2433; }
+    .cm-price-base { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: #eef2f9; border: 1px solid #dde5f3; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 8px; }
+    .cm-sched-badge { display: inline-block; font-size: 11px; color: #8a5a00; background: #f6eedb; border: 1px solid #e8d3a6; border-radius: 4px; padding: 0 6px; margin-left: 6px; font-weight: 500; }
+    .cm-price-summary .warn { color: #8a5a00; }
+    .cm-price-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f5f9; }
+    .cm-price-row.now { background: #e5f1ea; margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }
     .cm-price-main { flex: 1; min-width: 0; }
-    .cm-price-dates { font-weight: 600; font-size: 13.5px; color: #262626; }
-    .cm-price-line { font-size: 13px; color: #595959; margin-top: 2px; }
-    .cm-price-total { color: #262626; font-weight: 600; }
-    .cm-price-form { margin-top: 10px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
+    .cm-price-dates { font-weight: 600; font-size: 13.5px; color: #1f2433; }
+    .cm-price-line { font-size: 13px; color: #3a4256; margin-top: 2px; }
+    .cm-price-total { color: #1f2433; font-weight: 600; }
+    .cm-price-form { margin-top: 10px; padding: 12px; border: 1px solid #dfe3ec; border-radius: 6px; background: #f3f5f9; }
     .cm-price-comps { display: flex; flex-direction: column; gap: 8px; }
-    .cm-price-comp { border: 1px solid #e8ebf0; border-radius: 8px; background: #fff; padding: 8px 12px; }
-    .cm-price-comp.on { border-color: #b4bfd9; background: #f5f9ff; }
+    .cm-price-comp { border: 1px solid #dfe3ec; border-radius: 8px; background: #fff; padding: 8px 12px; }
+    .cm-price-comp.on { border-color: #dde5f3; background: #eef2f9; }
     .cm-price-check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; user-select: none; font-weight: 500; }
     .cm-price-check input { width: 16px; height: 16px; cursor: pointer; }
     .cm-price-comp-fields { display: flex; align-items: flex-end; gap: 12px; margin: 10px 0 2px 24px; flex-wrap: wrap; }
     .cm-price-comp-field .cm-label { margin-bottom: 4px; }
     .cm-price-comp-fields select.cm-field-input { width: 280px; }
     .cm-price-comp-fields input.cm-field-input { width: 200px; }
-    .cm-price-comp-calc { font-size: 12.5px; color: #595959; padding-bottom: 9px; }
+    .cm-price-comp-calc { font-size: 12.5px; color: #3a4256; padding-bottom: 9px; }
     .cm-price-form-grid, .cm-contact-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
-    .cm-hist-row { padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
-    .cm-hist-meta { color: #8c8c8c; font-size: 11.5px; margin-bottom: 1px; }
-    .cm-hist-body { color: #262626; word-break: break-word; }
-    .cm-completed-banner { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px; }
-    .cm-contact-card { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+    .cm-hist-row { padding: 6px 0; border-bottom: 1px solid #f3f5f9; font-size: 13px; }
+    .cm-hist-meta { color: #5b6478; font-size: 11.5px; margin-bottom: 1px; }
+    .cm-hist-body { color: #1f2433; word-break: break-word; }
+    .cm-completed-banner { background: #e5f1ea; border: 1px solid #b9d9c5; color: #2f7d4f; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px; }
+    .cm-contact-card { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f5f9; }
     .cm-contact-main { flex: 1; min-width: 0; }
-    .cm-contact-name { font-weight: 600; font-size: 13.5px; color: #262626; }
-    .cm-contact-pos { font-weight: 400; color: #8c8c8c; font-size: 12.5px; }
+    .cm-contact-name { font-weight: 600; font-size: 13.5px; color: #1f2433; }
+    .cm-contact-pos { font-weight: 400; color: #5b6478; font-size: 12.5px; }
     .cm-contact-lines { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 2px; font-size: 13px; }
     .cm-contact-lines a { color: #1c2d58; text-decoration: none; }
     .cm-contact-lines a:hover { text-decoration: underline; }
     .cm-contact-actions { display: flex; gap: 10px; flex-shrink: 0; }
-    .cm-contact-actions a { color: #8c8c8c; text-decoration: none; cursor: pointer; }
+    .cm-contact-actions a { color: #5b6478; text-decoration: none; cursor: pointer; }
     .cm-contact-actions a:hover { color: #1c2d58; }
-    .cm-contact-form { margin-top: 10px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa; }
+    .cm-contact-form { margin-top: 10px; padding: 12px; border: 1px solid #dfe3ec; border-radius: 6px; background: #f3f5f9; }
   `;
   document.head.appendChild(st);
 }
@@ -2339,7 +2339,7 @@ function attachBikLookup(el) {
   function lock(inp, on) {
     if (!inp) return;
     inp.readOnly = !!on;
-    inp.style.background = on ? '#f5f5f5' : '';
+    inp.style.background = on ? '#f3f5f9' : '';
   }
   function unlockBank() { const f = bankFields(); lock(f.bn, false); lock(f.ca, false); }
   function clearAuto() {
@@ -2351,23 +2351,23 @@ function attachBikLookup(el) {
     auto = null;
   }
   function paint() {
-    el.style.borderColor = el.__bikState === 'ok' ? '#52c41a' : (el.__bikState === 'bad' ? '#ff4d4f' : '');
+    el.style.borderColor = el.__bikState === 'ok' ? '#2f7d4f' : (el.__bikState === 'bad' ? '#c23b3b' : '');
     if (typeof revalidateAccounts === 'function') revalidateAccounts(scope);
   }
   async function run() {
     const my = ++seq;
     const v = el.value;
-    if (!v) { el.__bikState = ''; setHint('#8c8c8c', ''); clearAuto(); paint(); return; }
-    if (v.length !== 9) { el.__bikState = 'partial'; setHint('#8c8c8c', 'Введите 9 цифр БИК (ещё ' + (9 - v.length) + ')'); clearAuto(); paint(); return; }
-    if (v.slice(0, 2) !== '04') { el.__bikState = 'bad'; setHint('#cf1322', '✗ Некорректный БИК: у российских банков он начинается с 04'); clearAuto(); paint(); return; }
-    el.__bikState = 'pending'; setHint('#8c8c8c', 'Проверяю БИК…'); paint();
+    if (!v) { el.__bikState = ''; setHint('#5b6478', ''); clearAuto(); paint(); return; }
+    if (v.length !== 9) { el.__bikState = 'partial'; setHint('#5b6478', 'Введите 9 цифр БИК (ещё ' + (9 - v.length) + ')'); clearAuto(); paint(); return; }
+    if (v.slice(0, 2) !== '04') { el.__bikState = 'bad'; setHint('#c23b3b', '✗ Некорректный БИК: у российских банков он начинается с 04'); clearAuto(); paint(); return; }
+    el.__bikState = 'pending'; setHint('#5b6478', 'Проверяю БИК…'); paint();
     let rec = null;
     try { rec = await lookupBik(v); }
-    catch (e) { if (my !== seq) return; el.__bikState = 'unknown'; setHint('#d48806', 'Справочник БИК сейчас недоступен — данные банка введите вручную'); paint(); return; }
+    catch (e) { if (my !== seq) return; el.__bikState = 'unknown'; setHint('#8a5a00', 'Справочник БИК сейчас недоступен — данные банка введите вручную'); paint(); return; }
     if (my !== seq || el.value !== v) return;
-    if (!rec) { el.__bikState = 'bad'; clearAuto(); setHint('#cf1322', '✗ Некорректный БИК — банка с таким БИК нет в справочнике ЦБ'); paint(); return; }
+    if (!rec) { el.__bikState = 'bad'; clearAuto(); setHint('#c23b3b', '✗ Некорректный БИК — банка с таким БИК нет в справочнике ЦБ'); paint(); return; }
     el.__bikState = 'ok';
-    setHint('#389e0d', '✓ БИК корректен · ' + rec.bank_name + (rec.city ? ' · ' + rec.city : ''));
+    setHint('#2f7d4f', '✓ БИК корректен · ' + rec.bank_name + (rec.city ? ' · ' + rec.city : ''));
     const f = bankFields();
     auto = { bank: rec.bank_name || '', corr: rec.corr_account || '' };
     if (f.bn) { if (f.bn.value !== auto.bank) { f.bn.value = auto.bank; fireInput(f.bn); } lock(f.bn, !!auto.bank); }
@@ -2436,7 +2436,7 @@ async function lookupNpd(inn) {
   } catch (e) { return null; }
 }
 function partyStatusBadge(p) {
-  return p && p.statusText ? '<span class="cm-sched-badge" style="color:#cf1322;background:#fff2f0;border-color:#ffccc7;">⚠ ' + escRaw(p.statusText) + '</span>' : '';
+  return p && p.statusText ? '<span class="cm-sched-badge" style="color:#c23b3b;background:#f9e6e6;border-color:#e7b9b9;">⚠ ' + escRaw(p.statusText) + '</span>' : '';
 }
 function attachInnLookup(el) {
   if (el.__cmInnLookup) return;
@@ -2497,29 +2497,29 @@ function attachInnLookup(el) {
     async function npdLine() {
       const npd = await lookupNpd(v);
       if (my !== seq || npd === null) return;
-      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#389e0d' : '#8c8c8c') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход' + (currentType() !== 'Самозанятый' ? link('Отметить как самозанятого', 'cm-party-npd') : '') : 'Не самозанятый по данным ФНС' + (currentType() === 'Самозанятый' ? ' — проверьте тип арендатора' : '')) + '</div>');
+      hint.insertAdjacentHTML('beforeend', '<div style="margin-top:2px;color:' + (npd ? '#2f7d4f' : '#5b6478') + ';">' + (npd ? '✓ Самозанятый — плательщик налога на профессиональный доход' + (currentType() !== 'Самозанятый' ? link('Отметить как самозанятого', 'cm-party-npd') : '') : 'Не самозанятый по данным ФНС' + (currentType() === 'Самозанятый' ? ' — проверьте тип арендатора' : '')) + '</div>');
       const a = hint.querySelector('.cm-party-npd');
       if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Самозанятый' }); run(); });
     }
     if ((currentType() === 'Физлицо' || currentType() === 'Самозанятый') && v.length === 12) {
-      hint.style.color = '#8c8c8c'; hint.textContent = 'Частное лицо: реквизиты из реестров не подставляются — заполните паспорт и адрес регистрации';
+      hint.style.color = '#5b6478'; hint.textContent = 'Частное лицо: реквизиты из реестров не подставляются — заполните паспорт и адрес регистрации';
       npdLine();
       return;
     }
-    hint.style.color = '#8c8c8c'; hint.textContent = v.length === 10 ? 'Ищу организацию по ИНН…' : 'Ищу индивидуального предпринимателя по ИНН…';
+    hint.style.color = '#5b6478'; hint.textContent = v.length === 10 ? 'Ищу организацию по ИНН…' : 'Ищу индивидуального предпринимателя по ИНН…';
     let p = null;
     try { p = await lookupParty(v); } catch (e) { p = null; }
     if (my !== seq) return;
-    if (!p) { hint.style.color = '#8c8c8c'; hint.textContent = 'Сервис проверки ИНН сейчас недоступен — реквизиты введите вручную'; return; }
+    if (!p) { hint.style.color = '#5b6478'; hint.textContent = 'Сервис проверки ИНН сейчас недоступен — реквизиты введите вручную'; return; }
     if (!p.found) {
       if (v.length === 12) {
         // 12 цифр и нет в реестре ИП — это ИНН частного лица
-        hint.style.color = '#8c8c8c';
+        hint.style.color = '#5b6478';
         hint.innerHTML = 'ИНН физического лица: в реестре индивидуальных предпринимателей не найден.' + (currentType() !== 'Физлицо' && currentType() !== 'Самозанятый' ? link('Арендатор — частное лицо', 'cm-party-person') : '');
         const a = hint.querySelector('.cm-party-person');
         if (a) a.addEventListener('click', async function(e) { e.preventDefault(); await applyValues({ tenant_type: 'Физлицо' }); run(); });
         npdLine();
-      } else { hint.style.color = '#d48806'; hint.textContent = 'Организация с таким ИНН не найдена в ЕГРЮЛ'; }
+      } else { hint.style.color = '#8a5a00'; hint.textContent = 'Организация с таким ИНН не найдена в ЕГРЮЛ'; }
       return;
     }
     const val = p.values;
@@ -2531,9 +2531,9 @@ function attachInnLookup(el) {
       const root = el.closest('#contract-modal-root');
       return !(root && root.__cmActiveRec && root.__cmActiveRec[n] === val[n]);
     });
-    hint.style.color = '#389e0d';
+    hint.style.color = '#2f7d4f';
     hint.innerHTML = '✓ ' + escRaw(p.name) + partyStatusBadge(p)
-      + '<div style="color:#8c8c8c;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'ОГРНИП ' : 'ОГРН ') + val.ogrn, val.legal_address, [val.director_post, val.director].filter(Boolean).join(' ')].filter(Boolean).join(' · ')) + '</div>'
+      + '<div style="color:#5b6478;margin-top:2px;">' + escRaw([val.kpp && 'КПП ' + val.kpp, val.ogrn && (val.tenant_type === 'ИП' ? 'ОГРНИП ' : 'ОГРН ') + val.ogrn, val.legal_address, [val.director_post, val.director].filter(Boolean).join(' ')].filter(Boolean).join(' · ')) + '</div>'
       + (differs ? link('Подставить реквизиты', 'cm-party-apply') : '');
     const a = hint.querySelector('.cm-party-apply');
     if (a) a.addEventListener('click', async function(e) {
@@ -2574,7 +2574,7 @@ function renderContactsSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-contacts-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Контактные данные</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-contact-add-btn" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Контакт</button></div>'
-    + '<div id="' + prefix + '-contacts-list"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
+    + '<div id="' + prefix + '-contacts-list"><div style="color:#5b6478;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-contact-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
     + '<div class="cm-field-row"><div class="cm-label">Фамилия, имя, отчество</div><input type="text" class="cm-field-input" id="' + prefix + '-contact-name"></div>'
@@ -2584,17 +2584,17 @@ function renderContactsSection(prefix) {
     + '</div>'
     + '<div class="cm-stage-edit-actions"><button class="cm-btn-save cm-btn-primary" id="' + prefix + '-contact-save">Сохранить</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-contact-cancel">Отмена</button>'
-    + '<span id="' + prefix + '-contact-status" style="font-size:12px;color:#999;align-self:center;"></span></div>'
+    + '<span id="' + prefix + '-contact-status" style="font-size:12px;color:#5b6478;align-self:center;"></span></div>'
     + '</div></div>';
 }
 
 function renderContactsList(items, canEdit) {
-  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Контактов нет' + (canEdit ? ' — добавьте кнопкой «+ Контакт»' : '') + '</div>';
+  if (!items.length) return '<div style="color:#8a92a3;font-size:12px;">Контактов нет' + (canEdit ? ' — добавьте кнопкой «+ Контакт»' : '') + '</div>';
   return items.map(function(c) {
     const lines = (c.phone ? '<a href="tel:' + escAttr(String(c.phone).replace(/[^\d+]/g, '')) + '">' + esc(formatPhoneDisplay(c.phone)) + '</a>' : '')
       + (c.email ? '<a href="mailto:' + escAttr(c.email) + '">' + esc(c.email) + '</a>' : '');
     return '<div class="cm-contact-card" data-contact-id="' + c.id + '"><div class="cm-contact-main">'
-      + '<div class="cm-contact-name">' + (c.name ? esc(c.name) : '<span style="color:#8c8c8c;">Без имени</span>')
+      + '<div class="cm-contact-name">' + (c.name ? esc(c.name) : '<span style="color:#5b6478;">Без имени</span>')
       + (c.position ? '<span class="cm-contact-pos"> · ' + esc(c.position) + '</span>' : '') + '</div>'
       + (lines ? '<div class="cm-contact-lines">' + lines + '</div>' : '')
       + '</div>'
@@ -2646,7 +2646,7 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
 
   async function refresh(changed) {
     try { items = await loadContacts(contractType, contractId); }
-    catch (e) { listEl.innerHTML = '<span style="color:#c0392b;font-size:12px;">Не удалось загрузить контакты</span>'; return; }
+    catch (e) { listEl.innerHTML = '<span style="color:#c23b3b;font-size:12px;">Не удалось загрузить контакты</span>'; return; }
     if (changed) syncMainContact(contractType, contractId, items);
     listEl.innerHTML = renderContactsList(items, canEdit);
     if (!canEdit) return;
@@ -2722,10 +2722,10 @@ async function openCompletedContractModal(id) {
       <div class="ant-modal" style="width:100%;max-width:min(1800px, 96vw);">
         <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
           <div class="cm-modal-toolbar">
-            <button id="cm-delete-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
+            <button id="cm-delete-btn" style="display:none;border:1px solid #e7b9b9;background:#f9e6e6;color:#c23b3b;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
             <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
           </div>
-          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #dfe3ec;border-radius:8px 8px 0 0;flex-shrink:0;">
             <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Договор в архиве</div>
           </div>
           <div class="cm-body-flex" style="flex:1;min-height:0;">
@@ -2738,7 +2738,7 @@ async function openCompletedContractModal(id) {
               <div id="cm-chat-input-area"></div>
             </div>
             <div class="cm-info-panel" id="cm-info-panel"></div>
-            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;">Загрузка…</div>
+            <div class="cm-data-col" id="cm-body" style="color:#5b6478;">Загрузка…</div>
           </div>
           <div class="cm-members-footer" id="cm-members-footer">
             <div class="cm-members-head">
@@ -2819,7 +2819,7 @@ async function openCompletedContractModal(id) {
 
     initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state, 'completed_contracts', 'completed');
   } catch (e) {
-    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
+    body.innerHTML = '<span style="color:#c23b3b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
   }
 }
 
@@ -2832,11 +2832,11 @@ async function openContractModal(id) {
       <div class="ant-modal" style="width:100%;max-width:min(1800px, 96vw);">
         <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
           <div class="cm-modal-toolbar">
-            <button id="cm-complete-btn" style="display:none;border:1px solid #b7eb8f;background:#f6ffed;color:#389e0d;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Завершить договор</button>
-            <button id="cm-delete-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
+            <button id="cm-complete-btn" style="display:none;border:1px solid #b9d9c5;background:#e5f1ea;color:#2f7d4f;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Завершить договор</button>
+            <button id="cm-delete-btn" style="display:none;border:1px solid #e7b9b9;background:#f9e6e6;color:#c23b3b;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
             <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
           </div>
-          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #dfe3ec;border-radius:8px 8px 0 0;flex-shrink:0;">
             <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Карточка договора</div>
           </div>
           <div class="cm-body-flex" style="flex:1;min-height:0;">
@@ -2849,7 +2849,7 @@ async function openContractModal(id) {
               <div id="cm-chat-input-area"></div>
             </div>
             <div class="cm-info-panel" id="cm-info-panel"></div>
-            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;">Загрузка…</div>
+            <div class="cm-data-col" id="cm-body" style="color:#5b6478;">Загрузка…</div>
           </div>
           <div class="cm-members-footer" id="cm-members-footer">
             <div class="cm-members-head">
@@ -2924,7 +2924,7 @@ async function openContractModal(id) {
       + '<div id="cm-active-files-list">' + renderFilesList(files, currentUser, activeScans(r, currentUser)) + '</div>'
       + '<div class="cm-upload-row"><input type="file" id="cm-active-file-input" style="display:none;">'
       + '<button class="cm-upload-btn" id="cm-active-upload-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Прикрепить файл</button>'
-      + '<span id="cm-active-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
+      + '<span id="cm-active-upload-status" style="font-size:12px;color:#5b6478;"></span></div></div>'
       + renderAddendumsSection('cm-active')
       + renderHistorySection('cm-active');
 
@@ -2968,7 +2968,7 @@ async function openContractModal(id) {
 
     initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state);
   } catch (e) {
-    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
+    body.innerHTML = '<span style="color:#c23b3b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
   }
 }
 window.openContractModal = openContractModal;
@@ -3154,7 +3154,7 @@ function renderEditableField(f, value, rec) {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><div style="display:flex;align-items:center;gap:8px;">'
       + '<input type="hidden" data-field="' + f.name + '" value="' + escAttr(value) + '">'
       + '<button type="button" class="cm-upload-btn" data-scan-upload="' + f.name + '">' + (value ? 'Заменить файл' : '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Загрузить файл') + '</button>'
-      + '<span data-scan-name="' + f.name + '" style="font-size:12px;color:#595959;">' + esc(value || 'не загружен') + '</span></div></div>';
+      + '<span data-scan-name="' + f.name + '" style="font-size:12px;color:#3a4256;">' + esc(value || 'не загружен') + '</span></div></div>';
   }
   if (f.type === 'calc') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><input type="text" class="cm-field-input cm-field-calc" data-calc-total="1" readonly tabindex="-1" value="' + escAttr(f.name === 'total_amount' && rec ? readonlyTotalText(rec) : '') + '">'
@@ -3305,8 +3305,8 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'status_reason', label: 'Причина (для «Проблемы» обязательна)', type: 'textarea', full: true }
   ], readonlyRenderer: function(r) {
       return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' + statusPill('contract_status', r.contract_status)
-        + (r.status_reason ? '<span style="font-size:13px;color:#595959;">' + esc(r.status_reason) + '</span>' : '')
-        + (r.contract_status ? '<span style="font-size:11.5px;color:#8c8c8c;">' + (r.status_manual ? 'поставлен вручную' : 'автоматически') + '</span>' : '')
+        + (r.status_reason ? '<span style="font-size:13px;color:#3a4256;">' + esc(r.status_reason) + '</span>' : '')
+        + (r.contract_status ? '<span style="font-size:11.5px;color:#5b6478;">' + (r.status_manual ? 'поставлен вручную' : 'автоматически') + '</span>' : '')
         + '</div>';
   } },
   { key: 'data', title: 'Блок Данных по договору', fields: [
@@ -3350,7 +3350,7 @@ const ACTIVE_BLOCK_DEFS = [
   { key: 'notes', title: 'Примечания', fields: [
       { name: 'notes', label: 'Текст примечания', type: 'textarea', full: true }
   ], readonlyRenderer: function(r) {
-      return '<div style="white-space:pre-wrap;color:#262626;font-size:14px;">' + linkifyText(r.notes) + '</div>';
+      return '<div style="white-space:pre-wrap;color:#1f2433;font-size:14px;">' + linkifyText(r.notes) + '</div>';
   } }
 ];
 
@@ -3593,7 +3593,7 @@ function renderFormingSideSections(r, currentUser, beforeHistory) {
     + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser, recScans(r, true)) + '</div>'
     + '<div class="cm-upload-row"><input type="file" id="cm-forming-file-input" style="display:none;">'
     + '<button class="cm-upload-btn" id="cm-forming-upload-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Прикрепить файл</button>'
-    + '<span id="cm-forming-upload-status" style="font-size:12px;color:#999;"></span></div></div>'
+    + '<span id="cm-forming-upload-status" style="font-size:12px;color:#5b6478;"></span></div></div>'
     + renderAddendumsSection('cm-forming')
     + (beforeHistory || '')
     + renderHistorySection('cm-forming');
@@ -3615,7 +3615,7 @@ const QUICK_BLOCK_DEFS = ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.active
 // порядок блоков срочного договора задаётся CSS order в .cm-quick-flow (DOM не трогаем — форма "quick" должна остаться одной обёрткой)
 const QUICK_BLOCK_ORDER = { data: 1, pay: 2, counterparty: 4, notes: 8 };
 function renderQuickFormingBody(r, currentUser) {
-  let html = '<div style="order:0;background:#fff7e6;border:1px solid #ffd591;color:#ad6800;border-radius:6px;'
+  let html = '<div style="order:0;background:#f6eedb;border:1px solid #e8d3a6;color:#8a5a00;border-radius:6px;'
     + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — сразу вся карточка договора, без этапов оформления</div>';
   html += '<div class="cm-stage-form" data-stage="quick">' + QUICK_BLOCK_DEFS.map(function(block) {
     return '<div class="cm-section" style="order:' + (QUICK_BLOCK_ORDER[block.key] || 9) + '"><div class="cm-section-title">' + esc(block.title) + '</div>'
@@ -3808,7 +3808,7 @@ function renderAddendumsSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-addendums-section" style="margin-bottom:0;">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные соглашения</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-addendum-add-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Дополнительное соглашение</button></div>'
-    + '<div id="' + prefix + '-addendums-list" style="margin-top:6px;"><div style="color:#999;font-size:12px;">Загрузка…</div></div>'
+    + '<div id="' + prefix + '-addendums-list" style="margin-top:6px;"><div style="color:#5b6478;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-contact-form" id="' + prefix + '-addendum-form" style="display:none;">'
     + '<div class="cm-contact-form-grid">'
     + '<div class="cm-field-row"><div class="cm-label">Название</div><input type="text" class="cm-field-input" id="' + prefix + '-addendum-title" placeholder="например, Дополнительное соглашение №1"></div>'
@@ -3818,21 +3818,21 @@ function renderAddendumsSection(prefix) {
     + '<div style="display:flex;align-items:flex-start;gap:8px;">'
     + '<input type="file" multiple id="' + prefix + '-addendum-file" style="display:none;">'
     + '<button class="cm-upload-btn" id="' + prefix + '-addendum-pick-btn" style="font-size:12px;white-space:nowrap;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Файлы</button>'
-    + '<div id="' + prefix + '-addendum-filename" style="font-size:12px;color:#999;align-self:center;">Файлы не выбраны</div>'
+    + '<div id="' + prefix + '-addendum-filename" style="font-size:12px;color:#5b6478;align-self:center;">Файлы не выбраны</div>'
     + '</div>'
     + '<div class="cm-stage-edit-actions">'
     + '<button class="cm-btn-save cm-btn-primary" id="' + prefix + '-addendum-save-btn">Сохранить</button>'
     + '<button class="cm-btn-save" id="' + prefix + '-addendum-cancel-btn">Отмена</button>'
-    + '<span id="' + prefix + '-addendum-status" style="font-size:12px;color:#999;align-self:center;"></span>'
+    + '<span id="' + prefix + '-addendum-status" style="font-size:12px;color:#5b6478;align-self:center;"></span>'
     + '</div></div></div>';
 }
 
 function renderAddendumsList(items, canEdit) {
-  if (!items.length) return '<div style="color:#bbb;font-size:12px;">Пока нет дополнительных соглашений</div>';
+  if (!items.length) return '<div style="color:#8a92a3;font-size:12px;">Пока нет дополнительных соглашений</div>';
   return items.map(function(a) {
     return '<div class="cm-contact-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
-      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#595959;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
-      + (a.description ? '<div style="font-size:12.5px;color:#595959;margin-top:2px;">' + esc(a.description) + '</div>' : '')
+      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#3a4256;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
+      + (a.description ? '<div style="font-size:12.5px;color:#3a4256;margin-top:2px;">' + esc(a.description) + '</div>' : '')
       // файлы ДС — как в разделе «Файлы»: имя, размер, «Открыть», «Скачать» (удаление — через ✎)
       + ((a.files || []).length ? '<div style="margin-top:4px;font-size:12.5px;">' + renderFilesList(a.files, null) + '</div>' : '')
       + '</div>' + (canEdit ? '<div class="cm-contact-actions"><a data-addendum-edit="' + a.id + '" title="Изменить">✎</a><a data-addendum-del="' + a.id + '" title="Удалить">✕</a></div>' : '')
@@ -3880,7 +3880,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
     const rows = keepFiles.map(function(f, i) { return { name: attName(f), k: 'keep', i: i }; })
       .concat(newFiles.map(function(f, i) { return { name: f.name, k: 'new', i: i }; }));
     filenameSpan.innerHTML = rows.length ? rows.map(function(r) {
-      return '<div style="color:#595959;">' + esc(r.name) + ' <a data-chosen-del="' + r.k + ':' + r.i + '" title="Убрать" style="color:#999;cursor:pointer;">✕</a></div>';
+      return '<div style="color:#3a4256;">' + esc(r.name) + ' <a data-chosen-del="' + r.k + ':' + r.i + '" title="Убрать" style="color:#5b6478;cursor:pointer;">✕</a></div>';
     }).join('') : 'Файлы не выбраны';
     filenameSpan.querySelectorAll('[data-chosen-del]').forEach(function(el) {
       el.addEventListener('click', function() {
@@ -4553,14 +4553,14 @@ async function openDraftModal(id, isQuickHint) {
       <div class="ant-modal" style="width:100%;max-width:min(1200px, 96vw);">
         <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
           <div class="cm-modal-toolbar">
-            <button id="cm-discard-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить черновик</button>
+            <button id="cm-discard-btn" style="display:none;border:1px solid #e7b9b9;background:#f9e6e6;color:#c23b3b;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить черновик</button>
             <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
           </div>
-          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
-            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Черновик договора <span style="font-weight:400;font-size:12px;color:#999;">— виден только вам, пока не опубликован</span></div>
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #dfe3ec;border-radius:8px 8px 0 0;flex-shrink:0;">
+            <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Черновик договора <span style="font-weight:400;font-size:12px;color:#5b6478;">— виден только вам, пока не опубликован</span></div>
           </div>
           <div class="cm-body-flex" style="flex:1;min-height:0;">
-            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;flex:1;">Загрузка…</div>
+            <div class="cm-data-col" id="cm-body" style="color:#5b6478;flex:1;">Загрузка…</div>
           </div>
         </div>
       </div>
@@ -4725,7 +4725,7 @@ async function openDraftModal(id, isQuickHint) {
         if (saveBtnQ) saveBtnQ.disabled = true;
       }
       const hintEl = document.createElement('div');
-      hintEl.style.cssText = 'font-size:12px;color:#999;margin-bottom:10px;';
+      hintEl.style.cssText = 'font-size:12px;color:#5b6478;margin-bottom:10px;';
       hintEl.textContent = 'Черновик сохранится сам, как только вы заполните хоть одно поле.';
       body.insertBefore(hintEl, body.firstChild);
 
@@ -4740,7 +4740,7 @@ async function openDraftModal(id, isQuickHint) {
       });
     }
   } catch (e) {
-    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки черновика: ' + esc(e && e.message ? e.message : e) + '</span>';
+    body.innerHTML = '<span style="color:#c23b3b;">Ошибка загрузки черновика: ' + esc(e && e.message ? e.message : e) + '</span>';
   }
 }
 window.openDraftModal = openDraftModal;
@@ -4755,7 +4755,7 @@ function ensureDraftsPanel() {
   panel = document.createElement('div');
   panel.id = 'cm-drafts-panel';
   panel.style.display = 'none';
-  panel.innerHTML = '<div id="cm-drafts-list" style="padding:4px 0;color:#999;font-size:13px;">Загрузка…</div>';
+  panel.innerHTML = '<div id="cm-drafts-list" style="padding:4px 0;color:#5b6478;font-size:13px;">Загрузка…</div>';
   if (card && card.parentNode) card.parentNode.insertBefore(panel, card.nextSibling);
   else document.body.appendChild(panel);
   return panel;
@@ -4763,11 +4763,11 @@ function ensureDraftsPanel() {
 function draftCardHtml(d) {
   const title = d.contract_number || d.object_name || d.tenant_name || ('Черновик #' + d.id);
   const sub = [d.object_name, d.tenant_name].filter(Boolean).join(' · ') || 'Пока без данных';
-  return '<div class="cm-draft-card" data-draft-id="' + d.id + '" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid #f0f0f0;border-radius:8px;margin-bottom:8px;cursor:pointer;background:#fff;">'
+  return '<div class="cm-draft-card" data-draft-id="' + d.id + '" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid #dfe3ec;border-radius:8px;margin-bottom:8px;cursor:pointer;background:#fff;">'
     + '<div><div style="font-weight:600;font-size:14px;">' + esc(title)
-    + (d.is_quick ? ' <span style="font-size:11px;color:#ad6800;background:#fff7e6;border:1px solid #ffd591;border-radius:4px;padding:1px 6px;margin-left:6px;">срочный</span>' : '')
-    + '</div><div style="font-size:12px;color:#999;margin-top:2px;">' + esc(sub) + '</div></div>'
-    + '<button class="cm-draft-discard" data-draft-discard="' + d.id + '" title="Удалить черновик" style="border:none;background:transparent;color:#bbb;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>'
+    + (d.is_quick ? ' <span style="font-size:11px;color:#8a5a00;background:#f6eedb;border:1px solid #e8d3a6;border-radius:4px;padding:1px 6px;margin-left:6px;">срочный</span>' : '')
+    + '</div><div style="font-size:12px;color:#5b6478;margin-top:2px;">' + esc(sub) + '</div></div>'
+    + '<button class="cm-draft-discard" data-draft-discard="' + d.id + '" title="Удалить черновик" style="border:none;background:transparent;color:#8a92a3;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>'
     + '</div>';
 }
 // ---------- индикатор у вкладки «Черновики»: счётчик + пульсация, когда туда падает новый договор ----------
@@ -4775,7 +4775,7 @@ function draftCardHtml(d) {
 if (!document.getElementById('cm-drafts-badge-style')) {
   const st = document.createElement('style');
   st.id = 'cm-drafts-badge-style';
-  st.textContent = '#cm-drafts-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 6px;margin-left:6px;border-radius:9px;background:#fa8c16;color:#fff;font-size:11px;font-weight:600;text-align:center;vertical-align:middle;}'
+  st.textContent = '#cm-drafts-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 6px;margin-left:6px;border-radius:9px;background:#8a5a00;color:#fff;font-size:11px;font-weight:600;text-align:center;vertical-align:middle;}'
     + '@keyframes cmDraftPulse{0%{box-shadow:0 0 0 0 rgba(250,140,22,0.7);transform:scale(1)}50%{transform:scale(1.25)}100%{box-shadow:0 0 0 10px rgba(250,140,22,0);transform:scale(1)}}'
     + '#cm-drafts-badge.cm-pulse{animation:cmDraftPulse 0.9s ease-out 4;}';
   document.head.appendChild(st);
@@ -4829,7 +4829,7 @@ async function refreshDraftsList() {
     const items = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
     setDraftsCount(items.length);
     listEl.innerHTML = items.length ? items.map(draftCardHtml).join('')
-      : '<div style="color:#bbb;font-size:13px;">Черновиков нет — нажмите «+ Создать договор» или «+ Срочный договор»</div>';
+      : '<div style="color:#8a92a3;font-size:13px;">Черновиков нет — нажмите «+ Создать договор» или «+ Срочный договор»</div>';
     listEl.querySelectorAll('.cm-draft-card').forEach(function(card) {
       card.addEventListener('click', function(e) {
         if (e.target.closest('[data-draft-discard]')) return;
@@ -4849,7 +4849,7 @@ async function refreshDraftsList() {
       });
     });
   } catch (e) {
-    listEl.innerHTML = '<span style="color:#c0392b;">Не удалось загрузить черновики</span>';
+    listEl.innerHTML = '<span style="color:#c23b3b;">Не удалось загрузить черновики</span>';
   }
 }
 window.refreshDraftsList = refreshDraftsList;
@@ -4868,10 +4868,10 @@ async function openFormingContractModal(id) {
       <div class="ant-modal" style="width:100%;max-width:min(1800px, 96vw);">
         <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
           <div class="cm-modal-toolbar">
-            <button id="cm-delete-btn" style="display:none;border:1px solid #ffccc7;background:#fff2f0;color:#cf1322;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
+            <button id="cm-delete-btn" style="display:none;border:1px solid #e7b9b9;background:#f9e6e6;color:#c23b3b;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
             <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
           </div>
-          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #f0f0f0;border-radius:8px 8px 0 0;flex-shrink:0;">
+          <div class="ant-modal-header" style="padding:16px 24px;border-bottom:1px solid #dfe3ec;border-radius:8px 8px 0 0;flex-shrink:0;">
             <div class="ant-modal-title" style="font-weight:600;font-size:16px;">Оформление договора</div>
           </div>
           <div class="cm-body-flex" style="flex:1;min-height:0;">
@@ -4884,7 +4884,7 @@ async function openFormingContractModal(id) {
               <div id="cm-chat-input-area"></div>
             </div>
             <div class="cm-info-panel" id="cm-info-panel"></div>
-            <div class="cm-data-col" id="cm-body" style="color:#8c8c8c;">Загрузка…</div>
+            <div class="cm-data-col" id="cm-body" style="color:#5b6478;">Загрузка…</div>
           </div>
           <div class="cm-members-footer" id="cm-members-footer">
             <div class="cm-members-head">
@@ -5050,7 +5050,7 @@ async function openFormingContractModal(id) {
 
     initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state, 'forming_contracts', 'forming');
   } catch (e) {
-    body.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
+    body.innerHTML = '<span style="color:#c23b3b;">Ошибка загрузки договора: ' + esc(e && e.message ? e.message : e) + '</span>';
   }
 }
 window.openFormingContractModal = openFormingContractModal;
@@ -5082,7 +5082,7 @@ function injectCreateContractButton() {
   quickBtn.id = 'cm-create-quick-btn';
   quickBtn.innerHTML = '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Срочный договор';
   quickBtn.title = 'Экстренное оформление: все данные одной формой, без этапов';
-  quickBtn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid #ffd591;background:#fff7e6;color:#ad6800;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
+  quickBtn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid #e8d3a6;background:#f6eedb;color:#8a5a00;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
   quickBtn.addEventListener('click', async function() {
     await openDraftModal(null, true);
   });
@@ -5135,7 +5135,7 @@ if (!window.__mainRegistryMarkInterval) {
 if (!document.getElementById('main-registry-row-style')) {
   const style = document.createElement('style');
   style.id = 'main-registry-row-style';
-  style.textContent = '.main-registry-clickable-rows .ant-table-tbody > tr:hover > td { cursor: pointer; background: #f5f5f5 !important; }';
+  style.textContent = '.main-registry-clickable-rows .ant-table-tbody > tr:hover > td { cursor: pointer; background: #f3f5f9 !important; }';
   document.head.appendChild(style);
 }
 if (!window.__mainRowClickBound) {

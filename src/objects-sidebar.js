@@ -4,18 +4,18 @@ if (!document.getElementById('obj-list-style')) {
   const style = document.createElement('style');
   style.id = 'obj-list-style';
   style.textContent = `
-    .obj-item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 10px; border-radius:6px; cursor:pointer; font-size:15px; font-weight:500; color:#1f1f1f; margin:1px 0; transition:background .12s; }
-    .obj-item:hover { background:#f5f5f5; }
-    .obj-item.active { background:#eef1f8; color:#1c2d58; font-weight:700; }
+    .obj-item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 10px; border-radius:6px; cursor:pointer; font-size:15px; font-weight:500; color:#1f2433; margin:1px 0; transition:background .12s; }
+    .obj-item:hover { background:#f3f5f9; }
+    .obj-item.active { background:#eef2f9; color:#1c2d58; font-weight:700; }
     .obj-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .obj-count { color:#8c8c8c; font-size:13px; font-weight:600; flex-shrink:0; }
+    .obj-count { color:#5b6478; font-size:13px; font-weight:600; flex-shrink:0; }
     .obj-item.active .obj-count { color:#1c2d58; }
     #obj-kind-filter { display:flex; flex-wrap:wrap; gap:4px; padding:0 6px 10px; }
-    .obj-kind { border:1px solid #d9d9d9; background:#fff; color:#595959; border-radius:12px; padding:2px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
-    .obj-kind.active { border-color:#1c2d58; background:#eef1f8; color:#1c2d58; font-weight:600; }
+    .obj-kind { border:1px solid #c3cad8; background:#fff; color:#3a4256; border-radius:12px; padding:2px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+    .obj-kind.active { border-color:#1c2d58; background:#eef2f9; color:#1c2d58; font-weight:600; }
     @media (max-width: 700px) {
       #obj-list-root { display:flex; flex-direction:row; overflow-x:auto; gap:6px; padding:2px 2px 8px; -webkit-overflow-scrolling:touch; }
-      #obj-list-root .obj-item { flex:0 0 auto; flex-direction:row; background:#f5f5f5; border-radius:16px; padding:6px 12px; margin:0; white-space:nowrap; }
+      #obj-list-root .obj-item { flex:0 0 auto; flex-direction:row; background:#f3f5f9; border-radius:16px; padding:6px 12px; margin:0; white-space:nowrap; }
       #obj-list-root .obj-item.active { background:#1c2d58; color:#fff; }
       #obj-list-root .obj-item.active .obj-count { color:#fff; }
       #obj-list-root .obj-name { max-width:120px; }
@@ -32,7 +32,7 @@ if (card) {
   card.style.background = 'transparent';
 }
 
-ctx.render('<div><div id="obj-status-filter"></div><div id="obj-kind-filter"></div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#8c8c8c;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div></div>');
+ctx.render('<div><div id="obj-status-filter"></div><div id="obj-kind-filter"></div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#5b6478;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div></div>');
 
 const root = ctx.element ? ctx.element.querySelector('#obj-list-root') : document.getElementById('obj-list-root');
 
@@ -114,7 +114,7 @@ async function load() {
       }, 200);
     }
   } catch (e) {
-    if (root) root.innerHTML = '<span style="color:#c0392b;">Ошибка загрузки объектов</span>';
+    if (root) root.innerHTML = '<span style="color:#c23b3b;">Ошибка загрузки объектов</span>';
   }
 }
 load();
@@ -188,8 +188,8 @@ async function applyExtraFilter(uid, filter, what, label, refresh) {
   if (!filter) target.resource.removeFilterGroup('statusFilter');
   else target.resource.addFilterGroup('statusFilter', filter);
   if (box) {
-    box.innerHTML = filter ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 10px;padding:6px 10px;border:1px solid #b4bfd9;background:#eef1f8;border-radius:6px;font-size:13px;color:#142142;">'
-      + '<span>' + esc(what) + ': <b>' + esc(label) + '</b></span><a href="#" id="obj-status-clear" title="Снять фильтр" style="color:#142142;text-decoration:none;font-size:15px;">✕</a></div>' : '';
+    box.innerHTML = filter ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 10px;padding:6px 10px;border:1px solid #dde5f3;background:#eef2f9;border-radius:6px;font-size:13px;color:#121d3a;">'
+      + '<span>' + esc(what) + ': <b>' + esc(label) + '</b></span><a href="#" id="obj-status-clear" title="Снять фильтр" style="color:#121d3a;text-decoration:none;font-size:15px;">✕</a></div>' : '';
     const x = document.getElementById('obj-status-clear');
     if (x) x.addEventListener('click', function(e) { e.preventDefault(); applyExtraFilter(uid, null, '', '', true); });
   }

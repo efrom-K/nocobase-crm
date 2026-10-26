@@ -15,19 +15,19 @@ if (!document.getElementById('crm-controls-style')) {
   st.id = 'crm-controls-style';
   st.textContent = `
     select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
-      background-color:#fff; border:1px solid #d9d9d9; border-radius:6px; color:#262626; font-family:inherit; line-height:1.4;
+      background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
       padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
       background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
-    select:not([multiple]):not([size]):hover { border-color:#4b5f8f; }
+    select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
     select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    select:not([multiple]):not([size]):disabled { background-color:#f5f5f5 !important; color:#bfbfbf; cursor:not-allowed; border-color:#d9d9d9; }
-    select option { color:#262626; background:#fff; }
-    select option:disabled { color:#bfbfbf; }
-    input[type=file] { font-family:inherit; font-size:13px; color:#595959; max-width:100%; }
-    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #d9d9d9; border-radius:6px;
+    select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
+    select option { color:#1f2433; background:#fff; }
+    select option:disabled { color:#8a92a3; }
+    input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
+    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
       padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
-    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#f3f5fa; }
+    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
   `;
   document.head.appendChild(st);
 }
@@ -35,10 +35,10 @@ if (!document.getElementById('crm-objplan-style')) {
   const st = document.createElement('style');
   st.id = 'crm-objplan-style';
   st.textContent = `
-    #crm-objplan { --ink:#1f2433; --muted:#5b6478; --line:#dfe3ec; --soft:#f3f5f9; --brand:#1c2d58; --brand2:#2f4a8a; --red:#cf1322; color:var(--ink); font-size:13.5px; }
+    #crm-objplan { --ink:#1f2433; --muted:#5b6478; --line:#dfe3ec; --soft:#f3f5f9; --brand:#1c2d58; --brand2:#2f4a8a; --red:#c23b3b; color:var(--ink); font-size:13.5px; }
     #crm-objplan .op-wrap { display:grid; grid-template-columns:232px minmax(0,1fr) 340px; gap:16px; align-items:start; }
     #crm-objplan .op-card { background:#fff; border:1px solid var(--line); border-radius:10px; }
-    #crm-objplan .op-cap { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#7c869b; }
+    #crm-objplan .op-cap { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#5b6478; }
     /* объекты */
     #crm-objplan .op-objs { padding:12px 8px 8px; position:sticky; top:8px; max-height:calc(100vh - 150px); overflow:auto; }
     #crm-objplan .op-objs .op-cap { padding:0 8px 8px; }
@@ -47,8 +47,8 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-obj { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 10px; border-radius:7px; cursor:pointer; font-weight:500; }
     #crm-objplan .op-obj:hover { background:var(--soft); }
     #crm-objplan .op-obj.on { background:var(--brand); color:#fff; font-weight:700; }
-    #crm-objplan .op-obj small { color:#8a93a6; font-weight:600; font-size:11.5px; white-space:nowrap; }
-    #crm-objplan .op-obj.on small { color:#d6dcf0; }
+    #crm-objplan .op-obj small { color:#5b6478; font-weight:600; font-size:11.5px; white-space:nowrap; }
+    #crm-objplan .op-obj.on small { color:#dde5f3; }
     #crm-objplan .op-main { min-width:0; }
     /* шапка */
     #crm-objplan .op-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:10px; }
@@ -58,16 +58,16 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-seg { display:inline-flex; flex-wrap:wrap; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; }
     #crm-objplan .op-seg button { display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; height:28px; padding:0 12px; border-radius:6px; font:inherit; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
     #crm-objplan .op-seg button svg { width:16px; height:16px; }
-    #crm-objplan .op-seg button:hover:not(.on) { color:var(--ink); background:#e8ecf3; }
+    #crm-objplan .op-seg button:hover:not(.on) { color:var(--ink); background:#dfe3ec; }
     #crm-objplan .op-seg button.on { background:#fff; color:var(--brand); box-shadow:0 1px 3px rgba(16,24,40,.14); }
     /* кнопки */
-    #crm-objplan .op-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; height:32px; padding:0 12px; border:1px solid #cdd3df; background:#fff; color:var(--ink); border-radius:7px; font:inherit; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; transition:border-color .15s, background .15s, color .15s; }
+    #crm-objplan .op-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; height:32px; padding:0 12px; border:1px solid #c3cad8; background:#fff; color:var(--ink); border-radius:7px; font:inherit; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; transition:border-color .15s, background .15s, color .15s; }
     #crm-objplan .op-btn svg { width:16px; height:16px; flex:none; }
-    #crm-objplan .op-btn:hover { border-color:var(--brand); color:var(--brand); background:#f7f9fd; }
+    #crm-objplan .op-btn:hover { border-color:var(--brand); color:var(--brand); background:#f3f5f9; }
     #crm-objplan .op-btn.on, #crm-objplan .op-btn.pri { background:var(--brand); border-color:var(--brand); color:#fff; }
     #crm-objplan .op-btn.pri:hover { background:var(--brand2); border-color:var(--brand2); }
-    #crm-objplan .op-btn.red { color:var(--red); border-color:#ffa39e; }
-    #crm-objplan .op-btn.red:hover { background:#fff1f0; }
+    #crm-objplan .op-btn.red { color:var(--red); border-color:#e7b9b9; }
+    #crm-objplan .op-btn.red:hover { background:#f9e6e6; }
     #crm-objplan .op-btn:disabled { opacity:.42; cursor:default; pointer-events:none; }
     /* лента действий */
     #crm-objplan .op-ribbon { display:flex; flex-wrap:wrap; align-items:stretch; row-gap:8px; padding:7px 4px 6px; margin-bottom:10px; }
@@ -76,7 +76,7 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-grp .op-cap { text-align:center; font-size:10.5px; }
     #crm-objplan .op-grp-b { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
     /* холст */
-    #crm-objplan .op-stage { position:relative; border:1px solid #c9d1df; border-radius:10px; background:#f7f8fb; height:calc(100vh - 300px); min-height:440px; overflow:hidden; }
+    #crm-objplan .op-stage { position:relative; border:1px solid #c3cad8; border-radius:10px; background:#f3f5f9; height:calc(100vh - 300px); min-height:440px; overflow:hidden; }
     #crm-objplan .op-stage.edit { border-color:var(--brand); box-shadow:0 0 0 3px rgba(28,45,88,.10); }
     #crm-objplan .op-canvas { position:absolute; inset:0; touch-action:none; user-select:none; outline:none; }
     #crm-objplan .op-canvas svg { width:100%; height:100%; display:block; }
@@ -96,13 +96,13 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-legend { left:10px; bottom:10px; display:flex; flex-wrap:wrap; gap:6px 14px; padding:6px 12px; font-size:12px; color:var(--muted); font-weight:500; }
     #crm-objplan .op-stage.edit .op-legend { left:62px; }
     #crm-objplan .op-legend i { display:inline-block; width:12px; height:12px; border-radius:3px; border:1.5px solid; vertical-align:-2px; margin-right:5px; }
-    #crm-objplan .op-3d { position:absolute; inset:0; touch-action:none; background:linear-gradient(#f4f6fa, #e3e8f0); }
+    #crm-objplan .op-3d { position:absolute; inset:0; touch-action:none; background:linear-gradient(#f3f5f9, #dfe3ec); }
     #crm-objplan .op-3d canvas { display:block; width:100%; height:100%; cursor:grab; }
     #crm-objplan .op-3d canvas:active { cursor:grabbing; }
     #crm-objplan .op-3d-msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-weight:600; }
     #crm-objplan .op-3dbar { left:10px; top:10px; display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:6px; max-width:calc(100% - 20px); }
     #crm-objplan .op-3dbar label { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:600; padding:0 4px; }
-    #crm-objplan .op-3dbar input { width:56px; height:30px; border:1px solid #cdd3df; border-radius:7px; padding:0 8px; font:inherit; font-size:13px; }
+    #crm-objplan .op-3dbar input { width:56px; height:30px; border:1px solid #c3cad8; border-radius:7px; padding:0 8px; font:inherit; font-size:13px; }
     /* строка состояния */
     #crm-objplan .op-status { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; padding:8px 2px 0; font-size:12.5px; color:var(--muted); line-height:1.45; }
     #crm-objplan .op-status b { color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
@@ -110,7 +110,7 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-pill { display:inline-flex; align-items:center; gap:6px; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:1px 10px; color:var(--ink); font-weight:600; white-space:nowrap; }
     #crm-objplan .op-pill svg { width:14px; height:14px; }
     #crm-objplan .op-xy { white-space:nowrap; }
-    #crm-objplan .op-warn { background:#fff7e6; border:1px solid #ffd591; color:#873800; border-radius:8px; padding:7px 12px; font-size:12.5px; margin-bottom:10px; }
+    #crm-objplan .op-warn { background:#f6eedb; border:1px solid #e8d3a6; color:#8a5a00; border-radius:8px; padding:7px 12px; font-size:12.5px; margin-bottom:10px; }
     /* экспорт */
     #crm-objplan .op-menu-w { position:relative; }
     #crm-objplan .op-menu { display:none; position:absolute; right:0; top:38px; z-index:20; padding:6px; min-width:300px; }
@@ -122,11 +122,11 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-fmt { width:44px; flex:none; font-size:10.5px; font-weight:800; letter-spacing:.04em; text-align:center; border-radius:5px; padding:4px 0; color:#fff; }
     /* инспектор */
     #crm-objplan .op-side { position:sticky; top:8px; max-height:calc(100vh - 150px); overflow:auto; }
-    #crm-objplan .op-side h4 { margin:0; padding:13px 16px; font-size:15px; font-weight:700; border-bottom:1px solid var(--line); background:#fafbfd; border-radius:10px 10px 0 0; }
+    #crm-objplan .op-side h4 { margin:0; padding:13px 16px; font-size:15px; font-weight:700; border-bottom:1px solid var(--line); background:#f3f5f9; border-radius:10px 10px 0 0; }
     #crm-objplan .op-sb { padding:12px 16px 16px; }
     #crm-objplan .op-f { margin-bottom:11px; }
-    #crm-objplan .op-f label { display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#7c869b; margin-bottom:4px; }
-    #crm-objplan .op-f input[type=text], #crm-objplan .op-f input[type=number], #crm-objplan .op-f select, #crm-objplan .op-f textarea { width:100%; box-sizing:border-box; border:1px solid #cdd3df; border-radius:7px; padding:6px 9px; font:inherit; font-size:13.5px; color:var(--ink); background:#fff; }
+    #crm-objplan .op-f label { display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#5b6478; margin-bottom:4px; }
+    #crm-objplan .op-f input[type=text], #crm-objplan .op-f input[type=number], #crm-objplan .op-f select, #crm-objplan .op-f textarea { width:100%; box-sizing:border-box; border:1px solid #c3cad8; border-radius:7px; padding:6px 9px; font:inherit; font-size:13.5px; color:var(--ink); background:#fff; }
     #crm-objplan .op-f input[type=text], #crm-objplan .op-f input[type=number], #crm-objplan .op-f select { height:33px; }
     #crm-objplan .op-f input:focus, #crm-objplan .op-f textarea:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(28,45,88,.12); }
     #crm-objplan .op-f input[readonly] { background:var(--soft); color:var(--muted); }
@@ -134,38 +134,38 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-f .op-err, #crm-objplan .op-err { font-size:12px; color:var(--red); margin-top:-6px; margin-bottom:6px; }
     #crm-objplan .op-g4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
     #crm-objplan .op-g2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    #crm-objplan .op-acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid #eef1f6; }
+    #crm-objplan .op-acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid #e9edf5; }
     #crm-objplan .op-kv { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13px; }
     #crm-objplan .op-kv b { color:var(--muted); font-weight:500; }
     /* карточка помещения (просмотр) */
-    #crm-objplan .op-cs { margin-top:14px; padding-top:12px; border-top:1px solid #eef1f6; }
-    #crm-objplan .op-cs > label { display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#7c869b; margin-bottom:8px; }
+    #crm-objplan .op-cs { margin-top:14px; padding-top:12px; border-top:1px solid #e9edf5; }
+    #crm-objplan .op-cs > label { display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#5b6478; margin-bottom:8px; }
     #crm-objplan .op-big { font-size:22px; font-weight:800; color:var(--ink); line-height:1.15; }
     #crm-objplan .op-big small { font-size:12.5px; font-weight:500; color:var(--muted); }
     #crm-objplan .op-tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; color:#fff; }
-    #crm-objplan .op-bar { height:6px; border-radius:3px; background:#eef1f6; overflow:hidden; margin:6px 0 4px; }
+    #crm-objplan .op-bar { height:6px; border-radius:3px; background:#e9edf5; overflow:hidden; margin:6px 0 4px; }
     #crm-objplan .op-bar i { display:block; height:100%; background:var(--brand); }
     #crm-objplan .op-pay { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
-    #crm-objplan .op-pay span { font-size:11.5px; padding:1px 7px; border-radius:9px; background:#f0f2f5; color:#595959; }
-    #crm-objplan .op-pay span.ok { background:#e6f4dc; color:#237804; }
-    #crm-objplan .op-rq { display:block; font-size:12.5px; padding:5px 0; border-bottom:1px dashed #eef1f6; color:var(--ink); text-decoration:none; }
+    #crm-objplan .op-pay span { font-size:11.5px; padding:1px 7px; border-radius:9px; background:#f3f5f9; color:#3a4256; }
+    #crm-objplan .op-pay span.ok { background:#e5f1ea; color:#2f7d4f; }
+    #crm-objplan .op-rq { display:block; font-size:12.5px; padding:5px 0; border-bottom:1px dashed #e9edf5; color:var(--ink); text-decoration:none; }
     #crm-objplan .op-rq:hover { color:var(--brand); }
     #crm-objplan .op-hint { font-size:12.5px; color:var(--muted); line-height:1.45; margin:6px 0 0; }
-    #crm-objplan .op-keys { font-size:12px; color:var(--muted); line-height:1.7; margin-top:12px; padding-top:10px; border-top:1px solid #eef1f6; }
+    #crm-objplan .op-keys { font-size:12px; color:var(--muted); line-height:1.7; margin-top:12px; padding-top:10px; border-top:1px solid #e9edf5; }
     #crm-objplan .op-keys kbd { display:inline-block; min-width:16px; text-align:center; font:inherit; font-size:11px; font-weight:700; color:var(--ink); background:var(--soft); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px; }
     /* экспликация */
     #crm-objplan .op-tbl { margin-top:14px; padding:12px 14px 6px; }
     #crm-objplan .op-tbl-h { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin-bottom:10px; }
     #crm-objplan .op-tbl-h .op-t-title { font-size:15px; font-weight:700; margin-right:6px; }
     #crm-objplan .op-tbl-h .op-pill b { font-size:13.5px; }
-    #crm-objplan .op-tbl-h small { color:#8a93a6; font-size:12px; }
+    #crm-objplan .op-tbl-h small { color:#5b6478; font-size:12px; }
     #crm-objplan table.op-t { width:100%; border-collapse:collapse; font-size:13px; }
-    #crm-objplan .op-t th { background:#eef1f6; border-bottom:2px solid #c9d1df; text-align:left; padding:7px 8px; font-weight:600; white-space:nowrap; color:#262626; }
-    #crm-objplan .op-t td { padding:6px 8px; border-bottom:1px solid #edf0f5; color:#1f1f1f; }
-    #crm-objplan .op-t tr:nth-child(even) td { background:#f8f9fb; }
+    #crm-objplan .op-t th { background:#e9edf5; border-bottom:2px solid #c3cad8; text-align:left; padding:7px 8px; font-weight:600; white-space:nowrap; color:#1f2433; }
+    #crm-objplan .op-t td { padding:6px 8px; border-bottom:1px solid #e9edf5; color:#1f2433; }
+    #crm-objplan .op-t tr:nth-child(even) td { background:#f3f5f9; }
     #crm-objplan .op-t tbody tr { cursor:pointer; }
-    #crm-objplan .op-t tbody tr:hover td { background:#eaf0ff; }
-    #crm-objplan .op-t tr.on td { background:#dbe4ff !important; font-weight:600; }
+    #crm-objplan .op-t tbody tr:hover td { background:#eef2f9; }
+    #crm-objplan .op-t tr.on td { background:#dde5f3 !important; font-weight:600; }
     #crm-objplan .op-t .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
     #crm-objplan .op-chip { display:inline-block; padding:0 8px; border-radius:9px; font-size:11.5px; font-weight:600; border:1px solid; white-space:nowrap; }
     #crm-objplan .op-toast { position:fixed; right:24px; bottom:24px; background:#1f2433; color:#fff; padding:9px 15px; border-radius:8px; font-size:13px; z-index:2000; box-shadow:0 6px 20px rgba(0,0,0,.2); }
@@ -191,7 +191,7 @@ if (!document.getElementById('crm-objplan-style')) {
 
 // ---------- состояние ----------
 const OP_KINDS = { rent: 'Под аренду', tech: 'Техническое', common: 'Общего пользования' };
-const OP_COLORS = { rented: ['#dbe4ff', '#1c2d58'], free: ['#d9f7be', '#389e0d'], tech: ['#ececec', '#8c8c8c'], common: ['#fff1d6', '#d48806'] };
+const OP_COLORS = { rented: ['#dde5f3', '#1c2d58'], free: ['#e5f1ea', '#2f7d4f'], tech: ['#e9edf5', '#5b6478'], common: ['#f6eedb', '#8a5a00'] };
 const OP_SNAP = 0.5;   // шаг стрелок, м (с Alt — 0,1); мышь — шаг по масштабу (opStep)
 const OP_TOOLS = [['sel', 'Выбор', 'V'], ['wall', 'Стена', 'W'], ['cut', 'Разрезать стену', 'X'], ['room', 'Помещение по углам', 'P'], ['rect', 'Прямоугольник', 'R'],
   ['door', 'Дверь', 'D'], ['window', 'Окно', 'O'], ['gate', 'Ворота', 'G'], ['stair', 'Лестница', 'S'], ['col', 'Колонна', 'C'], ['dim', 'Размер', 'M'], ['text', 'Подпись', 'T']];
@@ -199,7 +199,7 @@ const OP_TOOLS = [['sel', 'Выбор', 'V'], ['wall', 'Стена', 'W'], ['cut
 const OP_XTOOLS = { calib: 'Масштаб подложки', bgmove: 'Сдвиг подложки' };
 function opToolName(t) { return OP_XTOOLS[t] || (OP_TOOLS.find(function(x) { return x[0] === t; }) || [])[1] || ''; }
 // типы стен: название, толщина по умолчанию, заливка (контур всегда чёрный)
-const OP_WT = { ext: ['Наружная', 0.5, '#7a7a7a'], bear: ['Несущая внутренняя', 0.38, '#cfcfcf'], part: ['Перегородка', 0.12, '#ffffff'] };
+const OP_WT = { ext: ['Наружная', 0.5, '#5b6478'], bear: ['Несущая внутренняя', 0.38, '#c3cad8'], part: ['Перегородка', 0.12, '#ffffff'] };
 function opWtByT(t) { return t >= 0.35 ? 'ext' : t >= 0.25 ? 'bear' : 'part'; }
 function opWT(w) { return OP_WT[w.wt] ? w.wt : opWtByT(Number(w.t) || 0.2); }
 const OP_DT = { one: 'Однопольная', two: 'Двупольная', open: 'Проём без двери' };
@@ -212,7 +212,7 @@ try { op.objId = Number(localStorage.getItem('crm-objplan-obj')) || null; } catc
 try { Object.assign(op.def, JSON.parse(localStorage.getItem('crm-objplan-def') || '{}')); op.ghost = localStorage.getItem('crm-objplan-ghost') === '1'; } catch (e) { /* нет хранилища */ }
 if (!OP_WT[op.def.wt]) op.def.wt = opWtByT(op.def.wall);
 
-ctx.render('<div id="crm-objplan"><div style="color:#8c8c8c;padding:12px;">Загрузка…</div></div>');
+ctx.render('<div id="crm-objplan"><div style="color:#5b6478;padding:12px;">Загрузка…</div></div>');
 function opRoot() { return (ctx.element && ctx.element.querySelector('#crm-objplan')) || document.getElementById('crm-objplan'); }
 function opRows(res) { const d = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : []; return Array.isArray(d) ? d : (d ? [d] : []); }
 function opEsc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -488,9 +488,9 @@ const OP_ICO = {
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
 };
 function opIco(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (OP_ICO[n] || '') + '</svg>'; }
-const OP_FMT = [['png', 'PNG', '#0e7c86', 'Картинка PNG', 'для сообщений и презентаций, высокое разрешение'], ['pdf', 'PDF', '#cf1322', 'PDF для печати', 'лист А3, заголовок, легенда и итоги'],
-  ['svg', 'SVG', '#d46b08', 'SVG — векторный', 'масштабируется без потери качества'], ['dxf', 'DXF', '#1c2d58', 'DXF для AutoCAD', 'стены, помещения, проёмы по слоям, 1 ед. = 1 м'],
-  ['xlsx', 'XLSX', '#237804', 'Экспликация в Excel', 'все помещения объекта: площади, договоры, арендаторы']];
+const OP_FMT = [['png', 'PNG', '#0e7c86', 'Картинка PNG', 'для сообщений и презентаций, высокое разрешение'], ['pdf', 'PDF', '#c23b3b', 'PDF для печати', 'лист А3, заголовок, легенда и итоги'],
+  ['svg', 'SVG', '#8a5a00', 'SVG — векторный', 'масштабируется без потери качества'], ['dxf', 'DXF', '#1c2d58', 'DXF для AutoCAD', 'стены, помещения, проёмы по слоям, 1 ед. = 1 м'],
+  ['xlsx', 'XLSX', '#2f7d4f', 'Экспликация в Excel', 'все помещения объекта: площади, договоры, арендаторы']];
 function opRender() {
   const root = opRoot(); if (!root) return;
   op3dDispose();
@@ -629,24 +629,24 @@ function opWallsSvg(walls, px, sid) {
   let o = '', h = '', sel = '';
   G.polys.forEach(function(q) {
     o += D(q.pts); fill[opWT(q.w)] += D(q.pts);
-    if (q.w.id === sid) sel = '<path d="' + D(q.pts) + '" fill="#ffccc7" stroke="#cf1322" stroke-width="' + 2 * px + '" stroke-linejoin="miter"/>';
+    if (q.w.id === sid) sel = '<path d="' + D(q.pts) + '" fill="#e7b9b9" stroke="#c23b3b" stroke-width="' + 2 * px + '" stroke-linejoin="miter"/>';
     h += '<path class="op-it" data-it="' + q.w.id + '" d="' + opWallD(q.w) + '" fill="none" stroke="transparent" stroke-width="' + Math.max(Number(q.w.t) || 0.2, 12 * px) + '"/>';
   });
   G.hubs.forEach(function(q) { fill[opWT(q.w)] += D(q.pts); });
   if (!o) return '';
-  let s = '<path d="' + o + '" fill="#141414" stroke="#141414" stroke-width="' + 2 * lw + '" stroke-linejoin="round"/>';   // round: у острых вершин «уса» миттер дал бы шип наружу
+  let s = '<path d="' + o + '" fill="#1f2433" stroke="#1f2433" stroke-width="' + 2 * lw + '" stroke-linejoin="round"/>';   // round: у острых вершин «уса» миттер дал бы шип наружу
   ['part', 'bear', 'ext'].forEach(function(k) { if (fill[k]) s += '<path d="' + fill[k] + '" fill="' + OP_WT[k][2] + '" stroke="' + OP_WT[k][2] + '" stroke-width="' + 0.4 * px + '"/>'; });
   return s + sel + h;
 }
 function opR3(n) { return Math.round(n * 1000) / 1000; }
 function opColSvg(it, px, sel, ghost) {
-  const s = Math.max(0.1, Number(it.s) || 0.4), col = sel ? '#cf1322' : '#141414', a = ghost ? ' opacity="0.55"' : ' class="op-it" data-it="' + it.id + '"';
-  const fill = sel ? '#ff7875' : '#595959', sw = 1.3 * px;
+  const s = Math.max(0.1, Number(it.s) || 0.4), col = sel ? '#c23b3b' : '#1f2433', a = ghost ? ' opacity="0.55"' : ' class="op-it" data-it="' + it.id + '"';
+  const fill = sel ? '#c23b3b' : '#3a4256', sw = 1.3 * px;
   return it.sh === 'round' ? '<circle' + a + ' cx="' + it.x + '" cy="' + it.y + '" r="' + s / 2 + '" fill="' + fill + '" stroke="' + col + '" stroke-width="' + sw + '"/>'
     : '<rect' + a + ' x="' + (it.x - s / 2) + '" y="' + (it.y - s / 2) + '" width="' + s + '" height="' + s + '" fill="' + fill + '" stroke="' + col + '" stroke-width="' + sw + '"/>';
 }
 function opOpenSvg(it, px, ghost, sel) {
-  const G = opOpG(it), w = Number(it.w) || 0.9, hw = w / 2, t = Math.max(0.05, G.t), col = sel ? '#cf1322' : '#262626', sw = 1.4 * px;
+  const G = opOpG(it), w = Number(it.w) || 0.9, hw = w / 2, t = Math.max(0.05, G.t), col = sel ? '#c23b3b' : '#1f2433', sw = 1.4 * px;
   let s = '<g transform="translate(' + G.x + ' ' + G.y + ') rotate(' + G.a + ')"' + (ghost ? ' opacity="0.55"' : ' class="op-it" data-it="' + it.id + '"') + '>';
   s += '<rect x="' + -hw + '" y="' + (-t / 2 - 2 * px) + '" width="' + w + '" height="' + (t + 4 * px) + '" fill="#fff"/>';   // проём «вырезает» стену
   const jambs = '<path d="M' + -hw + ' ' + -t / 2 + 'V' + t / 2 + 'M' + hw + ' ' + -t / 2 + 'V' + t / 2 + '" stroke="' + col + '" stroke-width="' + 2 * sw + '"/>';
@@ -684,12 +684,12 @@ function opDimSvg(it, px, col, hit) {
 }
 function opTextSvg(it, px, sel) {
   const s = Math.max(0.1, Number(it.s) || 1), txt = String(it.text || ''), w = Math.max(1, txt.length) * s * 0.6;
-  return '<g class="op-it" data-it="' + it.id + '"><rect x="' + (it.x - w / 2) + '" y="' + (it.y - s) + '" width="' + w + '" height="' + s * 1.3 + '" fill="transparent"' + (sel ? ' stroke="#cf1322" stroke-width="' + px + '" stroke-dasharray="' + 3 * px + '"' : '') + '/>'
-    + '<text x="' + it.x + '" y="' + it.y + '" font-size="' + s + '" font-weight="600" fill="' + (sel ? '#cf1322' : '#262626') + '" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">' + opEsc(txt) + '</text></g>';
+  return '<g class="op-it" data-it="' + it.id + '"><rect x="' + (it.x - w / 2) + '" y="' + (it.y - s) + '" width="' + w + '" height="' + s * 1.3 + '" fill="transparent"' + (sel ? ' stroke="#c23b3b" stroke-width="' + px + '" stroke-dasharray="' + 3 * px + '"' : '') + '/>'
+    + '<text x="' + it.x + '" y="' + it.y + '" font-size="' + s + '" font-weight="600" fill="' + (sel ? '#c23b3b' : '#1f2433') + '" text-anchor="middle" stroke="#fff" stroke-width="' + 3 * px + '" paint-order="stroke">' + opEsc(txt) + '</text></g>';
 }
 // лестница: центр x, y; a — направление подъёма, °; l — длина марша, w — ширина, n — ступеней; to — этаж (план), куда ведёт
 function opStairSvg(it, px, sel, ghost) {
-  const l = Math.max(0.3, Number(it.l) || 3), w = Math.max(0.3, Number(it.w) || 1.2), n = Math.max(2, Math.round(Number(it.n) || 10)), col = ghost ? '#8c8c8c' : sel ? '#cf1322' : '#262626', sw = 1.3 * px;
+  const l = Math.max(0.3, Number(it.l) || 3), w = Math.max(0.3, Number(it.w) || 1.2), n = Math.max(2, Math.round(Number(it.n) || 10)), col = ghost ? '#5b6478' : sel ? '#c23b3b' : '#1f2433', sw = 1.3 * px;
   const to = it.to ? op.plans.find(function(p) { return p.id === it.to; }) : null, x0 = -l / 2, st = l / n, ah = Math.min(w * 0.32, 0.4, l * 0.3);
   let d = ''; for (let i = 1; i < n; i++) d += 'M' + (x0 + st * i) + ' ' + -w / 2 + 'V' + w / 2;
   let s = '<g transform="translate(' + it.x + ' ' + it.y + ') rotate(' + (Number(it.a) || 0) + ')"' + (ghost ? ' opacity="0.6"' : ' class="op-it op-stair" data-it="' + it.id + '"' + (to ? ' data-go="' + to.id + '"' : '')) + '>'
@@ -726,9 +726,9 @@ function opLowerPlan(p) { const ps = opBldPlans(p), i = ps.indexOf(p); return i 
 // этаж ниже — серым под чертежом: по нему выравнивают стены и лестницы
 function opGhostSvg(lp, px) {
   let g = '<g pointer-events="none" opacity="0.45">';
-  op.rooms.filter(function(r) { return r.plan_id === lp.id; }).forEach(function(r) { g += '<path d="' + opPathD(opRoomPts(r)) + '" fill="none" stroke="#8c8c8c" stroke-width="' + 1.2 * px + '" stroke-dasharray="' + 5 * px + ' ' + 4 * px + '"/>'; });
+  op.rooms.filter(function(r) { return r.plan_id === lp.id; }).forEach(function(r) { g += '<path d="' + opPathD(opRoomPts(r)) + '" fill="none" stroke="#5b6478" stroke-width="' + 1.2 * px + '" stroke-dasharray="' + 5 * px + ' ' + 4 * px + '"/>'; });
   opDw(lp).items.forEach(function(it) {
-    if (it.k === 'wall') g += '<path d="' + opWallD(it) + '" fill="none" stroke="#8c8c8c" stroke-width="' + Math.max(0.03, Number(it.t) || 0.2) + '" stroke-linecap="square"/>';
+    if (it.k === 'wall') g += '<path d="' + opWallD(it) + '" fill="none" stroke="#5b6478" stroke-width="' + Math.max(0.03, Number(it.t) || 0.2) + '" stroke-linecap="square"/>';
     if (it.k === 'col') g += opColSvg(it, px, false, true);
     if (it.k === 'stair') g += opStairSvg(it, px, false, true);
   });
@@ -737,7 +737,7 @@ function opGhostSvg(lp, px) {
 function opHandle(x, y, h, px, cls) {
   const hs = 9 * px;
   if (cls === 'm') return '<circle class="op-h m" data-h="' + h + '" cx="' + x + '" cy="' + y + '" r="' + 5 * px + '" fill="#fff" stroke="#1c2d58" stroke-width="' + 1.5 * px + '"/>';
-  return '<rect class="op-h' + (cls ? ' ' + cls : '') + '" data-h="' + h + '" x="' + (x - hs / 2) + '" y="' + (y - hs / 2) + '" width="' + hs + '" height="' + hs + '" fill="#fff" stroke="#cf1322" stroke-width="' + 1.5 * px + '"'
+  return '<rect class="op-h' + (cls ? ' ' + cls : '') + '" data-h="' + h + '" x="' + (x - hs / 2) + '" y="' + (y - hs / 2) + '" width="' + hs + '" height="' + hs + '" fill="#fff" stroke="#c23b3b" stroke-width="' + 1.5 * px + '"'
     + (h === 'ne' || h === 'sw' ? ' style="cursor:nesw-resize"' : '') + '/>';
 }
 function opDraw() {
@@ -767,17 +767,17 @@ function opBuild(p, px, exp) {
   g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
   const bgr = opBgRect(p);
   if (p.bg_url && (!exp || exp.bg)) g += '<image href="' + opEsc(exp ? exp.bg : p.bg_url) + '" x="' + bgr.x + '" y="' + bgr.y + '" width="' + bgr.w + '" height="' + bgr.h + '" preserveAspectRatio="none" opacity="' + (p.bg_opacity === null || p.bg_opacity === undefined ? 0.6 : p.bg_opacity) + '"/>';
-  if (!exp && 1 / px >= 6) g += grid(1, '#eef1f6', 1);
-  g += grid(10, '#d6dce8', 1);
-  g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none" stroke="#9aa3b5" stroke-width="' + 1.5 * px + '"/>';
+  if (!exp && 1 / px >= 6) g += grid(1, '#e9edf5', 1);
+  g += grid(10, '#dde5f3', 1);
+  g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none" stroke="#8a92a3" stroke-width="' + 1.5 * px + '"/>';
   // линейка: подписи каждые 10 м
-  for (let x = 0; x <= W + 1e-6; x += 10) g += '<text x="' + x + '" y="' + (-4 * px) + '" font-size="' + 10 * px + '" fill="#8c8c8c" text-anchor="middle">' + x + '</text>';
-  for (let y = 10; y <= H + 1e-6; y += 10) g += '<text x="' + (-4 * px) + '" y="' + (y + 3 * px) + '" font-size="' + 10 * px + '" fill="#8c8c8c" text-anchor="end">' + y + '</text>';
+  for (let x = 0; x <= W + 1e-6; x += 10) g += '<text x="' + x + '" y="' + (-4 * px) + '" font-size="' + 10 * px + '" fill="#5b6478" text-anchor="middle">' + x + '</text>';
+  for (let y = 10; y <= H + 1e-6; y += 10) g += '<text x="' + (-4 * px) + '" y="' + (y + 3 * px) + '" font-size="' + 10 * px + '" fill="#5b6478" text-anchor="end">' + y + '</text>';
   const rooms = opPlanRooms(), items = opItems();
   // 1) заливка помещений
   rooms.forEach(function(r) {
     const c = OP_COLORS[opState(r)], sel = !exp && r.id === op.sel;
-    g += '<path class="op-room" data-room="' + r.id + '" d="' + opPathD(opRoomPts(r)) + '" fill="' + c[0] + '" fill-opacity="' + (p.bg_url ? 0.75 : 1) + '" stroke="' + (sel ? '#cf1322' : c[1]) + '" stroke-width="' + (sel ? 3 : 1.3) * px + '" stroke-linejoin="round"/>';
+    g += '<path class="op-room" data-room="' + r.id + '" d="' + opPathD(opRoomPts(r)) + '" fill="' + c[0] + '" fill-opacity="' + (p.bg_url ? 0.75 : 1) + '" stroke="' + (sel ? '#c23b3b' : c[1]) + '" stroke-width="' + (sel ? 3 : 1.3) * px + '" stroke-linejoin="round"/>';
   });
   // 2) стены, проёмы, размеры, подписи
   if (!exp && op.ghost) { const lp = opLowerPlan(p); if (lp) g += opGhostSvg(lp, px); }
@@ -785,7 +785,7 @@ function opBuild(p, px, exp) {
   items.forEach(function(it) { if (it.k === 'col') g += opColSvg(it, px, it.id === sid, false); });
   items.forEach(function(it) { if (OP_OPEN[it.k]) g += opOpenSvg(it, px, false, it.id === sid); });
   items.forEach(function(it) { if (it.k === 'stair') g += opStairSvg(it, px, it.id === sid, false); });
-  items.forEach(function(it) { if (it.k === 'dim') g += opDimSvg(it, px, it.id === sid ? '#cf1322' : '#1c2d58', true); });
+  items.forEach(function(it) { if (it.k === 'dim') g += opDimSvg(it, px, it.id === sid ? '#c23b3b' : '#1c2d58', true); });
   // 3) подписи помещений — только если влезают
   rooms.forEach(function(r) {
     const pts = opRoomPts(r), bb = opBBox(pts), w = bb.w, h = bb.h, c = opIsPoly(r) ? opCentroid(pts) : [bb.x + w / 2, bb.y + h / 2];
@@ -802,8 +802,8 @@ function opBuild(p, px, exp) {
     let ty = c[1] - tot / 2;
     lines.forEach(function(l, i) {
       // номер / площадь — дробью, как в экспликации БТИ
-      if (i === 1) { const hw = Math.max(code.length * fs * 1.15, opArea(r.area_sqm).length * fs) * 0.34; g += '<path d="M' + (cx - hw) + ' ' + (ty + l[1] * 0.02) + 'H' + (cx + hw) + '" stroke="#1f1f1f" stroke-width="' + px + '"/>'; }
-      ty += l[1] * 1.25; g += '<text x="' + cx + '" y="' + (ty - l[1] * 0.3) + '" font-size="' + l[1] + '" fill="#1f1f1f" text-anchor="middle">' + l[0] + '</text>';
+      if (i === 1) { const hw = Math.max(code.length * fs * 1.15, opArea(r.area_sqm).length * fs) * 0.34; g += '<path d="M' + (cx - hw) + ' ' + (ty + l[1] * 0.02) + 'H' + (cx + hw) + '" stroke="#1f2433" stroke-width="' + px + '"/>'; }
+      ty += l[1] * 1.25; g += '<text x="' + cx + '" y="' + (ty - l[1] * 0.3) + '" font-size="' + l[1] + '" fill="#1f2433" text-anchor="middle">' + l[0] + '</text>';
     });
   });
   items.forEach(function(it) { if (it.k === 'text') g += opTextSvg(it, px, it.id === sid); });
@@ -813,7 +813,7 @@ function opBuild(p, px, exp) {
     const pts = opRoomPts(sr), n = pts.length, poly = opIsPoly(sr);
     for (let i = 0; i < n; i++) {
       const a = { x: pts[i][0], y: pts[i][1] }, b = { x: pts[(i + 1) % n][0], y: pts[(i + 1) % n][1] };
-      if (opDist(a, b) / px > 46) g += opLenLbl(a, b, px).replace('#1c2d58', '#cf1322');
+      if (opDist(a, b) / px > 46) g += opLenLbl(a, b, px).replace('#1c2d58', '#c23b3b');
     }
     if (sel0) {
       if (poly) {
@@ -828,10 +828,10 @@ function opBuild(p, px, exp) {
   const si = opItem(op.selItem);
   if (ed && sel0 && si && OP_OPEN[si.k] && si.wid) {   // края проёма — тянуть, как концы стены
     const G = opOpG(si), a = G.a * Math.PI / 180, hw = (Number(si.w) || 0.9) / 2, p1 = { x: G.x - Math.cos(a) * hw, y: G.y - Math.sin(a) * hw }, p2 = { x: G.x + Math.cos(a) * hw, y: G.y + Math.sin(a) * hw };
-    g += opLenLbl(p1, p2, px).replace('#1c2d58', '#cf1322') + opHandle(p1.x, p1.y, 'o1', px, 'v') + opHandle(p2.x, p2.y, 'o2', px, 'v');
+    g += opLenLbl(p1, p2, px).replace('#1c2d58', '#c23b3b') + opHandle(p1.x, p1.y, 'o1', px, 'v') + opHandle(p2.x, p2.y, 'o2', px, 'v');
   }
   if (ed && sel0 && si && (si.k === 'wall' || si.k === 'dim')) {
-    g += opLenLbl({ x: si.x1, y: si.y1 }, { x: si.x2, y: si.y2 }, px).replace('#1c2d58', '#cf1322');
+    g += opLenLbl({ x: si.x1, y: si.y1 }, { x: si.x2, y: si.y2 }, px).replace('#1c2d58', '#c23b3b');
     g += opHandle(si.x1, si.y1, 'p1', px, 'v') + opHandle(si.x2, si.y2, 'p2', px, 'v');
     if (si.k === 'wall' && opWallLen(si) / px > 40) { const A = opArc(si); g += opHandle(A ? A.ax : (si.x1 + si.x2) / 2, A ? A.ay : (si.y1 + si.y2) / 2, 'bm', px, 'm').replace('class="op-h m"', 'class="op-h m" style="cursor:move"'); }
   }
@@ -839,16 +839,16 @@ function opBuild(p, px, exp) {
   // масштаб подложки: отмеченные точки
   if (ed && op.tool === 'calib' && op.cal.length) {
     const a = op.cal[0], b = op.cal[1] || hv;
-    if (b) g += '<line x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '" stroke="#cf1322" stroke-width="' + 2 * px + '"/>' + opLenLbl(a, b, px, 'на подложке ' + opM(opR(opDist(a, b))) + ' м').replace('#1c2d58', '#cf1322');
-    op.cal.forEach(function(q) { g += '<path d="M' + (q.x - 8 * px) + ' ' + q.y + 'H' + (q.x + 8 * px) + 'M' + q.x + ' ' + (q.y - 8 * px) + 'V' + (q.y + 8 * px) + '" stroke="#cf1322" stroke-width="' + 1.6 * px + '"/>'; });
+    if (b) g += '<line x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '" stroke="#c23b3b" stroke-width="' + 2 * px + '"/>' + opLenLbl(a, b, px, 'на подложке ' + opM(opR(opDist(a, b))) + ' м').replace('#1c2d58', '#c23b3b');
+    op.cal.forEach(function(q) { g += '<path d="M' + (q.x - 8 * px) + ' ' + q.y + 'H' + (q.x + 8 * px) + 'M' + q.x + ' ' + (q.y - 8 * px) + 'V' + (q.y + 8 * px) + '" stroke="#c23b3b" stroke-width="' + 1.6 * px + '"/>'; });
   }
   // 5) рисуемое сейчас
   if (ed && !sel0 && hv && op.tool === 'cut') {
     const nw = opNearWall(hv, 10 * px);
     if (nw && !opArc(nw.wall)) {
       const w = nw.wall, ux = (w.x2 - w.x1) / nw.L, uy = (w.y2 - w.y1) / nw.L, cx = w.x1 + ux * nw.u, cy = w.y1 + uy * nw.u, r = (Number(w.t) || 0.2) / 2 + 6 * px;
-      g += '<path d="M' + (cx + uy * r) + ' ' + (cy - ux * r) + 'L' + (cx - uy * r) + ' ' + (cy + ux * r) + '" stroke="#cf1322" stroke-width="' + 2.5 * px + '"/>'
-        + opLenLbl({ x: w.x1, y: w.y1 }, { x: cx, y: cy }, px, opM(opR(nw.u)) + ' м | ' + opM(opR(nw.L - nw.u)) + ' м').replace('#1c2d58', '#cf1322');
+      g += '<path d="M' + (cx + uy * r) + ' ' + (cy - ux * r) + 'L' + (cx - uy * r) + ' ' + (cy + ux * r) + '" stroke="#c23b3b" stroke-width="' + 2.5 * px + '"/>'
+        + opLenLbl({ x: w.x1, y: w.y1 }, { x: cx, y: cy }, px, opM(opR(nw.u)) + ' м | ' + opM(opR(nw.L - nw.u)) + ' м').replace('#1c2d58', '#c23b3b');
     }
   }
   if (ed && !sel0 && hv && op.tool === 'col') g += opColSvg({ x: hv.x, y: hv.y, s: op.def.col, sh: op.def.colsh }, px, false, true);
@@ -857,7 +857,7 @@ function opBuild(p, px, exp) {
     if (t === 'wall' && from) g += '<line x1="' + from.x + '" y1="' + from.y + '" x2="' + hv.x + '" y2="' + hv.y + '" stroke="#1c2d58" stroke-opacity="0.55" stroke-width="' + op.def.wall + '" stroke-linecap="square"/>' + opLenLbl(from, hv, px, typed);
     if (t === 'room' && op.chain.length) {
       const pts = op.chain.map(function(q) { return q.x + ' ' + q.y; }).concat([hv.x + ' ' + hv.y]);
-      g += '<path d="M' + pts.join('L') + '" fill="#dbe4ff" fill-opacity="0.5" stroke="#1c2d58" stroke-width="' + 2 * px + '" stroke-dasharray="' + 6 * px + ' ' + 4 * px + '"/>'
+      g += '<path d="M' + pts.join('L') + '" fill="#dde5f3" fill-opacity="0.5" stroke="#1c2d58" stroke-width="' + 2 * px + '" stroke-dasharray="' + 6 * px + ' ' + 4 * px + '"/>'
         + '<circle cx="' + op.chain[0].x + '" cy="' + op.chain[0].y + '" r="' + 6 * px + '" fill="#fff" stroke="#1c2d58" stroke-width="' + 2 * px + '"/>' + opLenLbl(from, hv, px, typed);
     }
     if (t === 'stair' && op.drag && op.drag.kind === 'rect') {
@@ -866,7 +866,7 @@ function opBuild(p, px, exp) {
     }
     if (t === 'rect' && op.drag && op.drag.kind === 'rect') {
       const a = op.drag.p0, x = Math.min(a.x, hv.x), y = Math.min(a.y, hv.y), w = Math.abs(hv.x - a.x), h = Math.abs(hv.y - a.y);
-      g += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#dbe4ff" fill-opacity="0.5" stroke="#1c2d58" stroke-width="' + 2 * px + '" stroke-dasharray="' + 6 * px + ' ' + 4 * px + '"/>'
+      g += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#dde5f3" fill-opacity="0.5" stroke="#1c2d58" stroke-width="' + 2 * px + '" stroke-dasharray="' + 6 * px + ' ' + 4 * px + '"/>'
         + opLenLbl({ x: x, y: y + h / 2 }, { x: x + w, y: y + h / 2 }, px, opM(opR(w)) + ' × ' + opM(opR(h)) + ' м = ' + opArea(opR(w * h)));
     }
     if (t === 'dim' && from) g += opDimSvg({ x1: from.x, y1: from.y, x2: hv.x, y2: hv.y }, px, '#1c2d58', false);
@@ -875,7 +875,7 @@ function opBuild(p, px, exp) {
       if (sp) { const G = opOpG(sp), a = G.a * Math.PI / 180, hw = sp.w / 2; g += opOpenSvg(sp, px, true, false) + opLenLbl({ x: G.x - Math.cos(a) * hw, y: G.y - Math.sin(a) * hw }, { x: G.x + Math.cos(a) * hw, y: G.y + Math.sin(a) * hw }, px); }
       else g += opOpenSvg(opOpPlace(t, hv), px, true, false);
     }
-    g += '<circle cx="' + hv.x + '" cy="' + hv.y + '" r="' + 4 * px + '" fill="none" stroke="' + (hv.snap ? '#389e0d' : '#1c2d58') + '" stroke-width="' + 1.8 * px + '"/>';
+    g += '<circle cx="' + hv.x + '" cy="' + hv.y + '" r="' + 4 * px + '" fill="none" stroke="' + (hv.snap ? '#2f7d4f' : '#1c2d58') + '" stroke-width="' + 1.8 * px + '"/>';
   }
   return g;
 }
@@ -890,9 +890,9 @@ function opTableHtml() {
     + rs.map(function(r) {
       const s = opState(r), c = opCon(r.contract_id);
       return '<tr data-room="' + r.id + '"' + (r.id === op.sel ? ' class="on"' : '') + '><td><b>' + opEsc(r.code) + '</b></td><td>' + opEsc(r.title) + '</td><td class="num">' + opArea(r.area_sqm) + '</td>'
-        + '<td class="num" style="color:#8c8c8c;">' + opArea(opR(opPolyArea(opRoomPts(r)))) + '</td>'
+        + '<td class="num" style="color:#5b6478;">' + opArea(opR(opPolyArea(opRoomPts(r)))) + '</td>'
         + '<td><span class="op-chip" style="background:' + OP_COLORS[s][0] + ';border-color:' + OP_COLORS[s][1] + '">' + opStateTitle(s) + '</span></td>'
-        + '<td>' + (c ? opEsc(c.contract_number) : r.contract_id ? '<span style="color:#cf1322;">нет в действующих</span>' : '') + '</td><td>' + (c ? opEsc(c.tenant_name) : '') + '</td><td>' + (c ? opDate(c.end_date) : '') + '</td></tr>';
+        + '<td>' + (c ? opEsc(c.contract_number) : r.contract_id ? '<span style="color:#c23b3b;">нет в действующих</span>' : '') + '</td><td>' + (c ? opEsc(c.tenant_name) : '') + '</td><td>' + (c ? opDate(c.end_date) : '') + '</td></tr>';
     }).join('') + '</tbody></table>';
 }
 
@@ -976,7 +976,7 @@ function opSideHtml() {
     return '<h4>' + opEsc(r.code) + (r.title ? ' · ' + opEsc(r.title) : '') + '</h4><div class="op-kv">'
       + '<b>Состояние</b><span>' + opStateTitle(s) + '</span><b>Площадь</b><span>' + opArea(r.area_sqm) + '</span><b>Тип</b><span>' + opEsc(OP_KINDS[r.kind] || '—') + '</span>'
       + (r.purpose ? '<b>Назначение</b><span>' + opEsc(r.purpose) + '</span>' : '') + (r.heating ? '<b>Отопление</b><span>' + opEsc(r.heating) + '</span>' : '')
-      + (c ? '<b>Договор</b><span>' + opEsc(c.contract_number) + (opConRooms(r) ? '<br><small style="color:#595959;">' + opConRooms(r) + '</small>' : '') + '</span><b>Арендатор</b><span>' + opEsc(c.tenant_name) + '</span>' + (c.end_date ? '<b>До</b><span>' + opDate(c.end_date) + '</span>' : '') : '')
+      + (c ? '<b>Договор</b><span>' + opEsc(c.contract_number) + (opConRooms(r) ? '<br><small style="color:#3a4256;">' + opConRooms(r) + '</small>' : '') + '</span><b>Арендатор</b><span>' + opEsc(c.tenant_name) + '</span>' + (c.end_date ? '<b>До</b><span>' + opDate(c.end_date) + '</span>' : '') : '')
       + ((r.old_codes || []).length ? '<b>Прежние ID</b><span>' + opEsc(r.old_codes.join(', ')) + '</span>' : '')
       + '</div>' + (r.note ? '<div class="op-hint" style="margin-top:10px;white-space:pre-wrap;">' + opEsc(r.note) + '</div>' : '');
   }
@@ -1014,7 +1014,7 @@ function opConRooms(r) {
     + (rs.length > 1 ? ' — итого ' + opArea(sum) : '') + (ca ? (Math.abs(sum - ca) > 0.05 ? ' · в договоре ' + opArea(ca) : ' · совпадает с договором') : '');
 }
 // ---------- карточка сданного помещения (просмотр): договор, арендатор, деньги, заявки ----------
-const OP_CST = { '1_problem': ['Проблема', '#cf1322'], '2_terminating': ['На расторжении', '#722ed1'], '2_docs': ['Не хватает документов', '#1c2d58'], '2_attention': ['Требует внимания', '#d48806'], '3_ok': ['В порядке', '#389e0d'] };
+const OP_CST = { '1_problem': ['Проблема', '#c23b3b'], '2_terminating': ['На расторжении', '#722ed1'], '2_docs': ['Не хватает документов', '#1c2d58'], '2_attention': ['Требует внимания', '#8a5a00'], '3_ok': ['В порядке', '#2f7d4f'] };
 const OP_RQST = { new: 'Новая', in_work: 'В работе', waiting: 'Ждёт', done: 'На проверке', closed: 'Закрыта', cancelled: 'Отменена' };
 const OP_REG = '/admin/b5znz7yxpy3', OP_REQ = '/admin/j3a32zo1jzo';
 function opRub(n) { return n === null || n === undefined || n === '' ? '—' : Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + ' ₽'; }
@@ -1112,7 +1112,7 @@ function opPlanFormHtml(p) {
         + (v.bg_url ? '<div class="op-acts"><button class="op-btn red" data-act="bg-del">Убрать подложку</button></div>' : ''),
         'картинка встаёт по ширине плана с сохранением пропорций; затем на ленте «Масштаб по размеру» — две точки и известное расстояние (например, длина наружной стены по чертежу)')
       + opF('Прозрачность подложки', '<input type="range" data-p="bg_opacity" min="0.1" max="1" step="0.05" value="' + (v.bg_opacity === null || v.bg_opacity === undefined ? 0.6 : v.bg_opacity) + '" style="width:100%;">')
-      + opF('', '<label style="display:flex;gap:6px;align-items:center;font-size:13px;color:#1f1f1f;"><input type="checkbox" data-p="schematic"' + (v.schematic ? ' checked' : '') + '> Схема, не по чертежу (показывать предупреждение)</label>')
+      + opF('', '<label style="display:flex;gap:6px;align-items:center;font-size:13px;color:#1f2433;"><input type="checkbox" data-p="schematic"' + (v.schematic ? ' checked' : '') + '> Схема, не по чертежу (показывать предупреждение)</label>')
       + opF('Заметки', '<textarea data-p="note" rows="3">' + opEsc(v.note) + '</textarea>'))
     + '<div class="op-acts"><button class="op-btn pri" data-act="plan-save">' + (nw ? 'Создать' : 'Сохранить') + '</button><button class="op-btn" data-act="side-close">Отмена</button>'
     + (nw ? '' : '<button class="op-btn red" data-act="plan-del" title="Только пустой план">Удалить план</button>') + '</div>';
@@ -2125,6 +2125,6 @@ document.addEventListener('click', function(e) { const m = opRoot() && opRoot().
     await opLoad();
     opRender();
   } catch (e) {
-    opRoot().innerHTML = '<div style="color:#cf1322;padding:12px;">Не удалось загрузить планы. Обновите страницу.</div>';
+    opRoot().innerHTML = '<div style="color:#c23b3b;padding:12px;">Не удалось загрузить планы. Обновите страницу.</div>';
   }
 })();

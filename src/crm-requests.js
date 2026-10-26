@@ -12,19 +12,19 @@ if (!document.getElementById('crm-controls-style')) {
   st.id = 'crm-controls-style';
   st.textContent = `
     select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
-      background-color:#fff; border:1px solid #d9d9d9; border-radius:6px; color:#262626; font-family:inherit; line-height:1.4;
+      background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
       padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
       background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
-    select:not([multiple]):not([size]):hover { border-color:#4b5f8f; }
+    select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
     select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    select:not([multiple]):not([size]):disabled { background-color:#f5f5f5 !important; color:#bfbfbf; cursor:not-allowed; border-color:#d9d9d9; }
-    select option { color:#262626; background:#fff; }
-    select option:disabled { color:#bfbfbf; }
-    input[type=file] { font-family:inherit; font-size:13px; color:#595959; max-width:100%; }
-    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #d9d9d9; border-radius:6px;
+    select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
+    select option { color:#1f2433; background:#fff; }
+    select option:disabled { color:#8a92a3; }
+    input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
+    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
       padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
-    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#f3f5fa; }
+    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
   `;
   document.head.appendChild(st);
 }
@@ -32,162 +32,162 @@ if (!document.getElementById('crm-req-style')) {
   const st = document.createElement('style');
   st.id = 'crm-req-style';
   st.textContent = `
-    #crm-req { color:#1f1f1f; font-size:14px; }
+    #crm-req { color:#1f2433; font-size:14px; }
     [aria-label="Открыть ИИ-чат"] { display:none !important; }
     #crm-req .rq-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
     #crm-req .rq-title { font-size:18px; font-weight:700; margin-right:6px; }
-    #crm-req .rq-tabs { display:flex; gap:4px; background:#f5f5f5; border-radius:8px; padding:3px; }
-    #crm-req .rq-tab { border:none; background:transparent; padding:5px 12px; border-radius:6px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
-    #crm-req .rq-tab.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    #crm-req .rq-tabs { display:flex; gap:4px; background:#f3f5f9; border-radius:8px; padding:3px; }
+    #crm-req .rq-tab { border:none; background:transparent; padding:5px 12px; border-radius:6px; font:inherit; font-size:13px; cursor:pointer; color:#3a4256; }
+    #crm-req .rq-tab.on { background:#fff; color:#1f2433; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
     #crm-req .rq-new { margin-left:auto; border:none; background:#1c2d58; color:#fff; border-radius:6px; padding:8px 16px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; }
     #crm-req .rq-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-    #crm-req .rq-chip { border:1px solid #d9d9d9; background:#fff; border-radius:14px; padding:3px 12px; font:inherit; font-size:13px; cursor:pointer; color:#434343; }
+    #crm-req .rq-chip { border:1px solid #c3cad8; background:#fff; border-radius:14px; padding:3px 12px; font:inherit; font-size:13px; cursor:pointer; color:#3a4256; }
     #crm-req .rq-chip b { font-variant-numeric:tabular-nums; margin-left:4px; }
-    #crm-req .rq-chip.on { border-color:#1c2d58; background:#eef1f8; color:#142142; font-weight:600; }
-    #crm-req .rq-chip.bad b { color:#cf1322; }
+    #crm-req .rq-chip.on { border-color:#1c2d58; background:#eef2f9; color:#121d3a; font-weight:600; }
+    #crm-req .rq-chip.bad b { color:#c23b3b; }
     #crm-req .rq-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
     #crm-req select, #crm-req input[type=text], #crm-req input[type=date], #crm-req textarea, .rq-modal select, .rq-modal input[type=text], .rq-modal input[type=date], .rq-modal textarea {
-      border:1px solid #d9d9d9; border-radius:6px; padding:6px 10px; font:inherit; font-size:13.5px; background:#fff; color:#262626; box-sizing:border-box; }
+      border:1px solid #c3cad8; border-radius:6px; padding:6px 10px; font:inherit; font-size:13.5px; background:#fff; color:#1f2433; box-sizing:border-box; }
     #crm-req .rq-filters select, #crm-req .rq-filters input { min-width:150px; }
     #crm-req .rq-list { display:flex; flex-direction:column; gap:8px; }
-    #crm-req .rq-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:center; border:1px solid #f0f0f0; border-left:4px solid var(--c); border-radius:8px; padding:10px 14px; background:#fff; cursor:pointer; }
-    #crm-req .rq-row:hover { border-color:#b4bfd9; border-left-color:var(--c); }
+    #crm-req .rq-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:center; border:1px solid #dfe3ec; border-left:4px solid var(--c); border-radius:8px; padding:10px 14px; background:#fff; cursor:pointer; }
+    #crm-req .rq-row:hover { border-color:#dde5f3; border-left-color:var(--c); }
     #crm-req .rq-row-title { font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #crm-req .rq-row-sub { font-size:12.5px; color:#8c8c8c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #crm-req .rq-row-sub { font-size:12.5px; color:#5b6478; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #crm-req .rq-row-side { text-align:right; font-size:12.5px; white-space:nowrap; }
     .rq-from { display:inline-block; padding:1px 7px; border-radius:4px; font-size:12px; font-weight:600; margin-right:6px; white-space:nowrap; }
-    .rq-from.t { color:#0b5cad; background:#e6f1fc; border:1px solid #9cc7f0; }
-    .rq-from.c { color:#5b4a00; background:#fdf6dc; border:1px solid #e6d28a; }
+    .rq-from.t { color:#2f4a8a; background:#eef2f9; border:1px solid #9cc7f0; }
+    .rq-from.c { color:#8a5a00; background:#f6eedb; border:1px solid #e8d3a6; }
     .rq-pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; border:1px solid; white-space:nowrap; }
-    .rq-late { color:#cf1322; font-weight:600; }
-    #crm-req .rq-empty { color:#bfbfbf; padding:24px 0; text-align:center; }
+    .rq-late { color:#c23b3b; font-weight:600; }
+    #crm-req .rq-empty { color:#8a92a3; padding:24px 0; text-align:center; }
     /* статистика */
     #crm-req .st { display:flex; flex-direction:column; gap:16px; }
     #crm-req .st-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    #crm-req .st-lbl { font-size:13px; color:#434343; font-weight:600; }
+    #crm-req .st-lbl { font-size:13px; color:#3a4256; font-weight:600; }
     #crm-req .st-bar .rq-view, #crm-req .st-ch .rq-view { margin-left:0; }
-    #crm-req .st-hint { font-size:12.5px; color:#595959; }
+    #crm-req .st-hint { font-size:12.5px; color:#3a4256; }
     #crm-req .st-tiles { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:10px; }
-    #crm-req .st-tile { border:1px solid #dfe3ea; border-radius:10px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .15s, box-shadow .15s; min-width:0; }
+    #crm-req .st-tile { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .15s, box-shadow .15s; min-width:0; }
     #crm-req .st-tile:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
-    #crm-req .st-tl { font-size:12.5px; color:#434343; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #crm-req .st-tv { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px; color:#141414; white-space:nowrap; }
-    #crm-req .st-tv small { font-size:13px; font-weight:600; color:#595959; }
-    #crm-req .st-tn { font-size:12.5px; color:#595959; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #crm-req .st-card { border:1px solid #dfe3ea; border-radius:10px; background:#fff; padding:14px 16px 12px; min-width:0; }
+    #crm-req .st-tl { font-size:12.5px; color:#3a4256; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #crm-req .st-tv { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px; color:#1f2433; white-space:nowrap; }
+    #crm-req .st-tv small { font-size:13px; font-weight:600; color:#3a4256; }
+    #crm-req .st-tn { font-size:12.5px; color:#3a4256; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #crm-req .st-card { border:1px solid #dfe3ec; border-radius:10px; background:#fff; padding:14px 16px 12px; min-width:0; }
     #crm-req .st-ch { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
-    #crm-req .st-ct { font-size:15px; font-weight:700; color:#141414; margin-right:4px; }
+    #crm-req .st-ct { font-size:15px; font-weight:700; color:#1f2433; margin-right:4px; }
     #crm-req .st-scroll { overflow-x:auto; }
-    #crm-req table.st-t { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13.5px; color:#1f1f1f; }
-    #crm-req .st-t th { font-weight:600; color:#262626; font-size:12.5px; padding:8px 12px; background:#eef1f6; border-bottom:2px solid #c9d1df; white-space:nowrap; text-align:left; }
+    #crm-req table.st-t { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13.5px; color:#1f2433; }
+    #crm-req .st-t th { font-weight:600; color:#1f2433; font-size:12.5px; padding:8px 12px; background:#e9edf5; border-bottom:2px solid #c3cad8; white-space:nowrap; text-align:left; }
     #crm-req .st-t th.n { text-align:right; }
-    #crm-req .st-t th.st-now { background:#e6ebf5; }
-    #crm-req .st-t td { padding:9px 12px; border-bottom:1px solid #e8ebf0; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500; }
+    #crm-req .st-t th.st-now { background:#dde5f3; }
+    #crm-req .st-t td { padding:9px 12px; border-bottom:1px solid #dfe3ec; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500; }
     #crm-req .st-t td.n { text-align:right; }
-    #crm-req .st-t tbody tr:nth-child(even) td { background:#f8f9fb; }
+    #crm-req .st-t tbody tr:nth-child(even) td { background:#f3f5f9; }
     #crm-req .st-t th.st-name, #crm-req .st-t td.st-name { width:24%; }
     #crm-req .st-t th.st-pr { width:18%; }
-    #crm-req .st-t td.st-name { white-space:normal; font-weight:600; color:#141414; }
-    #crm-req .st-t .st-sep { border-left:2px solid #dfe3ea; }
+    #crm-req .st-t td.st-name { white-space:normal; font-weight:600; color:#1f2433; }
+    #crm-req .st-t .st-sep { border-left:2px solid #dfe3ec; }
     #crm-req .st-t tr.st-link { cursor:pointer; }
-    #crm-req .st-t tr.st-link:hover td { background:#eaf0ff; }
+    #crm-req .st-t tr.st-link:hover td { background:#eef2f9; }
     #crm-req .st-t td.st-pr { white-space:normal; }
     #crm-req .st-t thead th { white-space:normal; line-height:1.25; vertical-align:bottom; }
-    #crm-req .st-sub { font-size:12px; color:#595959; font-weight:400; margin-top:2px; line-height:1.35; }
-    #crm-req .st-tag { display:inline-block; background:#f0f0f0; color:#595959; border-radius:4px; padding:0 5px; margin-right:6px; font-size:11px; line-height:16px; }
-    #crm-req .st-mute { color:#a6a6a6; font-weight:400; }
-    #crm-req .st-bad { display:inline-block; color:#fff; background:#cf1322; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
-    #crm-req .st-badt { color:#cf1322; font-weight:700; }
-    #crm-req .st-ok { color:#237804; font-weight:700; }
-    #crm-req .st-warn { color:#ad6800; font-weight:700; }
-    #crm-req .st-chip { display:inline-block; background:#fff7e6; color:#873800; border:1px solid #ffd591; border-radius:10px; padding:0 8px; font-size:12px; line-height:20px; margin:1px 0; font-weight:600; }
-    #crm-req .st-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:#595959; margin-top:8px; }
+    #crm-req .st-sub { font-size:12px; color:#3a4256; font-weight:400; margin-top:2px; line-height:1.35; }
+    #crm-req .st-tag { display:inline-block; background:#dfe3ec; color:#3a4256; border-radius:4px; padding:0 5px; margin-right:6px; font-size:11px; line-height:16px; }
+    #crm-req .st-mute { color:#8a92a3; font-weight:400; }
+    #crm-req .st-bad { display:inline-block; color:#fff; background:#c23b3b; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
+    #crm-req .st-badt { color:#c23b3b; font-weight:700; }
+    #crm-req .st-ok { color:#2f7d4f; font-weight:700; }
+    #crm-req .st-warn { color:#8a5a00; font-weight:700; }
+    #crm-req .st-chip { display:inline-block; background:#f6eedb; color:#8a5a00; border:1px solid #e8d3a6; border-radius:10px; padding:0 8px; font-size:12px; line-height:20px; margin:1px 0; font-weight:600; }
+    #crm-req .st-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:#3a4256; margin-top:8px; }
     #crm-req .st-legend span { width:12px; height:12px; border-radius:3px; display:inline-block; margin-left:10px; }
     #crm-req .st-legend span:first-child { margin-left:0; }
-    #crm-req .st-legend .st-now { background:#e6ebf5; border:1px solid #c9d1df; }
-    #crm-req .st-legend .st-per { background:#eef1f6; border:1px solid #c9d1df; }
-    #crm-req .st-wk th:first-child { background:#eef1f6; width:16%; }
-    #crm-req .st-wk tbody th { background:#f8f9fb; border-bottom:1px solid #e8ebf0; font-weight:600; color:#262626; cursor:help; }
+    #crm-req .st-legend .st-now { background:#dde5f3; border:1px solid #c3cad8; }
+    #crm-req .st-legend .st-per { background:#e9edf5; border:1px solid #c3cad8; }
+    #crm-req .st-wk th:first-child { background:#e9edf5; width:16%; }
+    #crm-req .st-wk tbody th { background:#f3f5f9; border-bottom:1px solid #dfe3ec; font-weight:600; color:#1f2433; cursor:help; }
     #crm-req .st-scroll table.st-t { min-width:900px; }
     @media (max-width: 1100px) { #crm-req .st-tiles { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 600px) { #crm-req .st-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
     #crm-req .rq-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
-    #crm-req .rq-tile { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; }
-    #crm-req .rq-tile-l { font-size:12px; color:#8c8c8c; }
+    #crm-req .rq-tile { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; }
+    #crm-req .rq-tile-l { font-size:12px; color:#5b6478; }
     #crm-req .rq-tile-v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
-    #crm-req .rq-tile-n { font-size:12px; color:#8c8c8c; margin-top:2px; }
+    #crm-req .rq-tile-n { font-size:12px; color:#5b6478; margin-top:2px; }
     #crm-req .rq-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(540px, 1fr)); gap:12px; }
-    #crm-req .rq-card { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; }
+    #crm-req .rq-card { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; }
     #crm-req .rq-card-t { font-weight:600; margin-bottom:8px; }
     #crm-req table { width:100%; border-collapse:collapse; font-size:13px; }
-    #crm-req th { text-align:left; font-weight:600; color:#595959; padding:6px 8px; border-bottom:1px solid #f0f0f0; white-space:nowrap; }
-    #crm-req td { padding:6px 8px; border-bottom:1px solid #f5f5f5; font-variant-numeric:tabular-nums; }
+    #crm-req th { text-align:left; font-weight:600; color:#3a4256; padding:6px 8px; border-bottom:1px solid #dfe3ec; white-space:nowrap; }
+    #crm-req td { padding:6px 8px; border-bottom:1px solid #f3f5f9; font-variant-numeric:tabular-nums; }
     #crm-req th.n, #crm-req td.n { text-align:right; }
     #crm-req tr[data-go] { cursor:pointer; }
-    #crm-req tr[data-go]:hover td { background:#f5faff; }
+    #crm-req tr[data-go]:hover td { background:#eef2f9; }
     /* модальные окна */
     .rq-modal { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.45); display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; }
-    .rq-box { background:#fff; border-radius:10px; width:100%; max-width:760px; box-shadow:0 6px 16px rgba(0,0,0,.12); font-size:14px; color:#1f1f1f; }
-    .rq-box-h { display:flex; align-items:flex-start; gap:10px; padding:16px 20px; border-bottom:1px solid #f0f0f0; }
+    .rq-box { background:#fff; border-radius:10px; width:100%; max-width:760px; box-shadow:0 6px 16px rgba(0,0,0,.12); font-size:14px; color:#1f2433; }
+    .rq-box-h { display:flex; align-items:flex-start; gap:10px; padding:16px 20px; border-bottom:1px solid #dfe3ec; }
     .rq-box-t { font-size:17px; font-weight:700; flex:1; min-width:0; }
-    .rq-x { border:none; background:transparent; font-size:18px; color:#8c8c8c; cursor:pointer; padding:2px 6px; }
+    .rq-x { border:none; background:transparent; font-size:18px; color:#5b6478; cursor:pointer; padding:2px 6px; }
     .rq-box-b { padding:16px 20px 20px; }
     .rq-form { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; }
     .rq-form .full { grid-column:1 / -1; }
-    .rq-f label { display:block; font-size:12.5px; color:#595959; margin-bottom:4px; }
+    .rq-f label { display:block; font-size:12.5px; color:#3a4256; margin-bottom:4px; }
     .rq-f select, .rq-f input, .rq-f textarea { width:100%; }
     .rq-f textarea { min-height:70px; resize:vertical; }
-    .rq-hint { font-size:12px; color:#8c8c8c; margin-top:3px; }
+    .rq-hint { font-size:12px; color:#5b6478; margin-top:3px; }
     .rq-seg { display:flex; gap:6px; flex-wrap:wrap; }
-    .rq-seg button { flex:1; border:1px solid #d9d9d9; background:#fff; border-radius:6px; padding:7px 8px; font:inherit; font-size:13px; cursor:pointer; }
+    .rq-seg button { flex:1; border:1px solid #c3cad8; background:#fff; border-radius:6px; padding:7px 8px; font:inherit; font-size:13px; cursor:pointer; }
     .rq-seg button.on { border-color:var(--c); background:var(--c); color:#fff; font-weight:600; }
     .rq-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
-    .rq-btn { border:1px solid #d9d9d9; background:#fff; border-radius:6px; padding:7px 14px; font:inherit; font-size:13.5px; cursor:pointer; color:#262626; }
+    .rq-btn { border:1px solid #c3cad8; background:#fff; border-radius:6px; padding:7px 14px; font:inherit; font-size:13.5px; cursor:pointer; color:#1f2433; }
     .rq-btn.pri { border-color:#1c2d58; background:#1c2d58; color:#fff; font-weight:600; }
-    .rq-btn.ok { border-color:#389e0d; background:#389e0d; color:#fff; font-weight:600; }
-    .rq-btn.warn { color:#cf1322; border-color:#ffccc7; }
+    .rq-btn.ok { border-color:#2f7d4f; background:#2f7d4f; color:#fff; font-weight:600; }
+    .rq-btn.warn { color:#c23b3b; border-color:#e7b9b9; }
     .rq-btn:disabled { opacity:.5; cursor:default; }
     .rq-meta { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px 16px; font-size:13.5px; }
-    .rq-meta .l { font-size:12px; color:#8c8c8c; }
-    .rq-desc { white-space:pre-wrap; background:#fafafa; border-radius:6px; padding:10px 12px; margin-top:12px; font-size:13.5px; }
-    .rq-actbox { margin-top:12px; padding:12px; border:1px solid #eef1f8; background:#f5faff; border-radius:8px; }
-    .rq-tl { margin-top:18px; border-top:1px solid #f0f0f0; padding-top:12px; }
+    .rq-meta .l { font-size:12px; color:#5b6478; }
+    .rq-desc { white-space:pre-wrap; background:#f3f5f9; border-radius:6px; padding:10px 12px; margin-top:12px; font-size:13.5px; }
+    .rq-actbox { margin-top:12px; padding:12px; border:1px solid #eef2f9; background:#eef2f9; border-radius:8px; }
+    .rq-tl { margin-top:18px; border-top:1px solid #dfe3ec; padding-top:12px; }
     .rq-ev { display:flex; gap:10px; padding:7px 0; font-size:13px; }
-    .rq-ev-d { color:#8c8c8c; font-size:12px; white-space:nowrap; min-width:92px; }
-    .rq-ev.sys { color:#8c8c8c; }
-    .rq-pub { display:inline-block; background:#e6f4ff; color:#0958d9; border-radius:4px; padding:0 5px; font-size:11px; line-height:16px; }
+    .rq-ev-d { color:#5b6478; font-size:12px; white-space:nowrap; min-width:92px; }
+    .rq-ev.sys { color:#5b6478; }
+    .rq-pub { display:inline-block; background:#eef2f9; color:#2f4a8a; border-radius:4px; padding:0 5px; font-size:11px; line-height:16px; }
     .rq-ev a { color:#1c2d58; cursor:pointer; }
     .rq-comment { display:flex; gap:8px; margin-top:10px; align-items:flex-start; }
     .rq-comment textarea { flex:1; min-height:38px; resize:vertical; }
     /* доска */
-    #crm-req .rq-view { display:flex; gap:2px; background:#f5f5f5; border-radius:6px; padding:2px; margin-left:auto; }
-    #crm-req .rq-view button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
-    #crm-req .rq-view button.on { background:#fff; color:#1f1f1f; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    #crm-req .rq-view { display:flex; gap:2px; background:#f3f5f9; border-radius:6px; padding:2px; margin-left:auto; }
+    #crm-req .rq-view button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#3a4256; }
+    #crm-req .rq-view button.on { background:#fff; color:#1f2433; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
     .kb { display:grid; grid-template-columns:repeat(var(--n, 5), minmax(0, 1fr)); gap:12px; min-height:380px; }
-    .kb-col { display:flex; flex-direction:column; min-height:0; min-width:0; background:#f4f5f7; border-radius:10px; border:2px solid transparent; transition:opacity .15s, border-color .15s, background .15s; }
+    .kb-col { display:flex; flex-direction:column; min-height:0; min-width:0; background:#f3f5f9; border-radius:10px; border:2px solid transparent; transition:opacity .15s, border-color .15s, background .15s; }
     .kb-col.no { opacity:.4; }
-    .kb-col.ok { border-color:#c9d3ea; border-style:dashed; }
-    .kb-col.drop { border-color:#1c2d58; border-style:solid; background:#eaeef7; }
-    .kb-col-h { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; padding:10px 12px 8px; color:#262626; }
+    .kb-col.ok { border-color:#dde5f3; border-style:dashed; }
+    .kb-col.drop { border-color:#1c2d58; border-style:solid; background:#eef2f9; }
+    .kb-col-h { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; padding:10px 12px 8px; color:#1f2433; }
     .kb-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); flex:none; }
-    .kb-col-h b { margin-left:auto; color:#8c8c8c; font-weight:600; font-variant-numeric:tabular-nums; background:#fff; border-radius:9px; padding:0 7px; font-size:12px; }
+    .kb-col-h b { margin-left:auto; color:#5b6478; font-weight:600; font-variant-numeric:tabular-nums; background:#fff; border-radius:9px; padding:0 7px; font-size:12px; }
     .kb-col-b { flex:1; overflow-y:auto; padding:0 8px 8px; min-height:0; }
-    .kb-card { background:#fff; border:1px solid #e8eaef; border-left:3px solid var(--c); border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:12.5px; cursor:grab; user-select:none; box-shadow:0 1px 2px rgba(16,24,40,.04); }
-    .kb-card:hover { border-color:#b4bfd9; border-left-color:var(--c); box-shadow:0 2px 6px rgba(16,24,40,.08); }
+    .kb-card { background:#fff; border:1px solid #dfe3ec; border-left:3px solid var(--c); border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:12.5px; cursor:grab; user-select:none; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+    .kb-card:hover { border-color:#dde5f3; border-left-color:var(--c); box-shadow:0 2px 6px rgba(16,24,40,.08); }
     .kb-card:active { cursor:grabbing; }
     .kb-card.drag { opacity:.35; }
     .kb-card.pending { cursor:default; border-color:#1c2d58; border-left-color:var(--c); box-shadow:0 4px 14px rgba(28,45,88,.18); user-select:auto; }
     .kb-t { font-weight:600; font-size:13.5px; line-height:1.35; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
-    .kb-s { color:#8c8c8c; line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .kb-note, .kb-empty { font-size:12px; color:#a6a6a6; padding:6px 4px; text-align:center; }
-    .kb-form { margin-top:8px; padding-top:8px; border-top:1px dashed #d9d9d9; }
-    .kb-form label { display:block; font-size:12px; color:#595959; margin-bottom:4px; }
-    .kb-form textarea, .kb-form select { width:100%; box-sizing:border-box; border:1px solid #d9d9d9; border-radius:6px; padding:6px 8px; font:inherit; font-size:13px; resize:vertical; background:#fff; }
+    .kb-s { color:#5b6478; line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kb-note, .kb-empty { font-size:12px; color:#8a92a3; padding:6px 4px; text-align:center; }
+    .kb-form { margin-top:8px; padding-top:8px; border-top:1px dashed #c3cad8; }
+    .kb-form label { display:block; font-size:12px; color:#3a4256; margin-bottom:4px; }
+    .kb-form textarea, .kb-form select { width:100%; box-sizing:border-box; border:1px solid #c3cad8; border-radius:6px; padding:6px 8px; font:inherit; font-size:13px; resize:vertical; background:#fff; }
     .kb-form textarea:focus, .kb-form select:focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
     .kb-form-b { display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap; }
-    .kb-form-b span { font-size:11px; color:#a6a6a6; }
+    .kb-form-b span { font-size:11px; color:#8a92a3; }
     .kb-ok { border:none; background:#1c2d58; color:#fff; border-radius:6px; padding:5px 12px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
-    .kb-no { border:1px solid #d9d9d9; background:#fff; color:#434343; border-radius:6px; padding:4px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
+    .kb-no { border:1px solid #c3cad8; background:#fff; color:#3a4256; border-radius:6px; padding:4px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
     .kb-ok:disabled, .kb-no:disabled { opacity:.5; }
     @media (max-width: 700px) { .kb { grid-template-columns:repeat(var(--n, 5), 260px); overflow-x:auto; } .kb-col-b { max-height:70vh; } }
     @media (max-width: 700px) {
@@ -260,7 +260,7 @@ function rqFromTag(r, short) {   // short — на узкой карточке �
   return rqFromTenant(r) ? '<span class="rq-from t" title="' + rqEsc(RQ_SRC[r.source]) + '">Арендатор' + (short ? '' : ' · ' + (r.source === 'portal' ? 'портал' : 'звонок')) + '</span>'
     : '<span class="rq-from c" title="' + rqEsc((RQ_SRC[r.source] || 'Внутренняя заявка') + (r.author_id ? ' · ' + rqUser(r.author_id) : '')) + '">Компания' + (r.author_id && !short ? ' · ' + rqEsc(rqUser(r.author_id)) : '') + '</span>';
 }
-function rqPill(s) { const x = RQ_ST[s] || { l: s, c: '#8c8c8c' }; return '<span class="rq-pill" style="color:' + x.c + ';border-color:' + x.c + '55;background:' + x.c + '10;">' + rqEsc(x.l) + '</span>'; }
+function rqPill(s) { const x = RQ_ST[s] || { l: s, c: '#5b6478' }; return '<span class="rq-pill" style="color:' + x.c + ';border-color:' + x.c + '55;background:' + x.c + '10;">' + rqEsc(x.l) + '</span>'; }
 function rqNoun(n, a, b, c) { const x = Math.abs(n) % 100, y = x % 10; return (x > 10 && x < 20) ? c : y === 1 ? a : (y >= 2 && y <= 4) ? b : c; }
 function rqMedian(a) { if (!a.length) return null; const s = a.slice().sort(function(x, y) { return x - y; }); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
 
@@ -308,7 +308,7 @@ async function rqUpload(file) {
 function rqToast(t) {
   const el = document.createElement('div');
   el.textContent = t;
-  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#262626;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:1100;max-width:90vw;';
+  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1f2433;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:1100;max-width:90vw;';
   document.body.appendChild(el);
   setTimeout(function() { el.remove(); }, 2800);
 }
@@ -325,7 +325,7 @@ async function rqStart() {
     const m = location.search.match(/[?&]open=req:(\d+)/);
     if (m) { rqOpenCard(Number(m[1])); try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ } }
   } catch (e) {
-    rqRoot().innerHTML = '<div class="rq-empty" style="color:#cf1322;">Не удалось загрузить заявки</div>';
+    rqRoot().innerHTML = '<div class="rq-empty" style="color:#c23b3b;">Не удалось загрузить заявки</div>';
   }
 }
 let rqLive = function() {};   // crmLive: отметить своё изменение, чтобы блок не перерисовался второй раз
@@ -339,7 +339,7 @@ function rqRender() {
   const tabs = [['list', 'Заявки'], ['stats', 'Статистика']].concat(rqIsBoss() ? [['kpi', 'KPI управляющих'], ['objects', 'Управляющие объектов']] : []);
   rqRoot().innerHTML = '<div class="rq-head"><div class="rq-title">Заявки по объектам</div>' + crmSettingsGear('Заявки') + '<div class="rq-tabs">'
     + tabs.map(function(t) { return '<button class="rq-tab' + (rq.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('')
-    + '</div>' + (rq.data && rq.data.svcDown ? '<div class="rq-hint" style="color:#cf1322;font-weight:600;">Сервис заявок недоступен — заявки видны, но менять их сейчас нельзя</div>' : '') + '<button class="rq-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Новая заявка</button></div><div id="rq-body"></div>';
+    + '</div>' + (rq.data && rq.data.svcDown ? '<div class="rq-hint" style="color:#c23b3b;font-weight:600;">Сервис заявок недоступен — заявки видны, но менять их сейчас нельзя</div>' : '') + '<button class="rq-new" data-act="new"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Новая заявка</button></div><div id="rq-body"></div>';
   if (rq.tab === 'list') rqRenderListShell();
   else if (rq.tab === 'stats') rqRenderStats();
   else if (rq.tab === 'kpi') rqRenderKpi();
@@ -400,11 +400,11 @@ function rqRenderList() {
 function rqRowHtml(r) {
   const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal;
   const due = r.due_date ? (late ? '<span class="rq-late">просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн. (срок ' + rqDate(r.due_date) + ')</span>' : 'срок ' + rqDate(r.due_date)) : '';
-  return '<div class="rq-row" data-open="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
+  return '<div class="rq-row" data-open="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#c23b3b' : (RQ_ST[r.status] || {}).c || '#c3cad8') + ';">'
     + '<div style="min-width:0;"><div class="rq-row-title">' + ((r.urgency === 'urgent' || r.urgency === 'emergency') && open ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
-    + '<div class="rq-row-sub">' + rqFromTag(r) + (r.demo ? '<span class="rq-pill" style="color:#8c8c8c;border-color:#d9d9d9;margin-right:6px;">демо</span>' : '') + '№' + r.id + ' · ' + rqEsc([r.object_name, r.tenant_label, r.kind].filter(Boolean).join(' · ')) + '</div></div>'
-    + '<div class="rq-row-side">' + rqPill(r.status) + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
-    + '<div style="margin-top:3px;color:#595959;">' + rqEsc(rqUser(r.responsible_id)) + (open && due ? ' · ' + due : '') + '</div></div></div>';
+    + '<div class="rq-row-sub">' + rqFromTag(r) + (r.demo ? '<span class="rq-pill" style="color:#5b6478;border-color:#c3cad8;margin-right:6px;">демо</span>' : '') + '№' + r.id + ' · ' + rqEsc([r.object_name, r.tenant_label, r.kind].filter(Boolean).join(' · ')) + '</div></div>'
+    + '<div class="rq-row-side">' + rqPill(r.status) + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#5b6478;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
+    + '<div style="margin-top:3px;color:#3a4256;">' + rqEsc(rqUser(r.responsible_id)) + (open && due ? ' · ' + due : '') + '</div></div></div>';
 }
 
 function rqOnChange(e) {
@@ -483,12 +483,12 @@ function rqRenderBoard() {
 }
 function rqCardHtml(r) {
   const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal, pd = rq.drop && rq.drop.id === r.id ? rq.drop : null;
-  return '<div class="kb-card' + (pd ? ' pending' : '') + '"' + (pd ? '' : ' draggable="true" data-open="' + r.id + '"') + ' data-id="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#cf1322' : (RQ_ST[r.status] || {}).c || '#d9d9d9') + ';">'
+  return '<div class="kb-card' + (pd ? ' pending' : '') + '"' + (pd ? '' : ' draggable="true" data-open="' + r.id + '"') + ' data-id="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#c23b3b' : (RQ_ST[r.status] || {}).c || '#c3cad8') + ';">'
     + '<div class="kb-t">' + (r.urgency !== 'normal' && open && RQ_URG[r.urgency] ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
     + '<div class="kb-s">' + rqFromTag(r, true) + '№' + r.id + ' · ' + rqEsc(r.object_name || '') + '</div>'
     + '<div class="kb-s">' + rqEsc(rqUser(r.responsible_id))
     + (open && r.due_date ? ' · ' + (late ? '<span class="rq-late">просрочено ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : 'до ' + rqDate(r.due_date)) : '')
-    + (r.status === 'waiting' && r.wait_reason ? ' · <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
+    + (r.status === 'waiting' && r.wait_reason ? ' · <span style="color:#5b6478;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
     + (r.status === 'cancelled' ? ' · отменена' : '') + '</div>'
     + (pd ? '<div class="kb-form"><label>' + RQ_DROP_ASK[pd.a] + '</label>'
       + (pd.a === 'wait' ? '<select data-bf-in>' + RQ_WAIT.map(function(w) { return '<option>' + w + '</option>'; }).join('') + '</select>' : '<textarea data-bf-in rows="2"></textarea>')
@@ -672,30 +672,30 @@ async function rqRenderCard(m, r) {
   // файл — связь file (belongsTo attachments): отдельный attachments:list в этой версии NocoBase недоступен (404)
   try { evs = rqRows(await ctx.api.resource('request_events').list({ filter: { request_id: r.id }, sort: ['createdAt'], appends: ['file'], paginate: false })); } catch (e) { evs = []; }
   box.innerHTML = '<div class="rq-box-h"><div class="rq-box-t">№' + r.id + ' · ' + rqEsc(r.title) + '<div style="margin-top:6px;font-size:13px;font-weight:400;">' + rqFromTag(r) + rqPill(r.status)
-    + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#722ed1;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
+    + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#5b6478;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
     + (RQ_URG[r.urgency] && r.urgency !== 'normal' ? ' <span class="rq-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + rqEsc(u.l) + '</span>' : '') + '</div></div><button class="rq-x">✕</button></div>'
     + '<div class="rq-box-b"><div class="rq-meta">'
     + '<div><div class="l">Объект</div>' + rqEsc(r.object_name) + '</div>'
     + '<div><div class="l">Договор / арендатор</div>' + (r.contract_id ? '<a href="/admin/b5znz7yxpy3?open=active:' + r.contract_id + '" style="color:#1c2d58;">' + rqEsc(r.tenant_label || '#' + r.contract_id) + '</a>'
       + (rqCanLink(r.object_name) ? ' · <a data-plink="' + r.contract_id + '" style="color:#1c2d58;cursor:pointer;">ссылка на портал</a>' : '') : '—') + '</div>'
     + '<div><div class="l">Тип</div>' + rqEsc(r.kind || '—') + '</div>'
-    + '<div><div class="l">Срок</div>' + (RQ_OPEN.indexOf(r.status) !== -1 && late ? '<span class="rq-late">' + rqDate(r.due_date) + ', просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : rqDate(r.due_date)) + (r.due_moved ? ' <span style="color:#8c8c8c;font-size:12px;">(переносили ' + r.due_moved + ' раз)</span>' : '') + '</div>'
+    + '<div><div class="l">Срок</div>' + (RQ_OPEN.indexOf(r.status) !== -1 && late ? '<span class="rq-late">' + rqDate(r.due_date) + ', просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн.</span>' : rqDate(r.due_date)) + (r.due_moved ? ' <span style="color:#5b6478;font-size:12px;">(переносили ' + r.due_moved + ' раз)</span>' : '') + '</div>'
     + '<div><div class="l">Ответственный</div>' + rqEsc(rqUser(r.responsible_id)) + '</div>'
     + '<div><div class="l">Автор</div>' + (r.author_id || !rqFromTenant(r) ? rqEsc(rqUser(r.author_id)) : 'Арендатор' + (r.contact_name ? ' (' + rqEsc(r.contact_name) + ')' : '')) + ' · ' + rqDateTime(r.createdAt) + '</div>'
     + (r.source ? '<div><div class="l">Откуда</div>' + rqEsc(RQ_SRC[r.source] || r.source) + '</div>' : '')
     + (r.accept_mode ? '<div><div class="l">Принимает работу</div>' + (r.accept_mode === 'user' ? rqEsc(rqUser(r.accept_user_id)) : r.accept_mode === 'tenant' ? 'арендатор (или руководитель)' : 'руководитель') + '</div>' : '')
-    + (r.react_due_at ? '<div><div class="l">Взять в работу до</div>' + (r.taken_at ? rqDateTime(r.react_due_at) + ' · <span style="color:' + (r.taken_at > r.react_due_at ? '#cf1322' : '#389e0d') + ';">взята ' + rqDateTime(r.taken_at) + '</span>'
+    + (r.react_due_at ? '<div><div class="l">Взять в работу до</div>' + (r.taken_at ? rqDateTime(r.react_due_at) + ' · <span style="color:' + (r.taken_at > r.react_due_at ? '#c23b3b' : '#2f7d4f') + ';">взята ' + rqDateTime(r.taken_at) + '</span>'
       : (new Date().toISOString() > r.react_due_at ? '<span class="rq-late">' + rqDateTime(r.react_due_at) + ' — время реакции вышло</span>' : rqDateTime(r.react_due_at))) + '</div>' : '')
     + (r.status === 'dept' ? '<div><div class="l">В отделе</div><b>' + rqEsc(r.dept) + '</b>' + (r.dept_user_id ? ' · ' + rqEsc(rqUser(r.dept_user_id)) : '') + (r.dept_due ? ' · срок отдела ' + (String(r.dept_due).slice(0, 10) < rqToday() ? '<span class="rq-late">' + rqDate(r.dept_due) + '</span>' : rqDate(r.dept_due)) : '') + '</div>' : '')
     + (r.contact_name || r.contact_phone || r.contact_email ? '<div><div class="l">Контакт арендатора</div>' + rqEsc([r.contact_name, r.contact_phone, r.contact_email].filter(Boolean).join(' · ')) + '</div>' : '')
-    + (r.reopen_count ? '<div><div class="l">Возвратов</div><span style="color:#cf1322;font-weight:600;">' + r.reopen_count + '</span></div>' : '')
+    + (r.reopen_count ? '<div><div class="l">Возвратов</div><span style="color:#c23b3b;font-weight:600;">' + r.reopen_count + '</span></div>' : '')
     + '</div>'
     + (r.description ? '<div class="rq-desc">' + rqEsc(r.description) + '</div>' : '')
-    + (r.result ? '<div class="rq-desc" style="background:#f6ffed;"><b>Результат:</b> ' + rqEsc(r.result) + '</div>' : '')
+    + (r.result ? '<div class="rq-desc" style="background:#e5f1ea;"><b>Результат:</b> ' + rqEsc(r.result) + '</div>' : '')
     + rqPending(r).map(function(p) {
         const can = rqActs(r).indexOf('decide') !== -1 && Number(p.author_id) !== rq.me.id;
         const what = p.kind === 'due' ? 'перенести срок на <b>' + rqDate((p.payload || {}).date) + '</b>' : p.kind === 'assign' ? 'передать: <b>' + rqEsc(rqUser((p.payload || {}).user_id)) + '</b>' : '<b>отменить заявку</b>';
-        return '<div class="rq-desc" style="background:#fffbe6;border-color:#ffe58f;"><b>Запрос на решение</b> · ' + rqEsc(rqUser(p.author_id)) + ' просит ' + what + ': ' + rqEsc(p.reason)
+        return '<div class="rq-desc" style="background:#f6eedb;border-color:#e8d3a6;"><b>Запрос на решение</b> · ' + rqEsc(rqUser(p.author_id)) + ' просит ' + what + ': ' + rqEsc(p.reason)
           + (can ? '<div class="rq-actions" style="margin-top:8px;"><button class="rq-btn ok" data-dec="' + p.id + '" data-yes="1">Одобрить</button><button class="rq-btn warn" data-dec="' + p.id + '">Отказать…</button></div>'
             : '<div class="rq-hint" style="margin-top:4px;">Ждёт решения руководителя</div>') + '</div>';
       }).join('')
@@ -706,7 +706,7 @@ async function rqRenderCard(m, r) {
         const f = x.file;
         const pub = x.visibility === 'public';   // видно арендатору на портале; без автора — написал сам арендатор
         return '<div class="rq-ev' + (x.kind === 'comment' ? '' : ' sys') + '"><div class="rq-ev-d">' + rqDateTime(x.createdAt) + '</div><div style="min-width:0;">' + (pub ? '<span class="rq-pub">видно арендатору</span> ' : '')
-          + '<b style="color:' + (pub && !x.author_id ? '#1c2d58' : '#434343') + ';">' + rqEsc(pub && !x.author_id ? 'Арендатор' : rqUser(x.author_id)) + ':</b> ' + rqEsc(x.text)
+          + '<b style="color:' + (pub && !x.author_id ? '#1c2d58' : '#3a4256') + ';">' + rqEsc(pub && !x.author_id ? 'Арендатор' : rqUser(x.author_id)) + ':</b> ' + rqEsc(x.text)
           + (f ? ' <a data-file="' + rqEsc(f.url) + '" data-fname="' + rqEsc((f.title || 'файл') + (f.extname || '')) + '">📎 ' + rqEsc((f.title || 'файл') + (f.extname || '')) + '</a>' : '') + '</div></div>';
       }).join('')
     + '<div class="rq-comment"><textarea placeholder="Комментарий…" id="rq-cmt"></textarea><input type="file" id="rq-cmt-file" style="display:none;"><button class="rq-btn" id="rq-cmt-attach" title="Приложить фото или файл">📎</button><button class="rq-btn pri" id="rq-cmt-send">Отправить</button></div>'
@@ -745,7 +745,7 @@ function rqPortalLink(contractId, box) {   // confirm() в блоках NocoBase
 async function rqPortalLinkGo(contractId, box) {
   try {
     const j = await rqSvc('/portal-link', { contract_id: contractId });
-    box.innerHTML = '<div class="rq-actbox"><label style="font-size:12.5px;color:#595959;">Ссылка для арендатора (отправьте ему сами — по почте или в мессенджер). По ней он видит заявки только этого договора</label>'
+    box.innerHTML = '<div class="rq-actbox"><label style="font-size:12.5px;color:#3a4256;">Ссылка для арендатора (отправьте ему сами — по почте или в мессенджер). По ней он видит заявки только этого договора</label>'
       + '<input type="text" readonly value="' + rqEsc(j.url) + '" style="width:100%;margin-top:4px;" id="rq-plink"></div>';
     const f = box.querySelector('#rq-plink'); f.focus(); f.select();
     try { await navigator.clipboard.writeText(j.url); rqToast('Ссылка скопирована'); } catch (e) { /* буфер недоступен — ссылка выделена в поле */ }
@@ -760,7 +760,7 @@ function rqDecide(m, r, apId, yes) {
     catch (e) { rqToast(e.message || 'Не удалось сохранить'); if (btn) btn.disabled = false; }
   };
   if (yes) { go('', null); return; }
-  box.innerHTML = '<div class="rq-actbox"><label style="font-size:12.5px;color:#595959;">Почему отказ (обязательно — увидит управляющий)</label><textarea id="rq-in" style="width:100%;margin-top:4px;min-height:50px;"></textarea>'
+  box.innerHTML = '<div class="rq-actbox"><label style="font-size:12.5px;color:#3a4256;">Почему отказ (обязательно — увидит управляющий)</label><textarea id="rq-in" style="width:100%;margin-top:4px;min-height:50px;"></textarea>'
     + '<div class="rq-actions" style="margin-top:10px;"><button class="rq-btn warn" id="rq-go">Отказать</button><button class="rq-btn" id="rq-no">Отмена</button></div></div>';
   box.querySelector('#rq-no').addEventListener('click', function() { box.innerHTML = ''; });
   box.querySelector('#rq-go').addEventListener('click', function(e) { const v = box.querySelector('#rq-in').value.trim(); if (!v) { rqToast('Напишите причину'); return; } go(v, e.target); });
@@ -769,12 +769,12 @@ function rqDecide(m, r, apId, yes) {
 // действие по заявке: где нужен ввод (причина, результат, срок, кому) — встроенная форма, без окон браузера
 function rqAction(m, r, a) {
   const box = m.querySelector('#rq-actbox');
-  const L = function(t, gap) { return '<label style="font-size:12.5px;color:#595959;display:block;' + (gap ? 'margin-top:8px;' : '') + '">' + t + '</label>'; };
+  const L = function(t, gap) { return '<label style="font-size:12.5px;color:#3a4256;display:block;' + (gap ? 'margin-top:8px;' : '') + '">' + t + '</label>'; };
   const T = function(id, h) { return '<textarea id="' + id + '" style="width:100%;margin-top:4px;min-height:' + h + 'px;"></textarea>'; };
   const dueF = function(why) { return L('Новый срок') + '<input type="date" id="rq-in" min="2000-01-01" max="2099-12-31" value="' + rqEsc(String(r.due_date || '').slice(0, 10)) + '" style="width:100%;margin-top:4px;">' + L(why, 1) + '<input type="text" id="rq-in2" style="width:100%;margin-top:4px;">'; };
   const whoF = function(why) { return L('Кому передать') + '<select id="rq-in" style="width:100%;margin-top:4px;">' + rqPeopleOptions(r.responsible_id) + '</select>' + L(why, 1) + '<input type="text" id="rq-in2" style="width:100%;margin-top:4px;">'; };
   const need = {
-    wait: '<label style="font-size:12.5px;color:#595959;">Чего ждём</label><select id="rq-in" style="width:100%;margin-top:4px;">' + RQ_WAIT.map(function(w) { return '<option>' + w + '</option>'; }).join('') + '</select>',
+    wait: '<label style="font-size:12.5px;color:#3a4256;">Чего ждём</label><select id="rq-in" style="width:100%;margin-top:4px;">' + RQ_WAIT.map(function(w) { return '<option>' + w + '</option>'; }).join('') + '</select>',
     done: L('Что сделано (обязательно — увидит тот, кто принимает работу)') + T('rq-in', 60),
     reopen: L('Что не так (обязательно — возврат считается в KPI управляющего)') + T('rq-in', 60),
     cancel: L('Причина отмены (обязательно)') + T('rq-in', 50),

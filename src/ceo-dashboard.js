@@ -11,48 +11,48 @@ if (!document.getElementById('ceo-style')) {
   const st = document.createElement('style');
   st.id = 'ceo-style';
   st.textContent = `
-    #ceo { padding:4px 0 16px; color:#1f1f1f; }
+    #ceo { padding:4px 0 16px; color:#1f2433; }
     [aria-label="Открыть ИИ-чат"] { display:none !important; }
     #ceo .c-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
-    #ceo .c-title { font-size:19px; font-weight:700; color:#141414; }
-    #ceo .c-sub { font-size:12.5px; color:#595959; }
-    #ceo .c-btn { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:3px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+    #ceo .c-title { font-size:19px; font-weight:700; color:#1f2433; }
+    #ceo .c-sub { font-size:12.5px; color:#3a4256; }
+    #ceo .c-btn { border:1px solid #c3cad8; background:#fff; color:#1f2433; border-radius:6px; padding:3px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
     #ceo .c-btn:hover { border-color:#1c2d58; color:#1c2d58; }
-    #ceo .c-alerts { border:1px solid #f1c6c6; background:#fff6f6; border-radius:8px; padding:10px 14px; margin-bottom:14px; }
-    #ceo .c-alerts.ok { border-color:#cfe8c0; background:#f6fbf3; color:#389e0d; font-weight:600; }
-    #ceo .c-alerts-t { font-size:14px; font-weight:700; color:#a8071a; margin-bottom:8px; }
+    #ceo .c-alerts { border:1px solid #e7b9b9; background:#f9e6e6; border-radius:8px; padding:10px 14px; margin-bottom:14px; }
+    #ceo .c-alerts.ok { border-color:#b9d9c5; background:#e5f1ea; color:#2f7d4f; font-weight:600; }
+    #ceo .c-alerts-t { font-size:14px; font-weight:700; color:#c23b3b; margin-bottom:8px; }
     #ceo .c-al { display:flex; flex-wrap:wrap; gap:6px; }
     #ceo .c-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:12px; font-size:13px; border:1px solid; background:#fff; white-space:nowrap; }
     #ceo .c-chip b { font-variant-numeric:tabular-nums; }
     #ceo [data-go] { cursor:pointer; }
     #ceo .c-chip[data-go]:hover { filter:brightness(.9); text-decoration:underline; }
     #ceo .c-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(380px, 1fr)); gap:12px; }
-    #ceo .c-card { border:1px solid #dfe3ea; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }
-    #ceo .c-card-t { font-size:15px; font-weight:700; color:#141414; margin-bottom:10px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+    #ceo .c-card { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }
+    #ceo .c-card-t { font-size:15px; font-weight:700; color:#1f2433; margin-bottom:10px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
     #ceo .c-card-t a { font-size:12.5px; font-weight:500; color:#1c2d58; cursor:pointer; }
     #ceo .c-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; }
-    #ceo .c-tile { border:1px solid #e8ebf0; border-radius:6px; padding:8px 10px; background:#fafbfc; min-width:0; }
+    #ceo .c-tile { border:1px solid #dfe3ec; border-radius:6px; padding:8px 10px; background:#f3f5f9; min-width:0; }
     #ceo .c-tile[data-go]:hover { border-color:#1c2d58; }
-    #ceo .c-tile b { display:block; font-size:21px; line-height:1.2; font-variant-numeric:tabular-nums; color:#141414; }
+    #ceo .c-tile b { display:block; font-size:21px; line-height:1.2; font-variant-numeric:tabular-nums; color:#1f2433; }
     #ceo .c-tile b.m { font-size:15px; white-space:nowrap; }
-    #ceo .c-tile span { font-size:12px; color:#434343; font-weight:600; }
-    #ceo .c-tile i { display:block; font-style:normal; font-size:11.5px; color:#595959; margin-top:2px; }
-    #ceo .c-bad b, #ceo b.c-bad { color:#cf1322; } #ceo .c-warn b { color:#d46b08; } #ceo .c-ok b { color:#389e0d; }
+    #ceo .c-tile span { font-size:12px; color:#3a4256; font-weight:600; }
+    #ceo .c-tile i { display:block; font-style:normal; font-size:11.5px; color:#3a4256; margin-top:2px; }
+    #ceo .c-bad b, #ceo b.c-bad { color:#c23b3b; } #ceo .c-warn b { color:#8a5a00; } #ceo .c-ok b { color:#2f7d4f; }
     #ceo .c-tile.zero { opacity:.5; }
     #ceo .c-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:10px; }
     #ceo .c-list { margin-top:10px; }
-    #ceo .c-row { display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-top:1px solid #eef0f4; font-size:13px; }
+    #ceo .c-row { display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-top:1px solid #dfe3ec; font-size:13px; }
     #ceo .c-row > :first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #ceo .c-row > :last-child { flex-shrink:0; font-variant-numeric:tabular-nums; color:#434343; }
-    #ceo .c-row[data-go]:hover { color:#1c2d58; background:#f3f5fa; }
-    #ceo .c-empty { font-size:12.5px; color:#8c8c8c; padding:4px 0; }
+    #ceo .c-row > :last-child { flex-shrink:0; font-variant-numeric:tabular-nums; color:#3a4256; }
+    #ceo .c-row[data-go]:hover { color:#1c2d58; background:#e9edf5; }
+    #ceo .c-empty { font-size:12.5px; color:#5b6478; padding:4px 0; }
     #ceo .c-wide { grid-column:1 / -1; }
-    #ceo table.c-t { width:100%; border-collapse:collapse; font-size:13.5px; color:#1f1f1f; }
-    #ceo .c-t th { text-align:left; font-weight:600; font-size:12.5px; color:#262626; background:#eef1f6; border-bottom:2px solid #c9d1df; padding:7px 10px; white-space:nowrap; }
-    #ceo .c-t td { padding:7px 10px; border-bottom:1px solid #e8ebf0; font-weight:500; font-variant-numeric:tabular-nums; }
+    #ceo table.c-t { width:100%; border-collapse:collapse; font-size:13.5px; color:#1f2433; }
+    #ceo .c-t th { text-align:left; font-weight:600; font-size:12.5px; color:#1f2433; background:#e9edf5; border-bottom:2px solid #c3cad8; padding:7px 10px; white-space:nowrap; }
+    #ceo .c-t td { padding:7px 10px; border-bottom:1px solid #dfe3ec; font-weight:500; font-variant-numeric:tabular-nums; }
     #ceo .c-t .n { text-align:right; }
-    #ceo .c-t tbody tr:nth-child(even) td { background:#f8f9fb; }
-    #ceo .c-t tbody tr:hover td { background:#eaf0ff; }
+    #ceo .c-t tbody tr:nth-child(even) td { background:#f3f5f9; }
+    #ceo .c-t tbody tr:hover td { background:#eef2f9; }
     #ceo .c-tag { display:inline-block; padding:0 7px; border-radius:9px; font-size:11.5px; border:1px solid; margin-right:6px; }
     @media (max-width: 700px) { #ceo .c-grid { grid-template-columns:1fr; } }
   `;
@@ -195,14 +195,14 @@ function ceoCalc(d) {
   });
   d.vacations.forEach(function(v) { if (activeIds[v.employee_id]) add(v.start_date, 'Отпуск: ' + (empName[v.employee_id] || '') + ' до ' + (cDate(v.end_date) ? cDd(cDate(v.end_date)) : '?'), '#13a8a8', CEO_URL.hr + '?sec=vac'); });
   d.events.forEach(function(x) { add(x.event_date, 'Мероприятие: ' + x.title, '#722ed1', CEO_URL.hr + '?sec=docs'); });
-  d.candidates.forEach(function(x) { if (x.stage === 'interview') add(x.interview_on, 'Собеседование: ' + x.full_name, '#2f4373', CEO_URL.hr + '?sec=hire'); });
+  d.candidates.forEach(function(x) { if (x.stage === 'interview') add(x.interview_on, 'Собеседование: ' + x.full_name, '#2f4a8a', CEO_URL.hr + '?sec=hire'); });
   d.active.forEach(function(r) { add(r.termination_date, 'Расторжение: ' + (r.contract_number || '') + ' ' + (r.tenant_name || r.object_name || ''), '#722ed1', CEO_URL.registry + '?open=active:' + r.id); });
-  d.subs.forEach(function(x) { if (x.active !== false) add(x.next_pay_on, 'Платёж: ' + x.title + (cKop(x.amount) !== null ? ' — ' + cMoney(cKop(x.amount)) : ''), '#d46b08', CEO_URL.aho + '?sec=money'); });
-  d.exp.forEach(function(x) { if (['new', 'approval', 'approved'].indexOf(x.status) !== -1) add(x.due_on, 'Оплатить счёт: ' + x.title + (cKop(x.amount) !== null ? ' — ' + cMoney(cKop(x.amount)) : ''), '#d46b08', CEO_URL.aho + '?open=exp:' + x.id); });
+  d.subs.forEach(function(x) { if (x.active !== false) add(x.next_pay_on, 'Платёж: ' + x.title + (cKop(x.amount) !== null ? ' — ' + cMoney(cKop(x.amount)) : ''), '#8a5a00', CEO_URL.aho + '?sec=money'); });
+  d.exp.forEach(function(x) { if (['new', 'approval', 'approved'].indexOf(x.status) !== -1) add(x.due_on, 'Оплатить счёт: ' + x.title + (cKop(x.amount) !== null ? ' — ' + cMoney(cKop(x.amount)) : ''), '#8a5a00', CEO_URL.aho + '?open=exp:' + x.id); });
   d.poa.forEach(function(x) { if (x.status !== 'revoked') add(x.valid_until, 'Истекает доверенность №' + (x.number || '') + ' ' + (x.to_whom || ''), '#1c2d58', CEO_URL.aho + '?sec=poa'); });
-  c.fireOpen.forEach(function(x) { add(x.deadline_on, 'Срок пожарного требования: ' + (x.object_name || '') + ' ' + (x.tenant || ''), '#cf1322', CEO_URL.aho + '?sec=fire'); });
-  d.routines.forEach(function(x) { if (x.active !== false) add(x.next_on, 'Регулярное дело: ' + x.title, '#595959', CEO_URL.aho + '?sec=routines'); });
-  d.safety.forEach(function(x) { if (activeIds[x.employee_id]) add(x.next_on, 'Охрана труда: ' + (empName[x.employee_id] || '') + ' — ' + (x.kind || x.area || ''), '#d48806', CEO_URL.hr + '?sec=safety'); });
+  c.fireOpen.forEach(function(x) { add(x.deadline_on, 'Срок пожарного требования: ' + (x.object_name || '') + ' ' + (x.tenant || ''), '#c23b3b', CEO_URL.aho + '?sec=fire'); });
+  d.routines.forEach(function(x) { if (x.active !== false) add(x.next_on, 'Регулярное дело: ' + x.title, '#3a4256', CEO_URL.aho + '?sec=routines'); });
+  d.safety.forEach(function(x) { if (activeIds[x.employee_id]) add(x.next_on, 'Охрана труда: ' + (empName[x.employee_id] || '') + ' — ' + (x.kind || x.area || ''), '#8a5a00', CEO_URL.hr + '?sec=safety'); });
   c.events = ev.sort(function(a, b) { return a.n - b.n; });
   return c;
 }
@@ -224,7 +224,7 @@ function cRows(items, max) {
 }
 function ceoAlerts(c) {
   const a = [];
-  const p = function(n, text, go) { if (n) a.push(cChip(' ' + text, '#cf1322', n, go)); };
+  const p = function(n, text, go) { if (n) a.push(cChip(' ' + text, '#c23b3b', n, go)); };
   p(c.rq.hot.length, 'аварийных заявок открыто', CEO_URL.requests);
   p(c.rq.overdue.length, 'заявок просрочено', CEO_URL.requests);
   p(c.tk.overdue.length, 'задач просрочено', CEO_URL.tasks);
@@ -239,7 +239,7 @@ function ceoAlerts(c) {
   p(c.poaEnd.filter(function(x) { return cDays(x.valid_until) < 0; }).length, 'доверенностей истекло, не отозваны', CEO_URL.aho + '?sec=poa');
   p(c.contractEnd.filter(function(e) { return cDays(e.contract_until) < 0; }).length, 'трудовых договоров истекло', CEO_URL.hr + '?sec=staff');
   p(c.finesOpen.length, 'штрафов не оплачено', CEO_URL.aho + '?sec=cars');
-  if (c.expApproval.length) a.push(cChip(' счетов ждут согласования — ' + cMoney(c.expSum(c.expApproval)), '#d46b08', c.expApproval.length, CEO_URL.aho + '?sec=money'));
+  if (c.expApproval.length) a.push(cChip(' счетов ждут согласования — ' + cMoney(c.expSum(c.expApproval)), '#8a5a00', c.expApproval.length, CEO_URL.aho + '?sec=money'));
   return a.length ? '<div class="c-alerts"><div class="c-alerts-t">Требует внимания</div><div class="c-al">' + a.join('') + '</div></div>'
     : '<div class="c-alerts ok">Всё в порядке: просроченного и горящего нет</div>';
 }
@@ -264,7 +264,7 @@ function ceoRender() {
   const head = '<div class="c-head"><div class="c-title">Сводка руководителя</div><div class="c-sub">' + now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
     + ', данные на ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + '</div><button class="c-btn" data-act="refresh">↻ Обновить</button></div>';
   // договоры и деньги
-  const stChips = [['1_problem', 'Проблема', '#cf1322'], ['2_terminating', 'На расторжении', '#722ed1'], ['2_docs', 'Не хватает документов', '#1c2d58'], ['2_attention', 'Требует внимания', '#d48806'], ['3_ok', 'В порядке', '#389e0d']]
+  const stChips = [['1_problem', 'Проблема', '#c23b3b'], ['2_terminating', 'На расторжении', '#722ed1'], ['2_docs', 'Не хватает документов', '#1c2d58'], ['2_attention', 'Требует внимания', '#8a5a00'], ['3_ok', 'В порядке', '#2f7d4f']]
     .map(function(x) { return c.status[x[0]] ? cChip(' ' + x[1], x[2], c.status[x[0]], CEO_URL.registry + '?status=' + x[0]) : ''; }).join('');
   const contracts = cCard('Аренда и договоры', CEO_URL.company,
     '<div class="c-tiles">' + cTile('Доход в месяц', cMoney(c.rentKop + c.utilKop), 'аренда ' + cMoney(c.rentKop) + '<br>сбор ' + cMoney(c.utilKop), '', CEO_URL.company)
@@ -323,7 +323,7 @@ function ceoRoot() { return (ctx.element && ctx.element.querySelector('#ceo')) |
 async function ceoRefresh() {
   if (ceo.loading) return ceo.loading;
   ceo.loading = ceoLoad().then(function(d) { ceo.data = ceoCalc(d); ceoRender(); })
-    .catch(function(e) { console.error(e); ceoRoot().innerHTML = '<div class="c-bad" style="padding:8px 0;color:#cf1322;">Не удалось загрузить сводку. Обновите страницу.</div>'; })
+    .catch(function(e) { console.error(e); ceoRoot().innerHTML = '<div class="c-bad" style="padding:8px 0;color:#c23b3b;">Не удалось загрузить сводку. Обновите страницу.</div>'; })
     .then(function() { ceo.loading = null; });
   return ceo.loading;
 }

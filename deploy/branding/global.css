@@ -1,0 +1,92 @@
+#root {
+  width: 100%;
+  height: 100%;
+}
+/* width */
+.win ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* Track */
+.win ::-webkit-scrollbar-track {
+  background: var(--colorBgScrollTrack);
+}
+
+/* Handle */
+.win ::-webkit-scrollbar-thumb {
+  background: var(--colorBgScrollBar);
+  border-radius: 4px;
+}
+
+/* Handle on hover */
+.win ::-webkit-scrollbar-thumb:hover {
+  background: var(--colorBgScrollBarHover);
+}
+
+.win ::-webkit-scrollbar-thumb:active {
+  background: var(--colorBgScrollBarActive);
+}
+
+.win .rc-virtual-list-scrollbar-thumb {
+  background: var(--colorBgScrollBar);
+}
+.win .rc-virtual-list-scrollbar-thumb:hover {
+  background: var(--colorBgScrollBarHover);
+}
+.win .rc-virtual-list-scrollbar-thumb:active {
+  background: var(--colorBgScrollBarActive);
+}
+
+body a {
+  color: var(--colorPrimaryText);
+}
+
+body a:hover {
+  color: var(--colorPrimaryTextHover);
+}
+
+body a:active {
+  color: var(--colorPrimaryTextActive);
+}
+
+.ant-btn-link {
+  color: var(--colorPrimaryText);
+}
+
+.ant-btn-link:hover {
+  color: var(--colorPrimaryTextHover);
+}
+
+.ant-btn-link:active {
+  color: var(--colorPrimaryTextActive);
+}
+
+/* --- Консалт Недвижимость: фирменная шапка (branding/global.css, см. docker-compose) --- */
+header.ant-layout-header.ant-pro-layout-header { background: #1c2d58 !important; border-bottom: 1px solid #121d3a; }
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-item-selected,
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-submenu-selected { background: rgba(255,255,255,.12) !important; }
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-item:hover,
+header.ant-layout-header .ant-menu-horizontal > .ant-menu-submenu:hover { background: rgba(255,255,255,.08) !important; }
+/* без «Powered by NocoBase» на входе; кнопка 404 по-русски (текст в бандле не переводится) */
+.nb-brand { display: none !important; }
+.ant-result .ant-result-extra .ant-btn > span { display: none; }
+.ant-result .ant-result-extra .ant-btn::after { content: "На главную"; }
+/* знак «КН» над заголовком на странице входа */
+div[style*="padding-top: 20vh"] > h1::before { content: ""; display: block; width: 64px; height: 64px; margin: 0 auto 18px; background: url(/storage/uploads/brand/kn-mark.svg) center / contain no-repeat; }
+
+/* --- брендбук v1.2 (10-26): шрифты Fira с нашего сервера, токены, логотип в шапке. Кит — brand/ в репозитории --- */
+@font-face { font-family: "Fira Sans"; font-weight: 400; font-display: swap; src: url(/storage/uploads/brand/fira-sans-400.woff2) format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-weight: 500; font-display: swap; src: url(/storage/uploads/brand/fira-sans-500.woff2) format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-weight: 600; font-display: swap; src: url(/storage/uploads/brand/fira-sans-600.woff2) format("woff2"); }
+@font-face { font-family: "Fira Sans Condensed"; font-weight: 600; font-display: swap; src: url(/storage/uploads/brand/fira-sans-condensed-600.woff2) format("woff2"); }
+@font-face { font-family: "Fira Mono"; font-weight: 400; font-display: swap; src: url(/storage/uploads/brand/fira-mono-400.woff2) format("woff2"); }
+@font-face { font-family: "Fira Mono"; font-weight: 500; font-display: swap; src: url(/storage/uploads/brand/fira-mono-500.woff2) format("woff2"); }
+:root { --kn-navy: #1c2d58; --kn-navy-2: #2f4a8a; --kn-deep: #121d3a; --kn-ice: #dde5f3; --kn-ice-soft: #eef2f9; --kn-paper: #f3f5f9; --kn-paper-2: #e9edf5;
+  --kn-ink: #1f2433; --kn-ink-2: #3a4256; --kn-muted: #5b6478; --kn-line: #dfe3ec; --kn-line-2: #c3cad8;
+  --kn-ok: #2f7d4f; --kn-warn: #8a5a00; --kn-err: #c23b3b;
+  --kn-cond: "Fira Sans Condensed", "Fira Sans", system-ui, sans-serif; --kn-sans: "Fira Sans", system-ui, sans-serif; --kn-mono: "Fira Mono", ui-monospace, monospace; }
+/* логотип в шапке — горизонтальный блок «на фирменном синем» (SVG), шире прежней рамки 168 px */
+header.ant-layout-header img[src*="kn-logo-header"] { width: auto !important; max-width: none !important; height: 36px !important; object-fit: contain; }
+/* заголовки страниц и модалок — Condensed, как в брендбуке */
+.ant-pro-page-container .ant-page-header-heading-title, .ant-modal-title, .ant-drawer-title { font-family: var(--kn-cond); font-weight: 600; letter-spacing: 0; }

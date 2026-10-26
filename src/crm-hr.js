@@ -13,19 +13,19 @@ if (!document.getElementById('crm-controls-style')) {
   st.id = 'crm-controls-style';
   st.textContent = `
     select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
-      background-color:#fff; border:1px solid #d9d9d9; border-radius:6px; color:#262626; font-family:inherit; line-height:1.4;
+      background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
       padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
       background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
-    select:not([multiple]):not([size]):hover { border-color:#4b5f8f; }
+    select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
     select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    select:not([multiple]):not([size]):disabled { background-color:#f5f5f5 !important; color:#bfbfbf; cursor:not-allowed; border-color:#d9d9d9; }
-    select option { color:#262626; background:#fff; }
-    select option:disabled { color:#bfbfbf; }
-    input[type=file] { font-family:inherit; font-size:13px; color:#595959; max-width:100%; }
-    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #d9d9d9; border-radius:6px;
+    select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
+    select option { color:#1f2433; background:#fff; }
+    select option:disabled { color:#8a92a3; }
+    input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
+    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
       padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
-    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#f3f5fa; }
+    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
   `;
   document.head.appendChild(st);
 }
@@ -33,65 +33,65 @@ if (!document.getElementById('crm-hr-style')) {
   const st = document.createElement('style');
   st.id = 'crm-hr-style';
   st.textContent = `
-    .hr { color:#1f1f1f; font-size:14px; }
+    .hr { color:#1f2433; font-size:14px; }
     [aria-label="Открыть ИИ-чат"] { display:none !important; }
     .hr-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .hr-title { font-size:20px; font-weight:700; }
-    .hr-tabs { display:flex; gap:2px; border-bottom:1px solid #f0f0f0; margin-bottom:14px; flex-wrap:wrap; }
-    .hr-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#595959; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+    .hr-tabs { display:flex; gap:2px; border-bottom:1px solid #dfe3ec; margin-bottom:14px; flex-wrap:wrap; }
+    .hr-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#3a4256; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
     .hr-tab.on { color:#1c2d58; border-bottom-color:#1c2d58; font-weight:600; }
-    .hr-tab b { font-weight:600; color:#8c8c8c; margin-left:4px; font-size:12.5px; }
-    .hr-tab b.red { color:#cf1322; }
+    .hr-tab b { font-weight:600; color:#5b6478; margin-left:4px; font-size:12.5px; }
+    .hr-tab b.red { color:#c23b3b; }
     .hr-new { margin-left:auto; border:none; background:#1c2d58; color:#fff; border-radius:8px; padding:9px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
-    .hr-new:hover { background:#2f4373; }
+    .hr-new:hover { background:#2f4a8a; }
     .hr-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
     .hr select, .hr input[type=text], .hr input[type=date], .hr input[type=number], .hr textarea,
     .hr-modal select, .hr-modal input[type=text], .hr-modal input[type=date], .hr-modal input[type=number], .hr-modal textarea {
-      border:1px solid #d9d9d9; border-radius:6px; padding:7px 10px; font:inherit; font-size:13.5px; background:#fff; color:#262626; box-sizing:border-box; }
+      border:1px solid #c3cad8; border-radius:6px; padding:7px 10px; font:inherit; font-size:13.5px; background:#fff; color:#1f2433; box-sizing:border-box; }
     .hr-bar select { min-width:150px; }
     .hr-bar input[type=text] { flex:1; min-width:200px; }
-    .hr-seg { display:inline-flex; border:1px solid #d9d9d9; border-radius:6px; overflow:hidden; }
-    .hr-seg button { border:none; background:#fff; padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; color:#595959; }
+    .hr-seg { display:inline-flex; border:1px solid #c3cad8; border-radius:6px; overflow:hidden; }
+    .hr-seg button { border:none; background:#fff; padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; color:#3a4256; }
     .hr-seg button.on { background:#1c2d58; color:#fff; font-weight:600; }
-    .hr-only { display:flex; gap:10px; align-items:center; background:#eef1f8; border:1px solid #b4bfd9; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:13.5px; }
+    .hr-only { display:flex; gap:10px; align-items:center; background:#eef2f9; border:1px solid #dde5f3; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:13.5px; }
     .hr-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
-    .hr-tile { border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px; background:#fff; }
+    .hr-tile { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; }
     .hr-tile[data-go], .hr-sect { cursor:pointer; }
     .hr-sect { display:flex; flex-direction:column; }
     .hr-sect:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(28,45,88,.08); }
     .hr-tile-go { margin-top:auto; padding-top:6px; font-size:12.5px; color:#1c2d58; }
-    .hr-sect .hr-tile-l { color:#262626; font-weight:600; font-size:13.5px; }
-    .hr-tile[data-go]:hover { border-color:#b4bfd9; }
-    .hr-tile-l { font-size:12.5px; color:#8c8c8c; }
+    .hr-sect .hr-tile-l { color:#1f2433; font-weight:600; font-size:13.5px; }
+    .hr-tile[data-go]:hover { border-color:#dde5f3; }
+    .hr-tile-l { font-size:12.5px; color:#5b6478; }
     .hr-tile-v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
-    .hr-tile-v.red { color:#cf1322; }
-    .hr-tile-n { font-size:12px; color:#8c8c8c; margin-top:2px; }
+    .hr-tile-v.red { color:#c23b3b; }
+    .hr-tile-n { font-size:12px; color:#5b6478; margin-top:2px; }
     .hr-cols { display:grid; grid-template-columns:minmax(0, 3fr) minmax(0, 2fr); gap:12px; align-items:start; }
-    .hr-card { border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; margin-bottom:12px; }
+    .hr-card { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; margin-bottom:12px; }
     .hr-card-t { font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
     .hr-card-t .hr-btn { margin-left:auto; }
-    .hr-card-t small { font-weight:400; color:#8c8c8c; }
-    .hr-al { display:flex; gap:10px; align-items:flex-start; padding:8px 4px; border-bottom:1px solid #f5f5f5; cursor:pointer; font-size:13.5px; }
-    .hr-al:hover { background:#f5faff; }
+    .hr-card-t small { font-weight:400; color:#5b6478; }
+    .hr-al { display:flex; gap:10px; align-items:flex-start; padding:8px 4px; border-bottom:1px solid #f3f5f9; cursor:pointer; font-size:13.5px; }
+    .hr-al:hover { background:#eef2f9; }
     .hr-al:last-child { border-bottom:none; }
     .hr-dot { flex:none; width:8px; height:8px; border-radius:50%; margin-top:6px; }
     .hr-al-t { flex:1; min-width:0; }
-    .hr-al-s { font-size:12px; color:#8c8c8c; }
+    .hr-al-s { font-size:12px; color:#5b6478; }
     .hr table, .hr-modal table { width:100%; border-collapse:collapse; font-size:13px; }
-    .hr th, .hr-modal th { text-align:left; font-weight:600; color:#595959; padding:6px 8px; border-bottom:1px solid #f0f0f0; white-space:nowrap; }
-    .hr td, .hr-modal td { padding:6px 8px; border-bottom:1px solid #f5f5f5; font-variant-numeric:tabular-nums; }
+    .hr th, .hr-modal th { text-align:left; font-weight:600; color:#3a4256; padding:6px 8px; border-bottom:1px solid #dfe3ec; white-space:nowrap; }
+    .hr td, .hr-modal td { padding:6px 8px; border-bottom:1px solid #f3f5f9; font-variant-numeric:tabular-nums; }
     .hr th.n, .hr td.n { text-align:right; }
     .hr td .hr-none, .hr td .hr-ok, .hr td .hr-soon, .hr td .hr-late { white-space:nowrap; }
     .hr tr[data-emp], .hr tr[data-rec], .hr-modal tr[data-task] { cursor:pointer; }
-    .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr-modal tr[data-task]:hover td { background:#f5faff; }
-    .hr-empty { color:#8c8c8c; padding:28px 12px; text-align:center; background:#fafafa; border-radius:8px; }
-    .hr-empty b { display:block; color:#434343; font-size:15px; margin-bottom:4px; }
-    .hr-hint { font-size:12px; color:#8c8c8c; margin-top:3px; }
+    .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr-modal tr[data-task]:hover td { background:#eef2f9; }
+    .hr-empty { color:#5b6478; padding:28px 12px; text-align:center; background:#f3f5f9; border-radius:8px; }
+    .hr-empty b { display:block; color:#3a4256; font-size:15px; margin-bottom:4px; }
+    .hr-hint { font-size:12px; color:#5b6478; margin-top:3px; }
     .hr-grp { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; font-weight:600; font-size:15px; margin:18px 0 8px; }
-    .hr-grp span { font-weight:400; color:#8c8c8c; font-size:12.5px; }
+    .hr-grp span { font-weight:400; color:#5b6478; font-size:12.5px; }
     .hr-people { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px; }
-    .hr-person { display:flex; gap:10px; align-items:flex-start; border:1px solid #f0f0f0; border-radius:10px; padding:10px 12px; background:#fff; cursor:pointer; min-width:0; }
-    .hr-person:hover { border-color:#b4bfd9; }
+    .hr-person { display:flex; gap:10px; align-items:flex-start; border:1px solid #dfe3ec; border-radius:10px; padding:10px 12px; background:#fff; cursor:pointer; min-width:0; }
+    .hr-person:hover { border-color:#dde5f3; }
     .hr-list { padding:4px 8px; }
     .hr-list td { vertical-align:middle; }
     .hr-list td.nm { white-space:nowrap; }
@@ -100,141 +100,141 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-list td.nm .hr-chip { margin-right:4px; }
     .hr-list td.ph { white-space:nowrap; }
     .hr-list a { color:#1c2d58; text-decoration:none; }
-    .hr-list tr.hr-dept td { background:#fafafa; font-weight:600; padding-top:10px; border-bottom:1px solid #f0f0f0; }
-    .hr-list tr.hr-dept td span { color:#8c8c8c; font-weight:400; margin-left:6px; }
+    .hr-list tr.hr-dept td { background:#f3f5f9; font-weight:600; padding-top:10px; border-bottom:1px solid #dfe3ec; }
+    .hr-list tr.hr-dept td span { color:#5b6478; font-weight:400; margin-left:6px; }
     .hr-list tr[data-emp] { cursor:pointer; }
-    .hr-list tr[data-emp]:hover td { background:#f5faff; }
+    .hr-list tr[data-emp]:hover td { background:#eef2f9; }
     .hr-person.off { opacity:.55; }
     .hr-ava { flex:none; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13.5px; color:#fff; }
     .hr-person-b { min-width:0; flex:1; }
     .hr-person-n { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .hr-person-p { font-size:12.5px; color:#595959; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .hr-person-p { font-size:12.5px; color:#3a4256; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .hr-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
-    .hr-chip { font-size:11.5px; padding:1px 7px; border-radius:10px; background:#f5f5f5; color:#595959; white-space:nowrap; }
-    .hr-chip.blue { background:#eef1f8; color:#142142; }
-    .hr-chip.orange { background:#fff7e6; color:#d46b08; }
-    .hr-chip.red { background:#fff1f0; color:#cf1322; }
-    .hr-chip.green { background:#f6ffed; color:#389e0d; }
+    .hr-chip { font-size:11.5px; padding:1px 7px; border-radius:10px; background:#f3f5f9; color:#3a4256; white-space:nowrap; }
+    .hr-chip.blue { background:#eef2f9; color:#121d3a; }
+    .hr-chip.orange { background:#f6eedb; color:#8a5a00; }
+    .hr-chip.red { background:#f9e6e6; color:#c23b3b; }
+    .hr-chip.green { background:#e5f1ea; color:#2f7d4f; }
     .hr-chip.purple { background:#f9f0ff; color:#722ed1; }
     /* оргструктура */
     .hr-le { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:8px; margin-bottom:16px; }
-    .hr-le-c { border:1px solid #dfe3ea; border-radius:10px; padding:10px 12px; background:#fff; }
+    .hr-le-c { border:1px solid #dfe3ec; border-radius:10px; padding:10px 12px; background:#fff; }
     .hr-le-c[data-le] { cursor:pointer; }
-    .hr-le-c[data-le]:hover { border-color:#b4bfd9; }
-    .hr-le-c b { display:block; color:#141414; }
+    .hr-le-c[data-le]:hover { border-color:#dde5f3; }
+    .hr-le-c b { display:block; color:#1f2433; }
     .hr-le-c a { color:#1c2d58; cursor:pointer; }
     .hr-org-top { display:flex; justify-content:center; }
     .hr-org-ceo-c { width:100%; max-width:560px; border:2px solid #1c2d58; border-radius:12px; background:#fff; padding:10px 14px; }
-    .hr-org-board { border-top:1px solid #e8ebf0; margin-top:6px; padding-top:4px; }
-    .hr-org-line { width:2px; height:18px; background:#b4bfd9; margin:0 auto; }
+    .hr-org-board { border-top:1px solid #dfe3ec; margin-top:6px; padding-top:4px; }
+    .hr-org-line { width:2px; height:18px; background:#dde5f3; margin:0 auto; }
     .hr-org-cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:12px; align-items:start; }
-    .hr-org-col { border:1px solid #dfe3ea; border-radius:12px; background:#f8f9fb; padding:10px; }
-    .hr-dt { background:#fff; border:1px solid #dfe3ea; border-radius:10px; padding:8px 10px; }
-    .hr-dt.sub { margin-top:8px; border-left:3px solid #b4bfd9; }
+    .hr-org-col { border:1px solid #dfe3ec; border-radius:12px; background:#f3f5f9; padding:10px; }
+    .hr-dt { background:#fff; border:1px solid #dfe3ec; border-radius:10px; padding:8px 10px; }
+    .hr-dt.sub { margin-top:8px; border-left:3px solid #dde5f3; }
     .hr-dt-h { display:flex; align-items:baseline; gap:8px; cursor:pointer; padding:2px 0 4px; }
-    .hr-dt-h b { font-size:15px; color:#141414; }
+    .hr-dt-h b { font-size:15px; color:#1f2433; }
     .hr-dt.sub .hr-dt-h b { font-size:14px; }
     .hr-dt-h span { margin-left:auto; font-size:12.5px; color:#1c2d58; white-space:nowrap; }
     .hr-dt-h:hover b { color:#1c2d58; text-decoration:underline; }
-    .hr-dt-n { font-size:12.5px; color:#595959; padding:4px 0 2px; }
-    .hr-dt-head .hr-pr { background:#eef1f8; border-radius:8px; }
+    .hr-dt-n { font-size:12.5px; color:#3a4256; padding:4px 0 2px; }
+    .hr-dt-head .hr-pr { background:#eef2f9; border-radius:8px; }
     .hr-pr { display:flex; align-items:center; gap:10px; padding:5px 6px; border-radius:6px; cursor:pointer; min-width:0; }
-    .hr-pr:hover { background:#eaf0ff; }
+    .hr-pr:hover { background:#eef2f9; }
     .hr-pr .hr-ava { width:30px; height:30px; font-size:11.5px; }
     .hr-pr-t { flex:1; min-width:0; }
-    .hr-pr-t b { font-size:13.5px; color:#1f1f1f; font-weight:600; }
-    .hr-pr-t span:not(.hr-chip) { display:block; font-size:12.5px; color:#595959; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .hr-pr-t b { font-size:13.5px; color:#1f2433; font-weight:600; }
+    .hr-pr-t span:not(.hr-chip) { display:block; font-size:12.5px; color:#3a4256; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .hr-cbs { display:inline-flex; gap:4px; flex:none; flex-wrap:wrap; }
-    .hr-cb { display:inline-flex; align-items:center; gap:4px; height:28px; min-width:30px; justify-content:center; padding:0 8px; border:1px solid #d9d9d9; border-radius:6px; background:#fff;
+    .hr-cb { display:inline-flex; align-items:center; gap:4px; height:28px; min-width:30px; justify-content:center; padding:0 8px; border:1px solid #c3cad8; border-radius:6px; background:#fff;
       color:#1c2d58 !important; font-size:13px; text-decoration:none !important; white-space:nowrap; }
-    .hr-cb:hover { border-color:#1c2d58; background:#f3f5fa; }
-    .hr-sr { border:1px solid #dfe3ea; border-radius:10px; padding:8px 12px; margin-bottom:6px; cursor:pointer; background:#fff; font-size:13.5px; }
-    .hr-sr:hover { border-color:#1c2d58; background:#f8f9fb; }
-    .hr-obj { border:1px solid #e8ebf0; border-radius:10px; padding:6px 8px; margin-bottom:8px; }
-    .hr-obj-h { font-weight:600; font-size:13.5px; padding:2px 6px 4px; color:#141414; }
-    .hr-obj-h span { font-weight:400; color:#8c8c8c; font-size:12px; }
-    .hr-crumbs { font-size:12.5px; font-weight:400; color:#8c8c8c; margin-bottom:4px; }
+    .hr-cb:hover { border-color:#1c2d58; background:#e9edf5; }
+    .hr-sr { border:1px solid #dfe3ec; border-radius:10px; padding:8px 12px; margin-bottom:6px; cursor:pointer; background:#fff; font-size:13.5px; }
+    .hr-sr:hover { border-color:#1c2d58; background:#f3f5f9; }
+    .hr-obj { border:1px solid #dfe3ec; border-radius:10px; padding:6px 8px; margin-bottom:8px; }
+    .hr-obj-h { font-weight:600; font-size:13.5px; padding:2px 6px 4px; color:#1f2433; }
+    .hr-obj-h span { font-weight:400; color:#5b6478; font-size:12px; }
+    .hr-crumbs { font-size:12.5px; font-weight:400; color:#5b6478; margin-bottom:4px; }
     .hr-crumbs a, a.hr-link { color:#1c2d58; cursor:pointer; }
     /* отпуска: годовая шкала */
     .hr-tl { width:100%; border-collapse:collapse; table-layout:fixed; }
-    .hr-tl td { padding:3px 6px; border-bottom:1px solid #f5f5f5; }
+    .hr-tl td { padding:3px 6px; border-bottom:1px solid #f3f5f9; }
     .hr-tl td.nm { width:210px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
     .hr-tl td.nm:hover { color:#1c2d58; }
     .hr-tl td.rest { width:96px; white-space:nowrap; text-align:right; font-size:12.5px; }
     .hr-track { position:relative; height:22px; display:flex; cursor:copy; }
-    .hr-track > i { display:block; height:100%; border-left:1px solid #f0f0f0; box-sizing:border-box; }
-    .hr-track > i.odd { background:#fafafa; }
+    .hr-track > i { display:block; height:100%; border-left:1px solid #dfe3ec; box-sizing:border-box; }
+    .hr-track > i.odd { background:#f3f5f9; }
     .hr-vb { position:absolute; top:3px; height:16px; border-radius:4px; cursor:pointer; font-size:10.5px; color:#fff; overflow:hidden; white-space:nowrap; padding:0 3px; box-sizing:border-box; line-height:16px; }
     .hr-vb.sched { background:#1c2d58; }
-    .hr-vb.unsched { background:#faad14; color:#613400; }
-    .hr-vb.unpaid { background:#8c8c8c; }
+    .hr-vb.unsched { background:#8a5a00; color:#8a5a00; }
+    .hr-vb.unpaid { background:#5b6478; }
     .hr-vb.other { background:#9254de; }
     .hr-vb.draft { opacity:.45; }
-    .hr-vb.demo { outline:1px dashed #262626; outline-offset:-1px; }
-    .hr-now { position:absolute; top:0; bottom:0; width:2px; background:#cf1322; opacity:.6; pointer-events:none; }
-    .hr-months { display:flex; font-size:11.5px; color:#8c8c8c; }
+    .hr-vb.demo { outline:1px dashed #1f2433; outline-offset:-1px; }
+    .hr-now { position:absolute; top:0; bottom:0; width:2px; background:#c23b3b; opacity:.6; pointer-events:none; }
+    .hr-months { display:flex; font-size:11.5px; color:#5b6478; }
     .hr-months > i { font-style:normal; text-align:center; }
-    .hr-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:#595959; align-items:center; }
+    .hr-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:#3a4256; align-items:center; }
     .hr-legend i { display:inline-block; width:14px; height:10px; border-radius:3px; margin-right:5px; vertical-align:middle; }
     /* охрана труда: матрица */
     .hr-mx td.c { text-align:center; cursor:pointer; font-size:12px; white-space:nowrap; }
-    .hr-mx td.c:hover { outline:2px solid #b4bfd9; outline-offset:-2px; }
+    .hr-mx td.c:hover { outline:2px solid #dde5f3; outline-offset:-2px; }
     .hr-mx th.c { text-align:center; white-space:normal; font-size:12px; min-width:80px; }
-    .hr-ok { color:#389e0d; } .hr-soon { color:#d46b08; font-weight:600; } .hr-late { color:#cf1322; font-weight:600; } .hr-none { color:#bfbfbf; }
+    .hr-ok { color:#2f7d4f; } .hr-soon { color:#8a5a00; font-weight:600; } .hr-late { color:#c23b3b; font-weight:600; } .hr-none { color:#8a92a3; }
     .hr-cls { display:inline-block; min-width:32px; text-align:center; padding:1px 6px; border-radius:4px; font-weight:600; font-size:12px; }
     /* окна */
     .hr-modal { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.45); display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; }
-    .hr-box { background:#fff; border-radius:12px; width:100%; max-width:720px; box-shadow:0 6px 16px rgba(0,0,0,.12); font-size:14px; color:#1f1f1f; }
+    .hr-box { background:#fff; border-radius:12px; width:100%; max-width:720px; box-shadow:0 6px 16px rgba(0,0,0,.12); font-size:14px; color:#1f2433; }
     .hr-box.wide { max-width:980px; }
-    .hr-box-h { display:flex; align-items:flex-start; gap:12px; padding:16px 20px 12px; border-bottom:1px solid #f0f0f0; }
+    .hr-box-h { display:flex; align-items:flex-start; gap:12px; padding:16px 20px 12px; border-bottom:1px solid #dfe3ec; }
     .hr-box-t { font-size:17px; font-weight:700; flex:1; min-width:0; }
-    .hr-box-t small { display:block; margin-top:4px; font-size:13px; font-weight:400; color:#595959; }
-    .hr-x { border:none; background:transparent; font-size:18px; color:#8c8c8c; cursor:pointer; padding:2px 6px; }
+    .hr-box-t small { display:block; margin-top:4px; font-size:13px; font-weight:400; color:#3a4256; }
+    .hr-x { border:none; background:transparent; font-size:18px; color:#5b6478; cursor:pointer; padding:2px 6px; }
     .hr-box-b { padding:16px 20px 20px; }
     .hr-form { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; }
     .hr-form .full, .hr-f.full { grid-column:1 / -1; }
-    .hr-f label { display:block; font-size:12.5px; color:#595959; margin-bottom:4px; }
-    .hr-f label i { color:#cf1322; font-style:normal; }
+    .hr-f label { display:block; font-size:12.5px; color:#3a4256; margin-bottom:4px; }
+    .hr-f label i { color:#c23b3b; font-style:normal; }
     .hr-f select, .hr-f input, .hr-f textarea { width:100%; }
     .hr-f textarea { min-height:64px; resize:vertical; }
     .hr-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center; }
-    .hr-btn { border:1px solid #d9d9d9; background:#fff; border-radius:6px; padding:6px 13px; font:inherit; font-size:13.5px; cursor:pointer; color:#262626; text-decoration:none; }
+    .hr-btn { border:1px solid #c3cad8; background:#fff; border-radius:6px; padding:6px 13px; font:inherit; font-size:13.5px; cursor:pointer; color:#1f2433; text-decoration:none; }
     .hr-btn:hover { border-color:#1c2d58; color:#1c2d58; }
     .hr-btn.pri { border-color:#1c2d58; background:#1c2d58; color:#fff; font-weight:600; }
-    .hr-btn.warn { color:#cf1322; border-color:#ffccc7; margin-left:auto; }
+    .hr-btn.warn { color:#c23b3b; border-color:#e7b9b9; margin-left:auto; }
     .hr-btn.sm { padding:2px 9px; font-size:12.5px; }
     .hr-btn:disabled { opacity:.5; cursor:default; }
     .hr-secs { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
-    .hr-sec { border:1px solid #f0f0f0; border-radius:10px; padding:12px 14px; min-width:0; }
+    .hr-sec { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; min-width:0; }
     .hr-sec.full { grid-column:1 / -1; }
     .hr-sec-t { font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
     .hr-sec-t .hr-btn { margin-left:auto; }
     .hr-kv { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 3fr); gap:4px 12px; font-size:13.5px; }
-    .hr-kv .k { color:#8c8c8c; font-size:12.5px; padding-top:1px; }
+    .hr-kv .k { color:#5b6478; font-size:12.5px; padding-top:1px; }
     .hr-kv .v { white-space:pre-wrap; overflow-wrap:anywhere; }
-    .hr-lines > div { display:flex; gap:8px; align-items:baseline; padding:4px 0; border-bottom:1px solid #f5f5f5; font-size:13.5px; }
+    .hr-lines > div { display:flex; gap:8px; align-items:baseline; padding:4px 0; border-bottom:1px solid #f3f5f9; font-size:13.5px; }
     .hr-lines > div:last-child { border-bottom:none; }
     .hr-lines > div > span:first-child { flex:1; min-width:0; }
     .hr-lines [data-rec], .hr-lines [data-task] { cursor:pointer; }
     .hr-lines [data-rec]:hover, .hr-lines [data-task]:hover { color:#1c2d58; }
-    .hr-pick { max-height:260px; overflow:auto; border:1px solid #f0f0f0; border-radius:8px; padding:6px 10px; columns:2; }
+    .hr-pick { max-height:260px; overflow:auto; border:1px solid #dfe3ec; border-radius:8px; padding:6px 10px; columns:2; }
     .hr-pick label { display:block; font-size:13px; padding:2px 0; break-inside:avoid; cursor:pointer; }
-    .hr-lock { font-size:12.5px; color:#8c8c8c; }
-    .hr-files { margin-top:14px; border-top:1px dashed #e8e8e8; padding-top:10px; }
+    .hr-lock { font-size:12.5px; color:#5b6478; }
+    .hr-files { margin-top:14px; border-top:1px dashed #dfe3ec; padding-top:10px; }
     .hr-files-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
     .hr-files-h b { font-size:13.5px; margin-right:auto; }
     .hr-files-h select { font-size:12.5px; padding:4px 8px; }
     .hr-flink { color:#1c2d58; text-decoration:none; font-size:13px; cursor:pointer; }
     .hr-fcell { display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-    .hr-fdel { border:none; background:none; color:#bfbfbf; cursor:pointer; font-size:12px; padding:0 2px; }
-    .hr-fdel:hover { color:#cf1322; }
+    .hr-fdel { border:none; background:none; color:#8a92a3; cursor:pointer; font-size:12px; padding:0 2px; }
+    .hr-fdel:hover { color:#c23b3b; }
     /* подбор: воронка */
     .hr-kb { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; align-items:start; }
-    .hr-kb-col { background:#fafafa; border-radius:10px; padding:8px; min-width:0; }
+    .hr-kb-col { background:#f3f5f9; border-radius:10px; padding:8px; min-width:0; }
     .hr-kb-h { font-weight:600; font-size:13px; padding:2px 4px 8px; display:flex; gap:6px; }
-    .hr-kb-h span { color:#8c8c8c; font-weight:400; }
-    .hr-kb-c { background:#fff; border:1px solid #f0f0f0; border-radius:8px; padding:8px 10px; margin-bottom:6px; cursor:pointer; font-size:13px; }
-    .hr-kb-c:hover { border-color:#b4bfd9; }
+    .hr-kb-h span { color:#5b6478; font-weight:400; }
+    .hr-kb-c { background:#fff; border:1px solid #dfe3ec; border-radius:8px; padding:8px 10px; margin-bottom:6px; cursor:pointer; font-size:13px; }
+    .hr-kb-c:hover { border-color:#dde5f3; }
     .hr-kb-c b { display:block; font-size:13.5px; }
     @media (max-width: 800px) {
       .hr-kb { grid-template-columns:1fr; }
@@ -247,11 +247,11 @@ if (!document.getElementById('crm-hr-style')) {
       .hr-pick { columns:1; }
     }
     /* читаемость (как в статистике заявок): контрастные плитки, карточки и таблицы */
-    .hr-tile { border-color:#dfe3ea; }
+    .hr-tile { border-color:#dfe3ec; }
     .hr-tile[data-go]:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
-    .hr-tile-l { color:#434343; font-weight:600; }
-    .hr-tile-v { color:#141414; font-size:24px; }
-    .hr-tile-n, .hr-hint, .hr-al-s, .hr-card-t small, .hr-grp span { color:#595959; }
+    .hr-tile-l { color:#3a4256; font-weight:600; }
+    .hr-tile-v { color:#1f2433; font-size:24px; }
+    .hr-tile-n, .hr-hint, .hr-al-s, .hr-card-t small, .hr-grp span { color:#3a4256; }
     .hr-tile-go { font-weight:600; }
     .hr-tiles-home { grid-template-columns:repeat(var(--tiles, 6), minmax(0, 1fr)); }
     .hr-own-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:14px; align-items:start; }
@@ -259,39 +259,39 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-own-c .hr-card-t { display:flex; align-items:flex-start; gap:8px; flex-wrap:nowrap; }
     .hr-own-c .hr-card-t small { white-space:nowrap; margin-top:3px; }
     .hr-own-c .hr-card-t .hr-btn { margin-left:auto; white-space:nowrap; flex:none; }
-    .hr-own-r { display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:7px 4px; border-top:1px solid #eef1f6; cursor:pointer; }
-    .hr-own-r:hover { background:#eaf0ff; }
-    .hr-own-r.gone { color:#8c8c8c; }
-    .hr-own-r.gone .hr-own-p { text-decoration:line-through; color:#8c8c8c; }
-    .hr-own-n { font-size:14px; color:#1f1f1f; }
+    .hr-own-r { display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:7px 4px; border-top:1px solid #e9edf5; cursor:pointer; }
+    .hr-own-r:hover { background:#eef2f9; }
+    .hr-own-r.gone { color:#5b6478; }
+    .hr-own-r.gone .hr-own-p { text-decoration:line-through; color:#5b6478; }
+    .hr-own-n { font-size:14px; color:#1f2433; }
     .hr-own-p { font-size:15px; color:#1c2d58; white-space:nowrap; }
-    .hr-own-bar { grid-column:1 / -1; height:6px; background:#eef1f6; border-radius:3px; overflow:hidden; }
+    .hr-own-bar { grid-column:1 / -1; height:6px; background:#e9edf5; border-radius:3px; overflow:hidden; }
     .hr-own-bar i { display:block; height:100%; background:#1c2d58; border-radius:3px; }
-    .hr-own-sum { border-top:2px solid #c9d1df; margin-top:4px; padding-top:7px; font-size:14px; text-align:right; }
+    .hr-own-sum { border-top:2px solid #c3cad8; margin-top:4px; padding-top:7px; font-size:14px; text-align:right; }
     @media (max-width: 1200px) { .hr-tiles-home { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 640px) { .hr-tiles-home { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
-    .hr-card { border-color:#dfe3ea; padding:14px 16px; }
-    .hr-card-t { font-size:15px; font-weight:700; color:#141414; margin-bottom:10px; }
-    .hr-al { color:#1f1f1f; border-bottom-color:#e8ebf0; }
-    .hr-al:hover { background:#eaf0ff; }
-    .hr table, .hr-modal table { font-size:13.5px; color:#1f1f1f; }
-    .hr th, .hr-modal th { color:#262626; font-size:12.5px; background:#eef1f6; border-bottom:2px solid #c9d1df; padding:8px 10px; }
-    .hr td, .hr-modal td { padding:8px 10px; border-bottom-color:#e8ebf0; }
-    .hr tbody tr:nth-child(even) td, .hr-modal tbody tr:nth-child(even) td { background:#f8f9fb; }
-    .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr tr[data-go]:hover td, .hr-modal tr[data-task]:hover td { background:#eaf0ff; }
-    .hr-empty { color:#595959; }
+    .hr-card { border-color:#dfe3ec; padding:14px 16px; }
+    .hr-card-t { font-size:15px; font-weight:700; color:#1f2433; margin-bottom:10px; }
+    .hr-al { color:#1f2433; border-bottom-color:#dfe3ec; }
+    .hr-al:hover { background:#eef2f9; }
+    .hr table, .hr-modal table { font-size:13.5px; color:#1f2433; }
+    .hr th, .hr-modal th { color:#1f2433; font-size:12.5px; background:#e9edf5; border-bottom:2px solid #c3cad8; padding:8px 10px; }
+    .hr td, .hr-modal td { padding:8px 10px; border-bottom-color:#dfe3ec; }
+    .hr tbody tr:nth-child(even) td, .hr-modal tbody tr:nth-child(even) td { background:#f3f5f9; }
+    .hr tr[data-emp]:hover td, .hr tr[data-rec]:hover td, .hr tr[data-go]:hover td, .hr-modal tr[data-task]:hover td { background:#eef2f9; }
+    .hr-empty { color:#3a4256; }
       /* телефон: список сотрудников — карточки (имя / должность / телефон), график отпусков листается вбок с закреплёнными именами */
     @media (max-width: 700px) {
       .hr-list { padding:0; }
       .hr-list table, .hr-list tbody { display:block; }
       .hr-list thead { display:none; }
       .hr-list tr.hr-dept, .hr-list tr.hr-dept td { display:block; }
-      .hr-list tr[data-emp] { display:flex; flex-wrap:wrap; align-items:center; column-gap:12px; row-gap:2px; padding:10px 12px 10px 50px; position:relative; border-bottom:1px solid #eef0f3; }
+      .hr-list tr[data-emp] { display:flex; flex-wrap:wrap; align-items:center; column-gap:12px; row-gap:2px; padding:10px 12px 10px 50px; position:relative; border-bottom:1px solid #dfe3ec; }
       .hr-list tr[data-emp] td { display:block; padding:0 !important; border:none !important; background:none !important; }
       .hr-list td.nm { width:100%; white-space:normal; }
       .hr-list td.nm .hr-ava { position:absolute; left:12px; top:12px; margin:0; }
       .hr-list td.nm b { font-size:15px; }
-      .hr-list tr[data-emp] td:nth-child(2) { width:100%; color:#595959; font-size:13.5px; }
+      .hr-list tr[data-emp] td:nth-child(2) { width:100%; color:#3a4256; font-size:13.5px; }
       .hr-list tr[data-emp] td:nth-child(3), .hr-list tr[data-emp] td:nth-child(5) { display:none; }
       .hr-list tr[data-emp] td .hr-none { display:none; }
       .hr-list td.ph a { font-size:14.5px; }
@@ -344,7 +344,7 @@ const HR_SAFETY = [
 const HR_FILE_DOCS = cfg('hr.fileDocs');
 const HR_FILE_DOCS_SELF = cfg('hr.fileDocsSelf');
 const HR_PB_COMMON = [['Проверка огнетушителей', 12], ['Тренировка по эвакуации', 12], ['Проверка пожарной сигнализации', 12], ['Проверка внутреннего противопожарного водопровода', 6], ['Обучение ответственного за пожарную безопасность', 36]];
-const HR_SOUT_CLS = { '1': '#389e0d', '2': '#52c41a', '3.1': '#faad14', '3.2': '#fa8c16', '3.3': '#fa541c', '3.4': '#f5222d', '4': '#a8071a' };
+const HR_SOUT_CLS = { '1': '#2f7d4f', '2': '#2f7d4f', '3.1': '#8a5a00', '3.2': '#8a5a00', '3.3': '#c23b3b', '3.4': '#c23b3b', '4': '#c23b3b' };
 const HR_LNA_KINDS = cfg('hr.lnaKinds');
 const HR_PROG_KINDS = cfg('hr.progKinds');
 const HR_EVENT_KINDS = cfg('hr.eventKinds');
@@ -380,7 +380,7 @@ function hAva(n) {
 function hToast(t) {
   const el = document.createElement('div');
   el.textContent = t;
-  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#262626;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:1100;max-width:90vw;';
+  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1f2433;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:1100;max-width:90vw;';
   document.body.appendChild(el);
   setTimeout(function() { el.remove(); }, 2800);
 }
@@ -927,7 +927,7 @@ async function hStart() {
       try { window.history.replaceState(null, '', location.pathname); } catch (e) { /* песочница */ }
     }
   } catch (e) {
-    hRoot().innerHTML = '<div class="hr-empty" style="color:#cf1322;">Не удалось загрузить данные. Обновите страницу.</div>';
+    hRoot().innerHTML = '<div class="hr-empty" style="color:#c23b3b;">Не удалось загрузить данные. Обновите страницу.</div>';
   }
 }
 let hLive = function() {};   // crmLive: отметить своё изменение, чтобы блок не перерисовался второй раз
@@ -1275,7 +1275,7 @@ function hRenderHome() {
     return '<div class="hr-tile hr-sect" data-tab="' + sec + '"><div class="hr-tile-l">' + HR_SECTIONS[sec] + (a.length ? ' <span class="hr-chip ' + (red ? 'red' : 'orange') + '">' + a.length + '</span>' : '') + '</div>'
       + '<div class="hr-tile-v">' + v + '</div><div class="hr-tile-n">' + n + '</div><div class="hr-tile-go">открыть →</div></div>';
   };
-  const lvlC = ['#cf1322', '#fa8c16', '#1c2d58'];
+  const lvlC = ['#c23b3b', '#8a5a00', '#1c2d58'];
   const leRows = d.les.map(function(l) { return [l.id, l.name]; }).concat([['', 'Юрлицо не указано']]).map(function(x) {
     const l = act.filter(function(e) { return x[0] === '' ? !hLes(e).length : hInLe(e, x[0]); });
     if (!l.length) return '';
@@ -1289,7 +1289,7 @@ function hRenderHome() {
         + ' · собеседований на неделе ' + d.cands.filter(function(c) { return c.stage === 'interview' && c.interview_on && hDays(t, c.interview_on) >= 0 && hDays(t, c.interview_on) <= 7; }).length
         + ' · свободно ставок ' + d.pos.reduce(function(n, p) { return n + Math.max(0, hPosFree(p)); }, 0))
     + tile('vac', onVac.length + ' <small style="font-size:13px;font-weight:400;">в отпуске</small>', soon.length ? 'в ближайший месяц уходят ' + soon.length : 'в ближайший месяц никто не уходит')
-    + tile('safety', lateSafety ? '<span style="color:#cf1322;">' + lateSafety + '</span> <small style="font-size:13px;font-weight:400;">просрочено</small>' : '✓', 'обучение, инструктажи, пожарная безопасность, СОУТ · ' + d.sout.length + ' раб. мест')
+    + tile('safety', lateSafety ? '<span style="color:#c23b3b;">' + lateSafety + '</span> <small style="font-size:13px;font-weight:400;">просрочено</small>' : '✓', 'обучение, инструктажи, пожарная безопасность, СОУТ · ' + d.sout.length + ' раб. мест')
     + tile('mil', liable + ' <small style="font-size:13px;font-weight:400;">на учёте</small>', 'организации: сверки и планы; военнообязанные')
     + tile('docs', d.lna.length + ' <small style="font-size:13px;font-weight:400;">ЛНА</small>', (noAck ? 'не ознакомлены: ' + noAck + ' · ' : '') + (nextEv ? 'ближайшее мероприятие ' + hDate(nextEv.event_date).slice(0, 5) : 'мероприятий не запланировано'))
     + (function() {
@@ -1741,7 +1741,7 @@ function hRenderEmp(m, id) {
   const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id; }).sort(function(a, b) { return hD(b.start_date).localeCompare(hD(a.start_date)); });
   const vacYears = vacs.map(function(v) { return hD(v.start_date).slice(0, 4); }).filter(function(x, i, a) { return a.indexOf(x) === i; });
   const vacLine = function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; };
-  const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#262626;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + (can ? ' <a data-vdays style="color:#1c2d58;cursor:pointer;margin-left:6px;">✎ изменить норму</a>' : '') + '</div>' : '')
+  const vacView = (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#1f2433;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + (can ? ' <a data-vdays style="color:#1c2d58;cursor:pointer;margin-left:6px;">✎ изменить норму</a>' : '') + '</div>' : '')
     + (vacYears.length ? vacYears.map(function(yy) {
         return '<div style="margin:10px 0 4px;font-weight:600;font-size:13.5px;">' + yy + ' <span class="hr-hint" style="font-weight:400;">· ежегодного ' + hVacUsed(e, yy) + ' дн.</span></div>'
           + lines(vacs.filter(function(v) { return hD(v.start_date).slice(0, 4) === yy; }).map(vacLine), '');
@@ -1773,7 +1773,7 @@ function hRenderEmp(m, id) {
   const cand = hr.d.cands.find(function(c) { return Number(c.employee_id) === e.id; });
   const wpFilled = H_WP.filter(function(f) { return p[f[0]]; });
   const wpView = (wpFilled.length ? hKv(wpFilled, p) + (p.wp_reviewed_on ? '<div class="hr-hint">обновлён ' + hDate(p.wp_reviewed_on) + '</div>' : '') : '<div class="hr-hint">Не заполнен.</div>')
-    + (cand && cand.comp_scores && Object.keys(cand.comp_scores).length ? '<div class="hr-hint" style="margin-top:8px;"><b style="color:#595959;">На собеседовании' + (cand.interview_on ? ' ' + hDate(cand.interview_on) : '') + ':</b> '
+    + (cand && cand.comp_scores && Object.keys(cand.comp_scores).length ? '<div class="hr-hint" style="margin-top:8px;"><b style="color:#3a4256;">На собеседовании' + (cand.interview_on ? ' ' + hDate(cand.interview_on) : '') + ':</b> '
       + HR_COMPS.filter(function(k) { return cand.comp_scores[k]; }).map(function(k) { return hEsc(k) + ' ' + cand.comp_scores[k]; }).join(' · ') + (cand.note ? '<div style="white-space:pre-wrap;">' + hEsc(cand.note) + '</div>' : '') + '</div>' : '')
     + '<div class="hr-hint" style="margin-top:8px;">Только факты о работе: без здоровья, личной жизни и оценок характера. Сотрудник вправе запросить и прочитать эту запись.</div>';
   // доли в юрлицах: сейчас и вышел
@@ -1799,7 +1799,7 @@ function hRenderEmp(m, id) {
     + '</div><button class="hr-x">✕</button></div>'
     + '<div class="hr-box-b"><div class="hr-secs">'
     + (document.documentElement.classList.contains('crm-admin') ? '<div class="hr-sec full" style="padding:0;border:none;">' + crmAccountBox(e, e.user_id ? (hr.d.users || []).find(function(x) { return x.id === Number(e.user_id); }) : null) + '</div>' : '')
-    + (HR_MODE !== 'hr' && hHasHr() ? '<div class="hr-sec full" style="background:#f3f5fa;border-color:#d6e4ff;">Кадровые данные (отпуска, охрана труда, воинский учёт, личное дело) — <a href="' + HR_DASH_PAGE + '?open=emp:' + e.id + '" style="color:#1c2d58;">открыть в дашборде HR →</a></div>' : '')
+    + (HR_MODE !== 'hr' && hHasHr() ? '<div class="hr-sec full" style="background:#e9edf5;border-color:#dde5f3;">Кадровые данные (отпуска, охрана труда, воинский учёт, личное дело) — <a href="' + HR_DASH_PAGE + '?open=emp:' + e.id + '" style="color:#1c2d58;">открыть в дашборде HR →</a></div>' : '')
     + sec('main', HR_MODE === 'hr' ? 'Основное' : 'Контакты и работа', H_MAIN, e, false, mainView)
     + sec('vac', 'Отпуска', null, null, false, vacView)
     + (can ? sec('mot', 'Мотивация', H_MOT, p, false, motView) : '')
@@ -1946,7 +1946,7 @@ function hRenderVac() {
   }).join('');
   hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1" title="Отпуска прошлого года">‹ ' + (y - 1) + '</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">' + (y + 1) + ' ›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
-      + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — оформление «—» (приказа пока нет)</span><span><i style="background:#cf1322;width:2px;"></i>сегодня</span></div>'
+      + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — оформление «—» (приказа пока нет)</span><span><i style="background:#c23b3b;width:2px;"></i>сегодня</span></div>'
     + (can ? '<button class="hr-btn" data-act="vac1c" style="margin-left:auto;margin-right:8px;" title="Отчёт 1С «Отпуска сотрудников», сохранённый в Excel">⬆ Загрузить из 1С</button>' : '')
     + (can ? '<button class="hr-new" data-act="newvac" style="margin-left:0;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button>' : '') + '</div>'
     + (can ? '<div class="hr-hint" style="margin-bottom:8px;">Нажмите на пустое место в строке сотрудника — откроется новый отпуск с этой даты. Нажмите на отпуск — изменить. Справа — сколько дней ежегодного отпуска осталось запланировать и из скольких; нажмите на число, чтобы изменить норму дней в году.</div>' : '')
@@ -2036,7 +2036,7 @@ function hVac1cPreview(fileName, p) {
   const by = function(a, b) { return nm(a.employee_id).localeCompare(nm(b.employee_id), 'ru') || a.start_date.localeCompare(b.start_date); };
   const years = {}; p.add.forEach(function(v) { years[v.start_date.slice(0, 4)] = (years[v.start_date.slice(0, 4)] || 0) + 1; });
   const miss = Object.keys(p.miss).sort();
-  const box = function(html) { return '<div style="max-height:300px;overflow:auto;border:1px solid #f0f0f0;border-radius:8px;margin:6px 0 14px;"><table>' + html + '</table></div>'; };
+  const box = function(html) { return '<div style="max-height:300px;overflow:auto;border:1px solid #dfe3ec;border-radius:8px;margin:6px 0 14px;"><table>' + html + '</table></div>'; };
   const m = hModal('<div class="hr-box-h"><div class="hr-box-t">Загрузка отпусков из 1С</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
     + '<div class="hr-hint" style="margin-bottom:10px;">' + hEsc(fileName) + '</div>'
     + '<div style="line-height:1.8;"><b>Добавить: ' + p.add.length + '</b>' + (p.add.length ? ' <span class="hr-hint">(' + Object.keys(years).sort().reverse().map(function(y) { return y + ' — ' + years[y]; }).join(', ') + ')</span>' : '')
@@ -2121,7 +2121,7 @@ function hRenderSafety() {
     + '<div class="hr-card"><div class="hr-card-t">СОУТ — специальная оценка условий труда<button class="hr-btn sm" data-act="newsout"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Рабочее место</button></div>'
     + '<div class="hr-hint" style="margin:-4px 0 8px;">Оценка каждого рабочего места раз в 5 лет; класс условий: 1–2 допустимые, 3.1–4 вредные и опасные (доплаты, доп. отпуск).</div>'
     + (d.sout.length ? '<table><thead><tr><th>Рабочее место</th><th>Класс</th><th class="n">Людей</th><th>Следующая</th></tr></thead><tbody>' + d.sout.map(function(s) {
-        const c = HR_SOUT_CLS[s.work_class] || '#8c8c8c', n = hActive().filter(function(e) { return Number(e.sout_id) === s.id; }).length;
+        const c = HR_SOUT_CLS[s.work_class] || '#5b6478', n = hActive().filter(function(e) { return Number(e.sout_id) === s.id; }).length;
         const st = s.next_on ? (hD(s.next_on) < t ? 'late' : hDays(t, s.next_on) <= 180 ? 'soon' : 'ok') : 'none';
         return '<tr data-rec="sout:' + s.id + '"><td>' + hEsc(s.workplace) + (hLe(s.legal_entity_id) ? '<div class="hr-hint">' + hEsc(hLe(s.legal_entity_id).name) + '</div>' : '') + '</td><td>' + (s.work_class ? '<span class="hr-cls" style="background:' + c + '22;color:' + c + ';">' + hEsc(s.work_class) + '</span>' : '—') + '</td><td class="n">' + n + '</td><td class="hr-' + st + '">' + (hDate(s.next_on) || '—') + '</td></tr>';
       }).join('') + '</tbody></table>' : '<div class="hr-hint">Рабочие места не заведены.</div>') + '</div></div>';

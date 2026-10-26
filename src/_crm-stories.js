@@ -22,19 +22,19 @@ window.crmStoriesMount = function (bar, me) {
       .sto-bar { display:flex; gap:14px; padding:4px 18px 12px; overflow-x:auto; scrollbar-width:none; }
       .sto-bar::-webkit-scrollbar { display:none; }
       .sto-it { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; flex:none; width:66px; border:0; background:none; padding:0; }
-      .sto-ring { position:relative; width:62px; height:62px; border-radius:50%; padding:2.5px; background:linear-gradient(45deg,#2f6fed,#7c5cff,#e0539c); display:flex; align-items:center; justify-content:center; }
-      .sto-ring.seen { background:#d5dae4; }
+      .sto-ring { position:relative; width:62px; height:62px; border-radius:50%; padding:2.5px; background:linear-gradient(45deg,#2f4a8a,#7c5cff,#e0539c); display:flex; align-items:center; justify-content:center; }
+      .sto-ring.seen { background:#c3cad8; }
       .sto-ring.none { background:none; }
       .sto-ring > .crmp-ava, .sto-ring > .sto-ini { border:2.5px solid #fff; box-sizing:content-box; }
-      .sto-ini { width:52px; height:52px; border-radius:50%; background:#c9d1df; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
-      .sto-plus { position:absolute; right:0; bottom:0; width:20px; height:20px; border-radius:50%; background:#2f6fed; color:#fff; border:2px solid #fff; font-size:15px; line-height:15px; text-align:center; font-weight:700; }
-      .sto-nm { font-size:12px; color:#262626; max-width:66px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .sto-ini { width:52px; height:52px; border-radius:50%; background:#c3cad8; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+      .sto-plus { position:absolute; right:0; bottom:0; width:20px; height:20px; border-radius:50%; background:#2f4a8a; color:#fff; border:2px solid #fff; font-size:15px; line-height:15px; text-align:center; font-weight:700; }
+      .sto-nm { font-size:12px; color:#1f2433; max-width:66px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .sto-it:hover .sto-ring { transform:scale(1.04); }
       .sto-ring { transition:transform .15s; }
 
       .sto-ov { position:fixed; inset:0; z-index:3150; background:rgba(8,10,16,.94); display:flex; align-items:center; justify-content:center; animation:stoIn .18s ease-out; }
       @keyframes stoIn { from { opacity:0; } to { opacity:1; } }
-      .sto-card { position:relative; width:min(420px, 100vw); height:min(746px, 100dvh); border-radius:14px; overflow:hidden; background:#111; user-select:none; }
+      .sto-card { position:relative; width:min(420px, 100vw); height:min(746px, 100dvh); border-radius:14px; overflow:hidden; background:#1f2433; user-select:none; }
       .sto-media { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
       .sto-media img, .sto-media video { width:100%; height:100%; object-fit:contain; }
       .sto-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:40px 30px; color:#fff; font-size:26px; font-weight:700; text-align:center;
@@ -55,11 +55,11 @@ window.crmStoriesMount = function (bar, me) {
       .sto-foot input::placeholder { color:rgba(255,255,255,.75); }
       .sto-btn { border:0; background:rgba(255,255,255,.16); color:#fff; border-radius:20px; padding:9px 14px; font-size:13.5px; cursor:pointer; white-space:nowrap; }
       .sto-btn:hover { background:rgba(255,255,255,.26); }
-      .sto-btn.del { color:#ffb3b3; }
-      .sto-views { position:absolute; left:0; right:0; bottom:0; max-height:55%; background:#fff; border-radius:16px 16px 0 0; z-index:3; overflow:auto; padding:14px 16px; color:#1f1f1f; }
+      .sto-btn.del { color:#e7b9b9; }
+      .sto-views { position:absolute; left:0; right:0; bottom:0; max-height:55%; background:#fff; border-radius:16px 16px 0 0; z-index:3; overflow:auto; padding:14px 16px; color:#1f2433; }
       .sto-views h4 { margin:0 0 10px; font-size:15px; }
       .sto-views div { display:flex; align-items:center; gap:10px; padding:6px 0; font-size:14px; }
-      .sto-views small { color:#8c8c8c; margin-left:auto; }
+      .sto-views small { color:#5b6478; margin-left:auto; }
       .sto-nav { position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:22px; cursor:pointer; }
       .sto-nav.p { left:calc(50% - 270px); } .sto-nav.n { right:calc(50% - 270px); }
       @media (max-width: 600px) { .sto-card { border-radius:0; } .sto-nav { display:none; } }
@@ -67,17 +67,17 @@ window.crmStoriesMount = function (bar, me) {
       .sto-new .crmp-dlg { width:420px; }
       .sto-new-h { padding:18px 20px 6px; font-size:18px; font-weight:600; }
       .sto-tabs { display:flex; gap:6px; padding:6px 20px 0; }
-      .sto-tabs button { border:0; background:#f1f4fb; border-radius:18px; padding:7px 14px; font-size:13.5px; cursor:pointer; color:#262626; }
-      .sto-tabs button.on { background:#2f6fed; color:#fff; }
-      .sto-prev { margin:12px 20px 0; height:340px; border-radius:14px; overflow:hidden; background:#f1f4fb; position:relative; display:flex; align-items:center; justify-content:center; color:#8c8c8c; cursor:pointer; }
-      .sto-prev img, .sto-prev video { width:100%; height:100%; object-fit:contain; background:#111; }
+      .sto-tabs button { border:0; background:#eef2f9; border-radius:18px; padding:7px 14px; font-size:13.5px; cursor:pointer; color:#1f2433; }
+      .sto-tabs button.on { background:#2f4a8a; color:#fff; }
+      .sto-prev { margin:12px 20px 0; height:340px; border-radius:14px; overflow:hidden; background:#eef2f9; position:relative; display:flex; align-items:center; justify-content:center; color:#5b6478; cursor:pointer; }
+      .sto-prev img, .sto-prev video { width:100%; height:100%; object-fit:contain; background:#1f2433; }
       .sto-prev textarea { position:absolute; inset:0; width:100%; height:100%; border:0; outline:0; resize:none; background:none; color:#fff; font-size:24px; font-weight:700; text-align:center; padding:110px 24px 20px; font-family:inherit; }
       .sto-prev textarea::placeholder { color:rgba(255,255,255,.7); }
       .sto-bgs { display:flex; gap:8px; padding:10px 20px 0; }
       .sto-bgs button { width:28px; height:28px; border-radius:50%; border:0; cursor:pointer; box-shadow:0 0 0 2px #fff, 0 0 0 3.5px transparent; }
-      .sto-bgs button.on { box-shadow:0 0 0 2px #fff, 0 0 0 3.5px #2f6fed; }
-      .sto-capin { margin:10px 20px 0; width:calc(100% - 40px); border:0; border-bottom:1.5px solid #dfe4ee; outline:0; font-size:14.5px; padding:7px 0; }
-      .sto-capin:focus { border-bottom-color:#2f6fed; }
+      .sto-bgs button.on { box-shadow:0 0 0 2px #fff, 0 0 0 3.5px #2f4a8a; }
+      .sto-capin { margin:10px 20px 0; width:calc(100% - 40px); border:0; border-bottom:1.5px solid #dfe3ec; outline:0; font-size:14.5px; padding:7px 0; }
+      .sto-capin:focus { border-bottom-color:#2f4a8a; }
     `;
     document.head.appendChild(st);
   }
@@ -190,7 +190,7 @@ window.crmStoriesMount = function (bar, me) {
         box.className = 'sto-views';
         box.innerHTML = '<h4>Просмотры: ' + rows.length + '</h4>' + (rows.map(function (x) {
           return '<div>' + (window.crmAvatar ? window.crmAvatar(x.viewer_id, 30) : '') + e(uname(x.viewer_id)) + '<small>' + ago(x.createdAt) + '</small></div>';
-        }).join('') || '<div style="color:#8c8c8c">Пока никто не смотрел</div>');
+        }).join('') || '<div style="color:#5b6478">Пока никто не смотрел</div>');
         box.onclick = function (x) { x.stopPropagation(); box.remove(); hold(false); };
         q('.sto-card').appendChild(box);
       };
@@ -222,7 +222,7 @@ window.crmStoriesMount = function (bar, me) {
       + '<div class="sto-prev" data-prev>Нажмите, чтобы выбрать фото или видео</div><div class="sto-bgs" data-bgs style="display:none">'
       + Object.keys(BGS).map(function (k) { return '<button data-bg="' + k + '" class="' + (k === bg ? 'on' : '') + '" style="background:' + bgCss(k) + '"></button>'; }).join('') + '</div>'
       + '<input class="sto-capin" data-cap maxlength="200" placeholder="Подпись (необязательно)">'
-      + '<div class="crmp-foot"><span style="margin-right:auto;color:#8c8c8c;font-size:12.5px;align-self:center">Видна 24 часа всем сотрудникам</span>'
+      + '<div class="crmp-foot"><span style="margin-right:auto;color:#5b6478;font-size:12.5px;align-self:center">Видна 24 часа всем сотрудникам</span>'
       + '<button class="crmp-btn" data-x>Отмена</button><button class="crmp-btn pri" data-ok disabled>Опубликовать</button></div></div>';
     document.body.appendChild(m);
     const q = function (sel) { return m.querySelector(sel); };

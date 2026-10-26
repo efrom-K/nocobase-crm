@@ -3,7 +3,7 @@
 // Caddy (svc /opt/crm-gateway/caddy/Caddyfile) пускает на /vault/ только роль admin NocoBase, панель /vault/admin закрыта.
 // В офисе по адресу :13000 пути /vault/ нет — ведём на домен.
 if (location.port) {
-  ctx.render('<div style="padding:40px;text-align:center;color:#262626;">Пароли открываются на <a href="https://crm.ykinvest.ru/vault/" target="_blank" rel="noopener">crm.ykinvest.ru/vault</a></div>');
+  ctx.render('<div style="padding:40px;text-align:center;color:#1f2433;">Пароли открываются на <a href="https://crm.ykinvest.ru/vault/" target="_blank" rel="noopener">crm.ykinvest.ru/vault</a></div>');
 } else {
   ctx.render('<div class="vw-wrap"></div>');
   // iframe — через createElement: строковый HTML в ctx.render вырезает <iframe>

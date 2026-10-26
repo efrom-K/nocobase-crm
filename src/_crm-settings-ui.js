@@ -10,98 +10,98 @@ if (!document.getElementById('crm-cfg-style')) {
   const st = document.createElement('style');
   st.id = 'crm-cfg-style';
   st.textContent = `
-    .crm-gear { display:none; align-items:center; justify-content:center; width:30px; height:30px; flex:none; border:1px solid #dfe3ea; border-radius:8px;
-      background:#fff; color:#595959; cursor:pointer; padding:0; transition:border-color .2s, color .2s, background .2s; }
-    .crm-gear:hover { border-color:#1c2d58; color:#1c2d58; background:#f3f5fa; }
+    .crm-gear { display:none; align-items:center; justify-content:center; width:30px; height:30px; flex:none; border:1px solid #dfe3ec; border-radius:8px;
+      background:#fff; color:#3a4256; cursor:pointer; padding:0; transition:border-color .2s, color .2s, background .2s; }
+    .crm-gear:hover { border-color:#1c2d58; color:#1c2d58; background:#e9edf5; }
     html.crm-admin .crm-gear, html.crm-mod-HR .crm-gear[data-crm-settings="HR"] { display:inline-flex; }
     .cs-drawer { position:fixed; inset:0; z-index:1000; display:flex; justify-content:flex-end; background:rgba(0,0,0,.35); }
-    .cs-panel { width:min(1080px, 100vw); height:100%; background:#f5f7fa; display:flex; flex-direction:column; box-shadow:-6px 0 24px rgba(0,0,0,.12);
-      color:#1f1f1f; font-size:14px; animation:csIn .18s ease-out; }
+    .cs-panel { width:min(1080px, 100vw); height:100%; background:#f3f5f9; display:flex; flex-direction:column; box-shadow:-6px 0 24px rgba(0,0,0,.12);
+      color:#1f2433; font-size:14px; animation:csIn .18s ease-out; }
     @keyframes csIn { from { transform:translateX(40px); opacity:.6; } to { transform:none; opacity:1; } }
-    .cs-top { background:#fff; border-bottom:1px solid #e8ebf0; padding:14px 22px 0; flex:none; }
+    .cs-top { background:#fff; border-bottom:1px solid #dfe3ec; padding:14px 22px 0; flex:none; }
     .cs-top-h { display:flex; align-items:center; gap:12px; }
-    .cs-title { font-size:19px; font-weight:700; color:#141414; }
-    .cs-sub { color:#8c8c8c; font-size:12.5px; }
-    .cs-close { margin-left:auto; border:none; background:transparent; width:34px; height:34px; border-radius:8px; font-size:18px; color:#8c8c8c; cursor:pointer; }
-    .cs-close:hover { background:#f0f2f5; color:#262626; }
+    .cs-title { font-size:19px; font-weight:700; color:#1f2433; }
+    .cs-sub { color:#5b6478; font-size:12.5px; }
+    .cs-close { margin-left:auto; border:none; background:transparent; width:34px; height:34px; border-radius:8px; font-size:18px; color:#5b6478; cursor:pointer; }
+    .cs-close:hover { background:#f3f5f9; color:#1f2433; }
     .cs-tabs { display:flex; gap:4px; margin-top:10px; flex-wrap:wrap; }
-    .cs-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#595959; cursor:pointer; border-bottom:2px solid transparent; }
+    .cs-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#3a4256; cursor:pointer; border-bottom:2px solid transparent; }
     .cs-tab:hover { color:#1c2d58; }
     .cs-tab.on { color:#1c2d58; border-bottom-color:#1c2d58; font-weight:600; }
-    .cs-tab b { display:inline-block; min-width:18px; padding:0 5px; margin-left:6px; border-radius:9px; background:#fff1f0; color:#cf1322; font-size:11.5px; font-weight:600; }
+    .cs-tab b { display:inline-block; min-width:18px; padding:0 5px; margin-left:6px; border-radius:9px; background:#f9e6e6; color:#c23b3b; font-size:11.5px; font-weight:600; }
     .cs-scroll { flex:1; overflow:auto; padding:18px 22px 40px; }
-    .cs-card { border:1px solid #e3e7ee; border-radius:12px; padding:16px 18px; background:#fff; margin-bottom:14px; overflow-x:auto; }
-    .cs-card-t { font-size:15px; font-weight:700; color:#141414; margin-bottom:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .cs-card-t small { font-weight:400; color:#8c8c8c; font-size:12.5px; }
-    .cs-hint { font-size:12.5px; color:#8c8c8c; margin:2px 0 10px; line-height:1.45; }
+    .cs-card { border:1px solid #dfe3ec; border-radius:12px; padding:16px 18px; background:#fff; margin-bottom:14px; overflow-x:auto; }
+    .cs-card-t { font-size:15px; font-weight:700; color:#1f2433; margin-bottom:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .cs-card-t small { font-weight:400; color:#5b6478; font-size:12.5px; }
+    .cs-hint { font-size:12.5px; color:#5b6478; margin:2px 0 10px; line-height:1.45; }
     .cs-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
     .cs-bar input[type=text] { flex:1; min-width:240px; }
     .cs-panel input[type=text], .cs-panel input[type=number], .cs-panel input[type=password], .cs-panel input[type=time], .cs-modal input[type=text], .cs-modal input[type=number] {
-      border:1px solid #d9d9d9; border-radius:8px; padding:7px 11px; font:inherit; font-size:13.5px; color:#262626; background:#fff; outline:none; }
+      border:1px solid #c3cad8; border-radius:8px; padding:7px 11px; font:inherit; font-size:13.5px; color:#1f2433; background:#fff; outline:none; }
     .cs-panel input:focus, .cs-modal input:focus { border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.1); }
     .cs-panel select, .cs-modal select { padding:7px 11px; font-size:13.5px; border-radius:8px; }
-    .cs-seg { display:inline-flex; border:1px solid #d9d9d9; border-radius:8px; overflow:hidden; }
-    .cs-seg button { border:none; background:#fff; padding:6px 12px; font:inherit; font-size:13px; color:#595959; cursor:pointer; }
-    .cs-seg button + button { border-left:1px solid #d9d9d9; }
+    .cs-seg { display:inline-flex; border:1px solid #c3cad8; border-radius:8px; overflow:hidden; }
+    .cs-seg button { border:none; background:#fff; padding:6px 12px; font:inherit; font-size:13px; color:#3a4256; cursor:pointer; }
+    .cs-seg button + button { border-left:1px solid #c3cad8; }
     .cs-seg button.on { background:#1c2d58; color:#fff; }
     .cs-people { display:flex; flex-direction:column; }
-    .cs-p { display:grid; grid-template-columns:minmax(220px,1.4fr) minmax(170px,1fr) minmax(150px,1fr) auto; gap:12px; align-items:center; padding:10px 6px; border-bottom:1px solid #eef0f4; }
+    .cs-p { display:grid; grid-template-columns:minmax(220px,1.4fr) minmax(170px,1fr) minmax(150px,1fr) auto; gap:12px; align-items:center; padding:10px 6px; border-bottom:1px solid #dfe3ec; }
     .cs-p:last-child { border-bottom:none; }
-    .cs-p:hover { background:#f8faff; }
+    .cs-p:hover { background:#eef2f9; }
     .cs-p-n { display:flex; align-items:center; gap:10px; min-width:0; }
     .cs-ava { width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; color:#fff; }
     .cs-p-n b { font-weight:600; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .cs-p-n > div > span { display:block; font-size:12.5px; color:#8c8c8c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .cs-p-n > div > span { display:block; font-size:12.5px; color:#5b6478; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .cs-p-a { font-size:13px; min-width:0; }
-    .cs-p-a code { font-family:inherit; font-weight:600; color:#262626; }
+    .cs-p-a code { font-family:inherit; font-weight:600; color:#1f2433; }
     .cs-p-act { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
-    .cs-dept { font-size:12px; font-weight:600; color:#8c8c8c; text-transform:uppercase; letter-spacing:.04em; padding:14px 6px 6px; }
-    .cs-chip { display:inline-block; font-size:11.5px; padding:1px 8px; border-radius:10px; background:#f0f2f5; color:#434343; white-space:nowrap; margin:2px 4px 2px 0; }
-    .cs-chip.blue { background:#eef1f8; color:#142142; } .cs-chip.red { background:#fff1f0; color:#cf1322; } .cs-chip.green { background:#f6ffed; color:#389e0d; } .cs-chip.orange { background:#fff7e6; color:#d46b08; }
-    .cs-btn { border:1px solid #d9d9d9; background:#fff; border-radius:8px; padding:5px 12px; font:inherit; font-size:13px; color:#1c2d58; cursor:pointer; white-space:nowrap; }
-    .cs-btn:hover { border-color:#1c2d58; background:#f3f5fa; }
+    .cs-dept { font-size:12px; font-weight:600; color:#5b6478; text-transform:uppercase; letter-spacing:.04em; padding:14px 6px 6px; }
+    .cs-chip { display:inline-block; font-size:11.5px; padding:1px 8px; border-radius:10px; background:#f3f5f9; color:#3a4256; white-space:nowrap; margin:2px 4px 2px 0; }
+    .cs-chip.blue { background:#eef2f9; color:#121d3a; } .cs-chip.red { background:#f9e6e6; color:#c23b3b; } .cs-chip.green { background:#e5f1ea; color:#2f7d4f; } .cs-chip.orange { background:#f6eedb; color:#8a5a00; }
+    .cs-btn { border:1px solid #c3cad8; background:#fff; border-radius:8px; padding:5px 12px; font:inherit; font-size:13px; color:#1c2d58; cursor:pointer; white-space:nowrap; }
+    .cs-btn:hover { border-color:#1c2d58; background:#e9edf5; }
     .cs-btn.pri { background:#1c2d58; border-color:#1c2d58; color:#fff; }
-    .cs-btn.pri:hover { background:#2a3f73; }
-    .cs-btn.warn { color:#cf1322; } .cs-btn.warn:hover { border-color:#cf1322; background:#fff1f0; }
-    .cs-btn.danger { background:#cf1322; border-color:#cf1322; color:#fff; }
+    .cs-btn.pri:hover { background:#2f4a8a; }
+    .cs-btn.warn { color:#c23b3b; } .cs-btn.warn:hover { border-color:#c23b3b; background:#f9e6e6; }
+    .cs-btn.danger { background:#c23b3b; border-color:#c23b3b; color:#fff; }
     .cs-btn:disabled { opacity:.5; cursor:not-allowed; }
     .cs-mods { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
-    .cs-mods button { border:1px solid #d9d9d9; background:#fff; border-radius:16px; padding:5px 14px; font:inherit; font-size:13px; cursor:pointer; color:#262626; }
+    .cs-mods button { border:1px solid #c3cad8; background:#fff; border-radius:16px; padding:5px 14px; font:inherit; font-size:13px; cursor:pointer; color:#1f2433; }
     .cs-mods button.on { background:#1c2d58; border-color:#1c2d58; color:#fff; }
-    .cs-set { border:1px solid #e3e7ee; border-radius:12px; padding:14px 16px; margin-bottom:12px; background:#fff; }
+    .cs-set { border:1px solid #dfe3ec; border-radius:12px; padding:14px 16px; margin-bottom:12px; background:#fff; }
     .cs-set-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:600; font-size:14px; margin-bottom:10px; }
     .cs-set-h .cs-acts { margin-left:auto; display:flex; gap:6px; }
     .cs-li { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
     .cs-li input[type=text] { flex:1; min-width:0; }
-    .cs-li .lock { font-size:12px; color:#8c8c8c; width:110px; }
-    .cs-ico { border:1px solid #e0e0e0; background:#fff; border-radius:8px; width:32px; height:32px; cursor:pointer; color:#595959; font-size:13px; flex:none; }
+    .cs-li .lock { font-size:12px; color:#5b6478; width:110px; }
+    .cs-ico { border:1px solid #dfe3ec; background:#fff; border-radius:8px; width:32px; height:32px; cursor:pointer; color:#3a4256; font-size:13px; flex:none; }
     .cs-ico:hover { border-color:#1c2d58; color:#1c2d58; }
     .cs-lab { width:100%; border-collapse:collapse; font-size:13.5px; }
-    .cs-lab th { text-align:left; font-size:12.5px; font-weight:600; color:#595959; padding:6px 8px; border-bottom:1px solid #e8ebf0; }
+    .cs-lab th { text-align:left; font-size:12.5px; font-weight:600; color:#3a4256; padding:6px 8px; border-bottom:1px solid #dfe3ec; }
     .cs-lab td { padding:6px 8px; }
     .cs-lab td input[type=text] { width:100%; }
     .cs-lab td input[type=number] { width:90px; }
-    .cs-lab td input[type=color] { width:44px; height:32px; border:1px solid #d9d9d9; border-radius:8px; padding:2px; background:#fff; }
+    .cs-lab td input[type=color] { width:44px; height:32px; border:1px solid #c3cad8; border-radius:8px; padding:2px; background:#fff; }
     .cs-kv { display:grid; grid-template-columns:minmax(220px,1fr) minmax(200px,1fr) auto; gap:10px 14px; align-items:center; }
     .cs-kv > div:first-child, .cs-kv .k { font-size:13.5px; }
     .cs-links { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
-    .cs-links a { display:block; padding:12px 14px; border:1px solid #e3e7ee; border-radius:12px; color:#1c2d58; text-decoration:none; background:#fff; font-weight:600; }
-    .cs-links a:hover { border-color:#1c2d58; background:#f3f5fa; }
-    .cs-links a span { display:block; color:#8c8c8c; font-size:12.5px; margin-top:3px; font-weight:400; }
+    .cs-links a { display:block; padding:12px 14px; border:1px solid #dfe3ec; border-radius:12px; color:#1c2d58; text-decoration:none; background:#fff; font-weight:600; }
+    .cs-links a:hover { border-color:#1c2d58; background:#e9edf5; }
+    .cs-links a span { display:block; color:#5b6478; font-size:12.5px; margin-top:3px; font-weight:400; }
     .cs-modal { position:fixed; inset:0; z-index:1010; background:rgba(0,0,0,.45); display:flex; align-items:flex-start; justify-content:center; padding:48px 12px; overflow:auto; }
-    .cs-box { background:#fff; border-radius:14px; width:100%; max-width:620px; box-shadow:0 10px 30px rgba(0,0,0,.18); font-size:14px; color:#1f1f1f; }
-    .cs-box-h { display:flex; align-items:flex-start; gap:12px; padding:18px 22px 12px; border-bottom:1px solid #f0f0f0; font-size:17px; font-weight:700; }
-    .cs-box-h small { display:block; font-size:13px; font-weight:400; color:#8c8c8c; margin-top:3px; }
+    .cs-box { background:#fff; border-radius:14px; width:100%; max-width:620px; box-shadow:0 10px 30px rgba(0,0,0,.18); font-size:14px; color:#1f2433; }
+    .cs-box-h { display:flex; align-items:flex-start; gap:12px; padding:18px 22px 12px; border-bottom:1px solid #dfe3ec; font-size:17px; font-weight:700; }
+    .cs-box-h small { display:block; font-size:13px; font-weight:400; color:#5b6478; margin-top:3px; }
     .cs-box-b { padding:16px 22px 20px; }
-    .cs-x { margin-left:auto; border:none; background:transparent; font-size:18px; color:#8c8c8c; cursor:pointer; }
-    .cs-f { margin-bottom:12px; } .cs-f label { display:block; font-size:12.5px; color:#595959; margin-bottom:4px; } .cs-f input[type=text] { width:100%; }
+    .cs-x { margin-left:auto; border:none; background:transparent; font-size:18px; color:#5b6478; cursor:pointer; }
+    .cs-f { margin-bottom:12px; } .cs-f label { display:block; font-size:12.5px; color:#3a4256; margin-bottom:4px; } .cs-f input[type=text] { width:100%; }
     .cs-roles label { display:inline-flex; align-items:center; gap:6px; margin:0 14px 8px 0; font-size:13.5px; cursor:pointer; }
-    .cs-pass { font-family:ui-monospace,Menlo,monospace; background:#f6ffed; border:1px solid #b7eb8f; border-radius:10px; padding:12px 14px; margin:10px 0; font-size:15px; user-select:all; }
+    .cs-pass { font-family:ui-monospace,Menlo,monospace; background:#e5f1ea; border:1px solid #b9d9c5; border-radius:10px; padding:12px 14px; margin:10px 0; font-size:15px; user-select:all; }
     .cs-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; align-items:center; }
-    .cs-danger { margin-top:18px; padding-top:14px; border-top:1px solid #f0f0f0; }
-    .cs-danger-t { font-size:12.5px; font-weight:600; color:#8c8c8c; text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
-    .cs-empty { padding:28px; text-align:center; color:#8c8c8c; }
-    .cs-acc { border:1px solid #e3e7ee; border-radius:10px; padding:10px 12px; margin:10px 0; background:#fafbfc; }
+    .cs-danger { margin-top:18px; padding-top:14px; border-top:1px solid #dfe3ec; }
+    .cs-danger-t { font-size:12.5px; font-weight:600; color:#5b6478; text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
+    .cs-empty { padding:28px; text-align:center; color:#5b6478; }
+    .cs-acc { border:1px solid #dfe3ec; border-radius:10px; padding:10px 12px; margin:10px 0; background:#f3f5f9; }
     .cs-acc-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; }
     .cs-acc-h .cs-btn { margin-left:auto; }
     .cs-acc code { font-family:inherit; }
@@ -126,7 +126,7 @@ function csEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').rep
 function csRows(res) { const d = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : []; return Array.isArray(d) ? d : (d ? [d] : []); }
 function csToast(t) {
   const el = document.createElement('div'); el.textContent = t;
-  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#262626;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:1100;max-width:90vw;';
+  el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1f2433;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:1100;max-width:90vw;';
   document.body.appendChild(el); setTimeout(function() { el.remove(); }, 3200);
 }
 function csModal(html) {
@@ -213,7 +213,7 @@ async function crmSettingsOpen(opts) {
     if (ml) csSetMail(ml, e.target.checked).then(function() { csToast(e.target.checked ? 'Почта в CRM включена (в течение минуты)' : 'Почта в CRM выключена'); }).catch(function(err) { e.target.checked = !e.target.checked; csToast(csErr(err)); });
   });
   try { await csLoad(); csRender(); }
-  catch (e) { crmS.el.innerHTML = '<div class="cs-empty" style="color:#cf1322;">Не удалось загрузить настройки. Обновите страницу.</div>'; }
+  catch (e) { crmS.el.innerHTML = '<div class="cs-empty" style="color:#c23b3b;">Не удалось загрузить настройки. Обновите страницу.</div>'; }
 }
 function csRender() {
   if (crmS.only) {   // сотрудник отдела: только справочники своего модуля
@@ -421,7 +421,7 @@ function csEditor(key) {
     return '<table class="cs-lab"><thead><tr>' + s.fields.map(function(f) { return '<th>' + csEsc(f[1]) + '</th>'; }).join('') + '</tr></thead><tbody>' + Object.keys(v).map(function(k) {
       return '<tr data-lk="' + csEsc(k) + '">' + s.fields.map(function(f) {
         const x = typeof v[k] === 'object' ? v[k][f[0]] : v[k];
-        return '<td>' + (f[2] === 'color' ? '<input type="color" data-lf="' + f[0] + '" value="' + csEsc(/^#[0-9a-f]{6}$/i.test(x) ? x : '#595959') + '">'
+        return '<td>' + (f[2] === 'color' ? '<input type="color" data-lf="' + f[0] + '" value="' + csEsc(/^#[0-9a-f]{6}$/i.test(x) ? x : '#3a4256') + '">'
           : '<input type="' + (f[2] === 'num' ? 'number' : 'text') + '" data-lf="' + f[0] + '" value="' + csEsc(x) + '"' + (f[2] === 'num' ? ' min="0"' : '') + '>') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table><div class="cs-hint" style="margin-top:8px;">Набор строк постоянный — на нём держится логика модуля; меняются названия, сроки и цвета.</div>';

@@ -11,7 +11,7 @@ function nbSessionAlive() {
 }
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #f0f0f0;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
+ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
 
 const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
 const DRAFTS_TAB = "cm-drafts-tab"; // не нативная NocoBase-таблица — личный список черновиков, рисуется contract-modals.js
@@ -277,20 +277,20 @@ if (!document.getElementById('cm-cols-style')) {
   const st = document.createElement('style');
   st.id = 'cm-cols-style';
   st.textContent = `
-    #cm-cols-btn { border: 1px solid #d9d9d9; background: #fff; color: #262626; border-radius: 6px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+    #cm-cols-btn { border: 1px solid #c3cad8; background: #fff; color: #1f2433; border-radius: 6px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
     #cm-cols-btn:hover { border-color: #1c2d58; color: #1c2d58; }
     #cm-cols-panel { position: fixed; z-index: 1100; width: 340px; max-height: 70vh; overflow: auto; background: #fff; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 14px 16px; display: none; }
     #cm-cols-panel .cm-cols-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-    #cm-cols-panel .cm-cols-hint { color: #8c8c8c; font-size: 12px; margin-bottom: 10px; }
-    #cm-cols-panel .cm-cols-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+    #cm-cols-panel .cm-cols-hint { color: #5b6478; font-size: 12px; margin-bottom: 10px; }
+    #cm-cols-panel .cm-cols-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f3f5f9; font-size: 13px; }
     #cm-cols-panel .cm-cols-row label { flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-    #cm-cols-panel .cm-cols-move { border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; color: #595959; line-height: 1; }
+    #cm-cols-panel .cm-cols-move { border: 1px solid #dfe3ec; background: #fff; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; color: #3a4256; line-height: 1; }
     #cm-cols-panel .cm-cols-move:hover:not(:disabled) { border-color: #1c2d58; color: #1c2d58; }
     #cm-cols-panel .cm-cols-move:disabled { opacity: 0.3; cursor: default; }
     #cm-cols-panel .cm-cols-foot { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
     #cm-cols-panel .cm-cols-btns { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
-    #cm-cols-panel .cm-cols-sync { font-size: 12px; color: #595959; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-    #cm-cols-panel button.cm-cols-act { border: 1px solid #d9d9d9; background: #fff; border-radius: 6px; padding: 5px 16px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    #cm-cols-panel .cm-cols-sync { font-size: 12px; color: #3a4256; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    #cm-cols-panel button.cm-cols-act { border: 1px solid #c3cad8; background: #fff; border-radius: 6px; padding: 5px 16px; font-size: 13px; cursor: pointer; white-space: nowrap; }
     #cm-cols-panel button.cm-cols-act.primary { background: #1c2d58; border-color: #1c2d58; color: #fff; }
   `;
   document.head.appendChild(st);
@@ -418,15 +418,15 @@ if (!document.getElementById('cm-notif-style')) {
   const nst = document.createElement('style');
   nst.id = 'cm-notif-style';
   nst.textContent = `
-    @keyframes cm-notif-pulse { 0%, 100% { box-shadow: inset 4px 0 0 #fa8c16; } 50% { box-shadow: inset 4px 0 0 #ffd591; } }
-    .ant-table-tbody > tr.cm-notif-row > td { background: #fff7e6 !important; }
-    .main-registry-clickable-rows .ant-table-tbody > tr.cm-notif-row:hover > td { background: #ffe7ba !important; }
+    @keyframes cm-notif-pulse { 0%, 100% { box-shadow: inset 4px 0 0 #8a5a00; } 50% { box-shadow: inset 4px 0 0 #e8d3a6; } }
+    .ant-table-tbody > tr.cm-notif-row > td { background: #f6eedb !important; }
+    .main-registry-clickable-rows .ant-table-tbody > tr.cm-notif-row:hover > td { background: #e8d3a6 !important; }
     .ant-table-tbody > tr.cm-notif-row > td:first-child { animation: cm-notif-pulse 2s ease-in-out infinite; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag { border-radius: 6px; padding: 3px 12px; margin: 0; font-size: 12px; line-height: 18px; font-weight: 500; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-gold { background: #fffbe6; border-color: #ffe58f; color: #d48806; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-red { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }
-    .cm-tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; margin-left: 6px; background: #fa8c16; color: #fff; font-size: 11px; font-weight: 600; text-align: center; vertical-align: 1px; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-green { background: #e5f1ea; border-color: #b9d9c5; color: #2f7d4f; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-gold { background: #f6eedb; border-color: #e8d3a6; color: #8a5a00; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-red { background: #f9e6e6; border-color: #e7b9b9; color: #c23b3b; }
+    .cm-tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; margin-left: 6px; background: #8a5a00; color: #fff; font-size: 11px; font-weight: 600; text-align: center; vertical-align: 1px; }
   `;
   document.head.appendChild(nst);
 }
@@ -436,13 +436,13 @@ if (!document.getElementById('cm-reg-look-style')) {
   lst.id = 'cm-reg-look-style';
   lst.textContent = `
     /* реестр в стиле остальных таблиц CRM: тёмная шапка на голубом, строки через одну, тёмный текст */
-    [data-uid="ozazmpm4o4v"] .ant-table-thead > tr > th, [data-uid="formtbl000001"] .ant-table-thead > tr > th, [data-uid="ipb7gfluldk"] .ant-table-thead > tr > th { background:#eef1f6 !important; color:#262626 !important; font-weight:600 !important; font-size:12.5px; border-bottom:2px solid #c9d1df !important; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row > td { color:#1f1f1f; font-size:13.5px; border-bottom-color:#e8ebf0 !important; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td { background:#f8f9fb; }
-    .main-registry-clickable-rows .ant-table-tbody > tr.ant-table-row:not(.cm-notif-row):hover > td { background:#eaf0ff !important; }
+    [data-uid="ozazmpm4o4v"] .ant-table-thead > tr > th, [data-uid="formtbl000001"] .ant-table-thead > tr > th, [data-uid="ipb7gfluldk"] .ant-table-thead > tr > th { background:#e9edf5 !important; color:#1f2433 !important; font-weight:600 !important; font-size:12.5px; border-bottom:2px solid #c3cad8 !important; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row > td { color:#1f2433; font-size:13.5px; border-bottom-color:#dfe3ec !important; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td { background:#f3f5f9; }
+    .main-registry-clickable-rows .ant-table-tbody > tr.ant-table-row:not(.cm-notif-row):hover > td { background:#eef2f9 !important; }
       /* телефон: в карточках реестра — только главное, остальное в карточке договора */
     @media (max-width: 700px) {
-      .ant-table tbody > tr.ant-table-row.cm-notif-row { background:#fff7e6; }
+      .ant-table tbody > tr.ant-table-row.cm-notif-row { background:#f6eedb; }
       div:has(> #global-search-input) { flex-wrap:wrap !important; }
       #global-search-input { flex:1 1 100% !important; max-width:none !important; height:42px; }
       .ant-layout-content .ant-table tbody > tr > td[data-l="Электронная почта"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Фамилия, имя, отчество по договору"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Дата подписания акта приёма-передачи"]:not(.crm-m-title) { display:none !important; }
@@ -600,8 +600,8 @@ if (!document.getElementById('cm-extracalc-style')) {
   const est = document.createElement('style');
   est.id = 'cm-extracalc-style';
   est.textContent = `
-    .cm-xc-badge { display:table; margin-top:3px; font-size:11px; line-height:17px; color:#ad6800; background:#fff7e6; border:1px solid #ffd591; border-radius:4px; padding:0 6px; font-weight:500; white-space:nowrap; }
-    #cm-extra-btn { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:4px 12px; font-size:13px; cursor:pointer; }
+    .cm-xc-badge { display:table; margin-top:3px; font-size:11px; line-height:17px; color:#8a5a00; background:#f6eedb; border:1px solid #e8d3a6; border-radius:4px; padding:0 6px; font-weight:500; white-space:nowrap; }
+    #cm-extra-btn { border:1px solid #c3cad8; background:#fff; color:#1f2433; border-radius:6px; padding:4px 12px; font-size:13px; cursor:pointer; }
     #cm-extra-btn:hover { border-color:#1c2d58; color:#1c2d58; }
     #cm-extra-btn.on { background:#1c2d58; border-color:#1c2d58; color:#fff; }
   `;

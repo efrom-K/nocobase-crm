@@ -13,19 +13,19 @@ if (!document.getElementById('crm-controls-style')) {
   st.id = 'crm-controls-style';
   st.textContent = `
     select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
-      background-color:#fff; border:1px solid #d9d9d9; border-radius:6px; color:#262626; font-family:inherit; line-height:1.4;
+      background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
       padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
       background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
-    select:not([multiple]):not([size]):hover { border-color:#4b5f8f; }
+    select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
     select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    select:not([multiple]):not([size]):disabled { background-color:#f5f5f5 !important; color:#bfbfbf; cursor:not-allowed; border-color:#d9d9d9; }
-    select option { color:#262626; background:#fff; }
-    select option:disabled { color:#bfbfbf; }
-    input[type=file] { font-family:inherit; font-size:13px; color:#595959; max-width:100%; }
-    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #d9d9d9; border-radius:6px;
+    select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
+    select option { color:#1f2433; background:#fff; }
+    select option:disabled { color:#8a92a3; }
+    input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
+    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
       padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
-    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#f3f5fa; }
+    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
   `;
   document.head.appendChild(st);
 }
@@ -67,56 +67,56 @@ async function api(path, opts) {
   st.id = 'ml-style';
   st.textContent = `
     /* окно письма, меню и окна живут в body — переменные нужны и им */
-    #ml-root, .ml-compose, .ml-menu, .ml-toast, .ml-modal-wrap { --ml-blue: #005ff9; --ml-blue-h: #0050d4; --ml-bg: #f4f5f7; --ml-line: #eceef2; --ml-text: #2c2d2e; --ml-gray: #87898f; font-family: inherit; }
+    #ml-root, .ml-compose, .ml-menu, .ml-toast, .ml-modal-wrap { --ml-blue: #2f4a8a; --ml-blue-h: #2f4a8a; --ml-bg: #f3f5f9; --ml-line: #dfe3ec; --ml-text: #1f2433; --ml-gray: #5b6478; font-family: inherit; }
     .ml-app { display: flex; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--ml-line); min-height: 520px; color: var(--ml-text); }
     .ml-side { width: 232px; flex: 0 0 232px; background: var(--ml-bg); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
     .ml-compose-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 44px; margin: 0 2px 12px; border: none; border-radius: 12px; background: var(--ml-blue); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: 0 2px 6px rgba(0, 95, 249, .25); flex-shrink: 0; }
     .ml-compose-btn:hover { background: var(--ml-blue-h); }
     .ml-folder { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 10px; cursor: pointer; font-size: 14px; user-select: none; flex-shrink: 0; }
-    .ml-folder:hover { background: #e9ebef; }
+    .ml-folder:hover { background: #dfe3ec; }
     .ml-folder.active { background: #fff; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
-    .ml-folder.drop { background: #dbe8ff; box-shadow: inset 0 0 0 2px var(--ml-blue); }
-    .ml-folder svg { flex: 0 0 18px; color: #6f7278; }
+    .ml-folder.drop { background: #dde5f3; box-shadow: inset 0 0 0 2px var(--ml-blue); }
+    .ml-folder svg { flex: 0 0 18px; color: #5b6478; }
     .ml-folder.active svg { color: var(--ml-blue); }
     .ml-folder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ml-folder-count { font-size: 13px; font-weight: 600; color: var(--ml-text); }
     .ml-folder-add { color: var(--ml-gray); font-size: 13.5px; }
     .ml-folder-add:hover { color: var(--ml-blue); background: transparent; }
-    .ml-side-sep { height: 1px; background: #e2e4e9; margin: 8px 10px; flex-shrink: 0; }
+    .ml-side-sep { height: 1px; background: #dfe3ec; margin: 8px 10px; flex-shrink: 0; }
     .ml-box { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 10px; border-radius: 10px; cursor: pointer; font-size: 13px; user-select: none; flex-shrink: 0; }
-    .ml-box:hover { background: #e9ebef; }
+    .ml-box:hover { background: #dfe3ec; }
     .ml-box.active { background: #fff; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
     .ml-box-ava { width: 22px; height: 22px; border-radius: 50%; background: var(--ml-blue); color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; flex: none; }
     .ml-box-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ml-box-x { border: none; background: none; color: var(--ml-gray); cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 6px; visibility: hidden; }
-    .ml-box:hover .ml-box-x { visibility: visible; } .ml-box-x:hover { background: #dfe2e7; color: #e0342c; }
+    .ml-box:hover .ml-box-x { visibility: visible; } .ml-box-x:hover { background: #dfe3ec; color: #c23b3b; }
     .ml-box-add { color: var(--ml-gray); font-weight: 400; } .ml-box-add:hover { color: var(--ml-text); }
     .ml-side-foot { margin-top: auto; padding: 10px 6px 2px 12px; font-size: 12px; color: var(--ml-gray); display: flex; align-items: center; gap: 6px; }
     .ml-side-foot span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .ml-gear { border: none; background: transparent; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; color: #6f7278; display: inline-flex; align-items: center; justify-content: center; }
-    .ml-gear:hover { background: #e6e8ec; color: var(--ml-blue); }
+    .ml-gear { border: none; background: transparent; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; color: #5b6478; display: inline-flex; align-items: center; justify-content: center; }
+    .ml-gear:hover { background: #dfe3ec; color: var(--ml-blue); }
     .ml-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .ml-toolbar { display: flex; align-items: center; gap: 4px; height: 56px; padding: 0 16px; border-bottom: 1px solid var(--ml-line); flex-shrink: 0; }
     .ml-tbtn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 11px; border: none; border-radius: 8px; background: transparent; color: var(--ml-text); font-size: 13.5px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-    .ml-tbtn:hover { background: #f0f1f4; }
-    .ml-tbtn:disabled { color: #c0c2c7; cursor: default; background: transparent; }
-    .ml-tbtn svg { color: #6f7278; }
+    .ml-tbtn:hover { background: #e9edf5; }
+    .ml-tbtn:disabled { color: #c3cad8; cursor: default; background: transparent; }
+    .ml-tbtn svg { color: #5b6478; }
     .ml-tbtn.icon { width: 34px; padding: 0; justify-content: center; }
     .ml-title { font-size: 17px; font-weight: 600; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 8px; padding: 4px 8px; }
-    .ml-title:hover { background: #f0f1f4; }
+    .ml-title:hover { background: #e9edf5; }
     .ml-title small { font-size: 13px; font-weight: 400; color: var(--ml-blue); }
     .ml-search { margin-left: auto; position: relative; width: min(340px, 36%); }
     .ml-search input { width: 100%; height: 36px; box-sizing: border-box; border: 1px solid transparent; border-radius: 10px; background: var(--ml-bg); padding: 0 30px 0 34px; font-size: 14px; outline: none; font-family: inherit; }
     .ml-search input:focus { background: #fff; border-color: var(--ml-blue); }
     .ml-search > svg { position: absolute; left: 10px; top: 10px; color: var(--ml-gray); }
     .ml-search b { position: absolute; right: 10px; top: 8px; cursor: pointer; color: var(--ml-gray); font-weight: 400; }
-    .ml-check { width: 20px; height: 20px; border: 1.5px solid #b9bcc3; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #fff; box-sizing: border-box; }
+    .ml-check { width: 20px; height: 20px; border: 1.5px solid #8a92a3; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #fff; box-sizing: border-box; }
     .ml-check.on { background: var(--ml-blue); border-color: var(--ml-blue); }
     .ml-check.on::after { content: ''; width: 9px; height: 5px; border: 2px solid #fff; border-top: none; border-right: none; transform: rotate(-45deg) translate(1px, -1px); }
     .ml-list { flex: 1; overflow-y: auto; }
-    .ml-row { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px; border-bottom: 1px solid #f3f4f6; cursor: pointer; position: relative; }
-    .ml-row:hover { background: #f5f7fa; }
-    .ml-row.sel { background: #eaf1ff; }
+    .ml-row { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px; border-bottom: 1px solid #f3f5f9; cursor: pointer; position: relative; }
+    .ml-row:hover { background: #f3f5f9; }
+    .ml-row.sel { background: #eef2f9; }
     .ml-row.dragging { opacity: .5; }
     /* точка — только признак «не прочитано», без действия по клику */
     .ml-row .ml-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex: 0 0 8px; pointer-events: none; }
@@ -135,9 +135,9 @@ async function api(path, opts) {
     .ml-line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
     .ml-subj { color: var(--ml-text); }
     .ml-snip { color: var(--ml-gray); margin-left: 8px; }
-    .ml-imp { color: #e0342c; font-weight: 700; margin-right: 4px; }
+    .ml-imp { color: #c23b3b; font-weight: 700; margin-right: 4px; }
     .ml-icons { display: flex; align-items: center; gap: 8px; color: var(--ml-gray); flex-shrink: 0; }
-    .ml-flag { cursor: pointer; color: #d0d2d6; display: inline-flex; }
+    .ml-flag { cursor: pointer; color: #c3cad8; display: inline-flex; }
     .ml-flag.on { color: #ff9e00; }
     .ml-row:not(:hover) .ml-flag:not(.on) { visibility: hidden; }
     .ml-date { width: 64px; text-align: right; font-size: 13px; color: var(--ml-gray); flex-shrink: 0; }
@@ -154,7 +154,7 @@ async function api(path, opts) {
     .ml-read-addr { color: var(--ml-gray); }
     .ml-read-to { color: var(--ml-gray); font-size: 13px; margin-top: 3px; }
     .ml-read-date { color: var(--ml-gray); font-size: 13px; white-space: nowrap; }
-    .ml-imgbar { background: #fff8e6; border: 1px solid #ffe2a8; border-radius: 10px; padding: 8px 14px; font-size: 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+    .ml-imgbar { background: #f6eedb; border: 1px solid #e8d3a6; border-radius: 10px; padding: 8px 14px; font-size: 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
     .ml-imgbar a { color: var(--ml-blue); cursor: pointer; font-weight: 600; }
     .ml-body-frame { width: 100%; border: none; min-height: 40px; display: block; }
     .ml-atts-head { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--ml-line); font-size: 13.5px; color: var(--ml-gray); }
@@ -162,17 +162,17 @@ async function api(path, opts) {
     .ml-atts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
     .ml-att { display: flex; align-items: center; gap: 10px; width: 230px; padding: 10px 12px; border: 1px solid var(--ml-line); border-radius: 10px; cursor: pointer; background: #fff; position: relative; }
     .ml-att:hover { border-color: var(--ml-blue); }
-    .ml-att-ico { width: 36px; height: 36px; border-radius: 8px; background: #eaf1ff; color: var(--ml-blue); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; text-transform: uppercase; flex-shrink: 0; overflow: hidden; }
+    .ml-att-ico { width: 36px; height: 36px; border-radius: 8px; background: #eef2f9; color: var(--ml-blue); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; text-transform: uppercase; flex-shrink: 0; overflow: hidden; }
     .ml-att-ico img { width: 100%; height: 100%; object-fit: cover; }
     .ml-att-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ml-att-size { font-size: 12px; color: var(--ml-gray); }
-    .ml-att-dl { position: absolute; right: 8px; top: 8px; width: 24px; height: 24px; border-radius: 6px; display: none; align-items: center; justify-content: center; color: #6f7278; background: #fff; }
+    .ml-att-dl { position: absolute; right: 8px; top: 8px; width: 24px; height: 24px; border-radius: 6px; display: none; align-items: center; justify-content: center; color: #5b6478; background: #fff; }
     .ml-att:hover .ml-att-dl { display: flex; }
-    .ml-att-dl:hover { color: var(--ml-blue); background: #f3f5fa; }
+    .ml-att-dl:hover { color: var(--ml-blue); background: #e9edf5; }
     .ml-quick-reply { margin-top: 22px; border: 1px solid var(--ml-line); border-radius: 12px; padding: 14px 16px; color: var(--ml-gray); cursor: text; font-size: 14px; }
-    .ml-quick-reply:hover { border-color: #c9ccd2; }
+    .ml-quick-reply:hover { border-color: #c3cad8; }
     .ml-quick { display: flex; gap: 8px; margin-top: 12px; }
-    .ml-btn { height: 36px; padding: 0 16px; border-radius: 10px; border: 1px solid #d5d8de; background: #fff; color: var(--ml-text); font-size: 14px; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+    .ml-btn { height: 36px; padding: 0 16px; border-radius: 10px; border: 1px solid #c3cad8; background: #fff; color: var(--ml-text); font-size: 14px; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
     .ml-btn:hover { border-color: var(--ml-blue); color: var(--ml-blue); }
     .ml-btn-primary { background: var(--ml-blue); border-color: var(--ml-blue); color: #fff; font-weight: 600; }
     .ml-btn-primary:hover { background: var(--ml-blue-h); border-color: var(--ml-blue-h); color: #fff; }
@@ -180,102 +180,102 @@ async function api(path, opts) {
     .ml-card { max-width: 420px; margin: 70px auto; padding: 28px; border: 1px solid var(--ml-line); border-radius: 16px; text-align: center; background: #fff; }
     .ml-card h2 { font-size: 20px; margin: 0 0 8px; }
     .ml-card p { color: var(--ml-gray); font-size: 14px; margin: 0 0 18px; line-height: 1.5; }
-    .ml-card input { width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 14px; font-size: 15px; margin-bottom: 12px; outline: none; font-family: inherit; }
+    .ml-card input { width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #c3cad8; border-radius: 10px; padding: 0 14px; font-size: 15px; margin-bottom: 12px; outline: none; font-family: inherit; }
     .ml-card input:focus { border-color: var(--ml-blue); }
-    .ml-card .ml-err { color: #e0342c; font-size: 13px; min-height: 18px; margin-bottom: 8px; }
+    .ml-card .ml-err { color: #c23b3b; font-size: 13px; min-height: 18px; margin-bottom: 8px; }
     .ml-compose { position: fixed; right: 24px; bottom: 0; width: min(760px, calc(100vw - 48px)); height: min(660px, calc(100vh - 80px)); background: #fff; border-radius: 14px 14px 0 0; box-shadow: 0 8px 40px rgba(0,0,0,.22); z-index: 1000; display: flex; flex-direction: column; color: var(--ml-text); }
     .ml-compose.min { height: 48px; overflow: hidden; }
     .ml-compose.full { right: 5vw; width: 90vw; height: calc(100vh - 60px); }
     .ml-compose.hidden { display: none; }
-    .ml-compose-head { display: flex; align-items: center; height: 48px; padding: 0 10px 0 18px; background: #f4f5f7; border-radius: 14px 14px 0 0; font-weight: 600; font-size: 15px; cursor: pointer; flex-shrink: 0; }
+    .ml-compose-head { display: flex; align-items: center; height: 48px; padding: 0 10px 0 18px; background: #f3f5f9; border-radius: 14px 14px 0 0; font-weight: 600; font-size: 15px; cursor: pointer; flex-shrink: 0; }
     .ml-compose-head span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ml-compose-head button { border: none; background: transparent; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #6f7278; font-size: 15px; }
-    .ml-compose-head button:hover { background: #e6e8ec; }
+    .ml-compose-head button { border: none; background: transparent; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #5b6478; font-size: 15px; }
+    .ml-compose-head button:hover { background: #dfe3ec; }
     .ml-cf { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 18px; border-bottom: 1px solid var(--ml-line); position: relative; flex-shrink: 0; }
     .ml-cf label { width: 64px; flex: 0 0 64px; color: var(--ml-gray); font-size: 14px; }
     .ml-cf input { flex: 1; min-width: 120px; border: none; outline: none; font-size: 14px; height: 34px; font-family: inherit; }
     .ml-cf .ml-cf-toggle { color: var(--ml-gray); font-size: 13px; cursor: pointer; white-space: nowrap; }
     .ml-cf .ml-cf-toggle:hover { color: var(--ml-blue); }
     .ml-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-    .ml-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 10px; border-radius: 14px; background: #eaf1ff; font-size: 13px; max-width: 280px; }
-    .ml-chip.bad { background: #ffe9e8; color: #c4221b; }
+    .ml-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 10px; border-radius: 14px; background: #eef2f9; font-size: 13px; max-width: 280px; }
+    .ml-chip.bad { background: #f9e6e6; color: #c23b3b; }
     .ml-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ml-chip b { font-weight: 400; cursor: pointer; color: #6f7278; padding: 0 3px; }
+    .ml-chip b { font-weight: 400; cursor: pointer; color: #5b6478; padding: 0 3px; }
     .ml-suggest { position: absolute; left: 90px; right: 18px; top: 100%; background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.16); z-index: 5; max-height: 260px; overflow-y: auto; }
     .ml-suggest div { padding: 8px 14px; font-size: 13.5px; cursor: pointer; }
-    .ml-suggest div.on, .ml-suggest div:hover { background: #f3f5fa; }
+    .ml-suggest div.on, .ml-suggest div:hover { background: #e9edf5; }
     .ml-suggest small { color: var(--ml-gray); margin-left: 6px; }
     .ml-fmt { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 12px; border-bottom: 1px solid var(--ml-line); flex-shrink: 0; align-items: center; }
-    .ml-fmt button, .ml-fmt select { height: 30px; min-width: 32px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-size: 14px; color: #4a4c50; font-family: inherit; }
+    .ml-fmt button, .ml-fmt select { height: 30px; min-width: 32px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-size: 14px; color: #3a4256; font-family: inherit; }
     .ml-fmt select { font-size: 13px; padding: 0 4px; }
-    .ml-fmt button:hover, .ml-fmt select:hover { background: #f0f1f4; }
-    .ml-fmt i.sep { width: 1px; height: 18px; background: #e2e4e9; margin: 0 4px; }
+    .ml-fmt button:hover, .ml-fmt select:hover { background: #e9edf5; }
+    .ml-fmt i.sep { width: 1px; height: 18px; background: #dfe3ec; margin: 0 4px; }
     .ml-fmt input[type=color] { width: 28px; height: 26px; border: none; padding: 0; background: transparent; cursor: pointer; }
     .ml-editor-wrap { flex: 1; position: relative; min-height: 0; display: flex; }
     .ml-editor { flex: 1; overflow-y: auto; padding: 14px 18px; font-size: 14.5px; line-height: 1.5; outline: none; }
     .ml-editor img { max-width: 100%; }
-    .ml-editor blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 3px solid #d5d8de; color: #555; }
+    .ml-editor blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 3px solid #c3cad8; color: #3a4256; }
     .ml-drop { position: absolute; inset: 6px; border: 2px dashed var(--ml-blue); border-radius: 12px; background: rgba(234, 241, 255, .92); color: var(--ml-blue); font-size: 16px; font-weight: 600; display: none; align-items: center; justify-content: center; z-index: 3; pointer-events: none; }
     .ml-compose.dragover .ml-drop { display: flex; }
     .ml-compose-atts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 8px; flex-shrink: 0; }
-    .ml-compose-atts .ml-chip { background: #f4f5f7; }
+    .ml-compose-atts .ml-chip { background: #f3f5f9; }
     .ml-compose-foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--ml-line); flex-shrink: 0; flex-wrap: wrap; }
     .ml-compose-foot .ml-status { font-size: 12.5px; color: var(--ml-gray); margin-left: 6px; }
-    .ml-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4a4c50; cursor: pointer; user-select: none; padding: 0 6px; height: 32px; border-radius: 8px; }
-    .ml-opt:hover { background: #f0f1f4; }
+    .ml-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #3a4256; cursor: pointer; user-select: none; padding: 0 6px; height: 32px; border-radius: 8px; }
+    .ml-opt:hover { background: #e9edf5; }
     .ml-opt.on { color: var(--ml-blue); font-weight: 600; }
-    .ml-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #2c2d2e; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 14px; z-index: 1100; box-shadow: 0 4px 16px rgba(0,0,0,.2); display: flex; gap: 16px; align-items: center; }
+    .ml-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1f2433; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 14px; z-index: 1100; box-shadow: 0 4px 16px rgba(0,0,0,.2); display: flex; gap: 16px; align-items: center; }
     .ml-toast a { color: #7fb2ff; cursor: pointer; font-weight: 600; }
     .ml-menu { position: fixed; background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.16); z-index: 1200; padding: 6px; min-width: 210px; max-height: 360px; overflow-y: auto; color: var(--ml-text); }
     .ml-menu div { padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-    .ml-menu div:hover { background: #f3f5fa; }
+    .ml-menu div:hover { background: #e9edf5; }
     .ml-menu div.on { color: var(--ml-blue); font-weight: 600; }
-    .ml-menu div.danger { color: #e0342c; }
+    .ml-menu div.danger { color: #c23b3b; }
     .ml-menu hr { border: none; border-top: 1px solid var(--ml-line); margin: 4px 0; }
     .ml-modal-wrap { position: fixed; inset: 0; background: rgba(20, 22, 26, .55); z-index: 1150; display: flex; align-items: center; justify-content: center; }
     .ml-modal { background: #fff; border-radius: 14px; box-shadow: 0 12px 48px rgba(0,0,0,.3); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 60px); display: flex; flex-direction: column; color: var(--ml-text); }
     .ml-modal.wide { width: min(1100px, calc(100vw - 32px)); height: calc(100vh - 60px); }
     .ml-modal-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--ml-line); font-weight: 600; font-size: 16px; }
     .ml-modal-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ml-modal-head button.x { border: none; background: transparent; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #6f7278; font-size: 16px; }
-    .ml-modal-head button.x:hover { background: #f0f1f4; }
+    .ml-modal-head button.x { border: none; background: transparent; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #5b6478; font-size: 16px; }
+    .ml-modal-head button.x:hover { background: #e9edf5; }
     .ml-modal-body { padding: 16px 18px; overflow: auto; flex: 1; min-height: 0; }
     .ml-modal-body label { display: block; font-size: 13px; color: var(--ml-gray); margin: 0 0 6px; }
-    .ml-modal-body input[type=text] { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 12px; font-size: 14px; outline: none; font-family: inherit; margin-bottom: 14px; }
+    .ml-modal-body input[type=text] { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #c3cad8; border-radius: 10px; padding: 0 12px; font-size: 14px; outline: none; font-family: inherit; margin-bottom: 14px; }
     .ml-modal-body input[type=text]:focus, .ml-modal-body input[type=password]:focus, .ml-modal-body input[type=number]:focus { border-color: var(--ml-blue); }
-    .ml-modal-body input[type=password], .ml-modal-body input[type=number] { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 12px; font-size: 14px; outline: none; font-family: inherit; margin-bottom: 4px; }
+    .ml-modal-body input[type=password], .ml-modal-body input[type=number] { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #c3cad8; border-radius: 10px; padding: 0 12px; font-size: 14px; outline: none; font-family: inherit; margin-bottom: 4px; }
     .ml-hint { font-size: 12.5px; color: var(--ml-gray); line-height: 1.45; }
     a.ml-hint { color: var(--ml-blue); text-decoration: none; } a.ml-hint:hover { text-decoration: underline; }
-    .ml-modal-body .ml-err { color: #e0342c; font-size: 13px; min-height: 18px; margin-top: 8px; }
-    .ml-sig-edit { min-height: 110px; border: 1px solid #d5d8de; border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none; margin-bottom: 12px; line-height: 1.5; }
+    .ml-modal-body .ml-err { color: #c23b3b; font-size: 13px; min-height: 18px; margin-top: 8px; }
+    .ml-sig-edit { min-height: 110px; border: 1px solid #c3cad8; border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none; margin-bottom: 12px; line-height: 1.5; }
     .ml-sig-edit:focus { border-color: var(--ml-blue); }
     .ml-modal-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--ml-line); }
-    .ml-viewer { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #f4f5f7; }
+    .ml-viewer { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #f3f5f9; }
     .ml-viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .ml-viewer iframe { width: 100%; height: 100%; border: none; background: #fff; }
     .ml-source { white-space: pre-wrap; word-break: break-all; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; margin: 0; }
     .ml-loading { padding: 40px; text-align: center; color: var(--ml-gray); }
-    .ml-count { display: inline-block; margin-left: 6px; padding: 0 6px; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; background: #eceef2; color: #5b5e64; font-size: 11.5px; font-weight: 600; text-align: center; box-sizing: border-box; }
+    .ml-count { display: inline-block; margin-left: 6px; padding: 0 6px; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; background: #dfe3ec; color: #3a4256; font-size: 11.5px; font-weight: 600; text-align: center; box-sizing: border-box; }
     .ml-thread-count { font-size: 14px; font-weight: 400; color: var(--ml-gray); margin-left: 6px; }
     .ml-member { border: 1px solid var(--ml-line); border-radius: 12px; margin-bottom: 10px; background: #fff; }
     .ml-member.open { padding: 14px 16px; }
     .ml-member-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; font-size: 14px; }
-    .ml-member-head:hover { background: #f7f8fa; border-radius: 12px; }
+    .ml-member-head:hover { background: #f3f5f9; border-radius: 12px; }
     .ml-member-head .ml-avatar { width: 28px; height: 28px; font-size: 11px; flex: 0 0 28px; }
     .ml-member-head b { font-weight: 600; white-space: nowrap; }
     .ml-member-snip { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ml-gray); }
-    .ml-member-tag { font-size: 11.5px; color: #389e0d; background: #f0fae8; border-radius: 6px; padding: 1px 6px; }
+    .ml-member-tag { font-size: 11.5px; color: #2f7d4f; background: #e5f1ea; border-radius: 6px; padding: 1px 6px; }
     .ml-member .ml-read-head { margin-bottom: 12px; }
     .ml-member-actions { display: flex; gap: 8px; margin-top: 12px; }
-    .ml-sched-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+    .ml-sched-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid #f3f5f9; font-size: 14px; }
     .ml-sched-when { width: 190px; flex-shrink: 0; color: var(--ml-blue); font-weight: 600; }
     .ml-sched-main { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ml-sched-main span { color: var(--ml-gray); }
-    .ml-sched-err { color: #e0342c; font-size: 12.5px; }
+    .ml-sched-err { color: #c23b3b; font-size: 12.5px; }
     .ml-send-group { display: inline-flex; }
     .ml-send-group .ml-btn-primary:first-child { border-radius: 10px 0 0 10px; }
     .ml-send-group .ml-btn-primary + .ml-btn-primary { border-radius: 0 10px 10px 0; border-left: 1px solid rgba(255,255,255,.35); padding: 0 10px; }
-    .ml-when input { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #d5d8de; border-radius: 10px; padding: 0 12px; font-size: 14px; font-family: inherit; }
+    .ml-when input { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #c3cad8; border-radius: 10px; padding: 0 12px; font-size: 14px; font-family: inherit; }
     @media (max-width: 900px) { .ml-side { width: 64px; flex-basis: 64px; } .ml-folder-name, .ml-folder-count, .ml-compose-btn span, .ml-side-foot span, .ml-folder-add span { display: none; } .ml-from { width: 120px; flex-basis: 120px; } .ml-snip { display: none; } }
     /* телефон: папки — полоска сверху, письмо — две строки (кто · дата / тема), «Написать» — круглая кнопка внизу, новое письмо — на весь экран над клавиатурой */
     @media (max-width: 700px) {
@@ -343,7 +343,7 @@ if (!window.__mlBadgeTimer) {
         b = document.createElement('span');
         b.className = 'ml-menu-badge';
         // кружок в углу пункта меню (как у колокольчика): не меняет ширину пункта и не ломает строку меню
-        b.style.cssText = 'position:absolute;top:5px;right:2px;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;background:#ff4d4f;color:#fff;font-size:10.5px;font-weight:600;text-align:center;box-sizing:border-box;pointer-events:none;z-index:1;';
+        b.style.cssText = 'position:absolute;top:5px;right:2px;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;background:#c23b3b;color:#fff;font-size:10.5px;font-weight:600;text-align:center;box-sizing:border-box;pointer-events:none;z-index:1;';
         it.style.position = 'relative';   // getComputedStyle в песочнице блоков недоступен
         it.appendChild(b);
       }
@@ -475,7 +475,7 @@ function askText(title, label, value, okText) {
 function askConfirm(title, text, okText, danger) {
   return new Promise(function(resolve) {
     const w = modal(title, '<div style="font-size:14px;line-height:1.5;">' + text + '</div>',
-      { foot: '<button class="ml-btn" data-no>Отмена</button><button class="ml-btn ml-btn-primary" data-ok' + (danger ? ' style="background:#e0342c;border-color:#e0342c;"' : '') + '>' + esc(okText || 'Да') + '</button>', onClose: function() { resolve(false); } });
+      { foot: '<button class="ml-btn" data-no>Отмена</button><button class="ml-btn ml-btn-primary" data-ok' + (danger ? ' style="background:#c23b3b;border-color:#c23b3b;"' : '') + '>' + esc(okText || 'Да') + '</button>', onClose: function() { resolve(false); } });
     w.querySelector('[data-ok]').addEventListener('click', function() { resolve(true); w.remove(); });
     w.querySelector('[data-no]').addEventListener('click', function() { w.__close(); });
   });
@@ -631,7 +631,7 @@ function renderFolders() {
     const cnt = f.special === '\\Drafts' ? f.total : f.unseen;
     const showCnt = cnt && f.special !== '\\Sent' && f.special !== '\\Trash' && f.special !== '\\Archive';
     html += '<div class="ml-folder' + (f.path === S.folder ? ' active' : '') + '" data-folder="' + esc(f.path) + '"' + (f.depth ? ' style="padding-left:' + (12 + f.depth * 20) + 'px;"' : '') + ' title="' + esc(f.path) + '">' + (FOLDER_ICON[f.special] || IC.folder)
-      + '<span class="ml-folder-name">' + esc(f.name) + (f.own ? ' <small style="color:#87898f;font-weight:400;">· своя папка</small>' : '') + '</span>' + (showCnt ? '<span class="ml-folder-count">' + cnt + '</span>' : '') + '</div>';
+      + '<span class="ml-folder-name">' + esc(f.name) + (f.own ? ' <small style="color:#5b6478;font-weight:400;">· своя папка</small>' : '') + '</span>' + (showCnt ? '<span class="ml-folder-count">' + cnt + '</span>' : '') + '</div>';
     if (f.special === '\\Drafts' && (S.sched.length || S.folder === SCHED))
       html += '<div class="ml-folder' + (S.folder === SCHED ? ' active' : '') + '" data-sched="1">' + IC.clock + '<span class="ml-folder-name">Запланированные</span>' + (S.sched.length ? '<span class="ml-folder-count">' + S.sched.length + '</span>' : '') + '</div>';
   });
@@ -717,7 +717,7 @@ function listToolbar() {
       + (f.special !== '\\Junk' ? '<button class="ml-tbtn" data-act="spam">' + IC.spam + 'Спам</button>' : '<button class="ml-tbtn" data-act="notspam">' + IC.inbox + 'Не спам</button>')
       + '<button class="ml-tbtn" data-act="read">' + IC.read + 'Прочитано</button><button class="ml-tbtn" data-act="unread">Не прочитано</button>'
       + '<button class="ml-tbtn" data-act="flag">' + IC.flag + 'Флажок</button>'
-      + '<button class="ml-tbtn" data-act="move">' + IC.move + 'В папку</button><span style="color:#87898f;font-size:13px;margin-left:4px;">выбрано ' + n + '</span>';
+      + '<button class="ml-tbtn" data-act="move">' + IC.move + 'В папку</button><span style="color:#5b6478;font-size:13px;margin-left:4px;">выбрано ' + n + '</span>';
   } else {
     h += '<button class="ml-tbtn icon" data-act="refresh" title="Проверить почту">' + IC.refresh + '</button>'
       + '<span class="ml-title" id="ml-filter" title="Показать только…">' + esc(S.q ? 'Поиск: ' + S.q : f.name) + (S.filter ? ' <small>· ' + esc(FILTER_TITLES[S.filter]) + '</small>' : '') + IC.down + '</span>';
@@ -901,7 +901,7 @@ function renderScheduled() {
       + (j.lastError ? '<div class="ml-sched-err">Не отправилось с ' + j.attempts + '-й попытки: ' + esc(j.lastError) + ' — попробуем ещё раз</div>' : '') + '</div>'
       + '<button class="ml-btn" data-now="' + esc(j.id) + '">Отправить сейчас</button><button class="ml-btn" data-cancel="' + esc(j.id) + '" title="Письмо вернётся в черновики">Отменить</button></div>';
   }).join('');
-  main.innerHTML = '<div class="ml-toolbar"><span style="font-size:17px;font-weight:600;margin-left:4px;">Запланированные</span><span style="margin-left:10px;color:#87898f;font-size:13px;">письма уйдут сами в назначенное время, даже если NocoBase закрыт</span></div>'
+  main.innerHTML = '<div class="ml-toolbar"><span style="font-size:17px;font-weight:600;margin-left:4px;">Запланированные</span><span style="margin-left:10px;color:#5b6478;font-size:13px;">письма уйдут сами в назначенное время, даже если NocoBase закрыт</span></div>'
     + '<div class="ml-list">' + (rows || '<div class="ml-empty"><b>Запланированных писем нет</b>Чтобы отправить письмо позже, нажмите ⏰ рядом с кнопкой «Отправить»</div>') + '</div>';
   main.querySelectorAll('[data-now]').forEach(function(b) { b.addEventListener('click', async function() {
     try { await api('/scheduled/now', { json: { id: b.getAttribute('data-now') } }); toast('Письмо отправляется'); setTimeout(function() { loadList(true); refreshCounts(); }, 3000); } catch (e) { toast(e.message); }
@@ -921,7 +921,7 @@ function blockRemote(html) {
 function frameDoc(html, allowImages) {
   const csp = allowImages ? "img-src * data:; style-src 'unsafe-inline' *; font-src * data:" : "img-src data:; style-src 'unsafe-inline'; font-src data:";
   return '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; ' + csp + '"><base target="_blank">'
-    + '<style>body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14.5px;line-height:1.5;color:#2c2d2e;word-wrap:break-word;overflow-wrap:anywhere;}img{max-width:100%;height:auto;}img[data-remote]{background:#f4f5f7;}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #d5d8de;color:#555;}pre{white-space:pre-wrap;}table{max-width:100%;}a{color:#005ff9;}</style></head><body>'
+    + '<style>body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14.5px;line-height:1.5;color:#1f2433;word-wrap:break-word;overflow-wrap:anywhere;}img{max-width:100%;height:auto;}img[data-remote]{background:#f3f5f9;}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #c3cad8;color:#3a4256;}pre{white-space:pre-wrap;}table{max-width:100%;}a{color:#2f4a8a;}</style></head><body>'
     + (allowImages ? html : blockRemote(html)) + '</body></html>';
 }
 function hasRemoteImages(html) { return /<img[^>]+src=["']?https?:/i.test(html) || /url\(\s*['"]?https?:/i.test(html) || /\sbackground=["']?https?:/i.test(html); }
@@ -1171,7 +1171,7 @@ async function showSource(m) {
 }
 function printMessage(m) {
   const from = (m.from && m.from[0]) || {};
-  const head = '<h2 style="font:600 20px Arial;margin:0 0 10px;">' + esc(m.subject || '(без темы)') + '</h2><div style="font:13px Arial;color:#555;margin-bottom:16px;">От: ' + esc(from.name ? from.name + ' <' + from.address + '>' : from.address)
+  const head = '<h2 style="font:600 20px Arial;margin:0 0 10px;">' + esc(m.subject || '(без темы)') + '</h2><div style="font:13px Arial;color:#3a4256;margin-bottom:16px;">От: ' + esc(from.name ? from.name + ' <' + from.address + '>' : from.address)
     + '<br>Кому: ' + esc((m.to || []).map(function(a) { return a.name ? a.name + ' <' + a.address + '>' : a.address; }).join(', ')) + '<br>Дата: ' + esc(longDate(m.date)) + '</div><hr>';
   const fr = document.createElement('iframe');
   fr.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0;';
@@ -1185,8 +1185,8 @@ function printMessage(m) {
 async function openSettings() {
   const w = modal('Настройки почты', '<label>Имя отправителя (его видят получатели)</label><input type="text" id="ml-set-name" value="' + esc(S.settings.name) + '">'
     + '<label>Подпись (добавляется в конец новых писем)</label><div class="ml-sig-edit" id="ml-set-sig" contenteditable="true">' + (S.settings.signature || '') + '</div>'
-    + '<label style="display:flex;align-items:center;gap:8px;color:#2c2d2e;cursor:pointer;"><input type="checkbox" id="ml-set-reply"' + (S.settings.sigOnReply ? ' checked' : '') + '> Добавлять подпись в ответы и пересылаемые письма</label>'
-    + '<label style="display:flex;align-items:center;gap:8px;color:#2c2d2e;cursor:pointer;margin-top:10px;"><input type="checkbox" id="ml-set-threads"' + (S.settings.threads !== false ? ' checked' : '') + '> Группировать письма в цепочки (переписка по одной теме — одной строкой)</label>',
+    + '<label style="display:flex;align-items:center;gap:8px;color:#1f2433;cursor:pointer;"><input type="checkbox" id="ml-set-reply"' + (S.settings.sigOnReply ? ' checked' : '') + '> Добавлять подпись в ответы и пересылаемые письма</label>'
+    + '<label style="display:flex;align-items:center;gap:8px;color:#1f2433;cursor:pointer;margin-top:10px;"><input type="checkbox" id="ml-set-threads"' + (S.settings.threads !== false ? ' checked' : '') + '> Группировать письма в цепочки (переписка по одной теме — одной строкой)</label>',
     { foot: '<button class="ml-btn" data-no>Отмена</button><button class="ml-btn ml-btn-primary" data-ok>Сохранить</button>' });
   w.querySelector('[data-no]').addEventListener('click', function() { w.__close(); });
   w.querySelector('[data-ok]').addEventListener('click', async function() {
@@ -1254,7 +1254,7 @@ function openCompose(d) {
     + '<div class="ml-cf"><label>Тема</label><input type="text" id="ml-c-subj" value="' + esc(d.subject || '') + '"></div>'
     + '<div class="ml-fmt"><select data-fmtsel="fontSize" title="Размер текста"><option value="">Размер</option><option value="2">Мелкий</option><option value="3">Обычный</option><option value="5">Крупный</option><option value="6">Огромный</option></select><i class="sep"></i>'
     + '<button data-fmt="bold" title="Жирный (Ctrl+B)"><b>Ж</b></button><button data-fmt="italic" title="Курсив (Ctrl+I)"><i>К</i></button><button data-fmt="underline" title="Подчёркнутый (Ctrl+U)"><u>Ч</u></button><button data-fmt="strikeThrough" title="Зачёркнутый"><s>З</s></button>'
-    + '<input type="color" data-color="foreColor" value="#e0342c" title="Цвет текста"><i class="sep"></i>'
+    + '<input type="color" data-color="foreColor" value="#c23b3b" title="Цвет текста"><i class="sep"></i>'
     + '<button data-fmt="justifyLeft" title="По левому краю">⇤</button><button data-fmt="justifyCenter" title="По центру">↔</button><button data-fmt="justifyRight" title="По правому краю">⇥</button><i class="sep"></i>'
     + '<button data-fmt="insertUnorderedList" title="Список">•≡</button><button data-fmt="insertOrderedList" title="Нумерованный список">1≡</button><button data-fmt="indent" title="Цитата / отступ">❝</button>'
     + '<button data-fmt="createLink" title="Ссылка">🔗</button><button data-fmt="insertImage" title="Вставить картинку в текст">🖼</button><button data-fmt="removeFormat" title="Очистить оформление">T̸</button>'

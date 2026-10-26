@@ -16,19 +16,19 @@ if (!document.getElementById('crm-controls-style')) {
   st.id = 'crm-controls-style';
   st.textContent = `
     select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
-      background-color:#fff; border:1px solid #d9d9d9; border-radius:6px; color:#262626; font-family:inherit; line-height:1.4;
+      background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
       padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
       background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
-    select:not([multiple]):not([size]):hover { border-color:#4b5f8f; }
+    select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
     select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    select:not([multiple]):not([size]):disabled { background-color:#f5f5f5 !important; color:#bfbfbf; cursor:not-allowed; border-color:#d9d9d9; }
-    select option { color:#262626; background:#fff; }
-    select option:disabled { color:#bfbfbf; }
-    input[type=file] { font-family:inherit; font-size:13px; color:#595959; max-width:100%; }
-    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #d9d9d9; border-radius:6px;
+    select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
+    select option { color:#1f2433; background:#fff; }
+    select option:disabled { color:#8a92a3; }
+    input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
+    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
       padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
-    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#f3f5fa; }
+    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
   `;
   document.head.appendChild(st);
 }
@@ -36,21 +36,21 @@ if (!document.getElementById('cm-dash-style')) {
   const st = document.createElement('style');
   st.id = 'cm-dash-style';
   st.textContent = `
-    #cm-dash-panel { padding: 4px 0 12px; color: #1f1f1f; }
+    #cm-dash-panel { padding: 4px 0 12px; color: #1f2433; }
     [aria-label="Открыть ИИ-чат"] { display:none !important; }
     #cm-dash-panel .dash-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
     #cm-dash-panel .dash-title { font-size:18px; font-weight:700; margin-right:4px; }
-    #cm-dash-panel .dash-sub { font-size:12px; color:#8c8c8c; }
-    #cm-dash-panel .dash-link { border:1px solid #d9d9d9; background:#fff; color:#262626; border-radius:6px; padding:3px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+    #cm-dash-panel .dash-sub { font-size:12px; color:#5b6478; }
+    #cm-dash-panel .dash-link { border:1px solid #c3cad8; background:#fff; color:#1f2433; border-radius:6px; padding:3px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
     #cm-dash-panel .dash-link:hover { border-color:#1c2d58; color:#1c2d58; }
     #cm-dash-panel .dash-section { font-size:15px; font-weight:700; margin:18px 0 10px; }
     #cm-dash-panel .dash-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px; }
-    #cm-dash-panel .dash-tile { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }
-    #cm-dash-panel .dash-tile-label { font-size:12px; color:#8c8c8c; margin-bottom:4px; }
+    #cm-dash-panel .dash-tile { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }
+    #cm-dash-panel .dash-tile-label { font-size:12px; color:#5b6478; margin-bottom:4px; }
     #cm-dash-panel .dash-tile-value { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.25; }
-    #cm-dash-panel .dash-tile-value small { font-size:13px; font-weight:400; color:#8c8c8c; }
-    #cm-dash-panel .dash-tile-note { font-size:12px; color:#8c8c8c; margin-top:4px; line-height:1.45; }
-    #cm-dash-panel .dash-track { height:8px; background:#f0f0f0; border-radius:4px; overflow:hidden; margin-top:8px; }
+    #cm-dash-panel .dash-tile-value small { font-size:13px; font-weight:400; color:#5b6478; }
+    #cm-dash-panel .dash-tile-note { font-size:12px; color:#5b6478; margin-top:4px; line-height:1.45; }
+    #cm-dash-panel .dash-track { height:8px; background:#dfe3ec; border-radius:4px; overflow:hidden; margin-top:8px; }
     #cm-dash-panel .dash-fill { height:100%; background:#1c2d58; border-radius:0 4px 4px 0; }
     #cm-dash-panel .dash-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
     #cm-dash-panel .dash-chip { display:inline-flex; align-items:center; gap:5px; padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid; white-space:nowrap; }
@@ -58,26 +58,26 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel [data-go] { cursor:pointer; }
     #cm-dash-panel .dash-chip[data-go]:hover { filter:brightness(.92); text-decoration:underline; }
     #cm-dash-panel .dash-status div[data-go]:hover { box-shadow:0 0 0 2px currentColor inset; }
-    #cm-dash-panel .dash-ok { color:#389e0d; }
-    #cm-dash-panel .dash-warn { color:#d46b08; }
-    #cm-dash-panel .dash-bad { color:#cf1322; }
-    #cm-dash-panel .dash-empty { font-size:12.5px; color:#bfbfbf; padding:4px 0; }
+    #cm-dash-panel .dash-ok { color:#2f7d4f; }
+    #cm-dash-panel .dash-warn { color:#8a5a00; }
+    #cm-dash-panel .dash-bad { color:#c23b3b; }
+    #cm-dash-panel .dash-empty { font-size:12.5px; color:#8a92a3; padding:4px 0; }
     /* карточки объектов */
     #cm-dash-panel .dash-objs { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
-    #cm-dash-panel .dash-obj { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .12s, box-shadow .12s; display:flex; flex-direction:column; }
-    #cm-dash-panel .dash-obj:hover { border-color:#b4bfd9; box-shadow:0 2px 8px rgba(28,45,88,.08); }
+    #cm-dash-panel .dash-obj { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .12s, box-shadow .12s; display:flex; flex-direction:column; }
+    #cm-dash-panel .dash-obj:hover { border-color:#dde5f3; box-shadow:0 2px 8px rgba(28,45,88,.08); }
     #cm-dash-panel .dash-obj-name { font-size:15px; font-weight:700; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
-    #cm-dash-panel .dash-obj-name span { font-size:12px; font-weight:400; color:#8c8c8c; white-space:nowrap; }
+    #cm-dash-panel .dash-obj-name span { font-size:12px; font-weight:400; color:#5b6478; white-space:nowrap; }
     #cm-dash-panel .dash-obj-money { font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:10px; }
-    #cm-dash-panel .dash-obj-money small { font-size:12px; font-weight:400; color:#8c8c8c; }
-    #cm-dash-panel .dash-obj-area { font-size:12.5px; color:#595959; margin-top:8px; font-variant-numeric:tabular-nums; }
+    #cm-dash-panel .dash-obj-money small { font-size:12px; font-weight:400; color:#5b6478; }
+    #cm-dash-panel .dash-obj-area { font-size:12.5px; color:#3a4256; margin-top:8px; font-variant-numeric:tabular-nums; }
     #cm-dash-panel .dash-obj .dash-chips { margin-top:10px; }
-    #cm-dash-panel .dash-rest { font-size:12px; color:#8c8c8c; margin-top:10px; }
+    #cm-dash-panel .dash-rest { font-size:12px; color:#5b6478; margin-top:10px; }
     /* экран объекта */
     #cm-dash-panel .dash-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:12px; margin-top:12px; }
-    #cm-dash-panel .dash-card { border:1px solid #f0f0f0; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }
+    #cm-dash-panel .dash-card { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; }
     #cm-dash-panel .dash-card-title { font-size:14px; font-weight:600; margin-bottom:10px; display:flex; justify-content:space-between; gap:8px; }
-    #cm-dash-panel .dash-card-title span { font-weight:400; font-size:12px; color:#8c8c8c; }
+    #cm-dash-panel .dash-card-title span { font-weight:400; font-size:12px; color:#5b6478; }
     #cm-dash-panel .dash-status { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px; }
     #cm-dash-panel .dash-status div { border-radius:6px; padding:8px 10px; border:1px solid; }
     #cm-dash-panel .dash-status b { display:block; font-size:22px; line-height:1.1; font-variant-numeric:tabular-nums; }
@@ -85,34 +85,34 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel .dash-status .zero { opacity:.45; }
     #cm-dash-panel .dash-steps { display:flex; align-items:flex-start; }
     #cm-dash-panel .dash-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; min-width:0; }
-    #cm-dash-panel .dash-step:not(:last-child)::after { content:''; position:absolute; top:17px; left:calc(50% + 19px); right:calc(-50% + 19px); height:2px; background:#e8e8e8; }
-    #cm-dash-panel .dash-step-dot { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; border:2px solid #e8e8e8; color:#bfbfbf; background:#fff; font-variant-numeric:tabular-nums; }
+    #cm-dash-panel .dash-step:not(:last-child)::after { content:''; position:absolute; top:17px; left:calc(50% + 19px); right:calc(-50% + 19px); height:2px; background:#dfe3ec; }
+    #cm-dash-panel .dash-step-dot { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; border:2px solid #dfe3ec; color:#8a92a3; background:#fff; font-variant-numeric:tabular-nums; }
     #cm-dash-panel .dash-step-dot.on { background:#1c2d58; border-color:#1c2d58; color:#fff; }
-    #cm-dash-panel .dash-step[data-go]:hover .dash-step-dot { box-shadow:0 0 0 4px #cdd5e8; }
+    #cm-dash-panel .dash-step[data-go]:hover .dash-step-dot { box-shadow:0 0 0 4px #dde5f3; }
     #cm-dash-panel .dash-step[data-go]:hover .dash-step-lbl { color:#1c2d58; }
-    #cm-dash-panel .dash-step-lbl { font-size:11.5px; color:#595959; text-align:center; margin-top:6px; line-height:1.3; padding:0 2px; }
-    #cm-dash-panel .dash-row { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid #f5f5f5; font-size:13px; }
+    #cm-dash-panel .dash-step-lbl { font-size:11.5px; color:#3a4256; text-align:center; margin-top:6px; line-height:1.3; padding:0 2px; }
+    #cm-dash-panel .dash-row { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid #f3f5f9; font-size:13px; }
     #cm-dash-panel .dash-row:first-child { border-top:none; }
     #cm-dash-panel [data-open] { cursor:pointer; }
     #cm-dash-panel [data-open]:hover { color:#1c2d58; }
     #cm-dash-panel .dash-row-main { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #cm-dash-panel .dash-row-side { flex-shrink:0; font-variant-numeric:tabular-nums; }
-    #cm-dash-panel .dash-gap { font-size:13px; padding:6px 0; border-top:1px solid #f5f5f5; }
+    #cm-dash-panel .dash-gap { font-size:13px; padding:6px 0; border-top:1px solid #f3f5f9; }
     #cm-dash-panel .dash-gap:first-child { border-top:none; }
     #cm-dash-panel .dash-gap a { color:#1c2d58; cursor:pointer; margin-right:6px; }
     #cm-dash-panel .dash-table-wrap { overflow-x:auto; }
     #cm-dash-panel table.dash-table { width:100%; border-collapse:collapse; font-size:13px; }
-    #cm-dash-panel .dash-table th { text-align:left; font-weight:600; color:#595959; padding:7px 8px; border-bottom:1px solid #f0f0f0; white-space:nowrap; }
-    #cm-dash-panel .dash-table td { padding:7px 8px; border-bottom:1px solid #f5f5f5; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    #cm-dash-panel .dash-table th { text-align:left; font-weight:600; color:#3a4256; padding:7px 8px; border-bottom:1px solid #dfe3ec; white-space:nowrap; }
+    #cm-dash-panel .dash-table td { padding:7px 8px; border-bottom:1px solid #f3f5f9; white-space:nowrap; font-variant-numeric:tabular-nums; }
     #cm-dash-panel .dash-table .num { text-align:right; }
-    #cm-dash-panel .dash-table tbody tr:hover td { background:#f5faff; }
+    #cm-dash-panel .dash-table tbody tr:hover td { background:#eef2f9; }
     #cm-dash-panel .dash-edit { color:#1c2d58; cursor:pointer; }
     #cm-dash-panel .dash-tile.dash-wide { grid-column:span 2; }
     #cm-dash-panel .dash-kinds { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; column-gap:16px; font-size:13px; font-variant-numeric:tabular-nums; }
-    #cm-dash-panel .dash-kinds > div { padding:7px 0; border-top:1px solid #f5f5f5; }
-    #cm-dash-panel .dash-kinds > .kh { padding:0 0 4px; border-top:none; font-size:12px; color:#8c8c8c; }
+    #cm-dash-panel .dash-kinds > div { padding:7px 0; border-top:1px solid #f3f5f9; }
+    #cm-dash-panel .dash-kinds > .kh { padding:0 0 4px; border-top:none; font-size:12px; color:#5b6478; }
     #cm-dash-panel .dash-kinds .num { text-align:right; white-space:nowrap; }
-    #cm-dash-panel .dash-kinds .on { background:#f3f5fa; }
+    #cm-dash-panel .dash-kinds .on { background:#e9edf5; }
     #cm-dash-panel .dash-kinds [data-act] { cursor:pointer; }
     @media (max-width: 700px) {
       #cm-dash-panel .dash-grid { grid-template-columns:1fr; }
@@ -125,34 +125,34 @@ if (!document.getElementById('cm-dash-style')) {
       #cm-dash-panel .dash-step-lbl { margin-top:0; text-align:left; }
     }
     /* читаемость (как в статистике заявок): контрастные плитки, карточки и таблицы */
-    #cm-dash-panel .dash-tile, #cm-dash-panel .dash-card, #cm-dash-panel .dash-obj { border-color:#dfe3ea; }
+    #cm-dash-panel .dash-tile, #cm-dash-panel .dash-card, #cm-dash-panel .dash-obj { border-color:#dfe3ec; }
     #cm-dash-panel .dash-obj:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
-    #cm-dash-panel .dash-tile-label { font-size:12.5px; color:#434343; font-weight:600; }
-    #cm-dash-panel .dash-tile-value:not(.dash-bad):not(.dash-ok) { color:#141414; }
+    #cm-dash-panel .dash-tile-label { font-size:12.5px; color:#3a4256; font-weight:600; }
+    #cm-dash-panel .dash-tile-value:not(.dash-bad):not(.dash-ok) { color:#1f2433; }
     #cm-dash-panel .dash-tile-value small, #cm-dash-panel .dash-tile-note, #cm-dash-panel .dash-sub, #cm-dash-panel .dash-rest,
-    #cm-dash-panel .dash-obj-name span, #cm-dash-panel .dash-obj-money small, #cm-dash-panel .dash-card-title span { color:#595959; }
-    #cm-dash-panel .dash-obj-area { color:#434343; }
-    #cm-dash-panel .dash-card-title { font-size:15px; font-weight:700; color:#141414; }
-    #cm-dash-panel table.dash-table { font-size:13.5px; color:#1f1f1f; }
-    #cm-dash-panel .dash-table th { color:#262626; font-size:12.5px; background:#eef1f6; border-bottom:2px solid #c9d1df; padding:8px 10px; }
-    #cm-dash-panel .dash-table td { padding:8px 10px; border-bottom-color:#e8ebf0; font-weight:500; }
-    #cm-dash-panel .dash-table tbody tr:nth-child(even) td { background:#f8f9fb; }
-    #cm-dash-panel .dash-table tbody tr:hover td { background:#eaf0ff; }
-    #cm-dash-panel .dash-kinds { font-size:13.5px; color:#1f1f1f; column-gap:0; }
-    #cm-dash-panel .dash-kinds > div { padding:8px 10px; border-top-color:#e8ebf0; font-weight:500; }
-    #cm-dash-panel .dash-kinds > .kh { padding:7px 10px; background:#eef1f6; border-bottom:2px solid #c9d1df; color:#262626; font-weight:600; font-size:12.5px; }
+    #cm-dash-panel .dash-obj-name span, #cm-dash-panel .dash-obj-money small, #cm-dash-panel .dash-card-title span { color:#3a4256; }
+    #cm-dash-panel .dash-obj-area { color:#3a4256; }
+    #cm-dash-panel .dash-card-title { font-size:15px; font-weight:700; color:#1f2433; }
+    #cm-dash-panel table.dash-table { font-size:13.5px; color:#1f2433; }
+    #cm-dash-panel .dash-table th { color:#1f2433; font-size:12.5px; background:#e9edf5; border-bottom:2px solid #c3cad8; padding:8px 10px; }
+    #cm-dash-panel .dash-table td { padding:8px 10px; border-bottom-color:#dfe3ec; font-weight:500; }
+    #cm-dash-panel .dash-table tbody tr:nth-child(even) td { background:#f3f5f9; }
+    #cm-dash-panel .dash-table tbody tr:hover td { background:#eef2f9; }
+    #cm-dash-panel .dash-kinds { font-size:13.5px; color:#1f2433; column-gap:0; }
+    #cm-dash-panel .dash-kinds > div { padding:8px 10px; border-top-color:#dfe3ec; font-weight:500; }
+    #cm-dash-panel .dash-kinds > .kh { padding:7px 10px; background:#e9edf5; border-bottom:2px solid #c3cad8; color:#1f2433; font-weight:600; font-size:12.5px; }
   `;
   document.head.appendChild(st);
 }
 
 // статусы — от худшего к лучшему (порядок и цвета как в карточке договора)
 const DASH_STATUS = [
-  { v: '1_problem', label: 'Проблема', color: '#cf1322' },
+  { v: '1_problem', label: 'Проблема', color: '#c23b3b' },
   { v: '2_terminating', label: 'На расторжении', color: '#722ed1' },
   { v: '2_docs', label: 'Не хватает документов', color: '#1c2d58' },
-  { v: '2_attention', label: 'Требует внимания', color: '#d48806' },
-  { v: '3_ok', label: 'В порядке', color: '#389e0d' },
-  { v: '', label: 'Статус не задан', color: '#8c8c8c' }
+  { v: '2_attention', label: 'Требует внимания', color: '#8a5a00' },
+  { v: '3_ok', label: 'В порядке', color: '#2f7d4f' },
+  { v: '', label: 'Статус не задан', color: '#5b6478' }
 ];
 const DASH_STAGES = ['Заявка', 'Объявление', 'Условия', 'Подписание', 'Оплата счетов', 'Акт и скан'];
 const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '' };
@@ -160,9 +160,9 @@ const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: ''
 // до внедрения поля все договоры были помещениями); участки — отдельной площадью, машино-места — штуками.
 const DASH_KINDS = [
   { v: 'Помещение', many: 'Помещения', n: ['помещение', 'помещения', 'помещений'], color: '#1c2d58' },
-  { v: 'Земельный участок', many: 'Земельные участки', n: ['земельный участок', 'земельных участка', 'земельных участков'], color: '#389e0d' },
-  { v: 'Машино-место', many: 'Машино-места', n: ['машино-место', 'машино-места', 'машино-мест'], color: '#d46b08' },
-  { v: '', many: 'Вид не указан', n: ['без вида', 'без вида', 'без вида'], color: '#8c8c8c' }
+  { v: 'Земельный участок', many: 'Земельные участки', n: ['земельный участок', 'земельных участка', 'земельных участков'], color: '#2f7d4f' },
+  { v: 'Машино-место', many: 'Машино-места', n: ['машино-место', 'машино-места', 'машино-мест'], color: '#8a5a00' },
+  { v: '', many: 'Вид не указан', n: ['без вида', 'без вида', 'без вида'], color: '#5b6478' }
 ];
 function kindOf(r) { return r.object_kind || ''; }
 function kindTxt(k, n) { return n + ' ' + dNoun(n, k.n[0], k.n[1], k.n[2]); }
@@ -405,13 +405,13 @@ function objectCard(o) {
   });
   const chips = [];
   const go = function(v) { return 'status=' + v + '&obj=' + encodeURIComponent(o.name); };
-  if (st['1_problem']) chips.push(dChip(' проблема', '#cf1322', st['1_problem'], go('1_problem')));
+  if (st['1_problem']) chips.push(dChip(' проблема', '#c23b3b', st['1_problem'], go('1_problem')));
   if (term) chips.push(dChip((term.days < 0 ? 'расторжение прошло ' + dDateTxt(term.t) : 'расторжение ' + dDateTxt(term.t)), '#722ed1', undefined, go('2_terminating')));
   else if (st['2_terminating']) chips.push(dChip(' на расторжении', '#722ed1', st['2_terminating'], go('2_terminating')));
   if (st['2_docs']) chips.push(dChip(' нет документов', '#1c2d58', st['2_docs'], go('2_docs')));
-  if (st['2_attention']) chips.push(dChip(' требуют внимания', '#d48806', st['2_attention'], go('2_attention')));
-  if (noPrice) chips.push(dChip(' без цены', '#d46b08', noPrice));
-  if (o.forming) chips.push(dChip(' оформляется', '#595959', o.forming));
+  if (st['2_attention']) chips.push(dChip(' требуют внимания', '#8a5a00', st['2_attention'], go('2_attention')));
+  if (noPrice) chips.push(dChip(' без цены', '#8a5a00', noPrice));
+  if (o.forming) chips.push(dChip(' оформляется', '#3a4256', o.forming));
   let area;
   const kc = {};
   o.active.forEach(function(r) { kc[kindOf(r)] = (kc[kindOf(r)] || 0) + 1; });
@@ -432,8 +432,8 @@ function objectCard(o) {
     + '<div class="dash-obj-name">' + dEsc(o.name) + '<span>' + dContracts(o.active.length) + '</span></div>'
     + '<div class="dash-obj-money">' + (o.monthly ? dMoney(o.monthly) : '—') + ' <small>в месяц</small></div>'
     + area
-    + (!dashState.kind && kinds.length ? '<div class="dash-obj-area" style="color:#8c8c8c;">' + kinds.join(' · ') + '</div>' : '')
-    + (chips.length ? '<div class="dash-chips">' + chips.join('') + '</div>' : (o.active.length ? '<div class="dash-chips">' + dChip('без замечаний', '#389e0d') + '</div>' : ''))
+    + (!dashState.kind && kinds.length ? '<div class="dash-obj-area" style="color:#5b6478;">' + kinds.join(' · ') + '</div>' : '')
+    + (chips.length ? '<div class="dash-chips">' + chips.join('') + '</div>' : (o.active.length ? '<div class="dash-chips">' + dChip('без замечаний', '#2f7d4f') + '</div>' : ''))
     + '</div>';
 }
 
@@ -582,7 +582,7 @@ function dashEditArea(el) {
     if (done) return; done = true;
     const raw = inp.value.replace(/\s/g, '').replace(',', '.');
     if (!commit || raw === cur.replace(',', '.')) { renderDashboard(); return; }
-    if (raw !== '' && !/^\d+(\.\d{1,2})?$/.test(raw)) { done = false; inp.style.borderColor = '#ff4d4f'; inp.title = 'Только число, до 2 знаков после запятой'; return; }
+    if (raw !== '' && !/^\d+(\.\d{1,2})?$/.test(raw)) { done = false; inp.style.borderColor = '#c23b3b'; inp.title = 'Только число, до 2 знаков после запятой'; return; }
     const val = raw === '' ? null : Number(raw);
     try {
       await ctx.api.resource('contract_objects').update({ filterByTk: Number(id), values: { total_area: val } });

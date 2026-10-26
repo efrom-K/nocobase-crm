@@ -16,13 +16,13 @@ if (!document.getElementById('crm-mobile-style')) {
       .ant-layout-content .ant-table table { display:block; width:100% !important; min-width:0 !important; }
       .ant-layout-content .ant-table colgroup, .ant-layout-content .ant-table thead, .ant-layout-content .ant-table-measure-row { display:none !important; }
       .ant-layout-content .ant-table tbody { display:block; }
-      .ant-layout-content .ant-table tbody > tr.ant-table-row { display:block; padding:10px 12px; border-bottom:1px solid #e3e7ee; }
+      .ant-layout-content .ant-table tbody > tr.ant-table-row { display:block; padding:10px 12px; border-bottom:1px solid #dfe3ec; }
       .ant-layout-content .ant-table tbody > tr.ant-table-row > td { display:block; border:none !important; padding:1px 0 !important; white-space:normal !important; overflow:visible !important; text-overflow:clip !important; position:static !important; max-width:none !important; width:auto !important; font-size:14px; }
       .ant-layout-content .ant-table tbody > tr > td.ant-table-selection-column, .ant-layout-content .ant-table tbody > tr > td.crm-m-empty { display:none !important; }
       .ant-layout-content .ant-table tbody > tr > td.crm-m-title { font-size:15.5px; font-weight:600; padding-bottom:3px !important; }
       .ant-layout-content .ant-table tbody > tr.ant-table-row > td { background:transparent !important; }
       .ant-layout-content .ant-table tbody > tr > td[data-l]:not(.crm-m-title):not(.crm-m-empty) { display:flex !important; flex-wrap:wrap; align-items:baseline; column-gap:6px; }
-      .ant-layout-content .ant-table tbody > tr > td[data-l]:not(.crm-m-title)::before { content:attr(data-l) ':'; color:#8c8c8c; flex:none; }
+      .ant-layout-content .ant-table tbody > tr > td[data-l]:not(.crm-m-title)::before { content:attr(data-l) ':'; color:#5b6478; flex:none; }
       .ant-layout-content .ant-table tbody > tr > td .ant-table-cell-content, .ant-layout-content .ant-table tbody > tr > td > * { white-space:normal !important; display:inline; }
       .ant-layout-content .ant-table tbody > tr > td * { overflow:visible !important; text-overflow:clip !important; white-space:normal !important; max-width:none !important; width:auto !important; -webkit-line-clamp:unset !important; }
     }

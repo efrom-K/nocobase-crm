@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1c2d58">
+<title>Регистрация · Удалённый доступ</title>
+<link rel="icon" type="image/svg+xml" href="/app/ext/kn-brand/kn-mark.svg">
+<link rel="stylesheet" href="/app/ext/kn-brand/brand.css">
+<link rel="stylesheet" href="/app/ext/kn-brand/pages.css">
+<style>
+  .card { max-width: 480px; }
+  label { display: block; font-size: 14px; font-weight: 500; margin: 18px 0 7px; color: var(--kn-ink); }
+  label small { font-weight: 400; color: var(--kn-muted); font-size: 14px; }
+  input { width: 100%; height: 48px; font: inherit; color: var(--kn-ink); padding: 0 16px; background: #fff; border: 1px solid var(--kn-line-2); border-radius: var(--kn-r-sm); transition: border-color .15s, box-shadow .15s; }
+  input:hover { border-color: var(--kn-muted); }
+  input:focus { border-color: var(--kn-navy); outline: none; box-shadow: var(--kn-focus); }
+  ::placeholder { color: #8a92a3; }
+  .row { display: flex; gap: 12px; } .row > div { flex: 1; min-width: 0; }
+  .rules { list-style: none; padding: 0; margin: 10px 0 0; font-size: 14px; color: var(--kn-muted); }
+  .rules li { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .rules li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; flex: none; }
+  .rules li.ok { color: var(--kn-ok); } .rules li.ok::before { background: currentColor; }
+  form .btn { width: 100%; margin-top: 24px; }
+  .err { color: var(--kn-err); font-size: 14px; margin-top: 12px; min-height: 1em; }
+  .hp { position: absolute; left: -9999px; }
+  .done .login { font: 500 24px var(--kn-mono); color: var(--kn-navy); background: var(--kn-ice); border-radius: var(--kn-r-sm); padding: 14px; margin: 14px 0 20px; text-align: center; user-select: all; }
+  .done ol { padding-left: 20px; margin: 0; } .done li { margin: 8px 0; }
+  .alt { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--kn-line); font-size: 14px; color: var(--kn-muted); }
+  .alt a { font-weight: 500; text-decoration: none; } .alt a:hover { text-decoration: underline; }
+  @media (max-width: 420px) { .row { flex-direction: column; gap: 0; } }
+</style>
+</head>
+<body>
+<header class="hdr"><div class="in"><a href="/"><img src="/app/ext/kn-brand/kn-logo-white.svg" alt="Консалт Недвижимость" width="254" height="40"></a><span class="sep"></span><span class="tag">Удалённый доступ</span><nav class="nav"><a href="/">Вход</a></nav></div></header>
+<main><div class="in"><div class="card">
+  <form id="f" novalidate>
+    <p class="over">Сотрудникам</p>
+    <h1>Регистрация</h1>
+    <p class="lead">Заполните анкету — администратор проверит её и откроет доступ к рабочему столу.</p>
+    <div class="row">
+      <div><label for="last">Фамилия</label><input id="last" autocomplete="family-name" required></div>
+      <div><label for="first">Имя</label><input id="first" autocomplete="given-name" required></div>
+    </div>
+    <label for="middle">Отчество <small>— если есть</small></label><input id="middle" autocomplete="additional-name">
+    <label for="phone">Телефон</label><input id="phone" type="tel" autocomplete="tel" placeholder="+7 900 000-00-00" required>
+    <label for="note">Должность или отдел</label><input id="note" placeholder="Например: бухгалтерия">
+    <label for="pw">Придумайте пароль</label><input id="pw" type="password" autocomplete="new-password" required>
+    <ul class="rules" id="rules">
+      <li data-r="len">не короче 14 символов</li>
+      <li data-r="mix">3 из 4: строчные, заглавные, цифры, символы</li>
+      <li data-r="eq">пароли совпадают</li>
+    </ul>
+    <label for="pw2">Повторите пароль</label><input id="pw2" type="password" autocomplete="new-password" required>
+    <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button class="btn" id="go" type="submit">Отправить заявку</button>
+    <div class="err" id="err" role="alert"></div>
+    <div class="alt">Уже есть доступ? <a href="/">Войти</a> · <a href="/help">Как войти — пошаговая инструкция</a></div>
+  </form>
+  <div class="done" id="done" hidden>
+    <p class="over">Заявка отправлена</p>
+    <h1>Ваш логин</h1>
+    <p class="lead" style="margin:0">Запишите его — он понадобится для входа.</p>
+    <div class="login" id="login"></div>
+    <ol>
+      <li>Дождитесь, пока администратор подтвердит заявку.</li>
+      <li>Откройте <a href="/">remote.ykinvest.ru</a> и войдите с этим логином и своим паролем.</li>
+      <li>Заранее установите на телефон бесплатное приложение <b>«Яндекс Ключ»</b> или <b>«Google Authenticator»</b>. При первом входе на экране появится QR-код — отсканируйте его этим приложением и введите 6 цифр, которые оно покажет.</li>
+    </ol>
+    <div class="alt"><a href="/help">Подробная пошаговая инструкция →</a></div>
+  </div>
+</div></div></main>
+<footer class="ftr"><div class="in"><span>© Консалт Недвижимость</span><span>Удалённый рабочий стол · <a href="/help">Как войти</a></span></div></footer>
+<script>
+const $ = id => document.getElementById(id);
+function check() {
+  const p = $("pw").value, kinds = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter(r => r.test(p)).length;
+  const ok = { len: p.length >= 14, mix: kinds >= 3, eq: p.length > 0 && p === $("pw2").value };
+  document.querySelectorAll("#rules li").forEach(li => li.classList.toggle("ok", ok[li.dataset.r]));
+  return ok.len && ok.mix && ok.eq;
+}
+$("pw").oninput = $("pw2").oninput = check;
+$("f").onsubmit = async e => {
+  e.preventDefault(); $("err").textContent = "";
+  if (!$("last").value.trim() || !$("first").value.trim() || !$("phone").value.trim()) { $("err").textContent = "Заполните фамилию, имя и телефон"; return; }
+  if (!check()) { $("err").textContent = "Пароль не подходит под требования"; return; }
+  $("go").disabled = true;
+  try {
+    const body = {}; ["last","first","middle","phone","note","website"].forEach(k => body[k] = $(k).value);
+    body.password = $("pw").value;
+    const r = await fetch("/reg/api/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "Ошибка");
+    $("login").textContent = j.login; $("f").hidden = true; $("done").hidden = false;
+  } catch (x) { $("err").textContent = x.message; $("go").disabled = false; }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+/* remote.ykinvest.ru — Guacamole по брендбуку v1.2 (шапка как на help.*: синяя полоса с логотипом, бумажный фон, белая карточка).
+   build.sh ставит перед этим файлом brand.css с путями шрифтов app/ext/kn-brand/… — токены --kn-* берутся оттуда. */
+body, input, button, select, textarea { font-family: var(--kn-sans); }
+
+/* ---------- вход ---------- */
+div.login-ui { background: var(--kn-paper); color: var(--kn-ink-2); }
+.login-ui::before {
+  content: ""; position: fixed; left: 0; right: 0; top: 0; height: 72px; z-index: 1;
+  background: url('app/ext/kn-brand/kn-logo-white.svg') no-repeat max(16px, calc(50vw - 520px)) center / auto 40px, var(--kn-navy);
+}
+.login-ui::after {
+  content: "© Консалт Недвижимость · удалённый рабочий стол"; position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 22px max(16px, calc(50vw - 520px)); background: var(--kn-deep); color: rgba(255, 255, 255, .62); font: 400 14px var(--kn-sans);
+}
+.login-ui .login-dialog-middle { padding: 120px 16px 104px; vertical-align: middle; }
+.login-ui .login-dialog, .login-ui.continuation .login-dialog {
+  max-width: 460px; padding: 32px; font-size: 16px; text-align: left; background: #fff;
+  border: 1px solid var(--kn-line); border-radius: var(--kn-r); box-shadow: var(--kn-shadow);
+}
+.login-ui .login-dialog .logo { display: none; }
+.login-ui .login-dialog .version { text-align: left; margin: 0 0 22px; }
+.login-ui .login-dialog .version::before {
+  content: "Сотрудникам"; display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  font: 400 12px/1.2 var(--kn-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--kn-muted);
+  background: linear-gradient(currentColor, currentColor) left center / 18px 1px no-repeat; padding-left: 28px;
+}
+.login-ui .login-dialog .version .app-name { font: 600 32px/1.1 var(--kn-cond); color: var(--kn-ink); text-transform: none; text-align: left; }
+.login-ui .login-dialog .version::after {
+  content: "Рабочий стол офиса в браузере. Логин и пароль компании, затем код из приложения на телефоне.";
+  display: block; margin-top: 8px; color: var(--kn-muted); font-size: 15px; line-height: 1.5;
+}
+.login-ui .login-dialog .version .version-number { display: none; }
+.login-ui.continuation .login-dialog .version::after { content: none; }
+
+/* поля: подпись над полем, а не внутри */
+.login-ui .login-fields .labeled-field { margin-top: 18px; }
+.login-ui .login-fields .labeled-field:first-child { margin-top: 0; }
+.login-ui .login-fields .labeled-field .field-header {
+  position: static; z-index: auto; margin: 0 0 7px; opacity: 1; font-size: 14px; font-weight: 500; color: var(--kn-ink);
+}
+.login-ui .login-fields input[type="text"], .login-ui .login-fields input[type="password"], .login-ui .login-fields input[type="number"],
+.login-ui .login-fields .labeled-field.empty input {
+  width: 100%; height: 48px; padding: 0 16px; font-size: 16px; color: var(--kn-ink); background: #fff;
+  border: 1px solid var(--kn-line-2); border-radius: var(--kn-r-sm); box-shadow: none; transition: border-color .15s, box-shadow .15s;
+}
+.login-ui .login-fields input:hover { border-color: var(--kn-muted); }
+.login-ui .login-fields input:focus { border-color: var(--kn-navy); box-shadow: var(--kn-focus); outline: none; }
+.login-ui .login-fields .password-field { position: relative; }
+.login-ui .login-fields .password-field .toggle-password { top: 50%; transform: translateY(-50%); right: 10px; opacity: .55; }
+.login-ui .login-dialog .buttons { margin-top: 22px; }
+.login-ui .login-dialog .buttons input[type="submit"] {
+  width: 100%; height: 48px; margin: 0; padding: 0 22px; border-radius: var(--kn-pill); font: 500 16px var(--kn-sans);
+}
+.login-ui p.login-error {
+  color: var(--kn-err); background: var(--kn-err-soft); border-radius: var(--kn-r-sm); padding: 12px 16px; font-size: 15px;
+  max-width: 460px; margin: 96px auto -84px; position: relative; z-index: 2;
+}
+
+/* ссылки под формой (register-link.html) */
+.login-ui .kn-register { margin: 22px 0 0; padding-top: 20px; border-top: 1px solid var(--kn-line); text-align: left; font-size: 14px; color: var(--kn-muted); line-height: 1.6; }
+.login-ui .kn-register a { color: var(--kn-navy); font-weight: 500; text-decoration: none; }
+.login-ui .kn-register a:hover { text-decoration: underline; }
+.login-ui .kn-register .kn-help { font-weight: 400; }
+
+/* первый вход: QR-код приложения-ключа */
+.totp-enroll p { text-align: left; line-height: 1.55; font-size: 15px; color: var(--kn-ink-2); }
+.totp-qr-code img { border: 10px solid #fff; border-radius: var(--kn-r-sm); box-shadow: 0 0 0 1px var(--kn-line); }
+.login-ui .login-dialog .login-fields .totp-code input { text-align: center; font: 500 22px var(--kn-mono); letter-spacing: .3em; }
+.totp-show-details, .totp-hide-details { font-size: 14px; color: var(--kn-navy); font-weight: 500; }
+.totp-details td { font-family: var(--kn-mono); }
+
+/* ---------- после входа: шапка и список подключений ---------- */
+button, input[type="submit"] { background: var(--kn-navy) !important; border-color: var(--kn-navy) !important; border-radius: 8px; color: #fff; }
+button:hover, input[type="submit"]:hover { background: var(--kn-navy-2) !important; border-color: var(--kn-navy-2) !important; }
+.header { background: var(--kn-navy) !important; color: #fff; }
+.header h2 { color: #fff !important; font: 600 22px var(--kn-cond); }
+.header .user-menu { color: #fff !important; }
+.recent-connections .connection { border-radius: var(--kn-r-sm); overflow: hidden; box-shadow: var(--kn-shadow); }
+.list-item:hover { background: var(--kn-ice-soft); }
+
+@media (max-height: 640px) { .login-ui::after { display: none; } .login-ui .login-dialog-middle { padding-bottom: 24px; } }
+@media (max-width: 600px) {
+  .login-ui::before { height: 64px; background-size: auto 34px; }
+  .login-ui .login-dialog-middle { padding: 88px 12px 96px; }
+  .login-ui .login-dialog, .login-ui.continuation .login-dialog { padding: 24px 20px; }
+  .login-ui .login-dialog .version .app-name { font-size: 27px; }
+}

@@ -7,3 +7,4 @@ db/*data*.sql
 db/*.dump
 __pycache__/
 .DS_Store
+remote-portal/kn-brand.jar

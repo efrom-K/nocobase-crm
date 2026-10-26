@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Как войти · Удалённый доступ</title>
+<meta name="theme-color" content="#1c2d58">
+<link rel="icon" type="image/svg+xml" href="/app/ext/kn-brand/kn-mark.svg">
+<link rel="stylesheet" href="/app/ext/kn-brand/brand.css">
+<link rel="stylesheet" href="/app/ext/kn-brand/pages.css">
+<style>
+  .card { max-width: 760px; }
+  h2 { display: flex; align-items: baseline; gap: 12px; margin: 32px 0 12px; padding-top: 24px; border-top: 1px solid var(--kn-line); }
+  h2 .n { flex: none; font: 500 15px var(--kn-mono); color: var(--kn-navy); }
+  ol, ul { padding-left: 22px; margin: 8px 0; } li { margin: 7px 0; }
+  li::marker { color: var(--kn-muted); }
+  .tip, .warn { border-radius: var(--kn-r-sm); padding: 14px 18px; margin: 14px 0; font-size: 15px; }
+  .tip { background: var(--kn-ice-soft); }
+  .warn { background: var(--kn-warn-soft); color: #5a3b00; }
+  .apps { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .apps a { text-decoration: none; border: 1px solid var(--kn-line-2); border-radius: var(--kn-pill); padding: 8px 16px; color: var(--kn-navy); font-weight: 500; font-size: 14px; transition: border-color .15s; }
+  .apps a:hover { border-color: var(--kn-navy); }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--kn-line); }
+  .btns .btn { flex: 1 1 200px; }
+</style>
+</head>
+<body>
+<header class="hdr"><div class="in"><a href="/"><img src="/app/ext/kn-brand/kn-logo-white.svg" alt="Консалт Недвижимость" width="254" height="40"></a><span class="sep"></span><span class="tag">Удалённый доступ</span><nav class="nav"><a href="/">Вход</a></nav></div></header>
+<main><div class="in"><div class="card">
+  <p class="over">Инструкция</p>
+  <h1>Как войти в удалённый рабочий стол</h1>
+  <p class="lead">Через этот сайт вы работаете на рабочем компьютере офиса прямо из браузера — дома, в поездке, с ноутбука или планшета. Ничего устанавливать на компьютер не нужно. Понадобится только телефон для кода входа.</p>
+
+  <h2><span class="n">01</span>Регистрация (один раз)</h2>
+  <ol>
+    <li>Откройте <b>remote.ykinvest.ru</b> и нажмите <b>«Зарегистрироваться»</b> под формой входа.</li>
+    <li>Заполните фамилию, имя, телефон, должность и придумайте пароль: не короче 14 символов, с заглавными и строчными буквами и цифрами. Пример надёжного пароля: <kbd>Весна-Окно-2026</kbd> не подойдёт (русские буквы), а <kbd>Vesna-Okno-2026x</kbd> — подойдёт.</li>
+    <li>После отправки на экране появится <b>ваш логин</b> (например, <kbd>i.ivanov</kbd>). Запишите его.</li>
+    <li>Дождитесь, пока администратор подтвердит заявку — вам сообщат.</li>
+  </ol>
+
+  <h2><span class="n">02</span>Установите приложение-ключ на телефон</h2>
+  <p>Каждый вход подтверждается шестизначным кодом с вашего телефона — так никто не войдёт под вашим именем, даже узнав пароль. Подойдёт любое из бесплатных приложений:</p>
+  <div class="apps">
+    <a href="https://apps.apple.com/ru/app/id957324816" target="_blank" rel="noopener">Яндекс Ключ — iPhone</a>
+    <a href="https://play.google.com/store/apps/details?id=ru.yandex.key" target="_blank" rel="noopener">Яндекс Ключ — Android</a>
+    <a href="https://apps.apple.com/app/id388497605" target="_blank" rel="noopener">Google Authenticator — iPhone</a>
+    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" rel="noopener">Google Authenticator — Android</a>
+  </div>
+
+  <h2><span class="n">03</span>Первый вход и QR-код</h2>
+  <ol>
+    <li>На <b>remote.ykinvest.ru</b> введите логин и пароль, нажмите <b>«Вход»</b>.</li>
+    <li>Появится чёрно-белый квадрат — <b>QR-код</b>. Это нормально: так ваш телефон «знакомится» с системой.</li>
+    <li>Откройте на телефоне приложение-ключ, нажмите <b>«+»</b> (или «Добавить аккаунт») → <b>«Сканировать QR-код»</b> и наведите камеру телефона на квадрат на экране компьютера.</li>
+    <li>В приложении появится строка <b>«Консалт Недвижимость»</b> и 6 цифр. Они меняются каждые 30 секунд — это нормально.</li>
+    <li>Введите 6 цифр, которые видите сейчас, в поле под QR-кодом и нажмите <b>«Вход»</b>.</li>
+  </ol>
+  <div class="tip">Если вы открыли сайт на том же телефоне, где приложение, — камерой экран не отсканировать. Нажмите под QR-кодом <b>«Ввести ключ вручную»</b>, скопируйте длинный ключ и в приложении выберите «Ввести ключ».</div>
+
+  <h2><span class="n">04</span>Каждый следующий вход</h2>
+  <ol>
+    <li>Логин и пароль → <b>«Вход»</b>.</li>
+    <li>Откройте приложение-ключ, введите 6 цифр из строки «Консалт Недвижимость» → <b>«Вход»</b>.</li>
+    <li>Выберите, куда подключиться: <b>«Терминальный сервер»</b> или <b>«ПК Фамилия»</b> (ваш офисный компьютер, если он вам выдан).</li>
+  </ol>
+
+  <h2><span class="n">05</span>Во время работы</h2>
+  <ul>
+    <li>Ваши файлы — в папках <b>«Рабочий стол»</b>, <b>«Документы»</b> и <b>«Загрузки»</b>. Общая папка компании — диск <b>O:</b>.</li>
+    <li><b>Печать:</b> выберите принтер «Печать в PDF (удалённый доступ)» — файл скачается к вам на компьютер, оттуда его можно распечатать дома.</li>
+    <li><b>Передать файл на удалённый стол:</b> просто перетащите файл мышкой из своей папки в окно браузера. Он появится в удалённом столе в папке <b>«Передача файлов»</b> — ярлык на рабочем столе (это же диск «Transfer на Guacamole» в «Этом компьютере»). Оттуда скопируйте его в «Документы» или на диск O:.</li>
+    <li><b>Забрать файл к себе:</b> скопируйте его в папку <b>«Передача файлов» → «Download»</b> — браузер сразу скачает его на ваш компьютер.</li>
+    <li>Папка «Передача файлов» — временная: файлы в ней удаляются через сутки. Храните документы в «Документах» или на диске O:.</li>
+    <li><b>Копировать текст</b> между своим компьютером и удалённым столом можно обычным Ctrl+C / Ctrl+V.</li>
+    <li>Меню подключения (буфер обмена, выход) открывается сочетанием <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>.</li>
+    <li><b>Закончили работу</b> — нажмите в удалённом столе <b>Пуск → значок пользователя → «Выйти»</b>. Если просто закрыть вкладку, программы останутся открытыми и будут ждать вас.</li>
+  </ul>
+  <div class="warn">Подключение к своему офисному ПК — только когда вы <b>не</b> сидите за ним (дома, в другом кабинете). Из офиса это подключение закрыто: компьютер не может показывать сам себя.</div>
+
+  <h2><span class="n">?</span>Если что-то не получается</h2>
+  <ul>
+    <li><b>«Неверный логин или пароль»</b> — проверьте раскладку и Caps Lock; если заявка только что отправлена, её ещё не подтвердили.</li>
+    <li><b>Код не подходит</b> — вводите цифры, которые видны прямо сейчас; на телефоне должно стоять автоматическое время.</li>
+    <li><b>Поменяли или потеряли телефон</b> — напишите администратору, он сбросит ключ, и при следующем входе вы снова отсканируете QR-код.</li>
+    <li><b>Забыли пароль</b> — администратор выдаст новый.</li>
+    <li>Изображение подтормаживает — это нормально для видео; для работы с документами и программами скорости хватает.</li>
+  </ul>
+
+  <div class="btns">
+    <a class="btn" href="/">Войти</a>
+    <a class="btn alt" href="/register">Зарегистрироваться</a>
+  </div>
+</div></div></main>
+<footer class="ftr"><div class="in"><span>© Консалт Недвижимость</span><span>Удалённый рабочий стол · <a href="/register">Регистрация</a></span></div></footer>
+</body>
+</html>

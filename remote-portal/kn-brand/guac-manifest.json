@@ -1,0 +1,30 @@
+{
+  "guacamoleVersion": "1.6.0",
+  "name": "KN branding",
+  "namespace": "kn-brand",
+  "css": [
+    "kn-login.css"
+  ],
+  "translations": [
+    "translations/ru.json",
+    "translations/en.json"
+  ],
+  "resources": {
+    "brand.css": "text/css",
+    "pages.css": "text/css",
+    "kn-mark.svg": "image/svg+xml",
+    "kn-logo-white.svg": "image/svg+xml",
+    "fira-sans-400.woff2": "font/woff2",
+    "fira-sans-500.woff2": "font/woff2",
+    "fira-sans-600.woff2": "font/woff2",
+    "fira-sans-condensed-600.woff2": "font/woff2",
+    "fira-mono-400.woff2": "font/woff2",
+    "fira-mono-500.woff2": "font/woff2"
+  },
+  "html": [
+    "register-link.html"
+  ],
+  "js": [
+    "dpr.js"
+  ]
+}

@@ -712,7 +712,7 @@ const H_MAIN = [
   ['department', 'Отдел', 'select', function() { return hDeptNames(); }], ['legal_entity_id', 'Основное юрлицо', 'select', hLeOpts],
   ['employment_type', 'Тип занятости', 'select', HR_EMP_TYPE], ['rate', 'Ставка', 'select', ['1', '0.75', '0.5', '0.25']],
   ['object_name', 'Объект', 'list', function() { return (hr.d.objects || []).map(function(o) { return o.name; }); }], ['contract_until', 'Договор с внештатным / самозанятым до', 'date'],
-  ['hired_on', 'Принят', 'date'], ['fired_on', 'Уволен', 'date'], ['status', 'Статус', 'select', HR_EMP_ST],
+  ['hired_on', 'Принят', 'date'], ['started_on', 'Фактический выход на работу', 'date'], ['fired_on', 'Уволен', 'date'], ['status', 'Статус', 'select', HR_EMP_ST],
   ['vacation_days', 'Дней отпуска в год', 'num'], ['sout_id', 'Рабочее место (СОУТ)', 'select', function() { return hr.d.sout.map(function(s) { return [s.id, s.workplace + (s.work_class ? ' — класс ' + s.work_class : '')]; }); }],
   ['phone', 'Телефон', 'text'], ['email', 'Почта', 'text'], ['work_schedule', 'График работы', 'text'], ['birthday', 'День рождения', 'date'],
   ['extra_le_ids', 'Также оформлен в юрлицах (совместительство, директор)', 'multi', hLeOpts], ['note', 'Заметки', 'textarea']

@@ -1071,7 +1071,7 @@ function opCardHtml(r, c0) {
     + (rent && r.area_sqm && opNum(c.area_sqm) && Math.abs(opNum(c.area_sqm) - opNum(r.area_sqm)) > 0.05 ? '<b>На это помещение</b><span>≈ ' + opRub(Math.round(rent * opNum(r.area_sqm) / opNum(c.area_sqm))) + ' / мес (по доле площади)</span>' : '')
     + '</div><div class="op-pay">' + [['депозит', c.deposit_invoiced, c.deposit_paid, c.deposit_amount], ['аренда', c.rent_invoiced, c.rent_paid, rent], ['КУ', c.utility_invoiced, c.utility_paid, ut]]
       .filter(function(x) { return x[3]; }).map(function(x) { return '<span' + (x[2] ? ' class="ok"' : '') + ' title="первый счёт при заключении">' + x[0] + ': ' + (x[2] ? 'оплачен' : x[1] ? 'счёт выставлен' : 'счёт не выставлен') + '</span>'; }).join('') + '</div>';
-  const ps = d && d.prices ? d.prices.filter(function(p) { return p.rent_on !== false && p.amount; }) : [];
+  const ps = d && d.prices ? d.prices.filter(function(p) { return p.rent_on !== false && p.amount != null; }) : [];
   if (ps.length) h += '<div class="op-kv" style="margin-top:10px;">' + ps.map(function(p) {
     const cur = p.date_from <= today && today <= (p.date_to || '9999'), fut = p.date_from > today;
     return '<b' + (cur ? ' style="color:var(--ink);font-weight:700;"' : '') + '>' + opDate(p.date_from) + (p.date_to && p.date_to < '2099' ? ' – ' + opDate(p.date_to) : ' →') + '</b><span' + (cur ? ' style="font-weight:700;"' : fut ? '' : ' style="color:var(--muted);"') + '>'

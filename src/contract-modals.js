@@ -2152,8 +2152,8 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const chosen = PRICE_COMPONENTS.filter(function(c) { return compEl(c.key, 'on').checked; });
     if (!chosen.length) { cmToast('Отметьте хотя бы одну цену, которая меняется в этом периоде'); return; }
     const rentLines = rentMulti() && chosen.some(function(c) { return c.key === 'rent'; }) ? (rentLinesEd ? rentLinesEd.valid() : []) : null;
-    if (rentLines && !(areaLinesTotals(rentLines).rent > 0)) { cmToast('Арендная плата: укажите площади и ставки'); return; }
-    for (const c of chosen) { if (c.key === 'rent' && rentLines) continue; if (!(numOf(compEl(c.key, 'value').value) > 0)) { cmToast(c.title + ': укажите новое значение больше нуля'); compEl(c.key, 'value').focus(); return; } }
+    if (rentLines && !rentLines.length) { cmToast('Арендная плата: укажите площади и ставки'); return; }
+    for (const c of chosen) { if (c.key === 'rent' && rentLines) continue; const nv = numOf(compEl(c.key, 'value').value); if (nv === null || nv < 0) { cmToast(c.title + ': укажите новое значение (можно 0)'); compEl(c.key, 'value').focus(); return; } }   // 0 — например, арендные каникулы
     const on = function(key) { return chosen.some(function(c) { return c.key === key; }); };
     const val = function(key) { return on(key) ? numOf(compEl(key, 'value').value) : null; };
     const bas = function(key) { const b = compEl(key, 'basis'); return on(key) && b ? b.value : null; };

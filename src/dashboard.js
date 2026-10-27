@@ -156,7 +156,7 @@ const DASH_STATUS = [
   { v: '', label: 'Статус не задан', color: '#5b6478' }
 ];
 const DASH_STAGES = ['Заявка', 'Объявление', 'Условия', 'Подписание', 'Оплата счетов', 'Акт и скан'];
-const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '', view: (function() { try { return new URLSearchParams(location.search).get('view') === 'plan' ? 'plan' : ''; } catch (e) { return ''; } })(), open: {} };   // view 'plan' — «Планирование»
+const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '', view: (function() { try { return /[?&]view=plan(&|$)/.test(String(window.location.search || '')) ? 'plan' : ''; } catch (e) { return ''; } })(), open: {} };   // view 'plan' — «Планирование»
 // вид объекта договора (поле object_kind); '' — вид не указан. Площадь в м² складываем только у помещений (и у договоров без вида —
 // до внедрения поля все договоры были помещениями); участки — отдельной площадью, машино-места — штуками.
 const DASH_KINDS = [

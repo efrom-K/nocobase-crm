@@ -1,7 +1,7 @@
 // «Планирование» на дашборде: посуточное начисление и цена по «Дополнительным расчётам». Запуск: node tests/plan.test.js (идёт в CI)
-const fs=require('fs'); const src=fs.readFileSync(require('path').join(__dirname, '../src/dashboard.js'),'utf8');
+const fs=require('fs'); const rd=f=>fs.readFileSync(require('path').join(__dirname, '../src/'+f),'utf8'), src=rd('dashboard.js')+'\n'+rd('_crm-plan.js');
 const grab=n=>{const i=src.indexOf('function '+n+'('); let d=0,j=src.indexOf('{',i); for(let k=j;;k++){if(src[k]=='{')d++; if(src[k]=='}'&&--d==0) return src.slice(i,k+1);} };
-eval(['dKop','dDate','dDateTxt','dDateIso','planExtraTxt','planLinesArea','planMul','planPrice','planContractMonth'].map(grab).join('\n'));
+eval(['dKop','dDate','dDateTxt','plKop','plDate','plDateTxt','plIso','planExtraTxt','planLinesArea','planMul','planPrice','planContractMonth'].map(grab).join('\n'));
 const assert=require('assert');
 const oct={dim:31,iso:d=>'2026-10-'+('0'+d).slice(-2)}, nov={dim:30,iso:d=>'2026-11-'+('0'+d).slice(-2)};
 // въезд 15-го: 17/31 от 100 000

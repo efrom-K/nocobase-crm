@@ -8,6 +8,7 @@
 // @include src/_crm-calls.js
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
+// @include src/_crm-plan.js
 // @include src/_crm-xlsx.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
@@ -155,7 +156,7 @@ const DASH_STATUS = [
   { v: '', label: 'Статус не задан', color: '#5b6478' }
 ];
 const DASH_STAGES = ['Заявка', 'Объявление', 'Условия', 'Подписание', 'Оплата счетов', 'Акт и скан'];
-const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '', view: '', open: {} };   // view 'plan' — «Планирование»
+const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '', view: (function() { try { return new URLSearchParams(location.search).get('view') === 'plan' ? 'plan' : ''; } catch (e) { return ''; } })(), open: {} };   // view 'plan' — «Планирование»
 // вид объекта договора (поле object_kind); '' — вид не указан. Площадь в м² складываем только у помещений (и у договоров без вида —
 // до внедрения поля все договоры были помещениями); участки — отдельной площадью, машино-места — штуками.
 const DASH_KINDS = [
@@ -654,44 +655,6 @@ function dashExportXlsx() {
   });
 }
 
-// ---------- «Планирование»: сколько компания получила / получит по объектам за прошлый, текущий и следующий месяц ----------
-// Начисление посуточно: каждый день, когда договор действует (с даты акта приёма-передачи, без неё — с даты заключения,
-// по дату расторжения включительно), даёт 1/(дней в месяце) месячной цены, действующей в этот день. Заехал 15-го в 31-дневном месяце — 17/31.
-// Цена на день — как в карточке и apply_price_schedule.py: период «Дополнительных расчётов аренды» (для аренды и эксплуатационного сбора
-// отдельно; пересекаются — берётся начавшийся позже), иначе основная цена (base_*); у архивных договоров основной цены нет — их последняя цена.
-// Обеспечительный платёж не доход — не входит. Договоры в оформлении не входят (нет даты начала).
-function planMonths() {
-  const t = dToday(), out = [];
-  for (let k = -1; k <= 1; k++) {
-    const a = new Date(t.getFullYear(), t.getMonth() + k, 1), dim = new Date(a.getFullYear(), a.getMonth() + 1, 0).getDate();
-    out.push({ y: a.getFullYear(), m: a.getMonth(), dim: dim, iso: function(d) { return a.getFullYear() + '-' + ('0' + (a.getMonth() + 1)).slice(-2) + '-' + ('0' + d).slice(-2); },
-      name: a.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', ''), rel: ['прошлый', 'текущий', 'следующий'][k + 1] });
-  }
-  return out;
-}
-function planLinesArea(v) {
-  let l = v; if (typeof l === 'string') { try { l = JSON.parse(l); } catch (e) { l = null; } }
-  if (!Array.isArray(l)) return null;
-  const a = l.reduce(function(n, x) { const k = dKop(x && x.area); return n + (k && k > 0 ? k : 0); }, 0);
-  return a ? a / 100 : null;
-}
-function planMul(rate, area) { const a = Math.round(Number(rate) * 100), b = Math.round(Number(area) * 100); return Math.floor((a * b + 50) / 100); }   // ставка × площадь в копейках, как mulMoney
-// месячная цена договора r (тип typ) на день iso: { rent, util } в копейках и признак «по периоду»
-function planPrice(r, typ, per, iso) {
-  const ps = per.filter(function(p) { return dDateIso(p.date_from) <= iso && iso <= dDateIso(p.date_to) && (p.unit || 'month') === 'month'; });
-  const last = function(f) { const l = ps.filter(f); return l.length ? l[l.length - 1] : null; };
-  const rp = last(function(p) { return p.rent_on === true || (p.rent_on !== false && p.amount !== null && p.amount !== undefined); });
-  const up = last(function(p) { return !!p.utility_on; });
-  const area = (rp && planLinesArea(rp.rent_lines)) || planLinesArea(r.area_lines) || Number(r.base_area_sqm != null ? r.base_area_sqm : r.area_sqm) || 0;
-  const val = function(p, basis, v) { return basis === 'per_sqm' ? (area > 0 ? planMul(v, area) : 0) : dKop(v) || 0; };
-  // без периодов — текущая цена договора (как в реестре); с периодами вне периода — основная (base_*)
-  const base = function(b, cur) { const k = typ === 'active' && per.length ? dKop(r[b]) : null; return k !== null ? k : dKop(r[cur]) || 0; };
-  return {
-    rent: rp ? val(rp, rp.basis || 'per_sqm', rp.amount) : base('base_rent_amount', 'rent_amount'),
-    util: up ? val(up, up.utility_basis || 'per_sqm', up.utility_value) : base('base_utility_amount', 'utility_amount'),
-    byPeriod: !!(rp || up)
-  };
-}
 // «Дополнительные расчёты аренды» договора текстом для выгрузки: период, что меняется, комментарий
 function planExtraTxt(per) {
   const n = function(v) { return Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); };
@@ -701,30 +664,10 @@ function planExtraTxt(per) {
     if (p.rent_on && p.amount !== null && p.amount !== undefined) parts.push('аренда ' + n(p.amount) + b(p.basis || 'per_sqm'));
     if (p.utility_on && p.utility_value !== null && p.utility_value !== undefined) parts.push('эксплуатационный сбор ' + n(p.utility_value) + b(p.utility_basis || 'per_sqm'));
     if (p.deposit_on && p.deposit_value !== null && p.deposit_value !== undefined) parts.push('обеспечительный платёж ' + n(p.deposit_value) + ' ₽');
-    const to = dDateIso(p.date_to);
-    return 'с ' + dDateTxt(dDate(dDateIso(p.date_from))) + (!to || to >= '2099-12-31' ? ', без даты окончания' : ' по ' + dDateTxt(dDate(to))) + ': '
+    const to = plIso(p.date_to);
+    return 'с ' + dDateTxt(dDate(plIso(p.date_from))) + (!to || to >= '2099-12-31' ? ', без даты окончания' : ' по ' + dDateTxt(dDate(to))) + ': '
       + (parts.join(', ') || '—') + (p.note ? '. Комментарий: ' + String(p.note).trim() : '');
   }).join('\n');
-}
-function dDateIso(v) { return String(v || '').slice(0, 10); }
-// начисление по договору за месяц M: копейки аренды и сбора, дней, пометка
-function planContractMonth(r, typ, per, M) {
-  const from = dDateIso(r.date_act || r.date_signed), to = dDateIso(r.termination_date) || '9999-12-31';
-  if (!from) return null;
-  let rent = 0, util = 0, days = 0, byPeriod = false, first = '', lastD = '';
-  for (let d = 1; d <= M.dim; d++) {
-    const iso = M.iso(d);
-    if (iso < from || iso > to) continue;
-    const p = planPrice(r, typ, per, iso);
-    rent += p.rent; util += p.util; days++; byPeriod = byPeriod || p.byPeriod;
-    if (!first) first = iso; lastD = iso;
-  }
-  if (!days) return null;
-  rent = Math.round(rent / M.dim); util = Math.round(util / M.dim);
-  const note = [];
-  if (days < M.dim) note.push(dDateIso(first) === M.iso(1) ? 'по ' + dDateTxt(dDate(lastD)) : lastD === M.iso(M.dim) ? 'с ' + dDateTxt(dDate(first)) : dDateTxt(dDate(first)) + '–' + dDateTxt(dDate(lastD)));
-  if (byPeriod) note.push('доп. расчёт');
-  return { rent: rent, util: util, total: rent + util, days: days, note: note.join(', ') };
 }
 function planData() {
   const d = dv(), months = planMonths(), per = { active: {}, completed: {} };

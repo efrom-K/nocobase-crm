@@ -7,6 +7,7 @@
 // @include src/_crm-calls.js
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
+// @include src/_crm-plan.js
 if (!document.getElementById('ceo-style')) {
   const st = document.createElement('style');
   st.id = 'ceo-style';
@@ -88,13 +89,14 @@ async function cList(coll, extra) {
 async function ceoLoad() {
   const today = cIso(cToday());
   const k = ['active', 'forming', 'drafts', 'completed', 'requests', 'tasks', 'users', 'emps', 'vacations', 'safety', 'vacancies', 'candidates', 'events',
-    'exp', 'subs', 'routines', 'poa', 'fire', 'mail', 'fines', 'cards', 'skud'];
+    'exp', 'subs', 'routines', 'poa', 'fire', 'mail', 'fines', 'cards', 'skud', 'periods'];
   const v = await Promise.all([
-    cList('rental_contracts'), cList('forming_contracts'), cList('draft_contracts', { fields: ['id'] }), cList('completed_contracts', { fields: ['id'] }),
+    cList('rental_contracts'), cList('forming_contracts'), cList('draft_contracts', { fields: ['id'] }), cList('completed_contracts'),
     cList('object_requests'), cList('crm_tasks'), cList('users', { fields: ['id', 'nickname', 'username'] }),
     cList('crm_employees'), cList('crm_vacations'), cList('crm_safety'), cList('crm_vacancies'), cList('crm_candidates', { fields: ['id', 'stage', 'interview_on', 'full_name'] }),
     cList('crm_hr_events'), cList('crm_aho_expenses'), cList('crm_aho_subs'), cList('crm_aho_routines'), cList('crm_aho_poa'), cList('crm_aho_fire'),
-    cList('crm_aho_mail'), cList('crm_aho_fines'), cList('crm_skud_cards'), cList('crm_skud_events', { filter: { day: today }, fields: ['card'] })
+    cList('crm_aho_mail'), cList('crm_aho_fines'), cList('crm_skud_cards'), cList('crm_skud_events', { filter: { day: today }, fields: ['card'] }),
+    cList('contract_price_periods', { filter: { contract_type: { $in: ['active', 'completed'] } }, sort: ['date_from', 'id'] })
   ]);
   const d = {};
   k.forEach(function(x, i) { d[x] = v[i]; });
@@ -132,6 +134,7 @@ function ceoCalc(d) {
   const c = { d: d };
   // договоры
   c.rentKop = 0; c.utilKop = 0; c.status = {}; c.ending = []; c.noPrice = 0;
+  c.planM = planMonths()[2]; c.plan = planMonthTotal(d.active, d.completed, d.periods, c.planM);   // доход на следующий месяц — как в «Планировании»
   d.active.forEach(function(r) {
     const a = cKop(r.rent_amount), u = cKop(r.utility_amount);
     if (a !== null) c.rentKop += a; if (u !== null) c.utilKop += u;
@@ -268,6 +271,7 @@ function ceoRender() {
     .map(function(x) { return c.status[x[0]] ? cChip(' ' + x[1], x[2], c.status[x[0]], CEO_URL.registry + '?status=' + x[0]) : ''; }).join('');
   const contracts = cCard('Аренда и договоры', CEO_URL.company,
     '<div class="c-tiles">' + cTile('Доход в месяц', cMoney(c.rentKop + c.utilKop), 'аренда ' + cMoney(c.rentKop) + '<br>сбор ' + cMoney(c.utilKop), '', CEO_URL.company)
+    + cTile('План на ' + c.planM.name.replace(/ \d{4}$/, ''), cMoney(c.plan.rent + c.plan.util), 'аренда ' + cMoney(c.plan.rent) + '<br>сбор ' + cMoney(c.plan.util), '', CEO_URL.company + '?view=plan')
     + cTile('Действуют', d.active.length, c.noPrice ? '<span class="c-bad">без цены: ' + c.noPrice + '</span>' : 'все с ценой', '', CEO_URL.registry)
     + cTile('Оформляются', d.forming.length, 'черновиков: ' + d.drafts.length, '', CEO_URL.registry)
     + cTile('Расторжение ≤ 90 дн.', c.ending.length, 'в архиве всего: ' + d.completed.length, c.ending.length ? 'c-warn' : 'zero', CEO_URL.registry + '?status=2_terminating') + '</div>'

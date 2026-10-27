@@ -1780,24 +1780,25 @@ function hRenderEmp(m, id) {
   // отпуска
   // вся история отпусков за время работы — по годам, новые сверху; у каждого года — сколько дней ежегодного использовано
   const vacs = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id; }).sort(function(a, b) { return hD(b.start_date).localeCompare(hD(a.start_date)); });
-  const vacYears = vacs.map(function(v) { return hD(v.start_date).slice(0, 4); }).filter(function(x, i, a) { return a.indexOf(x) === i; });
   const vacLine = function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; };
   const bal = staff && HR_MODE === 'hr' ? hVacBalance(e) : null;
-  // долг за календарный год = норма/12 за каждый отработанный месяц, начавшийся в этом году, − ежегодный отпуск, начатый в этом году; сумма по годам = итог
-  const debt = {}, today = hToday();
-  if (bal) {
-    const cnt = {};
-    for (let k = 0; k < bal.months; k++) { const yk = hAddM(e.hired_on, k).slice(0, 4); cnt[yk] = (cnt[yk] || 0) + 1; }
-    Object.keys(cnt).forEach(function(yk) { debt[yk] = hR2(bal.norm * cnt[yk] / 12); });
-    vacs.forEach(function(v) { if (v.kind === HR_VAC_KINDS[0] && hD(v.start_date) <= today) { const k = hD(v.start_date).slice(0, 4); debt[k] = hR2((debt[k] || 0) - (Number(v.days) || 0)); } });
-  }
-  if (bal) Object.keys(debt).forEach(function(yy) { if (vacYears.indexOf(yy) === -1) vacYears.push(yy); });
-  vacYears.sort().reverse();
-  const balView = !staff || HR_MODE !== 'hr' ? '' : '<div style="margin:0 0 6px;font-size:13.5px;">' + (bal && bal.left < 0 ? 'Взято авансом: <b>' + hN2(-bal.left) + ' дн.' : 'Компания должна: <b>' + (bal ? hN2(bal.left) + ' дн.' : '— <span class="hr-hint">нет даты приёма</span>')) + '</b></div>';
-  const vacView = balView + (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#1f2433;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + (can ? ' <a data-vdays style="color:#1c2d58;cursor:pointer;margin-left:6px;">✎ изменить норму</a>' : '') + '</div>' : '')
-    + (vacYears.length ? vacYears.map(function(yy) {
-        return '<div style="margin:10px 0 4px;font-weight:600;font-size:13.5px;">' + yy + ' <span class="hr-hint" style="font-weight:400;">· ежегодного ' + hVacUsed(e, yy) + ' дн.' + (debt[yy] > 0 ? ' · долг ' + hN2(debt[yy]) + ' дн.' : debt[yy] < 0 ? ' · сверх нормы ' + hN2(-debt[yy]) + ' дн.' : '') + '</span></div>'
-          + lines(vacs.filter(function(v) { return hD(v.start_date).slice(0, 4) === yy; }).map(vacLine), '');
+  // отпуска группируются по рабочим годам от даты приёма (без даты — по календарным); долг за рабочий год = начислено за него − ежегодный отпуск, начатый в нём (до сегодня)
+  const today = hToday(), groups = {};
+  const wyOf = function(d) { if (!e.hired_on || hD(d) < hD(e.hired_on)) return 'c' + hD(d).slice(0, 4); let k = 0; while (hAddM(e.hired_on, 12 * (k + 1)) <= hD(d)) k++; return k; };
+  vacs.forEach(function(v) { const k = wyOf(v.start_date); (groups[k] = groups[k] || []).push(v); });
+  if (bal) bal.years.forEach(function(w, k) { groups[k] = groups[k] || []; });
+  const keys = Object.keys(groups).sort(function(a, b) { const na = a[0] === 'c' ? +a.slice(1) * 1e4 : +a, nb = b[0] === 'c' ? +b.slice(1) * 1e4 : +b; return a[0] === b[0] ? nb - na : (a[0] === 'c' ? 1 : -1); });
+  const used = function(list, upTo) { return list.reduce(function(n, v) { return n + (v.kind === HR_VAC_KINDS[0] && (!upTo || hD(v.start_date) <= upTo) ? Number(v.days) || 0 : 0); }, 0); };
+  const balView = !staff || HR_MODE !== 'hr' ? '' : '<div style="margin:0 0 6px;font-size:13.5px;">' + (bal && bal.left < 0 ? 'Взято авансом: <b>' + hN2(-bal.left) + ' дн.' : 'Компания должна: <b>' + (bal ? hN2(bal.left) + ' дн.' : '— <span class="hr-hint">нет даты приёма</span>')) + '</b>'
+    + ' <span class="hr-hint">· норма ' + (e.vacation_days || 28) + ' дн. в год' + (can ? ' <a data-vdays style="color:#1c2d58;cursor:pointer;">✎ изменить</a>' : '') + '</span></div>';
+  const vacView = balView
+    + (keys.length ? keys.map(function(k) {
+        const list = groups[k], cal = k[0] === 'c';
+        const from = cal ? '' : hAddM(e.hired_on, 12 * k), to = cal ? '' : hIso(new Date(new Date(hAddM(e.hired_on, 12 * (+k + 1)) + 'T00:00:00') - 86400000));
+        const w = !cal && bal ? bal.years[+k] : null, d = w ? hR2(w.acc - used(list, today)) : 0;
+        return '<div style="margin:10px 0 4px;font-weight:600;font-size:13.5px;">' + (cal ? k.slice(1) : hDate(from) + ' – ' + hDate(to)) + ' <span class="hr-hint" style="font-weight:400;">· ежегодного ' + used(list) + ' дн.'
+          + (w ? (d > 0 ? ' · долг ' + hN2(d) + ' дн.' : d < 0 ? ' · сверх начисленного ' + hN2(-d) + ' дн.' : '') : '') + '</span></div>'
+          + lines(list.map(vacLine), '');
       }).join('') : lines([], 'Отпусков нет'))
     + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button></div>' : '');
   // охрана труда

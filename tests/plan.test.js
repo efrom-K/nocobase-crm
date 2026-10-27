@@ -19,3 +19,13 @@ assert.strictEqual(m.rent,Math.round((10*10000000+20*20000000)/30)); assert.stri
 m=planContractMonth({date_act:'2025-01-01',base_area_sqm:10,base_rent_amount:0},'active',[{date_from:'2026-11-01',date_to:'2026-11-30',basis:'per_sqm',amount:500,unit:'month'}],nov); assert.strictEqual(m.rent,500000);
 assert.strictEqual(planContractMonth({date_act:'2026-12-01',rent_amount:1},'active',[],nov),null);
 console.log('ok');
+// выгрузка: лист «Общая» + по листу на объект, доп. расчёты — оранжевым; файл собирается
+{ const xs=fs.readFileSync(require('path').join(__dirname, '../src/_crm-xlsx.js'),'utf8'); global.window={};
+  const blob=eval(xs.slice(xs.indexOf('const CRM_XLSX_T'), xs.indexOf('function crmXlsx('))+';crmXlsxBlob');
+  let spec; const crmXlsx=(n,s)=>{spec=s;}, dashState={kind:''}, DASH_KINDS=[];
+  const M3=[{name:'сентябрь 2026',rel:'прошлый'},{name:'октябрь 2026',rel:'текущий'},{name:'ноябрь 2026',rel:'следующий'}], mm={rent:100,util:50,total:150,days:30,note:''};
+  const planData=()=>({months:M3,list:[{name:'Правдинский',sum:[150,150,150],rows:[{r:{contract_number:'Пр 1',tenant_name:'ИП'},typ:'active',extra:true,ms:[mm,mm,null]}]}]});
+  eval(grab('planExportXlsx')+';planExportXlsx()');
+  assert.deepStrictEqual(spec.sheets.map(s=>s.name),['Общая','Правдинский']);
+  assert.strictEqual(spec.sheets[1].rows[0][2].paint,'orange'); assert.strictEqual(spec.sheets[0].rows[0][2],1);
+  assert.ok(blob(spec)); }

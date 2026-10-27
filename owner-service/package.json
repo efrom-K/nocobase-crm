@@ -1,0 +1,12 @@
+{
+  "name": "nocobase-owner-service",
+  "private": true,
+  "description": "Кабинет собственника (owner.ykinvest.ru): цифры по объектам, решения, отчёты в PDF. Пока на демо-данных",
+  "main": "server.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "reports": "node build-reports.js",
+    "test": "node --test"
+  }
+}

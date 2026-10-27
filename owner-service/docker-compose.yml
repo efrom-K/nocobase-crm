@@ -1,0 +1,13 @@
+# Кабинет собственника. Настройки — в .env рядом (OWNER_SECRET), в git не попадает
+services:
+  owner:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+    ports:
+      - "8098:8098"
+    volumes:
+      - ./brand:/app/brand:ro   # фирменный кит из brand/ репозитория, как у requests-service
+      - ./data:/app/data        # решения и настройки собственника (демо)

@@ -173,7 +173,9 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-row.full { grid-column: 1 / -1; }
     .cm-label { color: #5b6478; font-size: 12px; margin-bottom: 2px; }
     .cm-value { color: #1f2433; font-size: 14px; }
-    .cm-file-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #dfe3ec; }
+    .cm-file-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-bottom:1px solid #dfe3ec; }
+    .cm-file-row:nth-child(even) { background:#f8f9fb; }   /* зебра: длинный список файлов не сливается */
+    .cm-file-row:hover { background:#eaf0ff; }
     .cm-file-row:last-child { border-bottom: none; }
     .cm-al { grid-column: 1 / -1; }
     .cm-al-table { display:grid; grid-template-columns: 140px 170px 150px 24px; gap:6px 12px; align-items:center; margin-top:8px; }
@@ -2296,6 +2298,11 @@ if (!document.getElementById('cm-extra-style')) {
     .cm-contact-actions a { color: #5b6478; text-decoration: none; cursor: pointer; }
     .cm-contact-actions a:hover { color: #1c2d58; }
     .cm-contact-form { margin-top: 10px; padding: 12px; border: 1px solid #dfe3ec; border-radius: 6px; background: #f3f5f9; }
+    /* доп. соглашение — отдельная карточка с номером, файлы внутри — своим списком */
+    .cm-contact-card.cm-add-card { border: 1px solid #dfe3ec; border-left: 3px solid #1c2d58; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
+    .cm-add-num { display: inline-block; min-width: 22px; padding: 0 6px; margin-right: 8px; border-radius: 10px; background: #1c2d58; color: #fff; font-size: 11.5px; font-weight: 600; text-align: center; line-height: 20px; }
+    .cm-add-files { margin-top: 8px; border: 1px solid #eef1f6; border-radius: 4px; font-size: 12.5px; }
+    .cm-add-files .cm-file-row { padding: 5px 8px; }
   `;
   document.head.appendChild(st);
 }
@@ -2460,7 +2467,7 @@ function attachInnLookup(el) {
     const rec = root.__cmActiveRec;
     Object.keys(extra).forEach(function(k) { if (rec[k] === extra[k]) delete extra[k]; });
     if (!Object.keys(extra).length) return;
-    try { await updateWithHistory('rental_contracts', root.__cmActiveId, extra); Object.assign(rec, extra); renderAllActiveReadonly(root, rec); }
+    try { await updateWithHistory(root.__cmActiveColl || 'rental_contracts', root.__cmActiveId, extra); Object.assign(rec, extra); renderAllActiveReadonly(root, rec); }
     catch (err) { cmToast('Не удалось сохранить название арендатора'); }
   }
   async function applyValues(val) {
@@ -2722,6 +2729,7 @@ async function openCompletedContractModal(id) {
       <div class="ant-modal" style="width:100%;max-width:min(1800px, 96vw);">
         <div class="ant-modal-content" style="position:relative;background:#fff;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.12);display:flex;flex-direction:column;max-height:92vh;">
           <div class="cm-modal-toolbar">
+            <button id="cm-restore-btn" style="display:none;border:1px solid #b9c6e0;background:#eaf0ff;color:#1c2d58;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Вернуть из архива</button>
             <button id="cm-delete-btn" style="display:none;border:1px solid #e7b9b9;background:#f9e6e6;color:#c23b3b;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;">Удалить договор</button>
             <button id="cm-close-btn" class="ant-modal-close" style="border:none;background:transparent;cursor:pointer;font-size:18px;line-height:1;color:rgba(0,0,0,0.45);padding:4px;">✕</button>
           </div>
@@ -2796,13 +2804,30 @@ async function openCompletedContractModal(id) {
       });
     }
 
+    // администратор: правит архивный договор и может вернуть его в действующие; остальным — только просмотр
+    const isAdmin = !!(currentUser && currentUser.__isAdmin);
+    if (isAdmin) {
+      const resBtn = overlay.querySelector('#cm-restore-btn');
+      resBtn.style.display = '';
+      resBtn.addEventListener('click', async function() {
+        resBtn.disabled = true;
+        try { await restoreContract(id, contractNumber); }
+        catch (e) { cmToast('Не удалось вернуть договор из архива'); }
+        resBtn.disabled = false;
+      });
+    }
+
     initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
 
-    let html = '<div class="cm-completed-banner">Договор в архиве · только просмотр</div>';
+    let html = '<div class="cm-completed-banner">' + (isAdmin ? 'Договор в архиве · правка доступна администратору' : 'Договор в архиве · только просмотр') + '</div>';
     html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
-      + '<div id="cm-completed-files-list">' + renderFilesList(files, null) + '</div></div>'
+      + '<div id="cm-completed-files-list">' + renderFilesList(files, isAdmin ? currentUser : null) + '</div>'
+      + (isAdmin ? '<div class="cm-upload-row"><input type="file" id="cm-completed-file-input" style="display:none;">'
+        + '<button class="cm-upload-btn" id="cm-completed-upload-btn"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Прикрепить файл</button>'
+        + '<span id="cm-completed-upload-status" style="font-size:12px;color:#5b6478;"></span></div>' : '')
+      + '</div>'
       + renderAddendumsSection('cm-completed')
       + renderHistorySection('cm-completed');
 
@@ -2811,10 +2836,23 @@ async function openCompletedContractModal(id) {
     paintInnStatus(overlay);
     await wireAddendums(overlay, 'cm-completed', 'completed', id, currentUser);
     const addAddBtn = overlay.querySelector('#cm-completed-addendum-add-btn');
-    if (addAddBtn) addAddBtn.style.display = 'none';
-    await wireContacts(overlay, 'cm-completed', 'completed', id, false);
-    await wirePrices(overlay, 'cm-completed', 'completed', id, false, r);
+    if (addAddBtn && !isAdmin) addAddBtn.style.display = 'none';
+    await wireContacts(overlay, 'cm-completed', 'completed', id, isAdmin);
+    await wirePrices(overlay, 'cm-completed', 'completed', id, isAdmin, r);
     wireHistory(overlay, 'cm-completed', 'completed', id);
+    wireActiveBlockEdits(overlay, id, r, currentUser, 'completed_contracts');
+    if (isAdmin) {
+      wireDerivedHints(overlay);
+      const refreshCompletedFiles = async function() {
+        const r2 = histPayload(await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files'] }));
+        const listEl = overlay.querySelector('#cm-completed-files-list');
+        if (listEl) listEl.innerHTML = renderFilesList((r2 && r2.contract_files) || [], currentUser);
+        bindFileOpenLinks(overlay);
+        bindFileDeleteLinks(overlay, id, 'completed_contracts', refreshCompletedFiles);
+      };
+      bindFileDeleteLinks(overlay, id, 'completed_contracts', refreshCompletedFiles);
+      bindFileUpload(overlay, id, 'completed_contracts', { input: 'cm-completed-file-input', btn: 'cm-completed-upload-btn', status: 'cm-completed-upload-status' }, refreshCompletedFiles, r);
+    }
     bindFileOpenLinks(overlay);
 
     initMembers(id, overlay, members, !!(currentUser && currentUser.__isAdmin), contractNumber, state, 'completed_contracts', 'completed');
@@ -3420,10 +3458,13 @@ function collectFormValues(formEl, fieldTypes) {
   return values;
 }
 
-function wireActiveBlockEdits(root, id, r, currentUser) {
+// coll: rental_contracts (активный) или completed_contracts (архив — правит только администратор)
+function wireActiveBlockEdits(root, id, r, currentUser, coll) {
+  coll = coll || 'rental_contracts';
   root.__cmActiveId = id;      // для подстановки реквизитов по ИНН в блок «Данные по договору»
   root.__cmActiveRec = r;
-  if (!canEditActiveBlocks(currentUser)) return;
+  root.__cmActiveColl = coll;
+  if (coll === 'completed_contracts' ? !(currentUser && currentUser.__isAdmin) : !canEditActiveBlocks(currentUser)) return;
   root.querySelectorAll('[data-active-edit-toggle]').forEach(function(btn) { btn.style.display = ''; });
 
   root.querySelectorAll('[data-active-edit-toggle]').forEach(function(btn) {
@@ -3508,7 +3549,7 @@ function wireActiveBlockEdits(root, id, r, currentUser) {
           // причину ручного статуса, кроме «Проблемы», база подставит сама
           if (hasKey(values, 'contract_status') && values.contract_status !== '1_problem' && !hasKey(values, 'status_reason')) values.status_reason = null;
         }
-        const upResp = await updateWithHistory('rental_contracts', id, values);
+        const upResp = await updateWithHistory(coll, id, values);
         if (becameProblem) {
           const me = await getCurrentUser();
           (r.contract_members || []).forEach(function(m) {
@@ -3829,12 +3870,12 @@ function renderAddendumsSection(prefix) {
 
 function renderAddendumsList(items, canEdit) {
   if (!items.length) return '<div style="color:#8a92a3;font-size:12px;">Пока нет дополнительных соглашений</div>';
-  return items.map(function(a) {
-    return '<div class="cm-contact-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
-      + '<div style="font-weight:600;font-size:13px;">' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#3a4256;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
+  return items.map(function(a, i) {
+    return '<div class="cm-contact-card cm-add-card" data-addendum="' + a.id + '"><div class="cm-contact-main">'
+      + '<div style="font-weight:600;font-size:13px;"><span class="cm-add-num">' + (i + 1) + '</span>' + esc(a.title || 'Дополнительное соглашение') + (a.date_signed ? ' <span style="font-weight:400;color:#3a4256;">от ' + esc(fmtDate(a.date_signed)) + '</span>' : '') + '</div>'
       + (a.description ? '<div style="font-size:12.5px;color:#3a4256;margin-top:2px;">' + esc(a.description) + '</div>' : '')
       // файлы ДС — как в разделе «Файлы»: имя, размер, «Открыть», «Скачать» (удаление — через ✎)
-      + ((a.files || []).length ? '<div style="margin-top:4px;font-size:12.5px;">' + renderFilesList(a.files, null) + '</div>' : '')
+      + ((a.files || []).length ? '<div class="cm-add-files">' + renderFilesList(a.files, null) + '</div>' : '')
       + '</div>' + (canEdit ? '<div class="cm-contact-actions"><a data-addendum-edit="' + a.id + '" title="Изменить">✎</a><a data-addendum-del="' + a.id + '" title="Удалить">✕</a></div>' : '')
       + '</div>';
   }).join('');
@@ -3872,8 +3913,8 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   const statusSpan = overlay.querySelector('#' + prefix + '-addendum-status');
   if (!listEl || !addBtn) return;
 
-  // изменять и удалять — те же, кто работает с карточкой (в архиве — только просмотр)
-  const canEdit = contractType !== 'completed' && (contractType === 'draft' || canEditActiveBlocks(currentUser));
+  // изменять и удалять — те же, кто работает с карточкой (в архиве — только администратор)
+  const canEdit = contractType === 'completed' ? !!(currentUser && currentUser.__isAdmin) : (contractType === 'draft' || canEditActiveBlocks(currentUser));
   let items = [], editId = null;
   let keepFiles = [], newFiles = [];   // уже прикреплённые (при изменении) и выбранные сейчас
   function renderChosen() {
@@ -4035,7 +4076,7 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone, rec) {
     let scanField = root.__cmScanField; root.__cmScanField = null;
     // «+ Прикрепить файл»: спрашиваем, что это за документ — сканы договора и акта нужны для статуса «Не хватает документов»
     if (!scanField) {
-      const regularForming = collectionName !== 'rental_contracts' && !(rec && rec.is_quick);
+      const regularForming = collectionName !== 'rental_contracts' && collectionName !== 'completed_contracts' && !(rec && rec.is_quick);
       const kind = await cmChoice('Что это за файл «' + file.name + '»?', regularForming ? PYRUS_DOC_CHOICES : SCAN_CHOICES);
       if (kind === null) { input.value = ''; return; }
       scanField = kind;
@@ -4118,11 +4159,9 @@ async function publishQuickContract(id, root) {
   await finalizeContract(id, members, contractNumber);
 }
 
-async function completeContract(id, members, contractNumber) {
-  if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перенести в «Архив»?'))) return;
-  const res = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
-  const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
-  const payload = {
+// поля, которые переезжают вместе с договором «Действующие» ⇄ «Архив» (у обеих коллекций они одинаковые)
+function contractMovePayload(f) {
+  return {
     contract_number: f.contract_number, date_signed: f.date_signed, date_act: f.date_act,
     object_name: f.object_name, object_kind: f.object_kind, tenant_name: f.tenant_name, area_sqm: f.area_sqm, area_lines: f.area_lines || null,
     email: f.email, phone: f.phone, tenant_fio: f.tenant_fio,
@@ -4137,6 +4176,13 @@ async function completeContract(id, members, contractNumber) {
     kpp: f.kpp, ogrn: f.ogrn, legal_address: f.legal_address, director: f.director, director_post: f.director_post, tenant_type: f.tenant_type, passport: f.passport, passport_issued: f.passport_issued,
     contract_scan_url: f.contract_scan_url, act_scan_url: f.act_scan_url, notes: f.notes
   };
+}
+
+async function completeContract(id, members, contractNumber) {
+  if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перенести в «Архив»?'))) return;
+  const res = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+  const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+  const payload = contractMovePayload(f);
   const createRes = await ctx.api.resource('completed_contracts').create({ values: payload });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
   const newId = newRec.id;
@@ -4187,6 +4233,43 @@ async function completeContract(id, members, contractNumber) {
   }
   closeContractModal();
   cmToast('Готово: договор перенесён в «Архив»');
+  setTimeout(function() { location.reload(); }, 400);
+}
+
+// обратно из «Архива» в «Действующие» — только администратор; зеркально completeContract
+async function restoreContract(id, contractNumber) {
+  const me = await getCurrentUser();
+  if (!(me && me.__isAdmin)) return;
+  if (!(await cmConfirm('Вернуть договор «' + contractNumber + '» из «Архива» в действующие?'))) return;
+  const f = histPayload(await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] }));
+  const createRes = await ctx.api.resource('rental_contracts').create({ values: contractMovePayload(f) });
+  const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
+  const newId = newRec.id;
+  const post = function(url, body) {
+    return fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  };
+  const fileIds = (f.contract_files || []).map(function(x) { return x.id; });
+  if (fileIds.length) await post('/api/rental_contracts/' + newId + '/contract_files:add', fileIds);
+  const memberIds = (f.contract_members || []).map(function(x) { return x.id; });
+  if (memberIds.length) await post('/api/rental_contracts/' + newId + '/contract_members:add', memberIds);
+  try { await post('/api/contract_chat_messages:update?filter=' + encodeURIComponent(JSON.stringify({ owner_contract_id: id, source: 'completed' })), { owner_contract_id: newId, source: 'active' }); }
+  catch (e) { /* best-effort */ }
+  await moveSide('contract_addendums', 'completed', id, 'active', newId);
+  await moveSide('contract_contacts', 'completed', id, 'active', newId);
+  await moveSide('contract_price_periods', 'completed', id, 'active', newId);
+  await moveHistory('completed', id, 'active', newId);
+  await logHistory('active', newId, [{ action: 'status', text: 'Договор возвращён из «Архива» в действующие' }]);
+  memberIds.forEach(function(uid) {
+    if (uid === me.id) return;
+    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор возвращён из «Архива» в действующие', 'active', 'status');
+  });
+  try {
+    await ctx.api.resource('completed_contracts').destroy({ filterByTk: id });
+  } catch (e) {
+    cmToast('Договор возвращён, но запись в архиве не удалилась — уберите вручную');
+  }
+  closeContractModal();
+  cmToast('Готово: договор возвращён в действующие');
   setTimeout(function() { location.reload(); }, 400);
 }
 

@@ -1199,12 +1199,16 @@ async function aRenderAtt() {
 }
 // «Опоздания»: все опоздания и дни без прохода за месяц одним списком — комментарий и «уважительная» без переключения дней
 function aRenderAttLate(head) {
-  const md = aAttMonthData(), W = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'], items = [];
+  const md = aAttMonthData(), W = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']; let items = [];
   md.rows.forEach(function(r) { if (r.p.emp) r.cells.forEach(function(c, i) {
     if (c.st === 'late' || c.st === 'absent' || (c.st === 'excused' && c.mark && c.mark.excused)) items.push({ p: r.p, c: c, d: md.days[i] });
   }); });
+  const kind = ah.att.lateKind || 'late', isLate = function(x) { return x.c.lateMin > 0 && x.c.first; };
+  const nL = items.filter(isLate).length, nA = items.length - nL;
+  items = items.filter(function(x) { return kind === 'late' ? isLate(x) : !isLate(x); });
   const noCmt = items.filter(function(x) { return x.c.st !== 'excused' && !(x.c.mark && x.c.mark.comment); }).length;
-  aBody().innerHTML = head + '<div class="hr-hint" style="margin-bottom:8px;">Все опоздания и дни без прохода за месяц. Комментарий сохраняется, когда уходите из поля (Tab — к следующему). '
+  aBody().innerHTML = head + '<div class="hr-bar"><span class="hr-seg"><button data-act="attlk" data-k="late"' + (kind === 'late' ? ' class="on"' : '') + '>Опоздания ' + nL + '</button><button data-act="attlk" data-k="absent"' + (kind === 'absent' ? ' class="on"' : '') + '>Без прохода ' + nA + '</button></span></div>'
+    + '<div class="hr-hint" style="margin-bottom:8px;">Все опоздания и дни без прохода за месяц. Комментарий сохраняется, когда уходите из поля (Tab — к следующему). '
     + 'Опоздание без комментария и без отметки «уважительная» идёт в табель и Excel как «' + A_NO_REASON + '». Без комментария сейчас: <b>' + noCmt + '</b>.</div>'
     + (items.length ? '<div class="hr-card"><table><thead><tr><th>Сотрудник</th><th>Дата</th><th>Начало дня</th><th>Приход</th><th>Статус</th><th>Комментарий</th></tr></thead><tbody>'
       + items.map(function(x, i) {
@@ -1214,7 +1218,7 @@ function aRenderAttLate(head) {
           + '<td><span class="hr-chip ' + st[1] + '">' + st[0] + (c.lateMin > 0 ? ' ' + c.lateMin + ' мин' : '') + '</span> <label class="att-exc"><input type="checkbox" data-mark-exc="' + id + '" data-mark-day="' + x.d + '"' + (c.mark && c.mark.excused ? ' checked' : '') + '> уважительная</label></td>'
           + '<td><input class="att-cmt" style="width:100%;min-width:260px;" data-mark-cmt="' + id + '" data-mark-day="' + x.d + '" value="' + hEsc((c.mark && c.mark.comment) || '') + '" placeholder="' + (c.st === 'late' ? A_NO_REASON : 'почему…') + '"></td></tr>';
       }).join('') + '</tbody></table></div>'
-      : '<div class="hr-empty"><b>Опозданий нет</b>За этот месяц ни одного опоздания и дня без прохода.</div>');
+      : '<div class="hr-empty"><b>' + (kind === 'late' ? 'Опозданий нет' : 'Дней без прохода нет') + '</b>За этот месяц.</div>');
 }
 function aMonthDays(m) { const n = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0).getDate(), out = []; for (let i = 1; i <= n; i++) out.push(m + '-' + ('0' + i).slice(-2)); return out; }
 function aAttMonthData() { return aAttRangeData(aMonthDays(ah.att.day.slice(0, 7)), ah.att.ev); }
@@ -1407,6 +1411,7 @@ aRoot().addEventListener('click', function(e) {
     if (a === 'attv') { ah.att.view = act.getAttribute('data-v'); return aRenderAtt(); }
     if (a === 'atthide') { aHideEmp(Number(act.getAttribute('data-emp'))); return; }
     if (a === 'attco') { ah.att.co = act.getAttribute('data-co') || ''; return aRenderAtt(); }
+    if (a === 'attlk') { ah.att.lateKind = act.getAttribute('data-k'); return aRenderAtt(); }
     if (a === 'attd') { return aAttShift(Number(act.getAttribute('data-d'))); }
     if (a === 'attx') { aAttXlsx(act.getAttribute('data-k')).catch(function(err) { console.error(err); hToast('Не удалось выгрузить'); }); return; }
     return;

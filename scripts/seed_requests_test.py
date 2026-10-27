@@ -276,7 +276,8 @@ def q(v):
     if isinstance(v, dt.date): return "'%s'" % v.isoformat()
     if isinstance(v, (dict, list)): return "'%s'::json" % json.dumps(v, ensure_ascii=False).replace("'", "''")
     return "'%s'" % str(v).replace("'", "''")
-out = ['BEGIN;', 'TRUNCATE object_requests, request_events, request_approvals, request_notifications, portal_links RESTART IDENTITY;']
+out = ['BEGIN;', 'TRUNCATE object_requests, request_events, request_approvals, request_notifications RESTART IDENTITY;',
+       'DELETE FROM portal_links WHERE demo IS NOT TRUE;']   # демо-ссылки (постоянная тестовая ссылка портала) переживают перезаливку
 cols = ['id', 'createdAt', 'updatedAt', 'object_name', 'contract_id', 'tenant_label', 'kind', 'title', 'description', 'urgency', 'due_date', 'status', 'wait_reason', 'responsible_id', 'author_id',
         'result', 'due_moved', 'done_at', 'closed_at', 'reminded_on', 'escalated_at', 'demo', 'source', 'accept_mode', 'accept_user_id', 'react_due_at', 'taken_at', 'waiting_since',
         'dept', 'dept_user_id', 'dept_since', 'dept_due', 'reopen_count', 'rating', 'rating_note', 'contact_name', 'contact_email', 'contact_phone']

@@ -451,7 +451,7 @@ function hVacBalance(e, asOf) {
   }
   let used = 0, planned = 0;
   hr.d.vacs.forEach(function(v) {
-    if (Number(v.employee_id) !== e.id || v.kind !== HR_VAC_KINDS[0]) return;
+    if (Number(v.employee_id) !== e.id || v.kind !== HR_VAC_KINDS[0] || hD(v.start_date) < hD(e.hired_on)) return;   // отпуска до даты приёма — прошлое оформление, долг не уменьшают
     if (hD(v.start_date) <= t) used += Number(v.days) || 0; else planned += Number(v.days) || 0;
   });
   let rest = used;

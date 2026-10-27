@@ -5,6 +5,8 @@
   - crm_vacations: связь employee (по employee_id) и scope «Свои отпуска» — сотрудник, у которого user_id = текущий пользователь;
   - crm_tasks: scope «Свои задачи» — исполнитель, автор или контролёр = текущий пользователь;
   - ROLES ниже получают эти scope на просмотр / правку / удаление; admin, root, hr и aho (СКУД учитывает отпуска всех) — без ограничений.
+NocoBase при создании поля сам дописывает его во все явные списки полей ролей — started_on оттуда убран вручную 10-27
+(SQL fields - 'started_on' + roles/<r>/dataSourceResources:update {usingActionsConfig:true}); повторный запуск поле не пересоздаёт.
 Повторный запуск безопасен. Откат: svc ~/nb_backup/acl_before_own_scope_2026-10-27.sql.gz
 
     NB_URL=https://crm.ykinvest.ru NB_TOKEN=<токен root> python3 setup_own_scope.py

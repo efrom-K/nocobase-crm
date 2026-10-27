@@ -1210,7 +1210,7 @@ function aOpenAttMark(empId, day) {
     : c.first ? 'Пришёл вовремя: ' + c.first.slice(0, 5) + ', начало дня ' + hEsc(c.start)
     : { vac: 'В отпуске', remote: 'Удалённый день', off: 'Выходной' }[c.st] || 'Нет прохода, начало дня ' + hEsc(c.start);
   const m = hModal('<div class="hr-box-h"><div class="hr-box-t">' + hEsc(p.name) + ' · ' + day.slice(8) + '.' + day.slice(5, 7) + '.' + day.slice(0, 4) + '</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
-    + '<div style="margin-bottom:10px;">' + what + '</div>'
+    + '<div style="margin-bottom:10px;">' + what + (mk.time ? '<div class="hr-hint" style="margin:4px 0 0;">Приход исправлен вручную, по СКУД: ' + (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') + '</div>' : '') + '</div>'
     + '<label style="display:block;margin-bottom:6px;">' + (exc ? 'Причина' : 'Комментарий') + '</label><textarea data-c rows="3" style="width:100%;box-sizing:border-box;" placeholder="' + (late ? A_NO_REASON : 'почему…') + '">' + hEsc(mk.comment || '') + '</textarea>'
     + (exc ? '<label class="att-exc" style="display:block;margin:10px 0;"><input type="checkbox" data-x' + (mk.excused ? ' checked' : '') + '> уважительная причина (не считается опозданием)</label>' : '<div style="height:10px;"></div>')
     + '<div class="hr-actions"><button class="hr-btn pri" data-save>Сохранить</button><button class="hr-btn hr-x">Отмена</button></div></div>');

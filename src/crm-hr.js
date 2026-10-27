@@ -1786,12 +1786,14 @@ function hRenderEmp(m, id) {
   // долг за календарный год = норма/12 за каждый отработанный месяц, начавшийся в этом году, − ежегодный отпуск, начатый в этом году; сумма по годам = итог
   const debt = {}, today = hToday();
   if (bal) {
-    for (let k = 0; k < bal.months; k++) { const yk = hAddM(e.hired_on, k).slice(0, 4); debt[yk] = hR2((debt[yk] || 0) + bal.norm / 12); }
+    const cnt = {};
+    for (let k = 0; k < bal.months; k++) { const yk = hAddM(e.hired_on, k).slice(0, 4); cnt[yk] = (cnt[yk] || 0) + 1; }
+    Object.keys(cnt).forEach(function(yk) { debt[yk] = hR2(bal.norm * cnt[yk] / 12); });
     vacs.forEach(function(v) { if (v.kind === HR_VAC_KINDS[0] && hD(v.start_date) <= today) { const k = hD(v.start_date).slice(0, 4); debt[k] = hR2((debt[k] || 0) - (Number(v.days) || 0)); } });
   }
   if (bal) Object.keys(debt).forEach(function(yy) { if (vacYears.indexOf(yy) === -1) vacYears.push(yy); });
   vacYears.sort().reverse();
-  const balView = !staff || HR_MODE !== 'hr' ? '' : '<div style="margin:0 0 6px;font-size:13.5px;">Компания должна: <b>' + (bal ? hN2(bal.left) + ' дн.' : '— <span class="hr-hint">нет даты приёма</span>') + '</b></div>';
+  const balView = !staff || HR_MODE !== 'hr' ? '' : '<div style="margin:0 0 6px;font-size:13.5px;">' + (bal && bal.left < 0 ? 'Взято авансом: <b>' + hN2(-bal.left) + ' дн.' : 'Компания должна: <b>' + (bal ? hN2(bal.left) + ' дн.' : '— <span class="hr-hint">нет даты приёма</span>')) + '</b></div>';
   const vacView = balView + (staff && HR_MODE === 'hr' ? '<div class="hr-hint" style="margin:0 0 6px;">Осталось в ' + y + ': <b style="color:#1f2433;">' + hVacLeft(e, y) + ' дн.</b> из ' + (e.vacation_days || 28) + (can ? ' <a data-vdays style="color:#1c2d58;cursor:pointer;margin-left:6px;">✎ изменить норму</a>' : '') + '</div>' : '')
     + (vacYears.length ? vacYears.map(function(yy) {
         return '<div style="margin:10px 0 4px;font-weight:600;font-size:13.5px;">' + yy + ' <span class="hr-hint" style="font-weight:400;">· ежегодного ' + hVacUsed(e, yy) + ' дн.' + (debt[yy] > 0 ? ' · долг ' + hN2(debt[yy]) + ' дн.' : debt[yy] < 0 ? ' · сверх нормы ' + hN2(-debt[yy]) + ' дн.' : '') + '</span></div>'

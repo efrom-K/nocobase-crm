@@ -436,15 +436,17 @@ function hR2(n) { return Math.round(n * 100) / 100; }
 function hVacBalance(e, asOf) {
   if (!e || !e.hired_on) return null;
   const t = asOf || hToday(), norm = Number(e.vacation_days) || 28, years = [];
+  let months = 0;   // отработано месяцев всего (с округлением хвоста)
   for (let k = 0; hAddM(e.hired_on, 12 * k) <= t; k++) {
     const from = hAddM(e.hired_on, 12 * k), next = hAddM(e.hired_on, 12 * (k + 1));
-    let acc = norm, months = 12;
+    let acc = norm, m = 12;
     if (next > t) {   // текущий рабочий год — начислено на сегодня
-      months = 0;
-      while (hAddM(from, months + 1) <= t) months++;
-      if (hDays(hAddM(from, months), t) + 1 >= 15) months++;
-      acc = hR2(norm * months / 12);
+      m = 0;
+      while (hAddM(from, m + 1) <= t) m++;
+      if (hDays(hAddM(from, m), t) + 1 >= 15) m++;
+      acc = hR2(norm * m / 12);
     }
+    months += m;
     years.push({ from: from, to: hIso(new Date(new Date(next + 'T00:00:00') - 86400000)), acc: acc, full: next <= t, used: 0 });
   }
   let used = 0, planned = 0;
@@ -457,7 +459,7 @@ function hVacBalance(e, asOf) {
   if (rest > 0 && years.length) years[years.length - 1].used = hR2(years[years.length - 1].used + rest);   // взят авансом
   years.forEach(function(y) { y.left = hR2(y.acc - y.used); });
   const acc = hR2(years.reduce(function(a, y) { return a + y.acc; }, 0));
-  return { norm: norm, years: years, acc: acc, used: used, planned: planned, left: hR2(acc - used), afterPlan: hR2(acc - used - planned) };
+  return { norm: norm, years: years, months: months, acc: acc, used: used, planned: planned, left: hR2(acc - used), afterPlan: hR2(acc - used - planned) };
 }
 function hN2(n) { return (hR2(n) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); }
 // ponytail: остаток = норма за год − запланированное в этом году; перенос с прошлых лет и начисление пропорционально стажу не считаются
@@ -1781,10 +1783,10 @@ function hRenderEmp(m, id) {
   const vacYears = vacs.map(function(v) { return hD(v.start_date).slice(0, 4); }).filter(function(x, i, a) { return a.indexOf(x) === i; });
   const vacLine = function(v) { return '<div data-rec="vac:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + (v.days || '') + ' дн.' + (hVacCls(v) !== 'sched' ? ' · ' + hEsc(hVacCls(v) === 'other' ? v.kind : HR_VAC_CLS[hVacCls(v)]) : '') + '</span><span class="hr-chip' + (v.status === 'ordered' ? ' blue' : '') + '">' + hEsc(HR_VAC_ST[v.status] || '') + '</span></div>'; };
   const bal = staff && HR_MODE === 'hr' ? hVacBalance(e) : null;
-  // долг за год = начислено за рабочий год, начавшийся в этом году, − ежегодный отпуск, взятый в этом году (уже начавшийся); сумма по годам = итог
+  // долг за календарный год = норма/12 за каждый отработанный месяц, начавшийся в этом году, − ежегодный отпуск, начатый в этом году; сумма по годам = итог
   const debt = {}, today = hToday();
   if (bal) {
-    bal.years.forEach(function(w) { debt[w.from.slice(0, 4)] = w.acc; });
+    for (let k = 0; k < bal.months; k++) { const yk = hAddM(e.hired_on, k).slice(0, 4); debt[yk] = hR2((debt[yk] || 0) + bal.norm / 12); }
     vacs.forEach(function(v) { if (v.kind === HR_VAC_KINDS[0] && hD(v.start_date) <= today) { const k = hD(v.start_date).slice(0, 4); debt[k] = hR2((debt[k] || 0) - (Number(v.days) || 0)); } });
   }
   if (bal) Object.keys(debt).forEach(function(yy) { if (vacYears.indexOf(yy) === -1) vacYears.push(yy); });

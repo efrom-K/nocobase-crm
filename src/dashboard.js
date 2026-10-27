@@ -719,7 +719,7 @@ function planData() {
   [['active', d.active], ['completed', d.completed]].forEach(function(x) {
     x[1].forEach(function(r) {
       const ms = months.map(function(M) { return planContractMonth(r, x[0], per[x[0]][r.id] || [], M); });
-      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms });
+      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms, extra: (per[x[0]][r.id] || []).length > 0 });
     });
   });
   const objs = {};
@@ -735,12 +735,13 @@ function planData() {
 function renderPlan() {
   const P = planData(), M = P.months;
   const cell = function(m) { return m ? dMoney(m.total) + (m.note ? '<div style="font-size:11.5px;color:#5b6478;font-weight:400;">' + dEsc(m.note) + '</div>' : '') : '<span style="color:#8a92a3;">—</span>'; };
+  const extraChip = function(n) { return '<span class="dash-chip" style="color:#b45309;border-color:#b4530955;background:#fff7ed;">доп. расчёты' + (n ? ' <b>' + n + '</b>' : '') + '</span>'; };
   const body = P.list.map(function(o) {
-    const open = !!dashState.open[o.name];
-    return '<tr data-act="planobj" data-obj="' + dEsc(o.name) + '" style="cursor:pointer;"><td style="font-weight:600;">' + (open ? '▾ ' : '▸ ') + dEsc(o.name) + ' <span style="color:#5b6478;font-weight:400;">· ' + dContracts(o.rows.length) + '</span></td>'
+    const open = !!dashState.open[o.name], ex = o.rows.filter(function(x) { return x.extra; }).length;
+    return '<tr data-act="planobj" data-obj="' + dEsc(o.name) + '" style="cursor:pointer;"><td style="font-weight:600;">' + (open ? '▾ ' : '▸ ') + dEsc(o.name) + ' <span style="color:#5b6478;font-weight:400;">· ' + dContracts(o.rows.length) + '</span>' + (ex ? ' ' + extraChip(ex) : '') + '</td>'
       + o.sum.map(function(k) { return '<td class="num" style="font-weight:600;">' + dMoney(k) + '</td>'; }).join('') + '</tr>'
       + (open ? o.rows.map(function(x) {
-          return '<tr data-open="' + (x.typ === 'completed' ? 'completed' : 'active') + ':' + x.r.id + '" style="cursor:pointer;"><td style="padding-left:28px;">' + dEsc(x.r.contract_number || '#' + x.r.id) + ' · ' + dEsc(x.r.tenant_name || '') + (x.typ === 'completed' ? ' <span class="dash-chip" style="color:#5b6478;border-color:#5b647840;">архив</span>' : '') + '</td>'
+          return '<tr data-open="' + (x.typ === 'completed' ? 'completed' : 'active') + ':' + x.r.id + '" style="cursor:pointer;"><td style="padding-left:28px;">' + dEsc(x.r.contract_number || '#' + x.r.id) + ' · ' + dEsc(x.r.tenant_name || '') + (x.typ === 'completed' ? ' <span class="dash-chip" style="color:#5b6478;border-color:#5b647840;">архив</span>' : '') + (x.extra ? ' ' + extraChip() : '') + '</td>'
             + x.ms.map(function(m) { return '<td class="num" style="white-space:normal;">' + cell(m) + '</td>'; }).join('') + '</tr>';
         }).join('') : '');
   }).join('');
@@ -751,31 +752,29 @@ function renderPlan() {
       }).join('') + '</div>'
     + '<div class="dash-section">По объектам <span style="font-size:12.5px;font-weight:400;color:#5b6478;">клик по объекту — договоры, по договору — карточка</span></div>'
     + (body ? '<div class="dash-table-wrap"><table class="dash-table"><thead><tr><th>Объект</th>' + M.map(function(m) { return '<th class="num">' + dEsc(m.name) + '</th>'; }).join('') + '</tr></thead><tbody>'
-      + body + '<tr><td style="font-weight:700;">Итого</td>' + P.tot.map(function(k) { return '<td class="num" style="font-weight:700;">' + dMoney(k) + '</td>'; }).join('') + '</tr></tbody></table></div>' : '<div class="dash-empty">Нет договоров за эти месяцы</div>')
-    + '<div class="dash-tile-note" style="margin-top:10px;">Начисление посуточно: месяц, в котором договор действовал не целиком (въезд по акту приёма-передачи, расторжение), считается за дни — например, с 15-го в 31-дневном месяце 17/31 цены. '
-    + 'Цена на каждый день — с учётом «Дополнительных расчётов аренды». Аренда + эксплуатационный сбор, без обеспечительного платежа. Договоры в оформлении не входят.</div>';
+      + body + '<tr><td style="font-weight:700;">Итого</td>' + P.tot.map(function(k) { return '<td class="num" style="font-weight:700;">' + dMoney(k) + '</td>'; }).join('') + '</tr></tbody></table></div>' : '<div class="dash-empty">Нет договоров за эти месяцы</div>');
 }
 function planExportXlsx() {
   const P = planData(), M = P.months, rub = function(k) { return k === null || k === undefined ? null : k / 100; };
   const kindLbl = dashState.kind ? (DASH_KINDS.find(function(k) { return kindKey(k.v) === dashState.kind; }) || { many: dashState.kind }).many : 'Все виды объектов';
   const mcols = [];
-  M.forEach(function(m) { mcols.push({ h: m.name + ': аренда', t: 'money' }, { h: m.name + ': эксплуатационный сбор', t: 'money' }, { h: m.name + ': итого', t: 'money' }, { h: m.name + ': дней', t: 'int', total: false }, { h: m.name + ': пометка', w: 22, total: false }); });
-  const contracts = [];
-  P.list.forEach(function(o) { o.rows.forEach(function(x) {
-    contracts.push([o.name, x.r.contract_number || '', x.r.tenant_name || '', x.typ === 'completed' ? 'архив' : 'действующий', x.r.date_act || x.r.date_signed || null, x.r.termination_date || null]
-      .concat([].concat.apply([], x.ms.map(function(m, i) { return m ? [rub(m.rent), rub(m.util), rub(m.total), m.days, m.note] : [null, null, null, null, '']; }))));
-  }); });
+  M.forEach(function(m) { mcols.push({ h: m.name + ': аренда', t: 'money' }, { h: m.name + ': эксплуатационный сбор', t: 'money' }, { h: m.name + ': итого', t: 'money' }, { h: m.name + ': дней', t: 'int', total: false }); });
+  const objSheet = function(o) {
+    return { name: o.name, title: o.name + ': начисления по договорам', total: true, freezeCols: 2,
+      cols: [{ h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Доп. расчёты', total: false }, { h: 'Договор' }, { h: 'Начало (акт)', t: 'date' }, { h: 'Расторжение', t: 'date' }].concat(mcols),
+      rows: o.rows.map(function(x) {
+        return [x.extra ? { v: x.r.contract_number || '', paint: 'orange' } : x.r.contract_number || '', x.r.tenant_name || '', x.extra ? { v: 'есть', paint: 'orange' } : '',
+          x.typ === 'completed' ? 'архив' : 'действующий', x.r.date_act || x.r.date_signed || null, x.r.termination_date || null]
+          .concat([].concat.apply([], x.ms.map(function(m) { return m ? [rub(m.rent), rub(m.util), rub(m.total), m.days] : [null, null, null, null]; })));
+      }) };
+  };
   crmXlsx('Планирование — ' + M[0].name + ' – ' + M[2].name, {
     title: 'Планирование: начисления по объектам', filters: [['Вид объектов', kindLbl], ['Месяцы', M.map(function(m) { return m.name + ' (' + m.rel + ')'; }).join(', ')]],
     notes: [['Расчёт', 'Посуточно: месячная цена × дней действия договора в месяце / дней в месяце; цена на день — с «Дополнительными расчётами аренды»'],
-      ['Начало', 'Дата акта приёма-передачи (без неё — дата заключения); конец — дата расторжения включительно'], ['Состав', 'Аренда + эксплуатационный сбор; обеспечительный платёж не входит; договоры в оформлении не входят']],
-    sheets: [
-      { name: 'По объектам', title: 'Начисления по объектам', total: true, freezeCols: 1,
-        cols: [{ h: 'Объект' }, { h: 'Договоров', t: 'int' }].concat(M.map(function(m) { return { h: m.name, t: 'money' }; })),
-        rows: P.list.map(function(o) { return [o.name, o.rows.length].concat(o.sum.map(rub)); }) },
-      { name: 'По договорам', title: 'Начисления по договорам', total: true, freezeCols: 2,
-        cols: [{ h: 'Объект' }, { h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Договор' }, { h: 'Начало (акт)', t: 'date' }, { h: 'Расторжение', t: 'date' }].concat(mcols),
-        rows: contracts }
-    ]
+      ['Начало', 'Дата акта приёма-передачи (без неё — дата заключения); конец — дата расторжения включительно'], ['Доп. расчёты', 'Оранжевым — договоры, у которых заполнен раздел «Дополнительные расчёты аренды»']],
+    sheets: [{ name: 'Общая', title: 'Начисления по объектам', total: true, freezeCols: 1,
+      cols: [{ h: 'Объект' }, { h: 'Договоров', t: 'int' }, { h: 'С доп. расчётами', t: 'int' }].concat(M.map(function(m) { return { h: m.name, t: 'money' }; })),
+      rows: P.list.map(function(o) { return [o.name, o.rows.length, o.rows.filter(function(x) { return x.extra; }).length].concat(o.sum.map(rub)); }) }]
+      .concat(P.list.map(objSheet))
   });
 }

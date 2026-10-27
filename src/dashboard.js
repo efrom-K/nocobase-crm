@@ -692,6 +692,20 @@ function planPrice(r, typ, per, iso) {
     byPeriod: !!(rp || up)
   };
 }
+// «Дополнительные расчёты аренды» договора текстом для выгрузки: период, что меняется, комментарий
+function planExtraTxt(per) {
+  const n = function(v) { return Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); };
+  const b = function(basis) { return basis === 'per_sqm' ? ' ₽/м²' : ' ₽ в месяц'; };
+  return per.map(function(p) {
+    const parts = [];
+    if (p.rent_on && p.amount !== null && p.amount !== undefined) parts.push('аренда ' + n(p.amount) + b(p.basis || 'per_sqm'));
+    if (p.utility_on && p.utility_value !== null && p.utility_value !== undefined) parts.push('эксплуатационный сбор ' + n(p.utility_value) + b(p.utility_basis || 'per_sqm'));
+    if (p.deposit_on && p.deposit_value !== null && p.deposit_value !== undefined) parts.push('обеспечительный платёж ' + n(p.deposit_value) + ' ₽');
+    const to = dDateIso(p.date_to);
+    return 'с ' + dDateTxt(dDate(dDateIso(p.date_from))) + (!to || to >= '2099-12-31' ? ', без даты окончания' : ' по ' + dDateTxt(dDate(to))) + ': '
+      + (parts.join(', ') || '—') + (p.note ? '. Комментарий: ' + String(p.note).trim() : '');
+  }).join('\n');
+}
 function dDateIso(v) { return String(v || '').slice(0, 10); }
 // начисление по договору за месяц M: копейки аренды и сбора, дней, пометка
 function planContractMonth(r, typ, per, M) {
@@ -719,7 +733,7 @@ function planData() {
   [['active', d.active], ['completed', d.completed]].forEach(function(x) {
     x[1].forEach(function(r) {
       const ms = months.map(function(M) { return planContractMonth(r, x[0], per[x[0]][r.id] || [], M); });
-      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms, extra: (per[x[0]][r.id] || []).length > 0 });
+      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms, extra: (per[x[0]][r.id] || []).length > 0, per: per[x[0]][r.id] || [] });
     });
   });
   const objs = {};
@@ -761,9 +775,9 @@ function planExportXlsx() {
   M.forEach(function(m) { mcols.push({ h: m.name + ': аренда', t: 'money' }, { h: m.name + ': эксплуатационный сбор', t: 'money' }, { h: m.name + ': итого', t: 'money' }, { h: m.name + ': дней', t: 'int', total: false }); });
   const objSheet = function(o) {
     return { name: o.name, title: o.name + ': начисления по договорам', total: true, freezeCols: 2,
-      cols: [{ h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Доп. расчёты', total: false }, { h: 'Договор' }, { h: 'Начало (акт)', t: 'date' }, { h: 'Расторжение', t: 'date' }].concat(mcols),
+      cols: [{ h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Доп. расчёты и комментарий', t: 'long', w: 60, total: false }, { h: 'Договор' }, { h: 'Начало (акт)', t: 'date' }, { h: 'Расторжение', t: 'date' }].concat(mcols),
       rows: o.rows.map(function(x) {
-        return [x.extra ? { v: x.r.contract_number || '', paint: 'orange' } : x.r.contract_number || '', x.r.tenant_name || '', x.extra ? { v: 'есть', paint: 'orange' } : '',
+        return [x.extra ? { v: x.r.contract_number || '', paint: 'orange' } : x.r.contract_number || '', x.r.tenant_name || '', x.extra ? { v: planExtraTxt(x.per), paint: 'orange' } : '',
           x.typ === 'completed' ? 'архив' : 'действующий', x.r.date_act || x.r.date_signed || null, x.r.termination_date || null]
           .concat([].concat.apply([], x.ms.map(function(m) { return m ? [rub(m.rent), rub(m.util), rub(m.total), m.days] : [null, null, null, null]; })));
       }) };

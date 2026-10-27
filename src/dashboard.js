@@ -155,7 +155,7 @@ const DASH_STATUS = [
   { v: '', label: 'Статус не задан', color: '#5b6478' }
 ];
 const DASH_STAGES = ['Заявка', 'Объявление', 'Условия', 'Подписание', 'Оплата счетов', 'Акт и скан'];
-const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '' };
+const dashState = { data: null, loadedAt: null, loading: null, obj: '', kind: '', view: '', open: {} };   // view 'plan' — «Планирование»
 // вид объекта договора (поле object_kind); '' — вид не указан. Площадь в м² складываем только у помещений (и у договоров без вида —
 // до внедрения поля все договоры были помещениями); участки — отдельной площадью, машино-места — штуками.
 const DASH_KINDS = [
@@ -210,7 +210,7 @@ async function loadDashData() {
     dashList('rental_contracts', { appends: ['contract_members'] }),
     dashList('forming_contracts'),
     dashList('completed_contracts'),
-    dashList('contract_price_periods', { filter: { contract_type: 'active' } }).catch(function() { return []; }),
+    dashList('contract_price_periods', { filter: { contract_type: { $in: ['active', 'completed'] } }, sort: ['date_from', 'id'] }).catch(function() { return []; }),   // completed — для «Планирования» (прошлый месяц)
     dashList('contract_objects').catch(function() { return []; })
   ]);
   return { active: all[0], forming: all[1], completed: all[2], periods: all[3], objects: all[4] };
@@ -342,7 +342,7 @@ function attentionTile(s) {
 function renderDashboard() {
   const d = dashState.data;
   if (!d) return;
-  if (dashState.obj) renderObject(dashState.obj); else renderMain();
+  if (dashState.view === 'plan') renderPlan(); else if (dashState.obj) renderObject(dashState.obj); else renderMain();
 }
 
 function kindSelect() {
@@ -366,7 +366,7 @@ function renderMain() {
   const used = stats.filter(function(o) { return o.active.length || o.forming || o.completed || (!dashState.kind && o.totalKop !== null); })
     .sort(function(a, b) { return b.monthly - a.monthly || b.active.length - a.active.length || a.name.localeCompare(b.name, 'ru'); });
   const empty = stats.filter(function(o) { return used.indexOf(o) === -1; }).map(function(o) { return o.name; }).sort(function(a, b) { return a.localeCompare(b, 'ru'); });
-  ensureDashPanel().innerHTML = headHtml('Объекты аренды', { before: '', after: '<button class="dash-link" data-act="csv">Выгрузить в Excel</button>' })
+  ensureDashPanel().innerHTML = headHtml('Объекты аренды', { before: '', after: '<button class="dash-link" data-act="plan" style="border-color:#1c2d58;color:#1c2d58;font-weight:600;">Планирование</button><button class="dash-link" data-act="csv">Выгрузить в Excel</button>' })
     + '<div class="dash-tiles">' + areaTile(s, used.filter(function(o) { return o.active.length; }).length) + moneyTile(s)
     + contractsTile(d.active.length, d.forming.length, d.completed.length) + depositTile(s) + attentionTile(s) + kindsTile(dashState.data.active) + '</div>'
     + '<div class="dash-section">По объектам</div>'
@@ -471,7 +471,7 @@ function renderObject(name) {
   active.forEach(function(r) { ids[r.id] = r; });
   const changes = [];
   d.periods.forEach(function(p) {
-    const r = ids[p.contract_ref_id];
+    const r = p.contract_type === 'active' ? ids[p.contract_ref_id] : null;
     if (!r) return;
     [['date_from', 'начинается период цены'], ['date_to', 'заканчивается период цены']].forEach(function(k) {
       const dt = dDate(p[k[0]]);
@@ -553,6 +553,10 @@ function onDashClick(e) {
     if (a === 'contracts') window.location.href = REGISTRY_URL + '?obj=' + encodeURIComponent(dashState.obj) + kindParam();
     if (a === 'kind') { dashState.kind = act.getAttribute('data-kind') || ''; renderDashboard(); }
     if (a === 'csv') { try { dashExportXlsx(); } catch (err) { console.error(err); } }
+    if (a === 'plan') { dashState.view = 'plan'; renderDashboard(); }
+    if (a === 'planback') { dashState.view = ''; renderDashboard(); }
+    if (a === 'planxlsx') { try { planExportXlsx(); } catch (err) { console.error(err); } }
+    if (a === 'planobj') { const k = act.getAttribute('data-obj'); dashState.open[k] = !dashState.open[k]; renderPlan(); }
     return;
   }
   const ed = c('[data-edit-area]');
@@ -646,6 +650,132 @@ function dashExportXlsx() {
       { name: 'Ближайшие расторжения', title: 'Расторжения в ближайшие 90 дней (и уже прошедшие у действующих)',
         cols: [{ h: 'Дата расторжения', t: 'date' }, { h: 'Через, дней', t: 'int' }, { h: 'Объект' }, { h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Площадь', t: 'area' }, { h: 'Итого в месяц', t: 'money' }],
         rows: terms.map(function(x) { return [x.r.termination_date, x.t.days, objOf(x.r), x.r.contract_number || '', x.r.tenant_name || '', rub(dKop(x.r.area_sqm)), rub(monthlyKop(x.r))]; }) }
+    ]
+  });
+}
+
+// ---------- «Планирование»: сколько компания получила / получит по объектам за прошлый, текущий и следующий месяц ----------
+// Начисление посуточно: каждый день, когда договор действует (с даты акта приёма-передачи, без неё — с даты заключения,
+// по дату расторжения включительно), даёт 1/(дней в месяце) месячной цены, действующей в этот день. Заехал 15-го в 31-дневном месяце — 17/31.
+// Цена на день — как в карточке и apply_price_schedule.py: период «Дополнительных расчётов аренды» (для аренды и эксплуатационного сбора
+// отдельно; пересекаются — берётся начавшийся позже), иначе основная цена (base_*); у архивных договоров основной цены нет — их последняя цена.
+// Обеспечительный платёж не доход — не входит. Договоры в оформлении не входят (нет даты начала).
+function planMonths() {
+  const t = dToday(), out = [];
+  for (let k = -1; k <= 1; k++) {
+    const a = new Date(t.getFullYear(), t.getMonth() + k, 1), dim = new Date(a.getFullYear(), a.getMonth() + 1, 0).getDate();
+    out.push({ y: a.getFullYear(), m: a.getMonth(), dim: dim, iso: function(d) { return a.getFullYear() + '-' + ('0' + (a.getMonth() + 1)).slice(-2) + '-' + ('0' + d).slice(-2); },
+      name: a.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', ''), rel: ['прошлый', 'текущий', 'следующий'][k + 1] });
+  }
+  return out;
+}
+function planLinesArea(v) {
+  let l = v; if (typeof l === 'string') { try { l = JSON.parse(l); } catch (e) { l = null; } }
+  if (!Array.isArray(l)) return null;
+  const a = l.reduce(function(n, x) { const k = dKop(x && x.area); return n + (k && k > 0 ? k : 0); }, 0);
+  return a ? a / 100 : null;
+}
+function planMul(rate, area) { const a = Math.round(Number(rate) * 100), b = Math.round(Number(area) * 100); return Math.floor((a * b + 50) / 100); }   // ставка × площадь в копейках, как mulMoney
+// месячная цена договора r (тип typ) на день iso: { rent, util } в копейках и признак «по периоду»
+function planPrice(r, typ, per, iso) {
+  const ps = per.filter(function(p) { return dDateIso(p.date_from) <= iso && iso <= dDateIso(p.date_to) && (p.unit || 'month') === 'month'; });
+  const last = function(f) { const l = ps.filter(f); return l.length ? l[l.length - 1] : null; };
+  const rp = last(function(p) { return p.rent_on === true || (p.rent_on !== false && p.amount !== null && p.amount !== undefined); });
+  const up = last(function(p) { return !!p.utility_on; });
+  const area = (rp && planLinesArea(rp.rent_lines)) || planLinesArea(r.area_lines) || Number(r.base_area_sqm != null ? r.base_area_sqm : r.area_sqm) || 0;
+  const val = function(p, basis, v) { return basis === 'per_sqm' ? (area > 0 ? planMul(v, area) : 0) : dKop(v) || 0; };
+  // без периодов — текущая цена договора (как в реестре); с периодами вне периода — основная (base_*)
+  const base = function(b, cur) { const k = typ === 'active' && per.length ? dKop(r[b]) : null; return k !== null ? k : dKop(r[cur]) || 0; };
+  return {
+    rent: rp ? val(rp, rp.basis || 'per_sqm', rp.amount) : base('base_rent_amount', 'rent_amount'),
+    util: up ? val(up, up.utility_basis || 'per_sqm', up.utility_value) : base('base_utility_amount', 'utility_amount'),
+    byPeriod: !!(rp || up)
+  };
+}
+function dDateIso(v) { return String(v || '').slice(0, 10); }
+// начисление по договору за месяц M: копейки аренды и сбора, дней, пометка
+function planContractMonth(r, typ, per, M) {
+  const from = dDateIso(r.date_act || r.date_signed), to = dDateIso(r.termination_date) || '9999-12-31';
+  if (!from) return null;
+  let rent = 0, util = 0, days = 0, byPeriod = false, first = '', lastD = '';
+  for (let d = 1; d <= M.dim; d++) {
+    const iso = M.iso(d);
+    if (iso < from || iso > to) continue;
+    const p = planPrice(r, typ, per, iso);
+    rent += p.rent; util += p.util; days++; byPeriod = byPeriod || p.byPeriod;
+    if (!first) first = iso; lastD = iso;
+  }
+  if (!days) return null;
+  rent = Math.round(rent / M.dim); util = Math.round(util / M.dim);
+  const note = [];
+  if (days < M.dim) note.push(dDateIso(first) === M.iso(1) ? 'по ' + dDateTxt(dDate(lastD)) : lastD === M.iso(M.dim) ? 'с ' + dDateTxt(dDate(first)) : dDateTxt(dDate(first)) + '–' + dDateTxt(dDate(lastD)));
+  if (byPeriod) note.push('доп. расчёт');
+  return { rent: rent, util: util, total: rent + util, days: days, note: note.join(', ') };
+}
+function planData() {
+  const d = dv(), months = planMonths(), per = { active: {}, completed: {} };
+  (dashState.data.periods || []).forEach(function(p) { const g = per[p.contract_type]; if (g) (g[p.contract_ref_id] = g[p.contract_ref_id] || []).push(p); });
+  const rows = [];
+  [['active', d.active], ['completed', d.completed]].forEach(function(x) {
+    x[1].forEach(function(r) {
+      const ms = months.map(function(M) { return planContractMonth(r, x[0], per[x[0]][r.id] || [], M); });
+      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms });
+    });
+  });
+  const objs = {};
+  rows.forEach(function(x) {
+    const o = objs[objOf(x.r)] = objs[objOf(x.r)] || { name: objOf(x.r), rows: [], sum: [0, 0, 0] };
+    o.rows.push(x); x.ms.forEach(function(m, i) { if (m) o.sum[i] += m.total; });
+  });
+  const list = Object.keys(objs).map(function(k) { return objs[k]; }).sort(function(a, b) { return b.sum[1] - a.sum[1] || a.name.localeCompare(b.name, 'ru'); });
+  const tot = [0, 1, 2].map(function(i) { return list.reduce(function(n, o) { return n + o.sum[i]; }, 0); });
+  const part = [0, 1, 2].map(function(i) { return rows.reduce(function(a, x) { const m = x.ms[i]; if (m) { a.rent += m.rent; a.util += m.util; } return a; }, { rent: 0, util: 0 }); });
+  return { months: months, list: list, tot: tot, part: part };
+}
+function renderPlan() {
+  const P = planData(), M = P.months;
+  const cell = function(m) { return m ? dMoney(m.total) + (m.note ? '<div style="font-size:11.5px;color:#5b6478;font-weight:400;">' + dEsc(m.note) + '</div>' : '') : '<span style="color:#8a92a3;">—</span>'; };
+  const body = P.list.map(function(o) {
+    const open = !!dashState.open[o.name];
+    return '<tr data-act="planobj" data-obj="' + dEsc(o.name) + '" style="cursor:pointer;"><td style="font-weight:600;">' + (open ? '▾ ' : '▸ ') + dEsc(o.name) + ' <span style="color:#5b6478;font-weight:400;">· ' + dContracts(o.rows.length) + '</span></td>'
+      + o.sum.map(function(k) { return '<td class="num" style="font-weight:600;">' + dMoney(k) + '</td>'; }).join('') + '</tr>'
+      + (open ? o.rows.map(function(x) {
+          return '<tr data-open="' + (x.typ === 'completed' ? 'completed' : 'active') + ':' + x.r.id + '" style="cursor:pointer;"><td style="padding-left:28px;">' + dEsc(x.r.contract_number || '#' + x.r.id) + ' · ' + dEsc(x.r.tenant_name || '') + (x.typ === 'completed' ? ' <span class="dash-chip" style="color:#5b6478;border-color:#5b647840;">архив</span>' : '') + '</td>'
+            + x.ms.map(function(m) { return '<td class="num" style="white-space:normal;">' + cell(m) + '</td>'; }).join('') + '</tr>';
+        }).join('') : '');
+  }).join('');
+  ensureDashPanel().innerHTML = headHtml('Планирование', { before: '<button class="dash-link" data-act="planback">← Объекты</button>', after: '<button class="dash-link" data-act="planxlsx">Выгрузить в Excel</button>' })
+    + '<div class="dash-tiles">' + M.map(function(m, i) {
+        return '<div class="dash-tile"><div class="dash-tile-label">' + dEsc(m.name) + ' · ' + m.rel + '</div><div class="dash-tile-value">' + dMoney(P.tot[i]) + '</div>'
+          + '<div class="dash-tile-note">аренда ' + dMoney(P.part[i].rent) + '<br>эксплуатационный сбор ' + dMoney(P.part[i].util) + '</div></div>';
+      }).join('') + '</div>'
+    + '<div class="dash-section">По объектам <span style="font-size:12.5px;font-weight:400;color:#5b6478;">клик по объекту — договоры, по договору — карточка</span></div>'
+    + (body ? '<div class="dash-table-wrap"><table class="dash-table"><thead><tr><th>Объект</th>' + M.map(function(m) { return '<th class="num">' + dEsc(m.name) + '</th>'; }).join('') + '</tr></thead><tbody>'
+      + body + '<tr><td style="font-weight:700;">Итого</td>' + P.tot.map(function(k) { return '<td class="num" style="font-weight:700;">' + dMoney(k) + '</td>'; }).join('') + '</tr></tbody></table></div>' : '<div class="dash-empty">Нет договоров за эти месяцы</div>')
+    + '<div class="dash-tile-note" style="margin-top:10px;">Начисление посуточно: месяц, в котором договор действовал не целиком (въезд по акту приёма-передачи, расторжение), считается за дни — например, с 15-го в 31-дневном месяце 17/31 цены. '
+    + 'Цена на каждый день — с учётом «Дополнительных расчётов аренды». Аренда + эксплуатационный сбор, без обеспечительного платежа. Договоры в оформлении не входят.</div>';
+}
+function planExportXlsx() {
+  const P = planData(), M = P.months, rub = function(k) { return k === null || k === undefined ? null : k / 100; };
+  const kindLbl = dashState.kind ? (DASH_KINDS.find(function(k) { return kindKey(k.v) === dashState.kind; }) || { many: dashState.kind }).many : 'Все виды объектов';
+  const mcols = [];
+  M.forEach(function(m) { mcols.push({ h: m.name + ': аренда', t: 'money' }, { h: m.name + ': эксплуатационный сбор', t: 'money' }, { h: m.name + ': итого', t: 'money' }, { h: m.name + ': дней', t: 'int', total: false }, { h: m.name + ': пометка', w: 22, total: false }); });
+  const contracts = [];
+  P.list.forEach(function(o) { o.rows.forEach(function(x) {
+    contracts.push([o.name, x.r.contract_number || '', x.r.tenant_name || '', x.typ === 'completed' ? 'архив' : 'действующий', x.r.date_act || x.r.date_signed || null, x.r.termination_date || null]
+      .concat([].concat.apply([], x.ms.map(function(m, i) { return m ? [rub(m.rent), rub(m.util), rub(m.total), m.days, m.note] : [null, null, null, null, '']; }))));
+  }); });
+  crmXlsx('Планирование — ' + M[0].name + ' – ' + M[2].name, {
+    title: 'Планирование: начисления по объектам', filters: [['Вид объектов', kindLbl], ['Месяцы', M.map(function(m) { return m.name + ' (' + m.rel + ')'; }).join(', ')]],
+    notes: [['Расчёт', 'Посуточно: месячная цена × дней действия договора в месяце / дней в месяце; цена на день — с «Дополнительными расчётами аренды»'],
+      ['Начало', 'Дата акта приёма-передачи (без неё — дата заключения); конец — дата расторжения включительно'], ['Состав', 'Аренда + эксплуатационный сбор; обеспечительный платёж не входит; договоры в оформлении не входят']],
+    sheets: [
+      { name: 'По объектам', title: 'Начисления по объектам', total: true, freezeCols: 1,
+        cols: [{ h: 'Объект' }, { h: 'Договоров', t: 'int' }].concat(M.map(function(m) { return { h: m.name, t: 'money' }; })),
+        rows: P.list.map(function(o) { return [o.name, o.rows.length].concat(o.sum.map(rub)); }) },
+      { name: 'По договорам', title: 'Начисления по договорам', total: true, freezeCols: 2,
+        cols: [{ h: 'Объект' }, { h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Договор' }, { h: 'Начало (акт)', t: 'date' }, { h: 'Расторжение', t: 'date' }].concat(mcols),
+        rows: contracts }
     ]
   });
 }

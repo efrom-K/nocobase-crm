@@ -42,6 +42,9 @@ for f in sorted(glob.glob('**/*.json', recursive=True)):
     if f.startswith(('node_modules/', '.git/')): continue
     try: json.load(open(f, encoding='utf-8'))
     except Exception as e: err('%s: невалидный JSON (%s)' % (f, e))
+# расчёт «Планирования» на дашборде (деньги по объектам)
+r = subprocess.run(['node', 'tests/plan.test.js'], capture_output=True, text=True)
+if r.returncode: err('tests/plan.test.js: ' + ((r.stderr or r.stdout).strip().splitlines() or ['упал'])[-1][:300])
 # правила заявок (KPI управляющих): кто что может — requests-service/rules.test.js
 if os.path.exists('requests-service/rules.test.js'):
     r = subprocess.run(['node', 'requests-service/rules.test.js'], capture_output=True, text=True)

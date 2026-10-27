@@ -202,7 +202,7 @@ if (!document.getElementById('crm-aho-style')) {
     .hr .att-month tbody tr:not(.att-grp):nth-child(even) td { background-color:#fafbfd; }
     .hr .att-month tbody tr:not(.att-grp):hover td { background-color:#eef3ff; }
     .att-month th.we, .hr .att-month td.we { background-color:#f0f2f6 !important; }
-    .att-month td sup { top:2px; right:1px; }
+    .att-month td sup { top:1px; right:2px; font-size:10px !important; line-height:1; font-weight:700; }
     .att-month thead th { font-size:11.5px; white-space:normal; line-height:1.15; }
     .att-grp td { background:#e9edf5 !important; font-weight:700 !important; color:#1c2d58 !important; font-size:13.5px !important; text-align:left !important; padding:8px 10px !important; }
     .att-grp small { font-weight:400; color:#3a4256; margin-left:6px; }

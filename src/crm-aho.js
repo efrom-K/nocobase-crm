@@ -1154,7 +1154,7 @@ async function aAttLoad(month) {
 }
 function aAttShift(n) {
   const a = ah.att;
-  if (a.view === 'month' || a.view === 'late') { a.day = aAddMonths(a.day.slice(0, 7) + '-01', n); }
+  if (a.view === 'month') { a.day = aAddMonths(a.day.slice(0, 7) + '-01', n); }
   else { const d = new Date(a.day + 'T00:00:00'); d.setDate(d.getDate() + n); a.day = hIso(d); }
   aRenderAtt();
 }
@@ -1163,7 +1163,7 @@ async function aRenderAtt() {
   const a = ah.att;
   a.day = a.day || hToday();
   if (a.month !== a.day.slice(0, 7)) { aBody().innerHTML = '<div class="hr-empty">Загрузка проходов…</div>'; try { await aAttLoad(a.day.slice(0, 7)); } catch (e) { aBody().innerHTML = '<div class="hr-empty">Нет доступа к данным СКУД</div>'; return; } }
-  const seg = '<div class="hr-seg">' + [['day', 'День'], ['month', 'Месяц'], ['late', 'Опоздания'], ['cards', 'Карты']].map(function(x) { return '<button data-act="attv" data-v="' + x[0] + '"' + (a.view === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
+  const seg = '<div class="hr-seg">' + [['day', 'День'], ['month', 'Месяц'], ['cards', 'Карты']].map(function(x) { return '<button data-act="attv" data-v="' + x[0] + '"' + (a.view === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
   const nav = a.view === 'cards' ? '' : '<button class="hr-btn" data-act="attd" data-d="-1">‹</button>'
     + (a.view === 'day' ? '<input type="date" data-f="attDay" value="' + a.day + '">' : '<b>' + ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'][Number(a.day.slice(5, 7)) - 1] + ' ' + a.day.slice(0, 4) + '</b>')
     + '<button class="hr-btn" data-act="attd" data-d="1">›</button>';
@@ -1177,7 +1177,6 @@ async function aRenderAtt() {
     + 'Начало дня — из «Графика работы» в карточке сотрудника, меняется прямо в таблице (иначе ' + hEsc(ah.d.skud.skud_work_start || '09:00') + '), опоздание — больше ' + hEsc(ah.d.skud.skud_grace_min || '10') + ' мин; удалённые дни и отпуска учитываются.</div>' + coSeg;
   if (a.view === 'cards') return aRenderCards(head);
   if (a.view === 'month') return aRenderAttMonth(head);
-  if (a.view === 'late') return aRenderAttLate(head);
   const ppl = aAttPeopleCo(), rows = ppl.map(function(p, i) { return { p: p, i: i, s: aAttStatus(p, a.day, a.ev) }; })
     .filter(function(x) { return x.s.st !== 'off' || x.s.n; })
     .sort(function(x, y) { const gr = function(z) { return a.co ? 0 : cos.indexOf(z.p.grp || 'Карты без владельца'); };
@@ -1197,28 +1196,20 @@ async function aRenderAtt() {
       }).join('') + '</tbody></table></div>'
       : '<div class="hr-empty"><b>Нет данных</b>Карты СКУД ещё не загружены или ни одна не сопоставлена с сотрудниками.</div>');
 }
-// «Опоздания»: все опоздания и дни без прохода за месяц одним списком — комментарий и «уважительная» без переключения дней
-function aRenderAttLate(head) {
-  const md = aAttMonthData(), W = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']; let items = [];
-  md.rows.forEach(function(r) { if (r.p.emp) r.cells.forEach(function(c, i) {
-    if (c.st === 'late' || c.st === 'absent' || (c.st === 'excused' && c.mark && c.mark.excused)) items.push({ p: r.p, c: c, d: md.days[i] });
-  }); });
-  const kind = ah.att.lateKind || 'late', isLate = function(x) { return x.c.lateMin > 0 && x.c.first; };
-  const nL = items.filter(isLate).length, nA = items.length - nL;
-  items = items.filter(function(x) { return kind === 'late' ? isLate(x) : !isLate(x); });
-  const noCmt = items.filter(function(x) { return x.c.st !== 'excused' && !(x.c.mark && x.c.mark.comment); }).length;
-  aBody().innerHTML = head + '<div class="hr-bar"><span class="hr-seg"><button data-act="attlk" data-k="late"' + (kind === 'late' ? ' class="on"' : '') + '>Опоздания ' + nL + '</button><button data-act="attlk" data-k="absent"' + (kind === 'absent' ? ' class="on"' : '') + '>Без прохода ' + nA + '</button></span></div>'
-    + '<div class="hr-hint" style="margin-bottom:8px;">Все опоздания и дни без прохода за месяц. Комментарий сохраняется, когда уходите из поля (Tab — к следующему). '
-    + 'Опоздание без комментария и без отметки «уважительная» идёт в табель и Excel как «' + A_NO_REASON + '». Без комментария сейчас: <b>' + noCmt + '</b>.</div>'
-    + (items.length ? '<div class="hr-card"><table><thead><tr><th>Сотрудник</th><th>Дата</th><th>Начало дня</th><th>Приход</th><th>Статус</th><th>Комментарий</th></tr></thead><tbody>'
-      + items.map(function(x, i) {
-        const c = x.c, st = A_ATT_ST[c.st], id = x.p.emp.id, dd = new Date(x.d + 'T00:00:00');
-        return aCoHead(items, i, function(z) { return z.p; }, 6) + '<tr><td>' + (i && items[i - 1].p === x.p ? '' : '<b>' + hEsc(x.p.name) + '</b>') + '</td>'
-          + '<td>' + x.d.slice(8) + '.' + x.d.slice(5, 7) + ' ' + W[dd.getDay()] + '</td><td>' + hEsc(c.start || '') + '</td><td>' + hEsc((c.first || '').slice(0, 5)) + '</td>'
-          + '<td><span class="hr-chip ' + st[1] + '">' + st[0] + (c.lateMin > 0 ? ' ' + c.lateMin + ' мин' : '') + '</span> <label class="att-exc"><input type="checkbox" data-mark-exc="' + id + '" data-mark-day="' + x.d + '"' + (c.mark && c.mark.excused ? ' checked' : '') + '> уважительная</label></td>'
-          + '<td><input class="att-cmt" style="width:100%;min-width:260px;" data-mark-cmt="' + id + '" data-mark-day="' + x.d + '" value="' + hEsc((c.mark && c.mark.comment) || '') + '" placeholder="' + (c.st === 'late' ? A_NO_REASON : 'почему…') + '"></td></tr>';
-      }).join('') + '</tbody></table></div>'
-      : '<div class="hr-empty"><b>' + (kind === 'late' ? 'Опозданий нет' : 'Дней без прохода нет') + '</b>За этот месяц.</div>');
+// причина опоздания / отсутствия из табеля за месяц: окошко с комментарием и «уважительная»
+function aOpenAttMark(empId, day) {
+  const p = aAttPeople().find(function(x) { return x.emp && x.emp.id === empId; }); if (!p) return;
+  const c = aAttStatus(p, day, ah.att.ev), mk = c.mark || {}, late = c.first && c.lateMin > 0;
+  const what = late ? 'Опоздание ' + c.lateMin + ' мин: приход ' + c.first.slice(0, 5) + ', начало дня ' + hEsc(c.start) : 'Нет прохода, начало дня ' + hEsc(c.start);
+  const m = hModal('<div class="hr-box-h"><div class="hr-box-t">' + hEsc(p.name) + ' · ' + day.slice(8) + '.' + day.slice(5, 7) + '.' + day.slice(0, 4) + '</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
+    + '<div style="margin-bottom:10px;">' + what + '</div>'
+    + '<label style="display:block;margin-bottom:6px;">Причина</label><textarea data-c rows="3" style="width:100%;box-sizing:border-box;" placeholder="' + (late ? A_NO_REASON : 'почему…') + '">' + hEsc(mk.comment || '') + '</textarea>'
+    + '<label class="att-exc" style="display:block;margin:10px 0;"><input type="checkbox" data-x' + (mk.excused ? ' checked' : '') + '> уважительная причина (не считается опозданием)</label>'
+    + '<div class="hr-actions"><button class="hr-btn pri" data-save>Сохранить</button><button class="hr-btn hr-x">Отмена</button></div></div>');
+  const ta = m.querySelector('[data-c]'); ta.focus();
+  m.querySelector('[data-save]').addEventListener('click', async function() {
+    await aSaveMark(empId, { comment: ta.value.trim() || null, excused: m.querySelector('[data-x]').checked }, day); m.remove();
+  });
 }
 function aMonthDays(m) { const n = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0).getDate(), out = []; for (let i = 1; i <= n; i++) out.push(m + '-' + ('0' + i).slice(-2)); return out; }
 function aAttMonthData() { return aAttRangeData(aMonthDays(ah.att.day.slice(0, 7)), ah.att.ev); }
@@ -1232,18 +1223,19 @@ function aAttRangeData(days, ev) {
 }
 function aRenderAttMonth(head) {
   const md = aAttMonthData();
-  const cell = function(c, d) {
+  const cell = function(c, d, r) {
+    const click = r.p.emp && (c.st === 'late' || c.st === 'absent' || c.st === 'excused') ? ' data-act="attmark" data-emp="' + r.p.emp.id + '" data-day="' + d + '"' : '';
     const we = [0, 6].indexOf(new Date(d + 'T00:00:00').getDay()) !== -1;
     const mk = c.mark, note = (mk && mk.time ? 'приход исправлен (по СКУД ' + (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') + '); ' : '') + (mk && mk.excused ? 'уважительная причина; ' : '') + aCmt(c);
     const mark = mk && (mk.comment || mk.time) ? '<sup style="color:#1c2d58;">*</sup>' : '';
-    if (c.first) return '<td class="n" style="' + (c.st === 'late' ? 'color:#c23b3b;font-weight:600;' : c.st === 'excused' ? 'color:#2f4a8a;' : '') + (we ? 'background:#f3f5f9;' : '') + '" title="' + hEsc((c.st === 'late' || c.st === 'excused' ? 'опоздание ' + c.lateMin + ' мин, ' : '') + 'проходов ' + c.n + (c.n > 1 ? ', последний ' + c.last.slice(0, 5) : '') + (note ? '\n' + note : '')) + '">' + c.first.slice(0, 5) + mark + '</td>';
+    if (c.first) return '<td class="n"' + click + ' style="' + (click ? 'cursor:pointer;' : '') + (c.st === 'late' ? 'color:#c23b3b;font-weight:600;' : c.st === 'excused' ? 'color:#2f4a8a;' : '') + (we ? 'background:#f3f5f9;' : '') + '" title="' + hEsc((c.st === 'late' || c.st === 'excused' ? 'опоздание ' + c.lateMin + ' мин, ' : '') + 'проходов ' + c.n + (c.n > 1 ? ', последний ' + c.last.slice(0, 5) : '') + (note ? '\n' + note : '')) + '">' + c.first.slice(0, 5) + mark + '</td>';
     const txt = { vac: 'О', remote: 'У', absent: '—', excused: 'УП' }[c.st] || '';
-    return '<td class="n" style="' + (we || c.st === 'off' || c.st === 'future' ? 'background:#f3f5f9;' : '') + (c.st === 'absent' ? 'color:#8a5a00;' : c.st === 'excused' ? 'color:#2f4a8a;' : 'color:#5b6478;') + '"' + (note ? ' title="' + hEsc(note) + '"' : '') + '>' + txt + mark + '</td>';
+    return '<td class="n"' + click + ' style="' + (click ? 'cursor:pointer;' : '') + (we || c.st === 'off' || c.st === 'future' ? 'background:#f3f5f9;' : '') + (c.st === 'absent' ? 'color:#8a5a00;' : c.st === 'excused' ? 'color:#2f4a8a;' : 'color:#5b6478;') + '"' + (note ? ' title="' + hEsc(note) + '"' : '') + '>' + txt + mark + '</td>';
   };
-  aBody().innerHTML = head + '<div class="hr-hint" style="margin-bottom:8px;">О — отпуск, У — удалённый день, — — рабочий день без прохода, УП — отсутствие по уважительной причине; красным — опоздание, синим — опоздание по уважительной причине; * — есть комментарий или исправленное время. Наведите на ячейку — подробности. Исправить приход — во вкладке «День», комментарии к опозданиям за весь месяц — во вкладке «Опоздания».</div>'
+  aBody().innerHTML = head + '<div class="hr-hint" style="margin-bottom:8px;">О — отпуск, У — удалённый день, — — рабочий день без прохода, УП — отсутствие по уважительной причине; красным — опоздание, синим — опоздание по уважительной причине; * — есть комментарий или исправленное время. Наведите на ячейку — подробности. Нажмите на опоздание или «—», чтобы указать причину. Исправить время прихода — во вкладке «День».</div>'
     + '<div class="hr-card hr-plan att-month"><table><thead><tr><th>Сотрудник</th>' + md.days.map(function(d) { return '<th class="n">' + Number(d.slice(8)) + '</th>'; }).join('')
     + '<th class="n">Дней</th><th class="n">Опозд.</th><th class="n" title="Без прохода">Без пр.</th></tr></thead><tbody>'
-    + md.rows.map(function(r, ri) { return aCoHead(md.rows, ri, function(x) { return x.p; }, md.days.length + 4) + '<tr><td>' + hEsc(r.p.name) + '</td>' + r.cells.map(function(c, i) { return cell(c, md.days[i]); }).join('') + '<td class="n"><b>' + r.came + '</b></td><td class="n"' + (r.late ? ' style="color:#c23b3b;"' : '') + '>' + r.late + '</td><td class="n">' + r.absent + '</td></tr>'; }).join('')
+    + md.rows.map(function(r, ri) { return aCoHead(md.rows, ri, function(x) { return x.p; }, md.days.length + 4) + '<tr><td>' + hEsc(r.p.name) + '</td>' + r.cells.map(function(c, i) { return cell(c, md.days[i], r); }).join('') + '<td class="n"><b>' + r.came + '</b></td><td class="n"' + (r.late ? ' style="color:#c23b3b;"' : '') + '>' + r.late + '</td><td class="n">' + r.absent + '</td></tr>'; }).join('')
     + '</tbody></table></div>';
 }
 // Excel по СКУД за день / неделю (пн–вс) / месяц выбранной даты — общий вид выгрузок CRM (src/_crm-xlsx.js):
@@ -1411,7 +1403,7 @@ aRoot().addEventListener('click', function(e) {
     if (a === 'attv') { ah.att.view = act.getAttribute('data-v'); return aRenderAtt(); }
     if (a === 'atthide') { aHideEmp(Number(act.getAttribute('data-emp'))); return; }
     if (a === 'attco') { ah.att.co = act.getAttribute('data-co') || ''; return aRenderAtt(); }
-    if (a === 'attlk') { ah.att.lateKind = act.getAttribute('data-k'); return aRenderAtt(); }
+    if (a === 'attmark') return aOpenAttMark(Number(act.getAttribute('data-emp')), act.getAttribute('data-day'));
     if (a === 'attd') { return aAttShift(Number(act.getAttribute('data-d'))); }
     if (a === 'attx') { aAttXlsx(act.getAttribute('data-k')).catch(function(err) { console.error(err); hToast('Не удалось выгрузить'); }); return; }
     return;

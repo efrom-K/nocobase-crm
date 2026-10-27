@@ -198,6 +198,11 @@ if (!document.getElementById('crm-aho-style')) {
     .att-month th:nth-last-child(-n+3), .att-month td:nth-last-child(-n+3) { width:38px; }
     .att-month td sup { position:absolute; }
     .att-month td { position:relative; }
+    .hr .att-month th.n, .hr .att-month td.n { text-align:center; font-variant-numeric:tabular-nums; border-left:1px solid #eef1f6; }
+    .hr .att-month tbody tr:not(.att-grp):nth-child(even) td { background-color:#fafbfd; }
+    .hr .att-month tbody tr:not(.att-grp):hover td { background-color:#eef3ff; }
+    .att-month th.we, .hr .att-month td.we { background-color:#f0f2f6 !important; }
+    .att-month td sup { top:2px; right:1px; }
     .att-month thead th { font-size:11.5px; white-space:normal; line-height:1.15; }
     .att-grp td { background:#e9edf5 !important; font-weight:700 !important; color:#1c2d58 !important; font-size:13.5px !important; text-align:left !important; padding:8px 10px !important; }
     .att-grp small { font-weight:400; color:#3a4256; margin-left:6px; }
@@ -1233,7 +1238,7 @@ function aRenderAttMonth(head) {
     return '<td class="n"' + click + ' style="' + (click ? 'cursor:pointer;' : '') + (we || c.st === 'off' || c.st === 'future' ? 'background:#f3f5f9;' : '') + (c.st === 'absent' ? 'color:#8a5a00;' : c.st === 'excused' ? 'color:#2f4a8a;' : 'color:#5b6478;') + '"' + (note ? ' title="' + hEsc(note) + '"' : '') + '>' + txt + mark + '</td>';
   };
   aBody().innerHTML = head + '<div class="hr-hint" style="margin-bottom:8px;">О — отпуск, У — удалённый день, — — рабочий день без прохода, УП — отсутствие по уважительной причине; красным — опоздание, синим — опоздание по уважительной причине; * — есть комментарий или исправленное время. Наведите на ячейку — подробности. Нажмите на опоздание или «—», чтобы указать причину. Исправить время прихода — во вкладке «День».</div>'
-    + '<div class="hr-card hr-plan att-month"><table><thead><tr><th>Сотрудник</th>' + md.days.map(function(d) { return '<th class="n">' + Number(d.slice(8)) + '</th>'; }).join('')
+    + '<div class="hr-card hr-plan att-month"><table><thead><tr><th>Сотрудник</th>' + md.days.map(function(d) { return '<th class="n' + ([0, 6].indexOf(new Date(d + 'T00:00:00').getDay()) !== -1 ? ' we' : '') + '">' + Number(d.slice(8)) + '</th>'; }).join('')
     + '<th class="n">Дней</th><th class="n">Опозд.</th><th class="n" title="Без прохода">Без пр.</th></tr></thead><tbody>'
     + md.rows.map(function(r, ri) { return aCoHead(md.rows, ri, function(x) { return x.p; }, md.days.length + 4) + '<tr><td>' + hEsc(r.p.name) + '</td>' + r.cells.map(function(c, i) { return cell(c, md.days[i], r); }).join('') + '<td class="n"><b>' + r.came + '</b></td><td class="n"' + (r.late ? ' style="color:#c23b3b;"' : '') + '>' + r.late + '</td><td class="n">' + r.absent + '</td></tr>'; }).join('')
     + '</tbody></table></div>';

@@ -672,11 +672,12 @@ function planExtraTxt(per) {
 function planData() {
   const d = dv(), months = planMonths(), per = { active: {}, completed: {} };
   (dashState.data.periods || []).forEach(function(p) { const g = per[p.contract_type]; if (g) (g[p.contract_ref_id] = g[p.contract_ref_id] || []).push(p); });
+  const t = plToday(), now = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'), live = function(l) { return l.filter(function(p) { return !p.date_to || plIso(p.date_to) >= now; }); };   // закончившиеся периоды — без пометки
   const rows = [];
   [['active', d.active], ['completed', d.completed]].forEach(function(x) {
     x[1].forEach(function(r) {
       const ms = months.map(function(M) { return planContractMonth(r, x[0], per[x[0]][r.id] || [], M); });
-      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms, extra: (per[x[0]][r.id] || []).length > 0, per: per[x[0]][r.id] || [] });
+      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms, extra: live(per[x[0]][r.id] || []).length > 0, per: live(per[x[0]][r.id] || []) });
     });
   });
   const objs = {};

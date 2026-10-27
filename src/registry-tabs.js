@@ -589,7 +589,7 @@ if (!window.__cmNotifTimers) {
 }
 
 // ---------- договоры с нестандартной ценой («Дополнительные расчёты аренды») ----------
-// Признак — есть хотя бы один период в contract_price_periods. Только чтение: договоры и их таблицы не меняются.
+// Признак — есть хотя бы один незакончившийся период в contract_price_periods. Только чтение: договоры и их таблицы не меняются.
 // Рядом с ценой — плашка «с 01.02.27: 420 554 ₽»: в «Сумме договора» — будущая сумма (аренда + сбор), в «Арендной плате в месяц» — аренда
 // (ближайшее изменение считает карточка — window.__cmNextFieldChange из contract-modals.js). Нет будущих изменений — «по периоду».
 // Кнопка «Доп. расчёты сверху» поднимает такие договоры наверх (выбор запоминается в браузере).
@@ -688,10 +688,10 @@ async function refreshExtraRows() {
   try {
     const periods = await xcGet('/api/contract_price_periods:list?paginate=false&sort=date_from&sort=id');
     if (!periods) return;
-    const map = {};
+    const map = {}, today = xcToday();
     periods.forEach(function(p) {
       const uid = EXTRA_TABLE_BY_TYPE[p.contract_type];
-      if (!uid || !p.contract_ref_id) return;
+      if (!uid || !p.contract_ref_id || String(p.date_to || '9999').slice(0, 10) < today) return;   // закончившиеся периоды — без плашки
       map[uid] = map[uid] || {};
       (map[uid][p.contract_ref_id] = map[uid][p.contract_ref_id] || { periods: [] }).periods.push(p);
     });

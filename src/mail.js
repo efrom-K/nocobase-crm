@@ -456,7 +456,6 @@ function modal(title, bodyHtml, opts) {
   const onKey = function(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
   w.querySelector('.x').addEventListener('click', close);
-  w.addEventListener('mousedown', function(e) { if (e.target === w) close(); });
   w.__close = close;
   return w;
 }

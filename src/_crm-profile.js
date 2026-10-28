@@ -245,7 +245,6 @@
     m.innerHTML = '<div class="crmp-dlg ' + (cls || '') + '">' + html + '</div>';
     const close = function () { m.remove(); document.removeEventListener('keydown', onKey, true); };
     const onKey = function (ev) { if (ev.key === 'Escape') close(); };
-    m.addEventListener('mousedown', function (ev) { if (ev.target === m) close(); });
     document.addEventListener('keydown', onKey, true);
     m.close = close;
     document.body.appendChild(m);

@@ -388,10 +388,8 @@ function hModal(html, wide) {
   const m = document.createElement('div');
   m.className = 'hr-modal';
   m.innerHTML = '<div class="hr-box' + (wide ? ' wide' : '') + '">' + html + '</div>';
-  // фон закрывает окно, только если и нажали, и отпустили на фоне: выделение текста, отпущенное за окном, — не клик по фону
-  let downOnBg = false;
-  m.addEventListener('mousedown', function(e) { downOnBg = e.target === m; });
-  m.addEventListener('click', function(e) { if ((e.target === m && downOnBg) || (e.target.closest && e.target.closest('.hr-x'))) m.remove(); });
+  // окно закрывается только крестиком/«Отмена»/после сохранения — клик по фону не закрывает (владелец 10-28: окна закрывались сами)
+  m.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('.hr-x')) m.remove(); });
   document.body.appendChild(m);
   return m;
 }

@@ -86,6 +86,9 @@ div[style*="padding-top: 20vh"] > h1::before { content: ""; display: block; widt
 /* логотип в шапке — горизонтальный блок «на фирменном синем» (SVG), шире прежней рамки 168 px */
 /* NocoBase отдаёт логотип как /files/main/main/attachments/1.svg — ловим оба адреса */
 header.ant-layout-header img[src*="kn-logo-header"], header.ant-layout-header img[src*="attachments/1."] { width: auto !important; max-width: none !important; height: 36px !important; object-fit: contain; }
+/* обёртка логотипа у NocoBase — 168 px и сжимается под меню: даём ей ширину логотипа, меню уходит под «…» */
+header.ant-layout-header .ant-pro-top-nav-header-main-left { flex-shrink: 0 !important; }
+header.ant-layout-header .ant-pro-top-nav-header-logo div:has(> img) { width: auto !important; }
 /* на узком экране — только знак */
 @media (max-width: 760px) { header.ant-layout-header img[src*="kn-logo-header"], header.ant-layout-header img[src*="attachments/1."] { content: url(/storage/uploads/brand/kn-mark-white.svg); width: 34px !important; height: 34px !important; } }
 /* заголовки страниц и модалок — Tilda Sans SemiBold, как в брендбуке */

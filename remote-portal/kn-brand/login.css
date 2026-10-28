@@ -1,6 +1,6 @@
-/* remote.ykinvest.ru — Guacamole по брендбуку v1.2 (шапка как на help.*: синяя полоса с логотипом, бумажный фон, белая карточка).
+/* remote.ykinvest.ru — Guacamole по брендбуку v1.3 (шапка как на help.*: синяя полоса с логотипом, бумажный фон, белая карточка).
    build.sh ставит перед этим файлом brand.css с путями шрифтов app/ext/kn-brand/… — токены --kn-* берутся оттуда. */
-body, input, button, select, textarea { font-family: var(--kn-sans); }
+body, input, button, select, textarea { font-family: var(--kn-sans); font-variant-numeric: tabular-nums; }
 
 /* ---------- вход ---------- */
 div.login-ui { background: var(--kn-paper); color: var(--kn-ink-2); }
@@ -10,7 +10,7 @@ div.login-ui { background: var(--kn-paper); color: var(--kn-ink-2); }
 }
 .login-ui::after {
   content: "© Консалт Недвижимость · удалённый рабочий стол"; position: fixed; left: 0; right: 0; bottom: 0;
-  padding: 22px max(16px, calc(50vw - 520px)); background: var(--kn-deep); color: rgba(255, 255, 255, .62); font: 400 14px var(--kn-sans);
+  padding: 22px max(16px, calc(50vw - 520px)); background: var(--kn-graphite); color: rgba(255, 255, 255, .62); font: 400 14px var(--kn-sans);
 }
 .login-ui .login-dialog-middle { padding: 120px 16px 104px; vertical-align: middle; }
 .login-ui .login-dialog, .login-ui.continuation .login-dialog {
@@ -20,9 +20,8 @@ div.login-ui { background: var(--kn-paper); color: var(--kn-ink-2); }
 .login-ui .login-dialog .logo { display: none; }
 .login-ui .login-dialog .version { text-align: left; margin: 0 0 22px; }
 .login-ui .login-dialog .version::before {
-  content: "Сотрудникам"; display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
-  font: 400 12px/1.2 var(--kn-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--kn-muted);
-  background: linear-gradient(currentColor, currentColor) left center / 18px 1px no-repeat; padding-left: 28px;
+  content: "[\00a0Сотрудникам\00a0]"; display: block; margin-bottom: 10px;
+  font: 500 13px/1.2 var(--kn-mono); letter-spacing: .02em; color: var(--kn-muted);
 }
 .login-ui .login-dialog .version .app-name { font: 600 32px/1.1 var(--kn-cond); color: var(--kn-ink); text-transform: none; text-align: left; }
 .login-ui .login-dialog .version::after {
@@ -70,7 +69,7 @@ div.login-ui { background: var(--kn-paper); color: var(--kn-ink-2); }
 .totp-details td { font-family: var(--kn-mono); }
 
 /* ---------- после входа: шапка и список подключений ---------- */
-button, input[type="submit"] { background: var(--kn-navy) !important; border-color: var(--kn-navy) !important; border-radius: 8px; color: #fff; }
+button, input[type="submit"] { background: var(--kn-navy) !important; border-color: var(--kn-navy) !important; border-radius: var(--kn-pill); color: #fff; }
 button:hover, input[type="submit"]:hover { background: var(--kn-navy-2) !important; border-color: var(--kn-navy-2) !important; }
 .header { background: var(--kn-navy) !important; color: #fff; }
 .header h2 { color: #fff !important; font: 600 22px var(--kn-cond); }
@@ -80,7 +79,8 @@ button:hover, input[type="submit"]:hover { background: var(--kn-navy-2) !importa
 
 @media (max-height: 640px) { .login-ui::after { display: none; } .login-ui .login-dialog-middle { padding-bottom: 24px; } }
 @media (max-width: 600px) {
-  .login-ui::before { height: 64px; background-size: auto 34px; }
+  /* на телефоне — только знак */
+  .login-ui::before { height: 64px; background-image: url('app/ext/kn-brand/kn-mark-white.svg'); background-size: 34px 34px; }
   .login-ui .login-dialog-middle { padding: 88px 12px 96px; }
   .login-ui .login-dialog, .login-ui.continuation .login-dialog { padding: 24px 20px; }
   .login-ui .login-dialog .version .app-name { font-size: 27px; }

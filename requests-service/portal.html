@@ -13,25 +13,26 @@
   document.write('<link rel="stylesheet" href="' + BRAND + 'brand.css"><link rel="icon" type="image/svg+xml" href="' + BRAND + 'kn-mark.svg">');
 </script>
 <style>
-  /* брендбук v1.2: синий — единственный акцент, Fira, карточки 22 / поля 14 / кнопки-капсулы */
+  /* брендбук v1.3: синяя шапка, графитовый подвал, Tilda Sans, карточки и поля 6 / кнопки и статусы — капсулы, метки в [ скобках ] */
   :root {
     --navy:var(--kn-navy, #1c2d58); --navy-d:var(--kn-navy-2, #2f4a8a); --navy-soft:var(--kn-ice-soft, #eef2f9); --ice:var(--kn-ice, #dde5f3);
     --ink:var(--kn-ink, #1f2433); --text:var(--kn-ink-2, #3a4256); --muted:var(--kn-muted, #5b6478); --line:var(--kn-line, #dfe3ec); --line-d:var(--kn-line-2, #c3cad8);
     --bg:var(--kn-paper, #f3f5f9); --bg-2:var(--kn-paper-2, #e9edf5); --surface:#fff;
     --ok:var(--kn-ok, #2f7d4f); --ok-soft:var(--kn-ok-soft, #e5f1ea); --warn:var(--kn-warn, #8a5a00); --warn-soft:var(--kn-warn-soft, #f6eedb); --bad:var(--kn-err, #c23b3b); --bad-soft:var(--kn-err-soft, #f9e6e6);
-    --cond:var(--kn-cond, "Fira Sans Condensed", sans-serif); --sans:var(--kn-sans, "Fira Sans", system-ui, sans-serif); --mono:var(--kn-mono, "Fira Mono", ui-monospace, monospace);
-    --r:var(--kn-r, 22px); --r-sm:var(--kn-r-sm, 14px); --shadow:var(--kn-shadow, 0 12px 32px -12px rgba(18,29,58,.18)); --focus:var(--kn-focus, 0 0 0 3px rgba(47,74,138,.28));
+    --cond:var(--kn-cond, "Tilda Sans", Arial, sans-serif); --sans:var(--kn-sans, "Tilda Sans", Arial, sans-serif); --mono:var(--kn-mono, "Tilda Sans", Arial, sans-serif);
+    --r:var(--kn-r, 6px); --r-sm:var(--kn-r-sm, 6px); --shadow:var(--kn-shadow, 0 12px 32px -12px rgba(18,29,58,.18)); --focus:var(--kn-focus, 0 0 0 3px rgba(47,74,138,.28));
   }
   * { box-sizing:border-box; }
   [hidden] { display:none !important; }
   html, body { margin:0; }
-  body { background:var(--bg); color:var(--text); font:16px/1.5 var(--sans); -webkit-font-smoothing:antialiased; min-height:100vh; display:flex; flex-direction:column; }
+  body { background:var(--bg); color:var(--text); font:16px/1.5 var(--sans); font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; min-height:100vh; display:flex; flex-direction:column; }
   h1, h2, h3 { color:var(--ink); margin:0; }
   h1 { font:600 32px/1.1 var(--cond); letter-spacing:-.005em; }
   h2 { font:600 21px/1.15 var(--cond); }
-  /* надзаголовок: короткая линия и метка Fira Mono прописными */
-  h3 { display:flex; align-items:center; gap:10px; font:400 12px/1.2 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-  h3::before { content:""; width:18px; height:1px; background:currentColor; }
+  /* надзаголовок: метка в квадратных скобках, пробел внутри */
+  h3 { font:500 13px/1.2 var(--mono); letter-spacing:.02em; color:var(--muted); }
+  h3::before, .eb::before { content:"[\00a0"; } h3::after, .eb::after { content:"\00a0]"; }
+  .eb { display:block; margin:0 0 10px; font:500 13px/1.2 var(--mono); letter-spacing:.02em; color:var(--muted); }
   a { color:var(--navy); }
   button, input, select, textarea { font:inherit; color:inherit; }
   svg.i { width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
@@ -43,13 +44,14 @@
   .hdr .wrap { display:flex; align-items:center; gap:18px; height:72px; }
   .hdr img { height:40px; width:auto; display:block; }
   .hdr .sep { width:1px; height:28px; background:rgba(255,255,255,.22); }
-  .hdr .tag { font:400 12px/1 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.75); white-space:nowrap; }
+  .hdr .tag { font:500 13px/1 var(--mono); letter-spacing:.02em; color:var(--kn-sky, #a6c2e8); white-space:nowrap; }
+  .hdr .tag::before { content:"[\00a0"; } .hdr .tag::after { content:"\00a0]"; }
   .hdr .who { margin-left:auto; font-size:14px; color:rgba(255,255,255,.8); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .hdr .btn { color:#fff; border-color:rgba(255,255,255,.35); background:transparent; }
   .hdr .btn:hover { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.65); }
   .hdr .btn:focus-visible { outline-color:rgba(255,255,255,.6); }
   main { flex:1; padding:40px 0 56px; }
-  footer { background:var(--kn-deep, #121d3a); color:rgba(255,255,255,.62); font-size:14px; }
+  footer { background:var(--kn-graphite, #2f344a); color:rgba(255,255,255,.62); font-size:14px; }
   footer .wrap { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-top:22px; padding-bottom:24px; }
   footer a { color:rgba(255,255,255,.85); text-decoration:none; } footer a:hover { color:#fff; }
 
@@ -97,7 +99,7 @@
   /* список — реестр с линейками */
   .list { overflow:hidden; }
   .lh, .row { display:grid; grid-template-columns:200px minmax(0,1fr) 112px 112px 20px; gap:16px; align-items:center; padding:0 24px; }
-  .lh { height:44px; border-bottom:1px solid var(--line-d); font:400 12px/1 var(--mono); color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+  .lh { height:44px; border-bottom:1px solid var(--line-d); font:500 13px/1 var(--mono); color:var(--muted); letter-spacing:.02em; }
   .row { width:100%; min-height:76px; padding-top:14px; padding-bottom:14px; background:none; border:0; border-bottom:1px solid var(--line); text-align:left; cursor:pointer; transition:background .15s; }
   .row:last-child { border-bottom:0; }
   .row:hover { background:var(--navy-soft); }
@@ -155,7 +157,7 @@
   .msg.me .bubble { background:var(--ice); }
   .msg.sys { align-items:center; }
   .msg.sys .bubble { background:none; border:1px dashed var(--line-d); color:var(--muted); font-size:14px; text-align:center; }
-  .ph { display:block; margin-top:8px; } .ph img { display:block; max-width:min(260px, 100%); max-height:260px; border-radius:10px; border:1px solid var(--line); }
+  .ph { display:block; margin-top:8px; } .ph img { display:block; max-width:min(260px, 100%); max-height:260px; border-radius:var(--r-sm); border:1px solid var(--line); }
   .ph a.file { display:inline-flex; gap:8px; align-items:center; font-weight:500; text-decoration:none; }
   .composer { margin-top:20px; border:1px solid var(--line-d); border-radius:var(--r-sm); background:var(--surface); }
   .composer:focus-within { border-color:var(--navy); box-shadow:var(--focus); }
@@ -188,11 +190,11 @@
   .urg label:has(input:checked) { border-color:var(--navy); background:var(--navy-soft); box-shadow:0 0 0 1px var(--navy) inset; }
   .drop { display:flex; align-items:center; gap:16px; width:100%; border:1.5px dashed var(--line-d); border-radius:var(--r-sm); padding:18px; background:var(--bg); cursor:pointer; text-align:left; color:var(--text); transition:border-color .15s, background .15s; }
   .drop:hover, .drop.over { border-color:var(--navy); background:var(--navy-soft); }
-  .drop .ico { width:44px; height:44px; border-radius:12px; background:var(--surface); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--navy); flex:none; }
+  .drop .ico { width:44px; height:44px; border-radius:var(--r-sm); background:var(--surface); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--navy); flex:none; }
   .drop b { color:var(--ink); display:block; font-weight:500; }
   .thumbs { display:flex; gap:10px; flex-wrap:wrap; }
   .thumbs:not(:empty) { margin-top:12px; }
-  .th { position:relative; width:76px; height:76px; border-radius:10px; border:1px solid var(--line); overflow:hidden; background:var(--bg); display:flex; align-items:center; justify-content:center; font:400 12.5px var(--mono); color:var(--muted); }
+  .th { position:relative; width:76px; height:76px; border-radius:var(--r-sm); border:1px solid var(--line); overflow:hidden; background:var(--bg); display:flex; align-items:center; justify-content:center; font:400 12.5px var(--mono); color:var(--muted); }
   .th img { width:100%; height:100%; object-fit:cover; }
   .th button { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; border:0; background:rgba(18,29,58,.72); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
   .th button svg { width:12px; height:12px; stroke-width:2.4; }
@@ -209,7 +211,7 @@
   .auth .btn.pri { width:100%; height:48px; margin-top:18px; }
   .auth .alt { margin-top:22px; padding-top:20px; border-top:1px solid var(--line); font-size:14px; color:var(--muted); }
   .code { letter-spacing:.4em; font:500 22px var(--mono) !important; text-align:center; }
-  .loading { padding:80px 0; text-align:center; color:var(--muted); font:400 13px var(--mono); text-transform:uppercase; letter-spacing:.08em; }
+  .loading { padding:80px 0; text-align:center; color:var(--muted); font:400 14px var(--mono); }
 
   @media (max-width:900px) {
     .wrap { padding:0 24px; }
@@ -240,11 +242,10 @@
     .side .sec { padding:20px 18px; }
     .auth { margin-top:16px; }
   }
-  @media (max-width:420px) { .hdr img { height:30px; } }
 </style>
 </head>
 <body>
-<header class="hdr"><div class="wrap"><img id="logo" alt="Консалт Недвижимость" width="254" height="40"><span class="sep"></span><span class="tag">Заявки арендатора</span><span class="who" id="who"></span><button class="btn sm" id="out" hidden>Выйти</button></div></header>
+<header class="hdr"><div class="wrap"><picture><source id="logo-m" media="(max-width:600px)" width="34" height="34"><img id="logo" alt="Консалт Недвижимость" width="291" height="40"></picture><span class="sep"></span><span class="tag">Заявки арендатора</span><span class="who" id="who"></span><button class="btn sm" id="out" hidden>Выйти</button></div></header>
 <main><div class="wrap" id="app"><div class="loading">Загрузка…</div></div></main>
 <footer><div class="wrap"><span>© <span id="yr"></span> Консалт Недвижимость</span><span>Портал заявок арендаторов · <a href="https://ykinvest.ru">ykinvest.ru</a></span></div></footer>
 <script>
@@ -279,12 +280,12 @@ function busy(b, on, text) { if (on) { b.dataset.t = b.innerHTML; b.disabled = t
 function login(step, msg) {
   $('#who').textContent = ''; $('#out').hidden = true;
   var h = '<div class="card auth"><div class="pad">';
-  if (step === 'code') h += '<h1>Введите код</h1><p>Мы отправили шестизначный код на <b>' + esc(S.email) + '</b>. Он действует 15 минут.</p>'
+  if (step === 'code') h += '<span class="eb">Портал арендатора</span><h1>Введите код</h1><p>Мы отправили шестизначный код на <b>' + esc(S.email) + '</b>. Он действует 15 минут.</p>'
     + '<div class="fld"><label for="code">Код из письма</label><input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>'
     + '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn pri" id="go">Войти</button>'
     + '<div class="alt">Код приходит, только если эта почта указана в договоре аренды или в контактах по договору — обычно в течение минуты; проверьте папку «Спам». '
     + 'Нет письма — <button class="lnk" id="back">укажите другую почту</button> или попросите у управляющего личную ссылку.</div>';
-  else h += '<h1>Вход для арендаторов</h1><p>Подайте заявку управляющему, следите за её выполнением и принимайте работу.</p>'
+  else h += '<span class="eb">Портал арендатора</span><h1>Вход для арендаторов</h1><p>Подайте заявку управляющему, следите за её выполнением и принимайте работу.</p>'
     + '<div class="fld"><label for="email">Электронная почта из договора аренды</label><input id="email" type="email" autocomplete="email" placeholder="name@company.ru" value="' + esc(S.email) + '"></div>'
     + '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn pri" id="go">Получить код</button>'
     + '<div class="alt">Если управляющий прислал вам личную ссылку на портал — просто откройте её, вводить почту не нужно.</div>';
@@ -318,7 +319,7 @@ function renderList() {
   var me = S.me, isOpen = function(r) { return OPEN.indexOf(r.status) !== -1; };
   var list = me.requests.filter(function(r) { return isOpen(r) === (S.tab === 'open'); });
   var nOpen = me.requests.filter(isOpen).length, nClosed = me.requests.length - nOpen;
-  var h = '<div class="page-h"><div><h1>Заявки</h1><p>' + cons() + '</p></div><button class="btn pri" id="new">' + ico('plus') + 'Новая заявка</button></div>'
+  var h = '<div class="page-h"><div><span class="eb">Портал арендатора</span><h1>Заявки</h1><p>' + cons() + '</p></div><button class="btn pri" id="new">' + ico('plus') + 'Новая заявка</button></div>'
     + '<div class="tabs" role="tablist"><button class="tab' + (S.tab === 'open' ? ' on' : '') + '" data-tab="open" role="tab">Текущие <span class="n">' + nOpen + '</span></button>'
     + '<button class="tab' + (S.tab === 'closed' ? ' on' : '') + '" data-tab="closed" role="tab">Закрытые <span class="n">' + nClosed + '</span></button></div>';
   if (!list.length) h += '<div class="card empty"><div class="ico">' + ico('inbox') + '</div><h2>' + (S.tab === 'open' ? 'Текущих заявок нет' : 'Закрытых заявок пока нет') + '</h2>'
@@ -406,7 +407,7 @@ function renderNew() {
   var me = S.me, cs = me.contracts;
   var HINT = { normal: 'Решим в течение нескольких рабочих дней', urgent: 'Мешает работать — займёмся в течение рабочего дня', emergency: 'Протечка, нет света или тепла, угроза людям или имуществу' };
   $('#app').innerHTML = '<div class="crumb"><button class="lnk" id="back">' + ico('back') + 'Все заявки</button></div>'
-    + '<div class="page-h"><div><h1>Новая заявка</h1><p>Заявка уйдёт управляющему объекта. Статус и ответы — здесь' + (me.email ? ' и на почту ' + esc(me.email) : '') + '.</p></div></div>'
+    + '<div class="page-h"><div><span class="eb">Заявки</span><h1>Новая заявка</h1><p>Заявка уйдёт управляющему объекта. Статус и ответы — здесь' + (me.email ? ' и на почту ' + esc(me.email) : '') + '.</p></div></div>'
     + '<div class="card form">'
     + '<div class="fs"><h2>Что случилось</h2><p>Опишите проблему — чем точнее, тем быстрее её решат.</p>'
     + (cs.length > 1 ? '<div class="fld"><label for="c">Помещение</label><select id="c">' + cs.map(function(c) { return '<option value="' + c.id + '">' + esc(c.object || '') + ', договор № ' + esc(c.number || c.id) + '</option>'; }).join('') + '</select></div>'
@@ -489,7 +490,7 @@ function showFiles() {   // фото из переписки — через се
 
 // ---------- старт ----------
 $('#yr').textContent = new Date().getFullYear();
-$('#logo').src = BRAND + 'kn-logo-white.svg';
+$('#logo').src = BRAND + 'kn-logo-white.svg'; $('#logo-m').srcset = BRAND + 'kn-mark-white.svg';   // на телефоне — только знак
 $('#out').innerHTML = ico('out') + 'Выйти';
 $('#out').onclick = function() { setTok(''); S.me = null; S.open = null; S.view = 'list'; login('email'); };
 var m = location.hash.match(/[#&]t=([\w.-]+)/);

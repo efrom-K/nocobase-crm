@@ -14,12 +14,8 @@
     "pages.css": "text/css",
     "kn-mark.svg": "image/svg+xml",
     "kn-logo-white.svg": "image/svg+xml",
-    "fira-sans-400.woff2": "font/woff2",
-    "fira-sans-500.woff2": "font/woff2",
-    "fira-sans-600.woff2": "font/woff2",
-    "fira-sans-condensed-600.woff2": "font/woff2",
-    "fira-mono-400.woff2": "font/woff2",
-    "fira-mono-500.woff2": "font/woff2"
+    "kn-mark-white.svg": "image/svg+xml",
+    "tilda-sans-vf.woff2": "font/woff2"
   },
   "html": [
     "register-link.html"

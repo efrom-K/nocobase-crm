@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Фирменный кит «Консалт Недвижимость»: векторный знак, логотипы с текстом в кривых, шрифты Fira (woff2, кириллица+латиница).
-Нужны fonttools, brotli, uharfbuzz и исходные TTF Fira (github.com/google/fonts, ofl/) в каталоге из аргумента:
-    python3 brand/make.py ~/fira-ttf
+"""Фирменный кит «Консалт Недвижимость» (брендбук v1.3): векторный знак, логотипы с текстом в кривых, шрифт Tilda Sans.
+Нужны fonttools, brotli, uharfbuzz и вариативный TildaSans-VF.woff2 (ykinvest-site/brandbook/fonts) из аргумента:
+    python3 brand/make.py ~/Projects/ykinvest-site/brandbook/fonts/TildaSans-VF.woff2
 Результат — в brand/ рядом со скриптом. brand.css и README пишутся руками, скрипт их не трогает."""
 import os, sys
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
-from fontTools import subset
+from fontTools.varLib import instancer
+import io, shutil
 import uharfbuzz as hb
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-TTF = os.path.expanduser(sys.argv[1]) if len(sys.argv) > 1 else None
+VF = os.path.expanduser(sys.argv[1]) if len(sys.argv) > 1 else None
 
 NAVY, INK, MUTED = '#1c2d58', '#1f2433', '#5b6478'
 
@@ -59,9 +60,11 @@ def text_path(font, text, size, x, baseline, tracking=0.0):
     return ''.join(parts), (pen_x - tracking * upem) * sc
 
 
-def load(name):
-    path = os.path.join(TTF, name)
-    return TTFont(path), open(path, 'rb').read()
+def load(wght):
+    """Статичное начертание из вариативного шрифта: (TTFont, байты TTF для harfbuzz)."""
+    f = instancer.instantiateVariableFont(TTFont(VF), {'wght': wght})
+    f.flavor = None; b = io.BytesIO(); f.save(b)
+    return TTFont(io.BytesIO(b.getvalue())), b.getvalue()
 
 
 def svg(w, h, body, title):
@@ -72,7 +75,7 @@ def svg(w, h, body, title):
 def lockup(cond, sans, sq_bg, sq_fg, t_col, s_col, s=100):
     """Горизонтальный блок как в брендбуке: знак s, отступ .32s, надпись .44s прописными, дескриптор .3s."""
     d1, w1 = text_path(cond, 'КОНСАЛТ НЕДВИЖИМОСТЬ', s * .44, s * 1.32, s * .455, tracking=.01)
-    d2, w2 = text_path(sans, 'Управляющая компания', s * .30, s * 1.32, s * .835)
+    d2, w2 = text_path(sans, 'Инвестиционная управляющая компания', s * .30, s * 1.32, s * .835)
     w = s * 1.32 + max(w1, w2)
     sub = '<path fill="%s"%s d="%s"/>' % (s_col[0], ' fill-opacity="%s"' % s_col[1] if s_col[1] != 1 else '', d2)
     return w, s, mark(0, 0, s, sq_bg, sq_fg) + '<path fill="%s" d="%s"/>' % (t_col, d1) + sub
@@ -83,25 +86,18 @@ def main():
     w('kn-mark.svg', svg(100, 100, mark(0, 0, 100, NAVY, '#fff'), 'Консалт Недвижимость'))
     w('kn-mark-white.svg', svg(100, 100, mark(0, 0, 100, '#fff', NAVY), 'Консалт Недвижимость'))
     w('kn-glyph.svg', svg(GW, GH, '<path fill="%s" d="%s"/>' % (NAVY, glyph_path(0, 0, GW)), 'КН'))
-    if not TTF:
-        print('логотипы с надписью и шрифты пропущены: не указан каталог с TTF'); return
-    cond, sans = load('FiraSansCondensed-SemiBold.ttf'), load('FiraSans-Regular.ttf')
+    if not VF:
+        print('логотипы с надписью и шрифт пропущены: не указан TildaSans-VF.woff2'); return
+    cond, sans = load(600), load(400)   # надпись — SemiBold прописные, дескриптор — Regular
     for name, args in {
         'kn-logo.svg': (NAVY, '#fff', INK, (MUTED, 1)),                      # на светлом и белом
         'kn-logo-white.svg': ('#fff', NAVY, '#fff', ('#fff', .72)),          # на фирменном синем
-        'kn-logo-deep.svg': (NAVY, '#fff', '#fff', ('#fff', .62)),           # на глубоком синем (знак с рамкой не нужен)
+        'kn-logo-deep.svg': (NAVY, '#fff', '#fff', ('#a6c2e8', 1)),           # на графитовом синем (знак с рамкой не нужен)
         'kn-logo-mono.svg': ('#000', '#fff', '#000', ('#000', 1)),           # монохром для печати
     }.items():
         lw, lh, body = lockup(cond, sans, *args)
-        w(name, svg(round(lw + .5), lh, body, 'Консалт Недвижимость — управляющая компания'))
-    # шрифты: только нужные начертания, кириллица + латиница + типографика (₽, №, стрелки)
-    uni = ('U+0020-007E,U+00A0-00FF,U+0131,U+0152-0153,U+02C6,U+02DA,U+02DC,U+0400-045F,U+0490-0491,U+04B0-04B1,'
-           'U+2000-206F,U+20BD,U+2116,U+2122,U+2190-2193,U+2212,U+2215,U+2248,U+2260,U+2264-2265,U+25CF,U+2713,U+2715')
-    for src, dst in [('FiraSans-Regular', 'fira-sans-400'), ('FiraSans-Medium', 'fira-sans-500'), ('FiraSans-SemiBold', 'fira-sans-600'),
-                     ('FiraSansCondensed-SemiBold', 'fira-sans-condensed-600'), ('FiraMono-Regular', 'fira-mono-400'),
-                     ('FiraMono-Medium', 'fira-mono-500')]:
-        subset.main([os.path.join(TTF, src + '.ttf'), '--unicodes=' + uni, '--layout-features=*', '--flavor=woff2',
-                     '--output-file=' + os.path.join(OUT, dst + '.woff2')])
+        w(name, svg(round(lw + .5), lh, body, 'Консалт Недвижимость — инвестиционная управляющая компания'))
+    shutil.copyfile(VF, os.path.join(OUT, 'tilda-sans-vf.woff2'))   # вариативный 250–900, кириллица и латиница
     print('готово:', OUT)
 
 

@@ -1,17 +1,15 @@
-/* Консалт Недвижимость — фирменные токены (брендбук v1.2). Общие для сайта, help.*, remote.* и CRM.
-   Шрифты лежат рядом с этим файлом. Меняя значения здесь, меняйте и брендбук (ykinvest-site/brandbook). */
-@font-face { font-family: "Fira Sans"; font-weight: 400; font-display: swap; src: url(fira-sans-400.woff2) format("woff2"); }
-@font-face { font-family: "Fira Sans"; font-weight: 500; font-display: swap; src: url(fira-sans-500.woff2) format("woff2"); }
-@font-face { font-family: "Fira Sans"; font-weight: 600; font-display: swap; src: url(fira-sans-600.woff2) format("woff2"); }
-@font-face { font-family: "Fira Sans Condensed"; font-weight: 600; font-display: swap; src: url(fira-sans-condensed-600.woff2) format("woff2"); }
-@font-face { font-family: "Fira Mono"; font-weight: 400; font-display: swap; src: url(fira-mono-400.woff2) format("woff2"); }
-@font-face { font-family: "Fira Mono"; font-weight: 500; font-display: swap; src: url(fira-mono-500.woff2) format("woff2"); }
+/* Консалт Недвижимость — фирменные токены (брендбук v1.3, сведён с kninvest.ru). Общие для сайта, help.*, remote.*, кабинета собственника и CRM.
+   Шрифт лежит рядом с этим файлом. Меняя значения здесь, меняйте и брендбук (ykinvest-site/brandbook). */
+@font-face { font-family: "Tilda Sans"; font-weight: 250 900; font-display: swap; src: url(tilda-sans-vf.woff2) format("woff2"); }
 
 :root {
   /* основные */
-  --kn-navy: #1c2d58;     /* знак, заголовки, кнопки — единственный акцент */
+  --kn-navy: #1c2d58;     /* знак, заголовки, кнопки, шапка */
   --kn-navy-2: #2f4a8a;   /* наведение */
-  --kn-deep: #121d3a;     /* тёмные фоны */
+  --kn-graphite: #2f344a; /* тёмные разделы, подвал, обложки */
+  --kn-deep: var(--kn-graphite);
+  --kn-sky: #a6c2e8;      /* акцент — только на тёмном: имена, цифры, активное */
+  --kn-mint: #d8f0f3;     /* только линии фирменных окружностей */
   /* нейтральные */
   --kn-ice: #dde5f3;      /* подсветка, плашки */
   --kn-ice-soft: #eef2f9; /* наведение строк, выбранное */
@@ -27,13 +25,17 @@
   --kn-ok: #2f7d4f;   --kn-ok-soft: #e5f1ea;
   --kn-warn: #8a5a00; --kn-warn-soft: #f6eedb;   /* «внимание»: срок близко, ждёт ответа */
   --kn-err: #c23b3b;  --kn-err-soft: #f9e6e6;
-  /* шрифты */
-  --kn-cond: "Fira Sans Condensed", "Fira Sans", system-ui, sans-serif;
-  --kn-sans: "Fira Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --kn-mono: "Fira Mono", ui-monospace, Menlo, monospace;
-  /* форма: клиентские сервисы — 22/14 и капсулы, плотные рабочие экраны (CRM) — 8/6 */
-  --kn-r: 22px;
-  --kn-r-sm: 14px;
+  /* шрифт: один Tilda Sans; цифры в таблицах — font-variant-numeric: tabular-nums */
+  --kn-tilda: "Tilda Sans", Arial, system-ui, sans-serif;
+  --kn-cond: var(--kn-tilda);
+  --kn-sans: var(--kn-tilda);
+  --kn-mono: var(--kn-tilda);
+  /* форма: клиентские сервисы — 6, теги 5, кнопки и статусы — капсулы; плотные рабочие экраны (CRM) — 8/6 */
+  --kn-r: 6px;
+  --kn-r-sm: 6px;
+  --kn-r-tag: 5px;
+  --kn-r13: var(--kn-r);
+  --kn-r13-tag: var(--kn-r-tag);
   --kn-r-dense: 8px;
   --kn-r-dense-sm: 6px;
   --kn-pill: 999px;

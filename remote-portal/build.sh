@@ -10,8 +10,8 @@ cd "$(dirname "$0")"
 B=../brand; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cp -R kn-brand/. "$T"/
 rm -f "$T"/login.css
-cp $B/brand.css $B/kn-mark.svg $B/kn-logo-white.svg $B/*.woff2 "$T"/
-sed 's#url(fira-#url(app/ext/kn-brand/fira-#' $B/brand.css > "$T"/kn-login.css
+cp $B/brand.css $B/kn-mark.svg $B/kn-mark-white.svg $B/kn-logo-white.svg $B/*.woff2 "$T"/
+sed 's#url(tilda-#url(app/ext/kn-brand/tilda-#' $B/brand.css > "$T"/kn-login.css
 cat kn-brand/login.css >> "$T"/kn-login.css
 rm -f kn-brand.jar
 (cd "$T" && zip -qrX "$OLDPWD/kn-brand.jar" .)

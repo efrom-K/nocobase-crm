@@ -38,13 +38,9 @@
     "files": [
       "brand.css",
       "kn-mark.svg",
+      "kn-mark-white.svg",
       "kn-logo-white.svg",
-      "fira-sans-400.woff2",
-      "fira-sans-500.woff2",
-      "fira-sans-600.woff2",
-      "fira-sans-condensed-600.woff2",
-      "fira-mono-400.woff2",
-      "fira-mono-500.woff2"
+      "tilda-sans-vf.woff2"
     ]
   },
   "requests-service": {

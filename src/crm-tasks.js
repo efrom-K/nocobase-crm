@@ -360,7 +360,10 @@ function tkModal(html) {
   const m = document.createElement('div');
   m.className = 'tk-modal';
   m.innerHTML = '<div class="tk-box">' + html + '</div>';
-  m.addEventListener('click', function(e) { if (e.target === m || (e.target.closest && e.target.closest('.tk-x'))) m.remove(); });
+  // фон закрывает окно, только если и нажали, и отпустили на фоне: выделение текста, отпущенное за окном, — не клик по фону
+  let downOnBg = false;
+  m.addEventListener('mousedown', function(e) { downOnBg = e.target === m; });
+  m.addEventListener('click', function(e) { if ((e.target === m && downOnBg) || (e.target.closest && e.target.closest('.tk-x'))) m.remove(); });
   document.body.appendChild(m);
   return m;
 }

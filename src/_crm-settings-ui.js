@@ -132,7 +132,10 @@ function csToast(t) {
 function csModal(html) {
   const m = document.createElement('div'); m.className = 'cs-modal';
   m.innerHTML = '<div class="cs-box">' + html + '</div>';
-  m.addEventListener('click', function(e) { if (e.target === m || (e.target.closest && e.target.closest('.cs-x'))) m.remove(); });
+  // фон закрывает окно, только если и нажали, и отпустили на фоне: выделение текста, отпущенное за окном, — не клик по фону
+  let downOnBg = false;
+  m.addEventListener('mousedown', function(e) { downOnBg = e.target === m; });
+  m.addEventListener('click', function(e) { if ((e.target === m && downOnBg) || (e.target.closest && e.target.closest('.cs-x'))) m.remove(); });
   document.body.appendChild(m); return m;
 }
 function csErr(e) {   // текст ошибки NocoBase для человека
@@ -204,7 +207,9 @@ async function crmSettingsOpen(opts) {
   const close = function() { dr.remove(); document.removeEventListener('keydown', esc); };
   const esc = function(e) { if (e.key === 'Escape' && !document.querySelector('.cs-modal')) close(); };
   document.addEventListener('keydown', esc);
-  dr.addEventListener('click', function(e) { if (e.target === dr || (e.target.closest && e.target.closest('.cs-close'))) close(); });
+  let downOnBg = false;   // как у окон: закрыть фоном, только если и нажали, и отпустили на нём
+  dr.addEventListener('mousedown', function(e) { downOnBg = e.target === dr; });
+  dr.addEventListener('click', function(e) { if ((e.target === dr && downOnBg) || (e.target.closest && e.target.closest('.cs-close'))) close(); });
   crmS.el.addEventListener('click', csOnClick);
   crmS.el.addEventListener('input', function(e) { if (e.target.hasAttribute('data-q')) { crmS.q = e.target.value; const pos = e.target.selectionStart; csRenderUsers(); const i = crmS.el.querySelector('[data-q]'); i.focus(); i.setSelectionRange(pos, pos); } });
   crmS.el.addEventListener('change', function(e) {

@@ -5,208 +5,309 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#1c2d58">
+<meta name="theme-color" content="#2f344a">
 <title>Кабинет собственника — Консалт Недвижимость</title>
 <link rel="stylesheet" href="/brand/brand.css">
 <link rel="icon" type="image/svg+xml" href="/brand/kn-mark.svg">
 <style>
-  /* брендбук v1.2: синий — единственный акцент, Fira, карточки 22 / поля 14 / кнопки-капсулы. Каркас — как у портала арендатора (requests-service/portal.html) */
+  /* брендбук v1.3, как герой ykinvest-site: графитовый верх с главной цифрой, светлая рабочая часть.
+     Tilda Sans, скругления 6 / теги 5, небесный акцент — только на тёмном, метки «[ … ]», кнопки-капсулы */
   :root {
-    --navy:var(--kn-navy, #1c2d58); --navy-d:var(--kn-navy-2, #2f4a8a); --navy-soft:var(--kn-ice-soft, #eef2f9); --ice:var(--kn-ice, #dde5f3);
+    --navy:var(--kn-navy, #1c2d58); --navy-d:var(--kn-navy-2, #2f4a8a); --graphite:var(--kn-graphite, #2f344a); --sky:var(--kn-sky, #a6c2e8); --ice:var(--kn-ice, #dde5f3);
     --ink:var(--kn-ink, #1f2433); --text:var(--kn-ink-2, #3a4256); --muted:var(--kn-muted, #5b6478); --line:var(--kn-line, #dfe3ec); --line-d:var(--kn-line-2, #c3cad8);
     --bg:var(--kn-paper, #f3f5f9); --bg-2:var(--kn-paper-2, #e9edf5); --surface:#fff;
     --ok:var(--kn-ok, #2f7d4f); --ok-soft:var(--kn-ok-soft, #e5f1ea); --warn:var(--kn-warn, #8a5a00); --warn-soft:var(--kn-warn-soft, #f6eedb); --bad:var(--kn-err, #c23b3b); --bad-soft:var(--kn-err-soft, #f9e6e6);
-    --cond:var(--kn-cond, "Fira Sans Condensed", sans-serif); --sans:var(--kn-sans, "Fira Sans", system-ui, sans-serif); --mono:var(--kn-mono, "Fira Mono", ui-monospace, monospace);
-    --r:var(--kn-r, 22px); --r-sm:var(--kn-r-sm, 14px); --shadow:var(--kn-shadow, 0 12px 32px -12px rgba(18,29,58,.18)); --focus:var(--kn-focus, 0 0 0 3px rgba(47,74,138,.28));
+    --font:var(--kn-tilda, "Tilda Sans", Arial, sans-serif);
+    --r:var(--kn-r13, 6px); --r-tag:var(--kn-r13-tag, 5px);
+    --shadow:0 1px 2px rgba(31,36,51,.04), 0 16px 40px -18px rgba(31,36,51,.22); --focus:0 0 0 3px rgba(47,74,138,.25);
   }
   * { box-sizing:border-box; }
   [hidden] { display:none !important; }
   html, body { margin:0; }
-  body { background:var(--bg); color:var(--text); font:16px/1.5 var(--sans); -webkit-font-smoothing:antialiased; min-height:100vh; display:flex; flex-direction:column; }
-  h1, h2, h3 { color:var(--ink); margin:0; }
-  h1 { font:600 32px/1.1 var(--cond); letter-spacing:-.005em; }
-  h2 { font:600 21px/1.15 var(--cond); }
-  h3 { display:flex; align-items:center; gap:10px; font:400 12px/1.2 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-  h3::before { content:""; width:18px; height:1px; background:currentColor; }
+  body { background:var(--bg); color:var(--text); font:16px/1.5 var(--font); font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; min-height:100vh; display:flex; flex-direction:column; }
+  h1, h2, h3 { margin:0; font-weight:500; color:var(--ink); }
+  .lbl { display:block; font-size:13px; letter-spacing:.03em; color:var(--muted); }
+  .lbl::before { content:"[\00a0"; } .lbl::after { content:"\00a0]"; }
   a { color:var(--navy); }
   button, input, select, textarea { font:inherit; color:inherit; }
   svg.i { width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-  .wrap { width:100%; max-width:1180px; margin:0 auto; padding:0 40px; }
-  .num { font-family:var(--mono); }
+  .wrap { width:100%; max-width:1240px; margin:0 auto; padding:0 40px; }
 
-  /* шапка и подвал */
-  .hdr { background:var(--navy); color:#fff; }
-  .hdr .wrap { display:flex; align-items:center; gap:18px; height:72px; }
-  .hdr img { height:40px; width:auto; display:block; }
-  .hdr .sep { width:1px; height:28px; background:rgba(255,255,255,.22); }
-  .hdr .tag { font:400 12px/1 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.75); white-space:nowrap; }
-  .hdr .who { margin-left:auto; font-size:14px; color:rgba(255,255,255,.8); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
-  .hdr .btn { color:#fff; border-color:rgba(255,255,255,.35); background:transparent; }
-  .hdr .btn:hover { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.65); }
-  main { flex:1; padding:32px 0 56px; }
-  footer { background:var(--kn-deep, #121d3a); color:rgba(255,255,255,.62); font-size:14px; }
-  footer .wrap { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-top:22px; padding-bottom:24px; }
-  footer a { color:rgba(255,255,255,.85); text-decoration:none; } footer a:hover { color:#fff; }
-  .demo-bar { background:var(--warn-soft); color:var(--warn); font-size:14px; text-align:center; padding:8px 16px; }
+  /* ---------- графитовый верх: шапка + вкладки + главное ---------- */
+  .top { background:var(--graphite); color:#fff; position:relative; overflow:hidden; isolation:isolate; }
+  .top::before { content:""; position:absolute; right:-220px; top:-260px; width:760px; aspect-ratio:1; border-radius:50%; z-index:-1; pointer-events:none;
+    background:repeating-radial-gradient(circle, transparent 0 89px, rgba(166,194,232,.22) 89px 90px); }
+  .bar { display:flex; align-items:center; gap:18px; height:76px; }
+  .logo { display:flex; align-items:center; gap:12px; color:#fff; }
+  .logo img { height:38px; display:block; }
+  .logo b { display:block; font-size:16px; font-weight:500; text-transform:uppercase; letter-spacing:.01em; line-height:1.1; }
+  .logo small { display:block; font-size:12px; color:rgba(255,255,255,.65); }
+  .bar .tag { font-size:13px; color:var(--sky); white-space:nowrap; }
+  .bar .tag::before { content:"[\00a0"; } .bar .tag::after { content:"\00a0]"; }
+  .bar .demo { font-size:12px; color:rgba(255,255,255,.55); border:1px dashed rgba(255,255,255,.3); border-radius:var(--r-tag); padding:2px 8px; white-space:nowrap; }
+  .bar .who { margin-left:auto; text-align:right; font-size:14px; color:rgba(255,255,255,.85); line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .bar .who small { display:block; color:rgba(255,255,255,.55); font-size:12px; }
+  .bar .btn { color:#fff; border-color:rgba(255,255,255,.3); background:transparent; }
+  .bar .btn:hover { border-color:#fff; }
+  .tabs { display:flex; gap:30px; border-bottom:1px solid rgba(255,255,255,.14); overflow-x:auto; scrollbar-width:none; }
+  .tab { background:none; border:0; padding:12px 0 14px; margin-bottom:-1px; border-bottom:2px solid transparent; color:rgba(255,255,255,.62); font-weight:500; cursor:pointer; display:inline-flex; gap:8px; align-items:center; white-space:nowrap; }
+  .tab:hover { color:#fff; }
+  .tab.on { color:#fff; border-bottom-color:var(--sky); }
+  .band { padding:40px 0 44px; }
+  .band .lbl { color:rgba(255,255,255,.6); margin-bottom:12px; }
+  .band h1 { color:#fff; font-size:40px; line-height:1.05; text-transform:uppercase; }
+  .band p { margin:10px 0 0; color:rgba(255,255,255,.72); max-width:680px; }
+  /* обзор: главная цифра слева, показатели справа */
+  .band-home { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:48px; align-items:end; }
+  .stamp { font-size:13px; color:rgba(255,255,255,.55); margin:0 0 22px !important; }
+  .big { font-size:76px; font-weight:250; line-height:.95; color:#fff; letter-spacing:-.01em; white-space:nowrap; }
+  .big small { font-size:.42em; font-weight:300; }
+  .big-sub { margin-top:14px !important; font-size:15px; }
+  .big-sub b { color:var(--sky); font-weight:500; }
+  /* план/факт года */
+  .plan { margin-top:26px; max-width:520px; }
+  .plan-t { display:flex; justify-content:space-between; gap:12px; font-size:13px; color:rgba(255,255,255,.6); margin-bottom:8px; }
+  .plan-t b { color:#fff; font-weight:500; }
+  .plan-bar { position:relative; height:6px; background:rgba(255,255,255,.14); border-radius:3px; }
+  .plan-bar span { position:absolute; inset:0 auto 0 0; background:var(--sky); border-radius:3px; }
+  .plan-bar i { position:absolute; top:-5px; bottom:-5px; width:2px; background:#fff; }
+  .kpis { display:grid; grid-template-columns:repeat(3, 1fr); border-top:1px solid rgba(255,255,255,.18); }
+  .kpis div { padding:16px 16px 0 0; }
+  .kpis div + div { padding-left:16px; border-left:1px solid rgba(255,255,255,.12); }
+  .kpis span { display:block; font-size:13px; color:rgba(255,255,255,.6); }
+  .kpis b { display:block; font-size:30px; font-weight:300; color:#fff; line-height:1.2; white-space:nowrap; }
+  .kpis small { font-size:13px; color:var(--sky); }
+  .band-sum { display:flex; gap:48px; flex-wrap:wrap; margin-top:28px; }
+  .band-sum div span { display:block; font-size:13px; color:rgba(255,255,255,.6); }
+  .band-sum div b { font-size:32px; font-weight:300; color:#fff; }
+  .band-sum .alert b { color:#ffb3b3; }
 
-  /* кнопки — капсулы */
-  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 22px; border-radius:999px; border:1px solid var(--line-d); background:var(--surface); color:var(--ink); font-size:15px; font-weight:500; cursor:pointer; white-space:nowrap; text-decoration:none; transition:background .15s, border-color .15s; }
+  /* ---------- светлая часть ---------- */
+  main { flex:1; padding:32px 0 64px; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px; align-items:start; }
+  .side { display:flex; flex-direction:column; gap:20px; position:sticky; top:20px; }
+  .stack { display:flex; flex-direction:column; gap:24px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); }
+  .pad { padding:28px; }
+  .card-h { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+  .card-h h2 { font-size:17px; text-transform:uppercase; letter-spacing:.02em; }
+  .card-h .sub { font-size:13.5px; color:var(--muted); }
+  .muted { color:var(--muted); } .small { font-size:14px; }
+
+  /* кнопки */
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 22px; border-radius:999px; border:1px solid var(--line-d); background:var(--surface); color:var(--ink); font-size:15px; font-weight:500; cursor:pointer; white-space:nowrap; text-decoration:none; transition:background .15s, border-color .15s, color .15s; }
   .btn:hover { border-color:var(--navy); }
-  .btn:focus-visible, .lnk:focus-visible, .tab:focus-visible, .row:focus-visible { outline:2px solid var(--navy-d); outline-offset:2px; }
+  .btn:focus-visible, .lnk:focus-visible, .tab:focus-visible { outline:2px solid var(--sky); outline-offset:2px; }
   .btn.pri { background:var(--navy); border-color:var(--navy); color:#fff; }
   .btn.pri:hover { background:var(--navy-d); border-color:var(--navy-d); }
-  .btn.sm { height:36px; padding:0 16px; font-size:14px; }
-  .btn:disabled { opacity:.55; cursor:default; }
-  .lnk { display:inline-flex; align-items:center; gap:6px; background:none; border:0; padding:0; color:var(--navy); font-weight:500; cursor:pointer; font-size:15px; }
+  .btn.sm { height:34px; padding:0 14px; font-size:14px; }
+  .btn:disabled { opacity:.6; cursor:default; }
+  .lnk { display:inline-flex; align-items:center; gap:6px; background:none; border:0; padding:0; color:var(--navy); font-weight:500; cursor:pointer; font-size:14px; text-decoration:none; }
   .lnk:hover { text-decoration:underline; }
 
-  /* поверхности */
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); }
-  .pad { padding:28px; }
-  .muted { color:var(--muted); } .small { font-size:14px; }
-  .page-h { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
-  .page-h p { margin:8px 0 0; color:var(--muted); }
-  .grid2 { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:20px; align-items:start; }
-  .stack { display:flex; flex-direction:column; gap:20px; }
-
-  /* вкладки */
-  .tabs { display:flex; gap:28px; border-bottom:1px solid var(--line-d); margin-bottom:28px; overflow-x:auto; }
-  .tab { background:none; border:0; padding:10px 0 12px; margin-bottom:-1px; border-bottom:2px solid transparent; color:var(--muted); font-weight:500; cursor:pointer; display:inline-flex; gap:8px; align-items:center; white-space:nowrap; }
-  .tab:hover { color:var(--ink); }
-  .tab.on { color:var(--navy); border-bottom-color:var(--navy); }
-
-  /* KPI */
-  .kpi { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:20px; }
-  .kpi > div { padding:22px 24px; display:flex; flex-direction:column; gap:4px; }
-  .kpi span { color:var(--muted); font-size:14px; }
-  .kpi b { font:600 34px/1.1 var(--cond); color:var(--ink); white-space:nowrap; }
-  .kpi small { font:400 13px var(--mono); color:var(--navy); }
-  .kpi .hero { background:var(--navy); border-color:var(--navy); }
-  .kpi .hero span, .kpi .hero small { color:rgba(255,255,255,.78); } .kpi .hero b { color:#fff; }
-  .up::before { content:"↑ "; }
+  /* куда ушли деньги: одна шкала от начисленного */
+  .split { display:flex; height:44px; overflow:hidden; border-radius:var(--r-tag); margin-bottom:18px; }
+  .split span { height:100%; border-right:2px solid #fff; transition:filter .15s; }
+  .split span:last-child { border-right:0; }
+  .split span:hover { filter:brightness(1.12); }
+  .s-you { background:var(--navy); } .s-ops { background:var(--navy-d); } .s-fee { background:var(--sky); } .s-gap { background:repeating-linear-gradient(135deg, var(--bg-2) 0 6px, var(--line-d) 6px 12px); }
+  .legend { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+  .legend div { display:flex; flex-direction:column; gap:2px; font-size:14px; color:var(--muted); }
+  .legend i { display:inline-block; width:10px; height:10px; margin-right:8px; border-radius:2px; }
+  .legend b { font-size:20px; font-weight:400; color:var(--ink); }
+  .legend .you b { font-weight:500; color:var(--navy); }
+  .note { margin:18px 0 0; padding-top:14px; border-top:1px solid var(--line); font-size:14px; color:var(--muted); }
 
   /* график */
-  .chart-h { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
-  .seg { display:inline-flex; background:var(--bg-2); border-radius:999px; padding:3px; }
-  .seg button { border:0; background:none; border-radius:999px; padding:5px 14px; font-size:14px; color:var(--muted); cursor:pointer; }
-  .seg button.on { background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(18,29,58,.12); }
+  .seg { display:inline-flex; background:var(--bg-2); border-radius:var(--r); padding:3px; }
+  .seg button { border:0; background:none; border-radius:var(--r-tag); padding:6px 12px; font-size:14px; color:var(--muted); cursor:pointer; }
+  .seg button.on { background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(31,36,51,.12); }
   .chart { position:relative; }
   .chart svg { width:100%; height:auto; display:block; overflow:visible; }
   .chart .b { fill:var(--ice); transition:fill .15s; } .chart .b.cur { fill:var(--navy); }
   .chart .col:hover .b { fill:var(--navy-d); }
+  .chart .grid { stroke:var(--line); stroke-dasharray:3 4; }
   .chart .ax { stroke:var(--line-d); }
-  .chart .m { font:400 11px var(--mono); fill:var(--muted); }
-  .chart .v { font:500 12px var(--mono); fill:var(--ink); }
-  .tip { position:absolute; pointer-events:none; background:var(--ink); color:#fff; border-radius:10px; padding:8px 12px; font-size:13px; white-space:nowrap; transform:translate(-50%, -100%); margin-top:-10px; box-shadow:var(--shadow); }
-  .tip b { display:block; font:600 16px var(--cond); }
+  .chart .m { font-size:12px; fill:var(--muted); }
+  .chart .y { font-size:11px; fill:var(--muted); }
+  .chart .v { font-size:13px; font-weight:500; fill:var(--ink); }
+  .tip { position:absolute; pointer-events:none; background:var(--graphite); color:#fff; border-radius:var(--r); padding:8px 12px; font-size:13px; white-space:nowrap; transform:translate(-50%, -100%); margin-top:-10px; box-shadow:var(--shadow); }
+  .tip b { display:block; font-size:16px; font-weight:500; }
 
-  /* ленты */
+  /* изменения — дата, событие, эффект на доход */
   .feed { list-style:none; margin:0; padding:0; }
-  .feed li { display:grid; grid-template-columns:1fr auto; gap:2px 16px; padding:14px 0; border-top:1px solid var(--line); }
+  .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:2px 16px; padding:14px 0; border-top:1px solid var(--line); align-items:baseline; }
   .feed li:first-child { border-top:0; padding-top:0; }
-  .feed b { color:var(--ink); font-weight:500; } .feed span { color:var(--muted); font-size:14px; }
-  .feed em { grid-row:1 / span 2; grid-column:2; align-self:center; font:500 14px var(--mono); font-style:normal; color:var(--navy); white-space:nowrap; }
-  .feed--stack li { grid-template-columns:1fr; } .feed--stack em { grid-row:auto; grid-column:1; margin-top:4px; }
+  .feed time { font-size:13px; color:var(--muted); }
+  .feed b { color:var(--ink); font-weight:500; } .feed span { grid-column:2; color:var(--muted); font-size:14px; }
+  .feed em { grid-row:1 / span 2; grid-column:3; align-self:center; font-size:14px; font-weight:500; font-style:normal; color:var(--ok); white-space:nowrap; }
+
+  /* требует внимания — компактный список, одно действие в строке */
+  .att { list-style:none; margin:0; padding:0; }
+  .att li { display:grid; grid-template-columns:1fr auto; gap:2px 12px; align-items:center; padding:14px 0 14px 14px; border-top:1px solid var(--line); position:relative; }
+  .att li:first-child { border-top:0; }
+  .att li::before { content:""; position:absolute; left:0; top:16px; bottom:16px; width:3px; border-radius:2px; background:var(--line-d); }
+  .att li.warn::before { background:#d79a1e; } .att li.bad::before { background:var(--bad); } .att li.info::before { background:var(--navy); }
+  .att b { color:var(--ink); font-weight:500; font-size:15px; line-height:1.3; }
+  .att span { grid-column:1; font-size:13.5px; color:var(--muted); line-height:1.35; }
+  .att .st { grid-row:1 / span 2; grid-column:2; font-style:normal; }
+  .att li[data-tab] { cursor:pointer; } .att li[data-tab]:hover b { color:var(--navy); text-decoration:underline; }
+  .ok-line { display:flex; gap:8px; align-items:center; color:var(--ok); font-size:15px; margin:0; }
+
+  /* управляющий и отчёт */
+  .mgr { display:flex; gap:14px; align-items:center; }
+  .mgr .ph { width:52px; height:52px; border-radius:var(--r); background:var(--graphite); color:var(--sky); display:grid; place-items:center; font-size:19px; font-weight:500; flex:none; }
+  .mgr b { display:block; color:var(--ink); font-weight:500; } .mgr span { font-size:13.5px; color:var(--muted); }
+  .mgr-acts { display:flex; gap:8px; margin-top:16px; }
+  .mgr-acts .btn { flex:1; padding:0 10px; }
+  .mgr-tel { display:block; margin-top:14px; font-size:22px; font-weight:300; color:var(--ink); text-decoration:none; }
+  .q { margin-top:14px; }
+  .q textarea { width:100%; border:1px solid var(--line-d); border-radius:var(--r); padding:10px 12px; resize:vertical; min-height:84px; background:var(--surface); }
+  .q textarea:focus { outline:0; border-color:var(--navy); box-shadow:var(--focus); }
+  .q .btn { margin-top:10px; }
+  .msg { font-size:14px; min-height:20px; margin:8px 0 0; } .msg.err { color:var(--bad); } .msg.ok { color:var(--ok); }
+  .rep { display:flex; gap:14px; align-items:center; }
+  .rep .doc { width:44px; height:52px; border:1px solid var(--line-d); border-radius:var(--r-tag); display:grid; place-items:center; color:var(--navy); flex:none; background:var(--bg); }
+  .rep b { display:block; color:var(--ink); font-weight:500; font-size:15px; } .rep span { font-size:13.5px; color:var(--muted); }
+  .rep-f { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+
+  /* статусы */
   .st { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 11px; border-radius:999px; font-size:13px; font-weight:500; white-space:nowrap; }
   .st::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
-  .st-wait { color:var(--warn); background:var(--warn-soft); }
-  .st-talk { color:var(--navy); background:var(--ice); }
+  .st-wait { color:var(--warn); background:var(--warn-soft); } .st-talk { color:var(--navy); background:var(--ice); } .st-ok { color:var(--ok); background:var(--ok-soft); } .st-bad { color:var(--bad); background:var(--bad-soft); }
 
   /* объекты */
-  .obj { padding:28px; }
-  .obj + .obj { margin-top:20px; }
-  .obj-h { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom:20px; }
+  .obj { overflow:hidden; }
+  .obj + .obj { margin-top:24px; }
+  .obj-h { display:grid; grid-template-columns:1fr auto; gap:24px; align-items:end; padding:28px 28px 22px; border-bottom:1px solid var(--line); }
+  .obj-h h2 { font-size:26px; text-transform:uppercase; margin-top:8px; }
   .obj-h p { margin:6px 0 0; color:var(--muted); font-size:15px; }
-  .facts { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:24px; }
-  .facts div { background:var(--bg); border-radius:var(--r-sm); padding:14px 16px; }
-  .facts span { display:block; font-size:13px; color:var(--muted); } .facts b { font:600 24px/1.2 var(--cond); color:var(--ink); } .facts small { display:block; font:400 12.5px var(--mono); color:var(--navy); }
-  .tenants { width:100%; border-collapse:collapse; font-size:15px; }
-  .tenants th { text-align:left; font:400 12px var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); padding:0 12px 10px 0; border-bottom:1px solid var(--line-d); }
-  .tenants td { padding:11px 12px 11px 0; border-bottom:1px solid var(--line); }
-  .tenants .n { text-align:right; font-family:var(--mono); font-size:14px; white-space:nowrap; }
-  .bar { display:inline-block; height:6px; border-radius:3px; background:var(--navy); vertical-align:middle; margin-right:10px; }
-  .vac { margin-top:16px; display:flex; flex-direction:column; gap:10px; }
-  .vac div { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:12px 16px; border:1px dashed var(--line-d); border-radius:var(--r-sm); font-size:15px; }
-  .vac small { display:block; color:var(--muted); font-size:13.5px; }
+  .obj-k { display:flex; gap:28px; }
+  .obj-k div span { display:block; font-size:13px; color:var(--muted); }
+  .obj-k div b { font-size:26px; font-weight:300; color:var(--ink); white-space:nowrap; }
+  .obj-k div small { display:block; font-size:12.5px; color:var(--ok); }
+  .obj-b { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:32px; padding:24px 28px 28px; }
+  .occ { display:flex; height:30px; margin:12px 0 10px; overflow:hidden; border-radius:var(--r-tag); }
+  .occ span { height:100%; border-right:2px solid #fff; background:var(--navy); }
+  .occ span:nth-child(even) { background:var(--navy-d); }
+  .occ .free { background:repeating-linear-gradient(135deg, var(--bg-2) 0 6px, var(--line-d) 6px 12px) !important; border:0; }
+  .occ-l { display:flex; flex-wrap:wrap; gap:6px 18px; font-size:13px; color:var(--muted); margin-bottom:22px; }
+  .occ-l i { display:inline-block; width:10px; height:10px; margin-right:6px; background:var(--navy); vertical-align:-1px; border-radius:2px; }
+  .occ-l .f i { background:var(--line-d); }
+  .vac { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+  .vac div { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:12px 14px; border:1px dashed var(--line-d); border-radius:var(--r); font-size:15px; }
+  .vac b { font-weight:500; color:var(--ink); } .vac small { display:block; color:var(--muted); font-size:13px; }
+
+  /* таблица арендаторов */
+  .tbl { width:100%; border-collapse:collapse; font-size:15px; }
+  .tbl th { text-align:left; font-size:13px; font-weight:400; color:var(--muted); padding:0 12px 12px 0; border-bottom:1px solid var(--line-d); white-space:nowrap; }
+  .tbl td { padding:14px 12px 14px 0; border-bottom:1px solid var(--line); vertical-align:middle; }
+  .tbl tr:last-child td { border-bottom:0; }
+  .tbl .n { text-align:right; white-space:nowrap; }
+  .tbl b { font-weight:500; color:var(--ink); }
+  .tbl td small { display:block; color:var(--muted); font-size:13px; }
+  .tbl-wrap { overflow-x:auto; }
+
+  /* работы */
+  .work { display:grid; grid-template-columns:1fr auto; gap:6px 24px; padding:20px 28px; border-bottom:1px solid var(--line); }
+  .work:last-child { border-bottom:0; }
+  .work b { color:var(--ink); font-weight:500; font-size:17px; }
+  .work p { margin:0; color:var(--muted); font-size:14px; }
+  .work .r { grid-row:1 / span 3; grid-column:2; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .work .cost { font-size:20px; font-weight:300; color:var(--ink); }
+  .budget { margin-top:24px; max-width:640px; }
 
   /* отчёты */
-  .row { width:100%; display:grid; grid-template-columns:44px minmax(0,1fr) 150px 170px 110px; gap:16px; align-items:center; padding:14px 24px; border-bottom:1px solid var(--line); }
+  .row { display:grid; grid-template-columns:44px minmax(0,1fr) 150px 150px 110px; gap:16px; align-items:center; padding:14px 28px; border-bottom:1px solid var(--line); }
   .row:last-child { border-bottom:0; }
-  .row .ico { width:44px; height:44px; border-radius:12px; background:var(--ice); color:var(--navy); display:grid; place-items:center; }
-  .row .t { font-weight:500; color:var(--ink); } .row .d { font:400 14px var(--mono); color:var(--text); }
-  .row.soon { color:var(--muted); background:var(--bg); } .row.soon .t { color:var(--muted); } .row.soon .ico { background:var(--bg-2); color:var(--muted); }
-  .chip { display:inline-block; font:400 12px var(--mono); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .row .ico { width:40px; height:48px; border:1px solid var(--line-d); border-radius:var(--r-tag); background:var(--bg); color:var(--navy); display:grid; place-items:center; }
+  .row .t { font-weight:500; color:var(--ink); } .row .d { font-size:14px; color:var(--text); }
+  .row.soon { background:var(--bg); } .row.soon .t, .row.soon .ico { color:var(--muted); }
+  .chip { font-size:13px; color:var(--muted); }
 
   /* формы */
   .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
   .field > span { font-size:14px; color:var(--muted); }
-  .field input, .field textarea { width:100%; border:1px solid var(--line-d); border-radius:var(--r-sm); padding:10px 14px; background:var(--surface); resize:vertical; }
+  .field input, .field textarea { width:100%; border:1px solid var(--line-d); border-radius:var(--r); padding:10px 14px; background:var(--surface); resize:vertical; }
   .field input:focus, .field textarea:focus { outline:0; border-color:var(--navy); box-shadow:var(--focus); }
   .check { display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-top:1px solid var(--line); cursor:pointer; }
   .check:first-of-type { border-top:0; }
   .check input { width:18px; height:18px; margin-top:3px; accent-color:var(--navy); flex:none; }
   .check b { display:block; color:var(--ink); font-weight:500; } .check span { font-size:14px; color:var(--muted); }
-  .msg { font-size:14px; min-height:20px; margin-top:10px; } .msg.err { color:var(--bad); } .msg.ok { color:var(--ok); }
-
-  /* управляющий */
-  .mgr { display:flex; gap:16px; align-items:center; }
-  .mgr .ph { width:56px; height:56px; border-radius:var(--r-sm); background:var(--navy); color:#fff; display:grid; place-items:center; font:600 20px var(--cond); flex:none; }
-  .mgr b { display:block; color:var(--ink); } .mgr span { font-size:14px; color:var(--muted); }
-  .mgr-acts { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
 
   /* вход */
-  .login { max-width:440px; margin:40px auto; }
-  .login h1 { margin-bottom:8px; } .login p { margin:0 0 22px; color:var(--muted); }
-  .hint { background:var(--navy-soft); border-radius:var(--r-sm); padding:12px 14px; font-size:14px; margin-bottom:16px; }
+  .login { max-width:440px; margin:-90px auto 40px; position:relative; box-shadow:var(--shadow); }
+  .login h1 { font-size:28px; text-transform:uppercase; margin:10px 0 8px; } .login p { margin:0 0 22px; color:var(--muted); }
+  .hint { background:var(--bg); border-radius:var(--r); padding:12px 14px; font-size:14px; margin-bottom:16px; }
 
-  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:12px 20px; border-radius:999px; font-size:15px; box-shadow:var(--shadow); z-index:10; }
+  footer { color:var(--muted); font-size:14px; border-top:1px solid var(--line); }
+  footer .wrap { display:flex; justify-content:space-between; gap:12px 32px; flex-wrap:wrap; padding-top:20px; padding-bottom:24px; }
+  footer small { display:block; font-size:12.5px; margin-top:4px; }
+  footer a { color:var(--ink); text-decoration:none; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--graphite); color:#fff; padding:12px 20px; border-radius:999px; font-size:15px; box-shadow:var(--shadow); z-index:10; }
 
-  @media (max-width: 980px) {
-    .kpi { grid-template-columns:1fr 1fr; } .grid2 { grid-template-columns:1fr; } .facts { grid-template-columns:1fr 1fr; }
+  @media (max-width: 1080px) {
+    .cols { grid-template-columns:1fr; } .side { position:static; order:-1; }
+    .band-home { grid-template-columns:1fr; gap:28px; }
+    .obj-h, .obj-b { grid-template-columns:1fr; }
     .row { grid-template-columns:44px minmax(0,1fr) 100px; } .row .hide-m { display:none; }
   }
-  @media (max-width: 600px) {
-    .wrap { padding:0 16px; } .hdr .tag, .hdr .sep, .hdr .who { display:none; } .hdr .btn { margin-left:auto; }
-    .kpi b { font-size:28px; } .kpi > div { padding:18px; } h1 { font-size:27px; } .pad, .obj { padding:20px; }
+  @media (max-width: 640px) {
+    .wrap { padding:0 16px; } .bar .tag, .bar .demo, .logo small, .bar .who { display:none; } .bar .btn { margin-left:auto; }
+    .big { font-size:52px; } .band h1 { font-size:28px; } .kpis b { font-size:20px; } .kpis div + div { padding-left:10px; }
+    .legend { grid-template-columns:1fr 1fr; } .pad { padding:20px; } .obj-k { flex-wrap:wrap; gap:16px; }
+    .plan-t { flex-direction:column; gap:2px; }
+    .work { grid-template-columns:1fr; padding:18px 20px; } .work .r { grid-row:auto; grid-column:1; flex-direction:row; align-items:center; }
+    .feed li { grid-template-columns:1fr auto; } .feed time, .feed b, .feed span { grid-column:1; } .feed em { grid-row:1 / span 3; }
   }
 </style>
 </head>
 <body>
-<div class="demo-bar">Демо-версия кабинета собственника: цифры условные, в рабочей версии — из CRM</div>
-<header class="hdr">
+<div class="top">
   <div class="wrap">
-    <img src="/brand/kn-logo-white.svg" alt="Консалт Недвижимость">
-    <span class="sep"></span><span class="tag">Кабинет собственника</span>
-    <span class="who" id="who"></span>
-    <button class="btn sm" id="logout" hidden>Выйти</button>
+    <div class="bar">
+      <span class="logo"><img src="/brand/kn-mark-white.svg" alt=""><span><b>Консалт Недвижимость</b><small>Инвестиционная управляющая компания</small></span></span>
+      <span class="tag">Кабинет собственника</span>
+      <span class="demo" title="Цифры условные, в рабочей версии — из CRM">демо-данные</span>
+      <span class="who" id="who"></span>
+      <button class="btn sm" id="logout" hidden>Выйти</button>
+    </div>
+    <div id="top"></div>
   </div>
-</header>
+</div>
 <main><div class="wrap" id="app"></div></main>
-<footer><div class="wrap"><span>© ООО «Консалт Недвижимость»</span><span><a href="tel:+74957977742">+7 495 797-77-42</a> · <a href="https://ykinvest.ru" target="_blank" rel="noopener">ykinvest.ru</a></span></div></footer>
+<footer><div class="wrap"><span>ООО «Консалт Недвижимость» · ИНН 9717003280 · ОГРН 1157746922871<small>Цифры кабинета — оперативные данные CRM. Юридически значимы ежемесячные отчёты за подписью управляющей компании.</small></span><span><a href="tel:+74957977742">+7 495 797-77-42</a> · <a href="https://ykinvest.ru" target="_blank" rel="noopener">ykinvest.ru</a></span></div></footer>
 
 <script>
 'use strict';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const num = (n) => Math.round(n).toLocaleString('ru-RU').replace(/ /g, ' ');
-const mln = (n) => (n / 1e6).toFixed(1).replace('.', ',') + ' млн ₽';
+const num = (n) => Math.round(n).toLocaleString('ru-RU').replace(/ /g, ' ');
+const rub = (n) => num(n) + ' ₽';
+const mlnN = (n) => (n / 1e6).toFixed(1).replace('.', ',');
+const mln = (n) => mlnN(n) + ' млн ₽';
 const pct = (x) => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(0) + '%';
 const pp = (x) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(1).replace('.', ',') + ' п. п.';
 const MG = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const MP = ['январе', 'феврале', 'марте', 'апреле', 'мае', 'июне', 'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре'];
 const MN = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 const date = (iso) => { const [y, m, d] = iso.slice(0, 10).split('-'); return `${+d} ${MG[+m - 1]}${y === '2026' ? '' : ' ' + y}`; };
+const shortDate = (iso) => { const [, m, d] = iso.slice(0, 10).split('-'); return `${+d} ${MG[+m - 1].slice(0, 3)}`; };
 const monthName = (ym) => { const s = MN[+ym.slice(5) - 1]; return s[0].toUpperCase() + s.slice(1) + ' ' + ym.slice(0, 4); };
+const monthsTo = (ym) => { const [y, m] = data.today.split('-').map(Number), [y2, m2] = ym.split('-').map(Number); return (y2 - y) * 12 + (m2 - m); };
+const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? few : many;
 const I = {
   doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
   send: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
+  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   check: '<path d="M20 6L9 17l-5-5"/>',
 };
 const icon = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
 
-const TABS = ['home', 'objects', 'reports', 'settings'];
+const TABS = ['home', 'objects', 'tenants', 'works', 'reports', 'settings'];
 let token = null, data = null, tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
 try { token = localStorage.getItem('kn-owner'); } catch (e) {}
 // личная ссылка от управляющего: …/#t=<токен> — запоминаем и убираем из адреса
@@ -226,8 +327,9 @@ $('#logout').onclick = logout;
 // ---------- вход ----------
 function loginView() {
   $('#who').textContent = ''; $('#logout').hidden = true;
+  $('#top').innerHTML = `<div class="band" style="padding-bottom:130px"><span class="lbl">Кабинет собственника</span><h1>Ваши объекты — в одном окне</h1><p>Доход, арендаторы, работы на объектах и отчёты — данные из нашей CRM, обновляются ежедневно. Вы видите всё, управлением занимаемся мы.</p></div>`;
   $('#app').innerHTML = `<div class="login card pad">
-    <h1>Вход в кабинет</h1><p>Пришлём код на почту, указанную в договоре управления.</p>
+    <span class="lbl">Вход</span><h1>По коду на почту</h1><p>Пришлём код на почту, указанную в договоре управления.</p>
     <form id="f1"><label class="field"><span>Почта</span><input name="email" type="email" autocomplete="email" required value="demo@example.ru"></label>
     <button class="btn pri" style="width:100%">Получить код</button><p class="msg err" id="m1"></p></form>
     <form id="f2" hidden><div class="hint" id="hint"></div><label class="field"><span>Код из письма</span><input name="code" inputmode="numeric" autocomplete="one-time-code" required maxlength="6"></label>
@@ -236,7 +338,7 @@ function loginView() {
   let email = '';
   $('#f1').onsubmit = async (e) => {
     e.preventDefault(); email = e.target.email.value;
-    try { const r = await api('code', { email }); $('#f1').hidden = true; $('#f2').hidden = false; $('#hint').innerHTML = `Код отправлен на <b>${esc(email)}</b>.${r.demo_code ? ` В демо-версии код: <b class="num">${esc(r.demo_code)}</b>` : ''}`; $('#f2').code.focus(); }
+    try { const r = await api('code', { email }); $('#f1').hidden = true; $('#f2').hidden = false; $('#hint').innerHTML = `Код отправлен на <b>${esc(email)}</b>.${r.demo_code ? ` В демо-версии код: <b>${esc(r.demo_code)}</b>` : ''}`; $('#f2').code.focus(); }
     catch (err) { $('#m1').textContent = err.message; }
   };
   $('#f2').onsubmit = async (e) => {
@@ -246,19 +348,20 @@ function loginView() {
   };
 }
 
-// ---------- график: одна серия, текущий месяц — синим, подсказка при наведении ----------
+// ---------- график: сетка, подписи, текущий месяц — синим ----------
 function barChart(months, key, fmt, label) {
-  const w = 720, h = 230, top = 26, bottom = 30, n = months.length, gap = w / n, bw = Math.min(30, gap * .5);
-  const max = Math.max(...months.map((m) => m[key])) * 1.08;
+  const w = 760, h = 260, top = 24, bottom = 30, left = 34, n = months.length, gap = (w - left) / n, bw = Math.min(34, gap * .56);
+  const max = Math.max(...months.map((m) => m[key])) * 1.1;
   const y = (v) => top + (h - top - bottom) * (1 - v / max);
+  const grid = [.25, .5, .75, 1].map((k) => `<line class="grid" x1="${left}" x2="${w}" y1="${y(max * k)}" y2="${y(max * k)}"/><text class="y" x="0" y="${y(max * k) + 4}">${fmt(max * k, true)}</text>`).join('');
   const cols = months.map((m, i) => {
-    const x = gap * i + (gap - bw) / 2, yy = y(m[key]), last = i === n - 1;
-    return `<g class="col" data-i="${i}"><rect x="${gap * i}" y="0" width="${gap}" height="${h}" fill="transparent"/>
-      <path class="b${last ? ' cur' : ''}" d="M${x},${h - bottom} V${yy + 4} q0,-4 4,-4 h${bw - 8} q4,0 4,4 V${h - bottom} Z"/>
-      ${i === 0 || last ? `<text class="v" x="${x + bw / 2}" y="${yy - 8}" text-anchor="middle">${fmt(m[key], true)}</text>` : ''}
-      <text class="m" x="${x + bw / 2}" y="${h - 9}" text-anchor="middle">${MN[+m.month.slice(5) - 1].slice(0, 3)}</text></g>`;
+    const x = left + gap * i + (gap - bw) / 2, yy = y(m[key]), last = i === n - 1;
+    return `<g class="col" data-i="${i}"><rect x="${left + gap * i}" y="0" width="${gap}" height="${h}" fill="transparent"/>
+      <rect class="b${last ? ' cur' : ''}" x="${x}" y="${yy}" width="${bw}" height="${h - bottom - yy}"/>
+      ${last ? `<text class="v" x="${x + bw / 2}" y="${yy - 8}" text-anchor="middle">${fmt(m[key], true)}</text>` : ''}
+      <text class="m" x="${x + bw / 2}" y="${h - 8}" text-anchor="middle">${MN[+m.month.slice(5) - 1].slice(0, 3)}</text></g>`;
   }).join('');
-  return `<div class="chart" data-chart><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}"><line class="ax" x1="0" x2="${w}" y1="${h - bottom}" y2="${h - bottom}"/>${cols}</svg><div class="tip" hidden></div></div>`;
+  return `<div class="chart" data-chart><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">${grid}<line class="ax" x1="${left}" x2="${w}" y1="${h - bottom}" y2="${h - bottom}"/>${cols}</svg><div class="tip" hidden></div></div>`;
 }
 function wireChart(root, months, key, fmt) {
   const box = $('[data-chart]', root), tip = $('.tip', box);
@@ -271,78 +374,160 @@ function wireChart(root, months, key, fmt) {
   box.addEventListener('mouseleave', () => { tip.hidden = true; });
 }
 const METRICS = {
-  collected: { label: 'Поступления', fmt: (v, s) => s ? (v / 1e6).toFixed(1).replace('.', ',') : mln(v) },
-  payout: { label: 'К перечислению вам', fmt: (v, s) => s ? (v / 1e6).toFixed(1).replace('.', ',') : mln(v) },
-  occ: { label: 'Заполняемость', fmt: (v) => String(v).replace('.', ',') + '%' },
+  payout: { label: 'Вам', fmt: (v, s) => s ? mlnN(v) : mln(v) },
+  collected: { label: 'Поступления', fmt: (v, s) => s ? mlnN(v) : mln(v) },
+  occ: { label: 'Заполняемость', fmt: (v, s) => (s ? Math.round(v) : String(v).replace('.', ',')) + '%' },
 };
 
-// ---------- экраны ----------
-function shell(body) {
-  const tabs = [['home', 'Обзор'], ['objects', 'Объекты'], ['reports', 'Отчёты'], ['settings', 'Настройки']];
-  return `<nav class="tabs" role="tablist">${tabs.map(([k, t]) => `<button class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-tab="${k}">${t}</button>`).join('')}</nav>${body}`;
+// ---------- на контроле управляющего: только информация, решения принимаем сами ----------
+const allTenants = () => data.portfolio.objects.flatMap((o) => o.tenants.map((t) => ({ ...t, obj: o.title })));
+function control() {
+  const out = [], sumBy = (a, k) => a.reduce((s, x) => s + x[k], 0);
+  const debt = allTenants().filter((t) => t.debt);
+  if (debt.length) out.push({ lvl: 'bad', title: `Долг ${rub(sumBy(debt, 'debt'))}`, text: `${debt.length} ${plural(debt.length, 'арендатор', 'арендатора', 'арендаторов')}, до ${Math.max(...debt.map((t) => t.debtDays))} дней просрочки`, st: ['st-bad', 'Взыскиваем'], tab: 'tenants' });
+  const ending = allTenants().filter((t) => monthsTo(t.until) <= 6).sort((a, b) => a.until.localeCompare(b.until));
+  if (ending.length) out.push({ lvl: 'info', title: `${ending.length} ${plural(ending.length, 'договор', 'договора', 'договоров')} до ${MG[+ending.at(-1).until.slice(5) - 1]}`, text: `${num(sumBy(ending, 'area'))} м², первый — в ${MP[+ending[0].until.slice(5) - 1]}`, st: ['st-talk', 'Продлеваем'], tab: 'tenants' });
+  const vac = data.portfolio.objects.flatMap((o) => o.vacant);
+  if (vac.length) out.push({ lvl: 'info', title: `Свободно ${num(sumBy(vac, 'area'))} м²`, text: `${vac.length} ${plural(vac.length, 'блок', 'блока', 'блоков')}, ${vac.filter((v) => v.status === 'Переговоры').length} — в переговорах`, st: ['st-wait', 'Сдаём'], tab: 'objects' });
+  const works = data.works.filter((w) => w.status !== 'Выполнено');
+  if (works.length) out.push({ lvl: '', title: `${works.length} ${plural(works.length, 'работа', 'работы', 'работ')} на объектах`, text: `${mln(sumBy(works, 'cost'))}, в рамках бюджета`, st: ['st-talk', 'В графике'], tab: 'works' });
+  return out;
 }
 
+// ---------- экраны: каждый отдаёт верх (на графите) и тело ----------
+function tabsHtml() {
+  const tabs = [['home', 'Обзор'], ['objects', 'Объекты'], ['tenants', 'Арендаторы'], ['works', 'Работы и расходы'], ['reports', 'Отчёты'], ['settings', 'Настройки']];
+  return `<nav class="tabs" role="tablist">${tabs.map(([k, t]) => `<button class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-tab="${k}">${t}</button>`).join('')}</nav>`;
+}
+const band = (lbl, title, text, extra = '') => `<div class="band"><span class="lbl">${lbl}</span><h1>${title}</h1>${text ? `<p>${text}</p>` : ''}${extra}</div>`;
+
 function homeView() {
-  const p = data.portfolio, k = p.kpi;
-  const hour = new Date().getHours(), hi = hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
-  return `
-  <div class="page-h"><div><h1>${hi}, ${esc(data.owner.person)}</h1><p>${esc(data.owner.name)} · ${p.objects.length} объекта · ${num(k.area)} м² · данные на ${date(data.today)}</p></div></div>
-  <div class="kpi">
-    <div class="card hero"><span>Поступило за ${MN[+p.month.slice(5) - 1]}</span><b>${mln(k.collected)}</b><small class="up">${pct(k.collectedYoY)} к прошлому году</small></div>
-    <div class="card"><span>К перечислению вам</span><b>${mln(k.payout)}</b><small>${mln(k.payoutYtd)} с начала года</small></div>
-    <div class="card"><span>Заполняемость</span><b>${String(k.occ).replace('.', ',')}%</b><small class="up">${pp(k.occYoY)} за год</small></div>
-    <div class="card"><span>Средняя ставка</span><b>${num(k.rate)} ₽/м²</b><small class="up">${pct(k.rateYoY)} за год</small></div>
-  </div>
-  <div class="grid2">
-    <div class="stack">
-      <div class="card pad">
-        <div class="chart-h"><h3>За 12 месяцев</h3><div class="seg" role="group" aria-label="Показатель">${Object.entries(METRICS).map(([key, m], i) => `<button data-metric="${key}" class="${i ? '' : 'on'}">${m.label}</button>`).join('')}</div></div>
-        <div id="chart">${barChart(p.months, 'collected', METRICS.collected.fmt, 'Поступления за 12 месяцев')}</div>
-        <p class="small muted" style="margin:12px 0 0">Собираемость платежей — ${(k.collection * 100).toFixed(1).replace('.', ',')}%. С начала года поступило ${mln(k.collectedYtd)}.</p>
-      </div>
-      <div class="card pad"><h3 style="margin-bottom:18px">Новости</h3>
-        <ul class="feed">${data.news.map((x) => `<li><b>${esc(x.title)}</b><span>${date(x.date)} · ${esc(x.text)}</span><em>${esc(x.effect)}</em></li>`).join('')}</ul>
-      </div>
-    </div>
-    <div class="stack">
-      <div class="card pad">
-        <h3 style="margin-bottom:18px">Последний отчёт</h3>
-        ${data.reports[0] ? `<p style="margin:0 0 4px;color:var(--ink);font-weight:500">${esc(data.reports[0].title)}</p><p class="small muted" style="margin:0 0 16px">Отправлен ${date(data.reports[0].sent)}</p>
-        <button class="btn" data-pdf="${data.reports[0].id}">${icon('doc')}Открыть PDF</button>` : ''}
-        ${data.upcoming[0] ? `<p class="small muted" style="margin:16px 0 0">${esc(data.upcoming.find((r) => r.kind === 'month')?.title || data.upcoming[0].title)} придёт ${date((data.upcoming.find((r) => r.kind === 'month') || data.upcoming[0]).sent)}</p>` : ''}
-      </div>
-      ${managerCard()}
+  const p = data.portfolio, k = p.kpi, mon = MN[+p.month.slice(5) - 1];
+  const gap = k.charged - k.collected, part = (v) => `flex:${v}`;
+  const ctl = control(), year = p.month.slice(0, 4), done = k.planYtd / k.planYear;
+  const top = `<div class="band band-home">
+    <div><p class="stamp">Сводка по портфелю · данные CRM на ${date(data.today)}</p>
+      <span class="lbl">К перечислению за ${mon}</span>
+      <div class="big">${mlnN(k.payout)} <small>млн ₽</small></div>
+      <p class="big-sub">Поступит на счёт •••• 4417 до 10 ноября</p>
+      <div class="plan">
+        <div class="plan-t"><span>С начала года <b>${mln(k.payoutYtd)}</b> · план ${year} — ${mln(k.planYear)}</span><b>${pct(k.payoutYtd / k.planYtd - 1)} к плану</b></div>
+        <div class="plan-bar" role="img" aria-label="Выполнение плана года"><span style="width:${Math.min(100, k.payoutYtd / k.planYear * 100).toFixed(1)}%"></span><i style="left:${(done * 100).toFixed(1)}%" title="План на эту дату"></i></div>
+        <div class="plan-t" style="margin:8px 0 0">Метка — план на эту дату · прогноз года <b>${mln(k.forecastYear)}</b></div>
+      </div></div>
+    <div class="kpis">
+      <div><span>Заполняемость</span><b>${String(k.occ).replace('.', ',')}%</b><small>${pp(k.occYoY)} за год</small></div>
+      <div><span>Средняя ставка</span><b>${num(k.rate)} ₽/м²</b><small>${pct(k.rateYoY)} за год</small></div>
+      <div><span>Поступления</span><b>${mln(k.collected)}</b><small>${pct(k.collectedYoY)} к прошлому году</small></div>
     </div>
   </div>`;
+  const body = `<div class="cols">
+    <div class="stack">
+      <section class="card pad">
+        <div class="card-h"><h2>Куда ушли деньги за ${mon}</h2><span class="muted small">Начислено арендаторам ${mln(k.charged)}</span></div>
+        <div class="split" role="img" aria-label="Распределение начисленной аренды">
+          <span class="s-you" style="${part(k.payout)}" title="Вам ${mln(k.payout)}"></span><span class="s-ops" style="${part(k.opex)}" title="Эксплуатация ${mln(k.opex)}"></span><span class="s-fee" style="${part(k.fee)}" title="Вознаграждение УК ${mln(k.fee)}"></span><span class="s-gap" style="${part(gap)}" title="Ещё не оплачено ${mln(gap)}"></span>
+        </div>
+        <div class="legend">
+          <div class="you"><span><i class="s-you"></i>Вам</span><b>${mln(k.payout)}</b></div>
+          <div><span><i class="s-ops"></i>Эксплуатация</span><b>${mln(k.opex)}</b></div>
+          <div><span><i class="s-fee"></i>Нам, 7%</span><b>${mln(k.fee)}</b></div>
+          <div><span><i class="s-gap"></i>Ещё не оплачено</span><b>${mln(gap)}</b></div>
+        </div>
+        <p class="note">Собрано ${(k.collection * 100).toFixed(1).replace('.', ',')}% начислений. Вознаграждение считается от поступивших денег, а не от начисленных: растёт ваш доход — растёт и наше.</p>
+      </section>
+      <section class="card pad">
+        <div class="card-h"><h2>Динамика за 12 месяцев</h2><div class="seg" role="group" aria-label="Показатель">${Object.entries(METRICS).map(([key, m], i) => `<button data-metric="${key}" class="${i ? '' : 'on'}">${m.label}</button>`).join('')}</div></div>
+        <div id="chart">${barChart(p.months, 'payout', METRICS.payout.fmt, 'Перечисления за 12 месяцев')}</div>
+      </section>
+      <section class="card pad">
+        <div class="card-h"><h2>Что изменилось для дохода</h2></div>
+        <ul class="feed">${data.news.map((x) => `<li><time>${shortDate(x.date)}</time><b>${esc(x.title)}</b><span>${esc(x.text)}</span><em>${esc(x.effect)}</em></li>`).join('')}</ul>
+      </section>
+    </div>
+    <aside class="side">
+      <section class="card pad">
+        <div class="card-h" style="margin-bottom:8px"><h2>На контроле</h2><span class="sub">Решаем сами, вы — в курсе</span></div>
+        ${ctl.length ? `<ul class="att">${ctl.map((a) => `<li class="${a.lvl}" data-tab="${a.tab}"><b>${esc(a.title)}</b><span>${esc(a.text)}</span><em class="st ${a.st[0]}">${esc(a.st[1])}</em></li>`).join('')}</ul>` : `<p class="ok-line">${icon('check')}Всё по плану</p>`}
+      </section>
+      ${managerCard()}
+      ${data.reports[0] ? `<section class="card pad"><span class="lbl" style="margin-bottom:14px">Последний отчёт</span>
+        <div class="rep"><span class="doc">${icon('doc')}</span><div><b>${esc(data.reports[0].title)}</b><span>${date(data.reports[0].sent)} · PDF</span></div></div>
+        <div class="rep-f"><button class="btn sm" data-pdf="${data.reports[0].id}">Открыть</button><button class="lnk" data-tab="reports">Все отчёты ${icon('arrow')}</button></div></section>` : ''}
+    </aside>
+  </div>`;
+  return [top, body];
 }
 
 function managerCard() {
   const m = data.manager;
-  return `<div class="card pad"><h3 style="margin-bottom:18px">Ваш управляющий</h3>
-    <div class="mgr"><span class="ph">${esc(m.name.split(' ').map((w) => w[0]).join('').slice(0, 2))}</span><div><b>${esc(m.name)}</b><span>${esc(m.role)}</span></div></div>
-    <div class="mgr-acts"><a class="btn sm" href="${esc(m.phoneHref)}">${icon('phone')}Позвонить</a><a class="btn sm" href="${esc(m.telegram)}" target="_blank" rel="noopener">${icon('send')}Telegram</a></div>
-    <form id="q" style="margin-top:16px"><label class="field" style="margin-bottom:10px"><span>Вопрос управляющему</span><textarea name="text" rows="2" maxlength="2000" placeholder="Например: когда планируется индексация?"></textarea></label><button class="btn sm pri">Отправить</button><p class="msg" id="qm"></p></form>
-  </div>`;
+  return `<section class="card pad"><span class="lbl" style="margin-bottom:14px">Ваш контакт</span>
+    <div class="mgr"><span class="ph">${esc(m.name.split(' ').map((w) => w[0]).join('').slice(0, 2))}</span><div><b>${esc(m.name)}</b><span>${esc(m.role)} · отвечает за все ваши объекты</span></div></div>
+    <a class="mgr-tel" href="${esc(m.phoneHref)}">${esc(m.phone)}</a>
+    <div class="mgr-acts"><a class="btn sm" href="${esc(m.phoneHref)}">${icon('phone')}Позвонить</a><a class="btn sm" href="${esc(m.telegram)}" target="_blank" rel="noopener">${icon('send')}Telegram</a><button class="btn sm" data-write>${icon('chat')}Вопрос</button></div>
+    <form class="q" id="q" hidden><textarea name="text" rows="3" maxlength="2000" placeholder="Например: когда планируется индексация?"></textarea><button class="btn sm pri">Отправить</button><p class="msg" id="qm"></p></form>
+  </section>`;
+}
+
+function occBar(o) {
+  const vac = o.vacant.reduce((s, v) => s + v.area, 0);
+  return `<div class="occ" role="img" aria-label="Занято ${o.occ}%">${o.tenants.map((t) => `<span style="flex:${t.area}" title="${esc(t.name)} · ${num(t.area)} м²"></span>`).join('')}${vac ? `<span class="free" style="flex:${vac}" title="Свободно ${num(vac)} м²"></span>` : ''}</div>
+  <div class="occ-l"><span><i></i>${o.tenants.length} ${plural(o.tenants.length, 'арендатор', 'арендатора', 'арендаторов')} · ${num(o.tenants.reduce((s, t) => s + t.area, 0))} м²</span>${vac ? `<span class="f"><i></i>Свободно · ${num(vac)} м²</span>` : ''}</div>`;
 }
 
 function objectsView() {
-  return data.portfolio.objects.map((o) => `<section class="card obj">
-    <div class="obj-h"><div><h2>${esc(o.title)}</h2><p>${esc(o.type)} · ${esc(o.address)} · ${num(o.area)} м²</p></div></div>
-    <div class="facts">
-      <div><span>Поступило за месяц</span><b>${mln(o.collected)}</b><small class="up">${pct(o.collectedYoY)} за год</small></div>
-      <div><span>Заполняемость</span><b>${o.occ}%</b><small class="up">${pp(o.occYoY)} за год</small></div>
-      <div><span>Средняя ставка</span><b>${num(o.rate)} ₽/м²</b><small class="up">${pct(o.rateYoY)} за год</small></div>
-      <div><span>К перечислению</span><b>${mln(o.payout)}</b><small>в этом месяце</small></div>
-    </div>
-    <div class="grid2">
-      <div><h3 style="margin-bottom:14px">Поступления за 12 месяцев</h3><div data-objchart="${o.id}">${barChart(o.months, 'collected', METRICS.collected.fmt, 'Поступления по объекту')}</div></div>
-      <div><h3 style="margin-bottom:14px">Арендаторы</h3>
-        <table class="tenants"><thead><tr><th>Арендатор</th><th class="n">м²</th><th>Доля</th></tr></thead>
-        <tbody>${o.tenants.map((t) => `<tr><td>${esc(t.name)}</td><td class="n">${num(t.area)}</td><td style="white-space:nowrap"><span class="bar" style="width:${Math.round(t.share * 90)}px"></span>${Math.round(t.share * 100)}%</td></tr>`).join('')}</tbody></table>
-        ${o.vacant.length ? `<div class="vac">${o.vacant.map((v) => `<div><span><b style="font-weight:500;color:var(--ink)">${esc(v.title)} · ${num(v.area)} м²</b><small>${esc(v.note)}</small></span><span class="st ${v.status === 'Переговоры' ? 'st-wait' : 'st-talk'}">${esc(v.status)}</span></div>`).join('')}</div>` : `<p class="small" style="margin:16px 0 0;color:var(--ok)">${icon('check')} Свободных площадей нет</p>`}
+  const p = data.portfolio, k = p.kpi;
+  const top = band('Объекты', `${p.objects.length} ${plural(p.objects.length, 'объект', 'объекта', 'объектов')} · ${num(k.area)} м²`, 'Заполняемость, ставки и поступления по каждому объекту. Наведите на шкалу — увидите арендатора.');
+  const body = p.objects.map((o) => `<section class="card obj">
+    <div class="obj-h"><div><span class="lbl">${esc(o.type)}</span><h2>${esc(o.title)}</h2><p>${esc(o.address)} · ${num(o.area)} м²</p></div>
+      <div class="obj-k">
+        <div><span>Заполняемость</span><b>${o.occ}%</b><small>${pp(o.occYoY)} за год</small></div>
+        <div><span>Ставка</span><b>${num(o.rate)} ₽/м²</b><small>${pct(o.rateYoY)} за год</small></div>
+        <div><span>Вам за месяц</span><b>${mln(o.payout)}</b><small>${pct(o.collectedYoY)} поступления</small></div>
+      </div></div>
+    <div class="obj-b">
+      <div><span class="lbl">Занятость площадей</span>${occBar(o)}<span class="lbl">Поступления за 12 месяцев</span><div data-objchart="${o.id}">${barChart(o.months, 'collected', METRICS.collected.fmt, 'Поступления по объекту')}</div></div>
+      <div><span class="lbl">Свободные площади</span>
+        ${o.vacant.length ? `<div class="vac">${o.vacant.map((v) => `<div><span><b>${esc(v.title)} · ${num(v.area)} м²</b><small>${esc(v.note)} · от ${num(v.rate)} ₽/м²</small></span><span class="st ${v.status === 'Переговоры' ? 'st-wait' : 'st-talk'}">${esc(v.status)}</span></div>`).join('')}</div>` : `<p class="ok-line" style="margin-top:12px">${icon('check')}Объект заполнен полностью</p>`}
+        <p style="margin:20px 0 0"><button class="lnk" data-tab="tenants">Арендаторы и договоры ${icon('arrow')}</button></p>
       </div>
     </div>
   </section>`).join('');
+  return [top, body];
+}
+
+function tenantsView() {
+  const list = allTenants().sort((a, b) => (b.debt - a.debt) || a.until.localeCompare(b.until));
+  const soon = list.filter((t) => monthsTo(t.until) <= 12), debt = list.reduce((s, t) => s + t.debt, 0);
+  const top = band('Арендаторы', 'Договоры и платежи', 'Сначала — те, где нужно внимание: долги и договоры, которые скоро заканчиваются.',
+    `<div class="band-sum"><div><span>Арендаторов</span><b>${list.length}</b></div><div><span>Договоры, заканчивающиеся за 12 месяцев</span><b>${soon.length} · ${num(soon.reduce((s, t) => s + t.area, 0))} м²</b></div><div class="${debt ? 'alert' : ''}"><span>Просроченный долг</span><b>${rub(debt)}</b></div></div>`);
+  const body = `<div class="card pad tbl-wrap"><table class="tbl">
+    <thead><tr><th>Арендатор</th><th>Объект</th><th class="n">Площадь</th><th>Договор до</th><th>Платежи</th></tr></thead>
+    <tbody>${list.map((t) => { const left = monthsTo(t.until); return `<tr>
+      <td><b>${esc(t.name)}</b><small>${Math.round(t.share * 100)}% занятой площади объекта</small></td>
+      <td>${esc(t.obj)}</td><td class="n">${num(t.area)} м²</td>
+      <td>${monthName(t.until)}${left <= 6 ? `<small style="color:var(--warn)">через ${left} мес.</small>` : ''}</td>
+      <td>${t.debt ? `<span class="st st-bad">${rub(t.debt)} · ${t.debtDays} дн.</span>` : '<span class="st st-ok">Без долгов</span>'}</td></tr>`; }).join('')}</tbody>
+  </table></div>`;
+  return [top, body];
+}
+
+const WS = { 'Запланировано': 'st-talk', 'В работе': 'st-wait', 'Выполнено': 'st-ok' };
+function worksView() {
+  const objName = Object.fromEntries(data.portfolio.objects.map((o) => [o.id, o.title]));
+  const order = ['В работе', 'Запланировано', 'Выполнено'];
+  const list = data.works.slice().sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || b.date.localeCompare(a.date));
+  const sum = (st) => data.works.filter((w) => w.status === st).reduce((s, w) => s + w.cost, 0);
+  const used = data.works.reduce((s, w) => s + w.cost, 0), B = data.worksBudget;
+  const top = band('Работы и расходы', 'Что делаем на объектах', 'Ремонт и обслуживание ведём сами в рамках годового бюджета эксплуатации — от вас решений не требуется. Сметы и закрывающие документы — в отчёте месяца.',
+    `<div class="band-sum"><div><span>Выполнено в 2026 году</span><b>${rub(sum('Выполнено'))}</b></div><div><span>В работе и запланировано</span><b>${rub(sum('В работе') + sum('Запланировано'))}</b></div><div><span>Остаток бюджета года</span><b>${rub(B - used)}</b></div></div>
+    <div class="plan budget"><div class="plan-t"><span>Бюджет эксплуатации 2026: <b>${rub(used)}</b> из ${rub(B)}</span><span>${Math.round(used / B * 100)}%</span></div><div class="plan-bar"><span style="width:${Math.min(100, used / B * 100).toFixed(1)}%"></span></div></div>`);
+  const body = `<div class="card">${list.map((w) => `<div class="work">
+    <div><b>${esc(w.title)}</b><p>${esc(objName[w.obj] || '')} · ${w.status === 'Выполнено' ? 'выполнено' : 'срок'} ${date(w.date)}</p></div>
+    <div class="r"><span class="cost">${rub(w.cost)}</span><span class="st ${WS[w.status]}">${esc(w.status)}</span></div>
+    <p>${esc(w.note)}</p>
+  </div>`).join('')}</div>`;
+  return [top, body];
 }
 
 const KIND = { month: 'Ежемесячный', quarter: 'Квартальный', week: 'Сводка за неделю' };
@@ -350,21 +535,22 @@ let repFilter = 'all';
 function reportsView() {
   const show = (r) => repFilter === 'all' || (repFilter === 'week' ? r.kind === 'week' : r.kind !== 'week');
   const s = data.settings;
-  return `
-  <div class="page-h"><div><h1>Отчёты</h1><p>Ежемесячный отчёт — до 5 числа, квартальный — до 7 числа, короткая сводка — по понедельникам. Всё приходит на почту и хранится здесь.</p></div>
-    <div class="seg" role="group" aria-label="Фильтр">${[['all', 'Все'], ['month', 'Отчёты'], ['week', 'Сводки']].map(([k, t]) => `<button data-rep="${k}" class="${repFilter === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+  const top = band('Отчёты', 'Отчёты и сводки', 'Ежемесячный — до 5 числа, квартальный — до 7 числа, сводка — по понедельникам. Всё приходит на почту и хранится здесь.');
+  const body = `<div class="card-h"><div class="seg" role="group" aria-label="Фильтр">${[['all', 'Все'], ['month', 'Отчёты'], ['week', 'Сводки']].map(([k, t]) => `<button data-rep="${k}" class="${repFilter === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <span class="small muted">Получатели: ${s.emails.map(esc).join(', ')} · <button class="lnk" data-tab="settings">изменить</button></span></div>
   <div class="card" style="overflow:hidden">
     ${data.upcoming.filter(show).map((r) => `<div class="row soon"><span class="ico">${icon('clock')}</span><div><div class="t">${esc(r.title)}</div><div class="chip">${KIND[r.kind]}</div></div><span class="d hide-m">придёт ${date(r.sent)}</span><span class="hide-m"></span><span></span></div>`).join('')}
     ${data.reports.filter(show).map((r) => `<div class="row"><span class="ico">${icon('doc')}</span><div><div class="t">${esc(r.title)}</div><div class="chip">${KIND[r.kind]}</div></div><span class="d hide-m">${date(r.sent)}</span><span class="d hide-m">${r.kind === 'week' ? '1 страница' : '3 страницы'} · PDF</span><button class="btn sm" data-pdf="${r.id}" ${r.ready ? '' : 'disabled'}>Открыть</button></div>`).join('')}
-  </div>
-  <p class="small muted" style="margin-top:14px">Получатели: ${s.emails.map(esc).join(', ')} · <button class="lnk small" data-tab="settings">изменить</button></p>`;
+  </div>`;
+  return [top, body];
 }
 
 function settingsView() {
   const s = data.settings;
-  return `<div class="grid2">
-    <div class="card pad">
-      <h3 style="margin-bottom:10px">Отчёты на почту</h3>
+  const top = band('Настройки', 'Отчёты и доступ', '');
+  const body = `<div class="cols">
+    <section class="card pad">
+      <div class="card-h"><h2>Отчёты на почту</h2></div>
       <form id="settings">
         <label class="check"><input type="checkbox" name="monthly" ${s.monthly ? 'checked' : ''}><span><b>Ежемесячный отчёт</b><span>Доход, заполняемость, арендаторы, деньги к перечислению — до 5 числа</span></span></label>
         <label class="check"><input type="checkbox" name="quarterly" ${s.quarterly ? 'checked' : ''}><span><b>Квартальный отчёт</b><span>Итоги квартала и план на следующий — до 7 числа</span></span></label>
@@ -372,16 +558,15 @@ function settingsView() {
         <label class="field" style="margin-top:12px"><span>Кому отправлять — по одному адресу в строке</span><textarea name="emails" rows="3">${s.emails.map(esc).join('\n')}</textarea></label>
         <button class="btn pri">Сохранить</button><p class="msg" id="sm"></p>
       </form>
-    </div>
-    <div class="stack">
-      <div class="card pad">
-        <h3 style="margin-bottom:14px">Перечисления</h3>
-        <dl style="display:grid;grid-template-columns:auto 1fr;gap:10px 16px;margin:0;font-size:15px"><dt class="muted">Получатель</dt><dd style="margin:0">${esc(data.owner.name)}</dd><dt class="muted">Счёт</dt><dd style="margin:0" class="num">•••• 4417</dd><dt class="muted">Когда</dt><dd style="margin:0">до 10 числа следующего месяца</dd></dl>
-        <p class="small muted" style="margin:14px 0 0">Реквизиты меняются только через управляющего — для вашей безопасности.</p>
-      </div>
-      <div class="card pad"><h3 style="margin-bottom:14px">Вход</h3><p class="small" style="margin:0">По коду на <b>${esc(data.email)}</b>. Сессия действует 30 дней на этом устройстве.</p></div>
-    </div>
+    </section>
+    <aside class="side">
+      <section class="card pad"><div class="card-h"><h2>Перечисления</h2></div>
+        <dl style="display:grid;grid-template-columns:auto 1fr;gap:10px 16px;margin:0;font-size:15px"><dt class="muted">Получатель</dt><dd style="margin:0">${esc(data.owner.name)}</dd><dt class="muted">Счёт</dt><dd style="margin:0">•••• 4417</dd><dt class="muted">Когда</dt><dd style="margin:0">до 10 числа следующего месяца</dd></dl>
+        <p class="small muted" style="margin:14px 0 0">Реквизиты меняются только через управляющего — для вашей безопасности.</p></section>
+      <section class="card pad"><div class="card-h"><h2>Вход</h2></div><p class="small" style="margin:0">По коду на <b>${esc(data.email)}</b>. Сессия действует 30 дней на этом устройстве.</p></section>
+    </aside>
   </div>`;
+  return [top, body];
 }
 
 // ---------- отрисовка и события ----------
@@ -391,11 +576,18 @@ async function render() {
     $('#app').innerHTML = '<p class="muted">Загружаем…</p>';
     try { data = await api('me'); } catch (e) { if (token) $('#app').innerHTML = `<p class="msg err">${esc(e.message)}</p>`; return; }
   }
-  $('#who').textContent = data.owner.name; $('#logout').hidden = false;
-  const views = { home: homeView, objects: objectsView, reports: reportsView, settings: settingsView };
-  $('#app').innerHTML = shell(views[tab]());
-  if (tab === 'home') wireChart($('#chart'), data.portfolio.months, 'collected', METRICS.collected.fmt);
+  $('#who').innerHTML = `${esc(data.owner.person)}<small>${esc(data.owner.name)}</small>`; $('#logout').hidden = false;
+  const views = { home: homeView, objects: objectsView, tenants: tenantsView, works: worksView, reports: reportsView, settings: settingsView };
+  const [top, body] = views[tab]();
+  $('#top').innerHTML = tabsHtml() + top;
+  $('#app').innerHTML = body;
+  if (tab === 'home') wireChart($('#chart'), data.portfolio.months, 'payout', METRICS.payout.fmt);
   if (tab === 'objects') data.portfolio.objects.forEach((o) => wireChart($(`[data-objchart="${o.id}"]`), o.months, 'collected', METRICS.collected.fmt));
+}
+
+function openQuestion() {
+  const f = $('#q'); f.hidden = false;
+  f.text.focus(); f.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 document.addEventListener('click', async (e) => {
@@ -408,6 +600,7 @@ document.addEventListener('click', async (e) => {
     $('#chart').innerHTML = barChart(data.portfolio.months, k, M.fmt, M.label + ' за 12 месяцев');
     wireChart($('#chart'), data.portfolio.months, k, M.fmt); return;
   }
+  if (e.target.closest('[data-write]')) { openQuestion(); return; }
   const rf = e.target.closest('[data-rep]');
   if (rf) { repFilter = rf.dataset.rep; render(); return; }
   const pdf = e.target.closest('[data-pdf]');

@@ -12,18 +12,20 @@ const OBJECTS = [
   {
     id: 'shchelkovo', title: 'Щёлково, Московская', address: 'г. Щёлково, ул. Московская, д. 70А', type: 'Производственный комплекс', area: 22803,
     occ: [81, 82, 83, 84, 84, 86, 88, 89, 90, 91, 92, 93, 94], rate: [535, 540, 540, 545, 550, 560, 565, 570, 580, 585, 590, 595, 600], opex: 900000,
-    tenants: [['ООО «СеверПласт»', 6800], ['ООО «Мебельная фабрика»', 5100], ['ООО «Логистик Плюс»', 4200], ['ООО «ТрансСервис»', 2900], ['ООО «ПромКомплект»', 2080], ['ИП Карпов А. В.', 350]],
+    // [арендатор, м², договор до, долг ₽, дней просрочки]
+    tenants: [['ООО «СеверПласт»', 6800, '2031-09', 0, 0], ['ООО «Мебельная фабрика»', 5100, '2027-03', 0, 0], ['ООО «Логистик Плюс»', 4200, '2026-12', 340000, 12], ['ООО «ТрансСервис»', 2900, '2028-06', 0, 0], ['ООО «ПромКомплект»', 2080, '2027-01', 125000, 5], ['ИП Карпов А. В.', 350, '2027-08', 0, 0]],
     vacant: [{ title: 'Блок 7 · 2 этаж', area: 953, rate: 540, status: 'Переговоры', note: 'ООО «Альфа-Склад», договор на согласовании' }, { title: 'Блок 3 · 1 этаж', area: 420, rate: 650, status: 'В рекламе', note: '3 показа за неделю' }],
   },
   {
     id: 'mytishchi', title: 'Мытищи, Фабричная', address: 'г. Мытищи, ул. Фабричная, д. 17Б', type: 'Складской комплекс', area: 8982,
     occ: [89, 90, 90, 92, 93, 93, 95, 96, 97, 98, 100, 100, 100], rate: [555, 560, 565, 570, 575, 585, 590, 600, 610, 620, 630, 635, 640], opex: 350000,
-    tenants: [['ООО «Сладкий дом»', 3600], ['ООО «Автозапчасть-М»', 2400], ['ООО «Эко-Упаковка»', 1800], ['ИП Семёнова О. Л.', 1182]],
+    tenants: [['ООО «Сладкий дом»', 3600, '2029-02', 0, 0], ['ООО «Автозапчасть-М»', 2400, '2027-02', 0, 0], ['ООО «Эко-Упаковка»', 1800, '2028-11', 0, 0], ['ИП Семёнова О. Л.', 1182, '2026-12', 0, 0]],
     vacant: [],
   },
 ];
 const COLLECT = [0.965, 0.968, 0.97, 0.972, 0.975, 0.978, 0.98, 0.982, 0.984, 0.985, 0.986, 0.987, 0.988];
 const FEE = 0.07;   // вознаграждение УК — от собранной аренды
+const PLAN_K = 1.043;   // демо: факт выше бюджета года на 4,3%
 
 // помесячные цифры объекта: начислено, поступило, к перечислению собственнику
 function series(o) {
@@ -56,6 +58,11 @@ function portfolio(upTo = MONTHS.length - 1) {
       payout: cur.payout, payoutYtd: sum(ytd, 'payout'), collectedYtd: sum(ytd, 'collected'),
       occ: cur.occ, occYoY: cur.occ - yearAgo.occ, rate: cur.rate, rateYoY: cur.rate / yearAgo.rate - 1,
       collection: cur.collected / cur.charged, area: sum(objs, 'area'),
+      // куда уходят деньги месяца: начислено → поступило → вознаграждение УК → эксплуатация → вам
+      charged: cur.charged, fee: Math.round(cur.collected * FEE), opex: sum(objs, 'opex'),
+      // план/факт года: бюджет утверждается с собственником в декабре; прогноз — факт + текущий месяц × оставшиеся
+      planYtd: Math.round(sum(ytd, 'payout') / PLAN_K), planYear: Math.round(sum(ytd, 'payout') / PLAN_K / ytd.length * 12),
+      forecastYear: sum(ytd, 'payout') + cur.payout * (12 - ytd.length),
     },
     months: months.slice(-12),
     objects: objs.map((o) => {
@@ -63,13 +70,23 @@ function portfolio(upTo = MONTHS.length - 1) {
       const occupied = o.tenants.reduce((s, t) => s + t[1], 0);
       return { id: o.id, title: o.title, address: o.address, type: o.type, area: o.area, occ: c.occ, occYoY: c.occ - y.occ, rate: c.rate, rateYoY: c.rate / y.rate - 1,
         collected: c.collected, collectedYoY: c.collected / y.collected - 1, payout: c.payout, months: o.s.slice(-12),
-        tenants: o.tenants.map(([name, area]) => ({ name, area, share: area / occupied })), vacant: o.vacant };
+        tenants: o.tenants.map(([name, area, until, debt, debtDays]) => ({ name, area, share: area / occupied, rate: c.rate, until, debt, debtDays })), vacant: o.vacant };
     }),
   };
 }
 
 const OWNER = { name: 'ООО «Пример Инвест»', person: 'Андрей Сергеевич', email: 'demo@example.ru' };
-const MANAGER = { name: 'Имя Фамилия', role: 'Ваш управляющий', phone: '+7 495 797-77-42', phoneHref: 'tel:+74957977742', telegram: 'https://t.me/+79161477144' };
+const MANAGER = { name: 'Имя Фамилия', role: 'Главный управляющий', phone: '+7 495 797-77-42', phoneHref: 'tel:+74957977742', telegram: 'https://t.me/+79161477144' };
+
+// работы на объектах: ведём сами в рамках годового бюджета эксплуатации, собственник только видит
+const WORKS_BUDGET = 4200000;
+const WORKS = [
+  { obj: 'shchelkovo', title: 'Замена ворот блока 3', cost: 240000, status: 'Запланировано', date: '2026-11-05', note: 'Ворота закрываются неплотно — заменим до холодов, подрядчик выбран по трём предложениям' },
+  { obj: 'shchelkovo', title: 'Ремонт кровли корпуса 2', cost: 1850000, status: 'В работе', date: '2026-11-20', note: 'Выполнено 60%, сдача в срок' },
+  { obj: 'shchelkovo', title: 'Плановое ТО инженерных систем', cost: 180000, status: 'Выполнено', date: '2026-10-10', note: 'Ежеквартально, замечаний нет' },
+  { obj: 'mytishchi', title: 'Асфальтирование подъезда', cost: 640000, status: 'Выполнено', date: '2026-08-12', note: 'В срок и в рамках сметы; ставка выросла на 15 ₽/м²' },
+  { obj: 'mytishchi', title: 'Ремонт освещения на рампе', cost: 58000, status: 'Выполнено', date: '2026-09-30', note: 'По заявке арендатора, закрыто за 2 дня' },
+];
 
 // новости месяца — без операционки, только то, что влияет на доход
 const NEWS = [
@@ -99,4 +116,4 @@ function nextMonth5(m) { const [y, mm] = m.split('-').map(Number); const d = new
 const TODAY = '2026-10-27';
 const sentReports = () => REPORTS.filter((r) => r.sent <= TODAY);
 
-module.exports = { MONTHS, MONTH_GEN, monthName, monthShort, OBJECTS, portfolio, OWNER, MANAGER, NEWS, REPORTS, sentReports, TODAY };
+module.exports = { MONTHS, MONTH_GEN, monthName, monthShort, OBJECTS, portfolio, OWNER, MANAGER, NEWS, WORKS, WORKS_BUDGET, REPORTS, sentReports, TODAY };

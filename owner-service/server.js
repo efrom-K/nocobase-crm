@@ -76,6 +76,7 @@ function apiMe(user) {
     owner: D.OWNER, manager: D.MANAGER,
     portfolio: D.portfolio(),
     news: D.NEWS.slice(0, 5),
+    works: D.WORKS, worksBudget: D.WORKS_BUDGET,
     reports: sent.map(({ id, kind, title, sent }) => ({ id, kind, title, sent, ready: fs.existsSync(path.join(REPORTS_DIR, id + '.pdf')) })),
     upcoming: upcoming.map(({ id, kind, title, sent }) => ({ id, kind, title, sent })),
     settings: st.settings,

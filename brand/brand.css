@@ -40,3 +40,15 @@
   --kn-shadow: 0 1px 2px rgba(18, 29, 58, .04), 0 12px 32px -12px rgba(18, 29, 58, .18);
   --kn-focus: 0 0 0 3px rgba(47, 74, 138, .28);
 }
+
+/* брендбук v1.3 (по kninvest.ru) — добавлен рядом с v1.2: порталы переводятся по одному.
+   Tilda Sans вместо Fira, скругления 6 / теги 5, графитовые тёмные разделы, небесный акцент на тёмном. */
+@font-face { font-family: "Tilda Sans"; font-weight: 250 1000; font-display: swap; src: url(tilda-sans-vf.woff2) format("woff2"); }
+:root {
+  --kn-graphite: #2f344a; /* тёмные разделы, шапка */
+  --kn-sky: #a6c2e8;      /* акцент — только на тёмном */
+  --kn-mint: #d8f0f3;     /* только линии фирменных окружностей */
+  --kn-tilda: "Tilda Sans", Arial, sans-serif;
+  --kn-r13: 6px;
+  --kn-r13-tag: 5px;
+}

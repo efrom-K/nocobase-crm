@@ -10,7 +10,7 @@
 <script>
   // фирменные шрифты, токены и иконка — рядом со страницей: /portal/brand/ (help.<домен>/ и /<префикс>/portal/ через CRM)
   var BRAND = (function(i) { return (i === -1 ? '' : location.pathname.slice(0, i)) + '/portal/brand/'; })(location.pathname.indexOf('/portal'));
-  document.write('<link rel="stylesheet" href="' + BRAND + 'brand.css"><link rel="icon" type="image/svg+xml" href="' + BRAND + 'kn-mark.svg">');
+  document.write('<link rel="stylesheet" href="' + BRAND + 'brand.css?v=13"><link rel="icon" type="image/svg+xml" href="' + BRAND + 'kn-mark.svg">');
 </script>
 <style>
   /* брендбук v1.3: синяя шапка, графитовый подвал, Tilda Sans, карточки и поля 6 / кнопки и статусы — капсулы, метки в [ скобках ] */

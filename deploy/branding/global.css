@@ -80,7 +80,9 @@ div[style*="padding-top: 20vh"] > h1::before { content: ""; display: block; widt
 :root { --kn-navy: #1c2d58; --kn-navy-2: #2f4a8a; --kn-graphite: #2f344a; --kn-deep: #2f344a; --kn-sky: #a6c2e8; --kn-ice: #dde5f3; --kn-ice-soft: #eef2f9; --kn-paper: #f3f5f9; --kn-paper-2: #e9edf5;
   --kn-ink: #1f2433; --kn-ink-2: #3a4256; --kn-muted: #5b6478; --kn-line: #dfe3ec; --kn-line-2: #c3cad8;
   --kn-ok: #2f7d4f; --kn-warn: #8a5a00; --kn-err: #c23b3b;
-  --kn-tilda: "Tilda Sans", Arial, system-ui, sans-serif; --kn-cond: var(--kn-tilda); --kn-sans: var(--kn-tilda); --kn-mono: var(--kn-tilda); }
+  --kn-tilda: "Tilda Sans", Arial, system-ui, sans-serif; --kn-cond: var(--kn-tilda);
+  /* рабочий экран: тонкий Tilda Sans на 13–14 px под Windows расплывается — текст, таблицы и поля системным шрифтом, Tilda — только заголовки */
+  --kn-sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; --kn-mono: var(--kn-sans); }
 /* логотип в шапке — горизонтальный блок «на фирменном синем» (SVG), шире прежней рамки 168 px */
 /* NocoBase отдаёт логотип как /files/main/main/attachments/1.svg — ловим оба адреса */
 header.ant-layout-header img[src*="kn-logo-header"], header.ant-layout-header img[src*="attachments/1."] { width: auto !important; max-width: none !important; height: 36px !important; object-fit: contain; }

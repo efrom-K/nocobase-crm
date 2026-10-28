@@ -35,7 +35,7 @@ sudo sh -c "cat $R/deploy/branding/global.css > $BR/global.css; cat $R/deploy/br
 # тема «Консалт»
 $PSQL <<'SQL'
 update "themeConfig" set config = (config::jsonb || jsonb_build_object('token', config::jsonb->'token' || '{
-  "fontFamily": "\"Tilda Sans\", Arial, system-ui, -apple-system, \"Segoe UI\", sans-serif",
+  "fontFamily": "\"Segoe UI\", system-ui, -apple-system, Roboto, \"Helvetica Neue\", Arial, sans-serif",
   "colorPrimary": "#1c2d58", "colorInfo": "#1c2d58", "colorLink": "#2f4a8a",
   "colorSuccess": "#2f7d4f", "colorWarning": "#8a5a00", "colorError": "#c23b3b",
   "colorText": "#1f2433", "colorTextSecondary": "#5b6478", "colorTextTertiary": "#8a92a3",

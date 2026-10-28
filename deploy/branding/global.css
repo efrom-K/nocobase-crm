@@ -82,9 +82,10 @@ div[style*="padding-top: 20vh"] > h1::before { content: ""; display: block; widt
   --kn-ok: #2f7d4f; --kn-warn: #8a5a00; --kn-err: #c23b3b;
   --kn-tilda: "Tilda Sans", Arial, system-ui, sans-serif; --kn-cond: var(--kn-tilda); --kn-sans: var(--kn-tilda); --kn-mono: var(--kn-tilda); }
 /* логотип в шапке — горизонтальный блок «на фирменном синем» (SVG), шире прежней рамки 168 px */
-header.ant-layout-header img[src*="kn-logo-header"] { width: auto !important; max-width: none !important; height: 36px !important; object-fit: contain; }
+/* NocoBase отдаёт логотип как /files/main/main/attachments/1.svg — ловим оба адреса */
+header.ant-layout-header img[src*="kn-logo-header"], header.ant-layout-header img[src*="attachments/1."] { width: auto !important; max-width: none !important; height: 36px !important; object-fit: contain; }
 /* на узком экране — только знак */
-@media (max-width: 760px) { header.ant-layout-header img[src*="kn-logo-header"] { content: url(/storage/uploads/brand/kn-mark-white.svg); width: 34px !important; height: 34px !important; } }
+@media (max-width: 760px) { header.ant-layout-header img[src*="kn-logo-header"], header.ant-layout-header img[src*="attachments/1."] { content: url(/storage/uploads/brand/kn-mark-white.svg); width: 34px !important; height: 34px !important; } }
 /* заголовки страниц и модалок — Tilda Sans SemiBold, как в брендбуке */
 .ant-pro-page-container .ant-page-header-heading-title, .ant-modal-title, .ant-drawer-title { font-family: var(--kn-cond); font-weight: 600; letter-spacing: 0; }
 /* страница входа: до входа тема ещё не загружена — шрифт и заголовок задаём здесь */

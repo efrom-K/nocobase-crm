@@ -57,6 +57,8 @@ async function main() {
     now+=1200;global.fetch=async()=>reply(bad);
     await assert.rejects(objectRoute(admin,{from:2,to:3},load),status(bad.code.startsWith('No')?422:502));
   }
+  now+=1200;global.fetch=async()=>reply({code:'NoSegment'},false);
+  await assert.rejects(objectRoute(admin,{from:2,to:3},load),status(422));
   now+=1200;global.fetch=async()=>reply(null,false);
   await assert.rejects(objectRoute(admin,{from:2,to:3},load),status(502));
   now+=1200;global.fetch=async()=>{throw new Error('timeout');};

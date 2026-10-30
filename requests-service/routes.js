@@ -33,9 +33,9 @@ async function objectRoute(user, body, loadObjects) {
       headers: { 'User-Agent': 'NocobaseCRM/1.0 (+https://github.com/efrom-K/nocobase-crm)', Accept: 'application/json' },
       signal: AbortSignal.timeout(15000)
     });
-    if (!response.ok) throw new RouteError(502, 'Сервис маршрутов временно недоступен. Попробуйте позже');
     const result = await response.json();
-    if (result.code === 'NoRoute' || result.code === 'NoSegment') throw new RouteError(422, 'Дорога рядом с точкой не найдена. Уточните расположение объекта');
+    if (result && (result.code === 'NoRoute' || result.code === 'NoSegment')) throw new RouteError(422, 'Дорога рядом с точкой не найдена. Уточните расположение объекта');
+    if (!response.ok) throw new RouteError(502, 'Сервис маршрутов временно недоступен. Попробуйте позже');
     const r = result.routes && result.routes[0];
     if (result.code !== 'Ok' || !r || !Number.isFinite(r.distance) || r.distance < 0 || !Number.isFinite(r.duration) || r.duration < 0
       || !r.geometry || r.geometry.type !== 'LineString' || !Array.isArray(r.geometry.coordinates)

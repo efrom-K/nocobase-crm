@@ -8,6 +8,10 @@ function opLocated(o) {
   return typeof p.lat === 'number' && typeof p.lon === 'number' && Number.isFinite(p.lat) && Number.isFinite(p.lon)
     && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180;
 }
+function opMapPhoto(o) {
+  const photo = opLocation(o).photo;
+  return typeof photo === 'string' && /^\/storage\/uploads\/object-map\/[a-z0-9-]+\.webp$/.test(photo) ? photo : '';
+}
 function opMapObjects() {
   const q = (op.q || '').trim().toLowerCase();
   return op.objs.filter(function(o) { return !q || (o.name + ' ' + (opLocation(o).address || '')).toLowerCase().indexOf(q) !== -1; });
@@ -21,24 +25,24 @@ function opSelectObject(id) {
 }
 function opRoutePanel() {
   const box = opRoot() && opRoot().querySelector('.op-route'); if (!box) return;
-  const options = function(id) { return '<option value="">Выберите объект</option>' + op.objs.filter(opLocated).map(function(o) {
-    return '<option value="' + o.id + '"' + (o.id === id ? ' selected' : '') + '>' + opEsc(o.name) + '</option>';
-  }).join(''); };
+  opMapCard();
+  box.style.display = op.routeFrom || op.routeTo ? '' : 'none';
+  if (!op.routeFrom && !op.routeTo) { box.innerHTML = ''; return; }
+  const name = function(id, fallback) { const o = op.objs.find(function(x) { return x.id === id; }); return opEsc(o ? o.name : fallback); };
   const disabled = op.routeBusy ? ' disabled' : '', r = op.routeResult;
-  let summary = op.routeBusy ? 'Рассчитываю маршрут…' : op.routeError || '';
+  let summary = op.routeBusy ? 'Рассчитываю маршрут…' : op.routeError || (op.routeFrom ? 'Выберите объект и нажмите «Сюда»' : 'Выберите объект и нажмите «Отсюда»');
   if (r) {
     const minutes = Math.max(1, Math.ceil(r.duration / 60)), hours = Math.floor(minutes / 60);
     summary = opM(r.distance / 1000) + ' км · около ' + (hours ? hours + ' ч' + (minutes % 60 ? ' ' + minutes % 60 + ' мин' : '') : minutes + ' мин');
   }
   const approximate = r && op.objs.some(function(o) { return (o.id === r.from || o.id === r.to) && opLocation(o).approximate; });
-  box.innerHTML = '<div class="op-cap">Маршрут на автомобиле</div><div class="op-route-fields">'
-    + '<label>Откуда<select data-route="from"' + disabled + '>' + options(op.routeFrom) + '</select></label>'
-    + '<button class="op-btn" data-act="route-swap" aria-label="Поменять начало и конец маршрута" title="Поменять местами"' + disabled + '>⇄</button>'
-    + '<label>Куда<select data-route="to"' + disabled + '>' + options(op.routeTo) + '</select></label></div>'
-    + '<div class="op-route-actions"><button class="op-btn primary" data-act="route-build"' + disabled + '>' + (op.routeBusy ? 'Расчёт…' : 'Построить') + '</button>'
-    + '<button class="op-btn" data-act="route-clear">Убрать маршрут</button><span class="op-route-result" role="status" aria-live="polite">' + opEsc(summary) + '</span></div>'
-    + (r ? '<p class="op-map-note">Без учёта текущих пробок. Пунктир — участок от дороги до точки объекта.' + (approximate ? ' <b>Маршрут до примерной точки: уточните въезд.</b>' : '') + '</p>' : '')
-    + '<div class="op-route-credit">Расчёт: <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener noreferrer">OSRM / FOSSGIS</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">Исправить карту</a></div>';
+  box.innerHTML = '<div class="op-route-top"><span class="op-route-point"><i>А</i><b>' + name(op.routeFrom, 'Откуда?') + '</b></span>'
+    + '<button class="op-map-icon" data-act="route-swap" aria-label="Поменять начало и конец маршрута" title="Поменять местами"' + disabled + '>⇄</button>'
+    + '<span class="op-route-point"><i>Б</i><b>' + name(op.routeTo, 'Куда?') + '</b></span>'
+    + '<button class="op-map-icon" data-act="route-clear" aria-label="Убрать маршрут" title="Убрать маршрут">×</button></div>'
+    + '<div class="op-route-bottom"><span class="op-route-result" role="status" aria-live="polite">' + opEsc(summary) + '</span>'
+    + (op.routeError && op.routeFrom && op.routeTo ? '<button class="op-route-retry" data-act="route-build">Повторить</button>' : '') + '</div>'
+    + (r ? '<div class="op-route-note">Без пробок' + (approximate ? ' · Примерная точка — уточните въезд' : ' · Пунктир — от дороги до объекта') + '</div>' : '');
 }
 function opRouteDraw(fit) {
   if (op.screen !== 'map' || !op.mapFrame) return;
@@ -49,18 +53,14 @@ function opRouteReset() {
   op.routeBusy = false; op.routeResult = null; op.routeError = '';
   opRoutePanel(); opRouteDraw(false);
 }
-function opRouteField(el) {
-  const key = el.getAttribute('data-route');
-  if (key !== 'from' && key !== 'to') return false;
-  op[key === 'from' ? 'routeFrom' : 'routeTo'] = Number(el.value) || null;
-  opRouteReset(); return true;
-}
-function opRouteHere() {
-  op.routeTo = op.objId;
-  if (op.routeFrom === op.routeTo) op.routeFrom = null;
+function opRoutePick(side) {
+  if (!op.objs.some(function(o) { return o.id === op.objId && opLocated(o); })) return;
+  if (side !== 'from' && side !== 'to') return;
+  const key = side === 'from' ? 'routeFrom' : 'routeTo', other = side === 'from' ? 'routeTo' : 'routeFrom';
+  op[key] = op.objId;
+  if (op[other] === op.objId) op[other] = null;
   opRouteReset();
-  const el = opRoot().querySelector(op.routeFrom ? '[data-act="route-build"]' : '[data-route="from"]');
-  if (el) el.focus();
+  if (op.routeFrom && op.routeTo) return opRouteBuild();
 }
 async function opRouteBuild() {
   if (op.routeBusy) return;
@@ -85,7 +85,10 @@ async function opRouteBuild() {
 function opMapFrame(data, channel) {
   const status = document.getElementById('status');
   if (!window.L) { status.textContent = 'Карта недоступна. Выберите объект в списке слева.'; return; }
-  const map = L.map('map', { scrollWheelZoom: false }).setView([55.9, 37.7], 9);
+  const map = L.map('map', { scrollWheelZoom: false, zoomControl:false }).setView([55.9, 37.7], 9);
+  L.control.zoom({position:'bottomright',zoomInTitle:'Приблизить',zoomOutTitle:'Отдалить'}).addTo(map);
+  map.attributionControl.addAttribution('<a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">OSRM / FOSSGIS</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Исправить карту</a>');
+  function padding() { const w = map.getSize().x; return {paddingTopLeft:w > 1100 ? [312,116] : w > 800 ? [274,116] : [32,116], paddingBottomRight:w > 1100 ? [328,56] : w > 800 ? [290,56] : [32,48]}; }
   let loaded = false;
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
@@ -109,7 +112,7 @@ function opMapFrame(data, channel) {
       const el = m.getElement(); if (el) el.classList.toggle('selected', o.id === message.id);
       m.setZIndexOffset(o.id === message.id ? 1000 : 0);
     });
-    if (message.fit && bounds.length) map.fitBounds(bounds, { padding: [45, 45], maxZoom: 12 });
+    if (message.fit && bounds.length) map.fitBounds(bounds, Object.assign(padding(), {maxZoom:12}));
     else if (message.focus && markers[message.id] && message.ids.indexOf(message.id) !== -1) {
       map.setView(markers[message.id].getLatLng(), Math.max(map.getZoom(), 13));
       markers[message.id].openTooltip();
@@ -131,7 +134,7 @@ function opMapFrame(data, channel) {
       L.marker([o.lat,o.lon], {title:label.textContent,zIndexOffset:2000,icon:L.divIcon({className:'route-end',html:i ? 'Б' : 'А',iconSize:[28,28],iconAnchor:[14,14]})})
         .bindTooltip(label).addTo(routeLayer);
     });
-    if (message.fit) map.fitBounds(routeLayer.getBounds(), {padding:[45,45],maxZoom:15});
+    if (message.fit) map.fitBounds(routeLayer.getBounds(), Object.assign(padding(), {maxZoom:15}));
   }
   window.addEventListener('message', function(e) {
     if (e.source !== parent || !e.data || e.data.channel !== channel) return;
@@ -148,7 +151,7 @@ function opMapDoc(data, channel) {
     + '<style>html,body,#map{height:100%;margin:0}body{font:14px Arial;color:#1f2433;background:#e9edf5}.leaflet-container{font:13px Arial}.pin{display:block;width:26px;height:26px;background:#1c2d58;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px #1c2d5855}.pin:after{content:"";display:block;width:8px;height:8px;background:#fff;border-radius:50%;margin:9px}.selected .pin{background:#2f4a8a;outline:5px solid #a6c2e8}.leaflet-marker-icon:focus{outline:3px solid #2f4a8a}#status{position:absolute;z-index:1000;bottom:28px;left:12px;right:12px;padding:10px;background:#fff;border-radius:6px;box-shadow:0 2px 8px #0002}button{font:inherit}</style>'
     + '</head><body><div id="map" aria-label="Карта объектов"></div><div id="status" role="status">Загрузка карты…</div>'
     + '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>'
-    + '<style>.route-end{background:#1c2d58;color:#fff;border:3px solid white;border-radius:50%;font:bold 14px/28px Arial;text-align:center;box-shadow:0 2px 8px #0004}</style>'
+    + '<style>.leaflet-tile-pane{filter:saturate(.62)}.leaflet-control-zoom{border:0!important;border-radius:12px!important;overflow:hidden;box-shadow:0 3px 14px #1c2d5826!important}.leaflet-control-zoom a{width:36px!important;height:36px!important;line-height:36px!important;color:#1c2d58!important}.leaflet-tooltip{border:0;border-radius:8px;padding:7px 10px;box-shadow:0 3px 12px #1c2d5820}.leaflet-control-attribution{font-size:10px!important}.route-end{background:#1c2d58;color:#fff;border:3px solid white;border-radius:50%;font:bold 14px/28px Arial;text-align:center;box-shadow:0 2px 8px #0004}</style>'
     + '<script>(' + opMapFrame.toString() + ')(' + json(data) + ',' + json(channel) + ');</script></body></html>';
 }
 function opMapSync(fit) {
@@ -158,30 +161,31 @@ function opMapSync(fit) {
 }
 function opMapCard() {
   const root = opRoot(), card = root && root.querySelector('.op-map-card'); if (!card) return;
+  const focused = card.querySelector('button:focus'), focusAction = focused && focused.getAttribute('data-act');
   const o = op.objs.find(function(x) { return x.id === op.objId; });
-  root.querySelectorAll('[data-obj]').forEach(function(el) { const selected = Number(el.getAttribute('data-obj')) === op.objId; el.classList.toggle('on', selected); el.setAttribute('aria-pressed', String(selected)); });
+  root.querySelectorAll('[data-obj]').forEach(function(el) { const id = Number(el.getAttribute('data-obj')), selected = id === op.objId; el.classList.toggle('on', selected); el.setAttribute('aria-pressed', String(selected)); el.setAttribute('data-route-stop', id === op.routeFrom ? 'А' : id === op.routeTo ? 'Б' : ''); });
   if (!o) { card.innerHTML = '<div class="op-map-empty"><h3>Выберите объект</h3><p>Нажмите на метку на карте или на объект в списке слева.</p></div>'; return; }
   const p = opLocation(o), rooms = op.rooms.filter(function(r) { return r.object_id === o.id; }), plans = op.plans.filter(function(x) { return x.object_id === o.id; });
-  const photo = typeof p.photo === 'string' && /^\/storage\/uploads\/object-map\/[a-z0-9-]+\.webp$/.test(p.photo) ? p.photo : '';
+  const photo = opMapPhoto(o);
   card.innerHTML = (photo ? '<img class="op-map-photo" src="' + opEsc(photo) + '" alt="' + opEsc(o.name) + '">' : '')
-    + '<div class="op-map-detail"><div class="op-cap">Объект</div><h2>' + opEsc(o.name) + '</h2><p>' + opEsc(p.address || 'Адрес уточняется') + '</p>'
+    + '<div class="op-map-detail"><div class="op-map-eyebrow">Объект</div><h2>' + opEsc(o.name) + '</h2><p class="op-map-address">' + opEsc(p.address || 'Адрес уточняется') + '</p>'
     + (!opLocated(o) ? '<p class="op-map-note">Точка на карте пока не подтверждена.</p>' : p.approximate ? '<p class="op-map-note">Примерная точка: ' + opEsc(p.precision || 'местоположение требует уточнения') + '.</p>' : '')
     + '<div class="op-map-facts"><span><b>' + plans.length + '</b>планов</span><span><b>' + rooms.length + '</b>помещений</span></div>'
-    + '<button class="op-btn primary" data-act="open-plans">Планы и помещения →</button>'
-    + (opLocated(o) ? ' <button class="op-btn" data-act="route-here">Маршрут сюда</button>' : '')
+    + (opLocated(o) ? '<div class="op-map-directions"><button data-act="route-from" class="' + (op.routeFrom === o.id ? 'on' : '') + '" aria-label="Маршрут отсюда"><span aria-hidden="true">↗</span>Отсюда</button><button data-act="route-here" class="' + (op.routeTo === o.id ? 'on' : '') + '" aria-label="Маршрут сюда"><span aria-hidden="true">↘</span>Сюда</button></div>' : '')
+    + '<button class="op-btn op-map-plans" data-act="open-plans">' + opIco('layers') + 'Планы и помещения <span>→</span></button>'
     + (!plans.length ? '<p class="op-map-note">Планы ещё не добавлены. В разделе планов доступен редактор.</p>' : '') + '</div>';
+  if (focusAction) { const button = card.querySelector('[data-act="' + focusAction + '"]'); if (button) button.focus(); }
 }
 function opMapRender() {
   const root = opRoot(), objects = opMapObjects(), located = objects.filter(opLocated);
-  root.innerHTML = '<div class="op-map-head"><div><div class="op-cap">Объекты</div><h2>Карта объектов</h2><p>Выберите объект, чтобы открыть его карточку и планы.</p></div><button class="op-btn" data-act="map-all">Все объекты на карте</button></div>'
-    + '<div class="op-map-wrap"><aside class="op-map-list op-card"><label class="op-cap" for="op-map-search">Объекты · ' + op.objs.length + '</label>'
-    + '<input id="op-map-search" class="op-search" data-q placeholder="Название или адрес" value="' + opEsc(op.q || '') + '">'
+  root.innerHTML = '<div class="op-map-wrap"><aside class="op-map-list op-card"><div class="op-map-list-head"><h2>Объекты <span>' + op.objs.length + '</span></h2><button class="op-map-icon" data-act="map-all" aria-label="Все объекты на карте" title="Все объекты на карте">⌖</button></div>'
+    + '<div class="op-map-search"><span aria-hidden="true">⌕</span><input id="op-map-search" class="op-search" data-q aria-label="Найти объект по названию или адресу" placeholder="Найти объект" value="' + opEsc(op.q || '') + '"></div>'
     + '<div class="op-map-items">' + op.objs.map(function(o) {
-      const p = opLocation(o), visible = objects.some(function(x) { return x.id === o.id; });
-      return '<button class="op-obj op-map-item" data-obj="' + o.id + '" style="' + (visible ? '' : 'display:none') + '"><span><b>' + opEsc(o.name) + '</b><small>' + opEsc(p.address || 'Адрес уточняется') + '</small></span>' + (!opLocated(o) ? '<span class="op-map-note">Без точки</span>' : '') + '</button>';
+      const p = opLocation(o), photo = opMapPhoto(o), visible = objects.some(function(x) { return x.id === o.id; });
+      return '<button class="op-obj op-map-item" data-obj="' + o.id + '" style="' + (visible ? '' : 'display:none') + '"><span class="op-map-thumb">' + (photo ? '<img src="' + opEsc(photo) + '" alt="" loading="lazy">' : opIco('layers')) + '</span><span class="op-map-item-text"><b>' + opEsc(o.name) + '</b><small>' + opEsc(p.address || 'Адрес уточняется') + '</small></span></button>';
     }).join('') + '</div><p class="op-map-count" role="status">' + opMapCount(objects, located) + '</p></aside>'
     + '<div class="op-map-center"><section class="op-route op-card" aria-label="Построение маршрута"></section><div class="op-map-canvas op-card"></div></div><aside class="op-map-card op-card" aria-live="polite"></aside></div>';
-  opMapCard(); opRoutePanel();
+  opRoutePanel();
   const frame = document.createElement('iframe'); frame.title = 'Карта объектов';
   frame.setAttribute('sandbox', 'allow-scripts allow-popups'); frame.setAttribute('referrerpolicy', 'no-referrer');
   op.mapChannel = String(Date.now()) + '-' + Math.random().toString(36).slice(2);

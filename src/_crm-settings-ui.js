@@ -2,12 +2,13 @@
 (function () {
   if (window.__crmTimeControls) return;
   window.__crmTimeControls = true;
-  const timeField = function(el) { return el && el.matches && el.matches('input[type="time"],input[type="datetime-local"]'); };
+  const timeField = function(el) { const type = el && el.getAttribute && el.getAttribute('type'); return type === 'time' || type === 'datetime-local'; };
+  const valid = function(el) { return (!el.validity || el.validity.valid !== false) && (!el.value || /(?:^|T)(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(el.value)); };
   const change = function(el) { const e = document.createEvent('Event'); e.initEvent('change', true, false); el.dispatchEvent(e); };
   function commit(el) {
     if (!el.__crmTimePending) return;
     el.__crmTimePending = false;
-    if (el.isConnected && el.validity.valid) change(el);
+    if (el.isConnected && valid(el)) change(el);
   }
   document.addEventListener('keydown', function(e) {
     const el = e.target; if (!timeField(el)) return;
@@ -43,11 +44,11 @@
           el.value = pad(Math.floor(minutes / 60)) + ':' + pad(minutes % 60);
         }
         el.__crmTimePending = false;
-        if (el.validity.valid) change(el);
+        if (valid(el)) change(el);
       });
       controls.appendChild(btn);
     });
-    el.after(controls);
+    el.parentNode.insertBefore(controls, el.nextSibling);
   }, true);
 })();
 // ===== Настройки CRM (интерфейс) — общий фрагмент, подключается после src/_crm-config.js =====

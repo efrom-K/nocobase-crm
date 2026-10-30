@@ -11,7 +11,7 @@ const code = fs.readFileSync('src/_crm-settings-ui.js', 'utf8').split('// ===== 
 vm.runInNewContext(code, context);
 let saves = 0;
 const el = { type: 'time', value: '09:00', isConnected: true, validity: { valid: true },
-  matches: () => true, dispatchEvent: () => { saves++; }, after() {} };
+  getAttribute: () => el.type, dispatchEvent: () => { saves++; }, parentNode: { insertBefore() {} } };
 handlers.keydown({ target: el, key: '1' });
 let stopped = 0;
 handlers.change({ target: el, stopImmediatePropagation() { stopped++; } });

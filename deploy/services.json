@@ -51,6 +51,7 @@
     "files": [
       "server.js",
       "rules.js",
+      "routes.js",
       "portal.html",
       "package.json",
       "Dockerfile",

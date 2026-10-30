@@ -19,7 +19,7 @@
   document.addEventListener('change', function(e) { if (timeField(e.target) && e.target.__crmTimePending) e.stopImmediatePropagation(); }, true);
   document.addEventListener('focusout', function(e) { if (timeField(e.target)) commit(e.target); }, true);
   document.addEventListener('pointerdown', function(e) { if (timeField(e.target)) e.target.__crmTimePending = false; }, true);
-  document.addEventListener('focusin', function(e) {
+  function bindTimeButtons(e) {
     const el = e.target; if (!timeField(el) || el.__crmTimeButtons || el.readOnly || el.disabled) return;
     el.__crmTimeButtons = true;
     const controls = document.createElement('span');
@@ -49,7 +49,9 @@
       controls.appendChild(btn);
     });
     el.parentNode.insertBefore(controls, el.nextSibling);
-  }, true);
+  }
+  document.addEventListener('focusin', bindTimeButtons, true);
+  document.addEventListener('click', bindTimeButtons, true);
 })();
 // ===== Настройки CRM (интерфейс) — общий фрагмент, подключается после src/_crm-config.js =====
 // Отдельного пункта меню нет: администратор открывает настройки

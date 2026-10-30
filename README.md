@@ -148,6 +148,7 @@ python3 scripts/bik_load.py        # разовая загрузка (нужен
 
 ## Модель данных (кратко)
 
+- Единый справочник объектов — `contract_objects`. В реестре и карточке договора «＋ Добавить объект» создаёт запись справочника; договор выбирает существующий объект. Миграция `005_contract_object_directory.sql` связывает все четыре коллекции договоров через `object_id`, сохраняя совместимое `object_name`. Пустой объект допустим только в личном черновике. Проверка дублей и связи работает также на стороне БД.
 - `forming_contracts`, `rental_contracts` (активные), `completed_contracts` — одна и та же схема полей; договор физически переезжает между таблицами при смене статуса.
 - `contract_contacts`, `contract_addendums`, `contract_history`, `contract_chat_messages`, `contract_notifications` — «боковые» данные, привязка по паре (`contract_type` ∈ `forming|active|completed`, `contract_ref_id`).
 - `bik_directory` — справочник банков (`bik` уникален).

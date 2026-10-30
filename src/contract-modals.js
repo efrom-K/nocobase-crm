@@ -1,3 +1,5 @@
+// @include src/_crm-objects.js
+
 // фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
 // иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
@@ -1216,6 +1218,12 @@ function dateProblem(v) {
 function validateElement(el, strict) {
   const name = el.getAttribute('data-field');
   if (el.type === 'date') { const dp = dateProblem(el.value); if (dp) { el.style.borderColor = '#c23b3b'; return dp; } el.style.borderColor = ''; }
+  if (name === 'object_name') {
+    const value = String(el.value || '').trim();
+    if (!value) return !strict && el.closest('#draft-modal-root') ? '' : 'выберите объект из списка';
+    if (el.__cmObjectState !== 'ready') return el.__cmObjectState === 'error' ? 'справочник не загружен — нажмите на поле, чтобы повторить' : 'дождитесь загрузки списка объектов';
+    return (el.__cmObjectNames || []).indexOf(value) !== -1 ? '' : 'выберите объект из списка или добавьте через «＋ Добавить объект»';
+  }
   if (!FIELD_RULES[name]) return '';
   const norm = normalizeValue(name, el.value);
   if (!strict && norm === el.__origNorm) return '';
@@ -3206,7 +3214,7 @@ function renderEditableField(f, value, rec) {
   }
   if (f.type === 'combo') {
     return '<div class="cm-field-row" style="position:relative;"><div class="cm-label">' + esc(f.label) + '</div>'
-      + '<input type="text" class="cm-field-input" data-field="' + f.name + '" data-combo="1" autocomplete="off" placeholder="Введите или выберите из списка" value="' + escAttr(value) + '">'
+      + '<input type="text" class="cm-field-input" data-field="' + f.name + '" data-combo="1" autocomplete="off" placeholder="Найдите и выберите объект" value="' + escAttr(value) + '">'
       + '<div class="cm-combo-list" id="cm-combo-list-' + f.name + '" style="display:none;"></div></div>';
   }
   if (f.type === 'date') {
@@ -3301,39 +3309,80 @@ function wireFieldMasks(root, stageIndex) {
   wireTenantType(formEl);
   formEl.querySelectorAll('[data-field="inn"]').forEach(attachInnLookup);
   wireFieldRules(formEl);
+  bindComboField(formEl, 'object_name');
 }
 
-async function loadObjectOptions() {
-  try {
-    const res = await ctx.api.resource('contract_objects').list({ fields: ['name'], pageSize: 100, sort: ['name'] });
-    const payload = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
-    return Array.isArray(payload) ? payload.map(function(x) { return x.name; }).filter(Boolean) : [];
-  } catch (e) { return []; }
-}
-
-function bindComboField(root, fieldName, options) {
+function bindComboField(root, fieldName) {
   const input = root.querySelector('[data-field="' + fieldName + '"][data-combo="1"]');
   const listEl = root.querySelector('#cm-combo-list-' + fieldName);
-  if (!input || !listEl) return;
-
-  function renderOptions(filterText) {
-    const f = (filterText || '').toLowerCase();
-    const matches = options.filter(function(n) { return n.toLowerCase().indexOf(f) !== -1; });
-    if (!matches.length) { listEl.style.display = 'none'; return; }
-    listEl.innerHTML = matches.map(function(n) { return '<div class="cm-combo-item">' + esc(n) + '</div>'; }).join('');
-    listEl.style.display = 'block';
-    listEl.querySelectorAll('.cm-combo-item').forEach(function(item) {
-      item.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        input.value = item.textContent;
-        listEl.style.display = 'none';
-      });
-    });
+  if (!input || !listEl || input.__cmObjectBound) return;
+  input.__cmObjectBound = true;
+  input.__cmObjectState = 'loading';
+  let options = [], canCreate = false, sequence = 0;
+  const hint = document.createElement('div');
+  hint.style.cssText = 'font-size:12px;color:#5b6478;margin-top:4px;';
+  hint.setAttribute('aria-live', 'polite');
+  input.parentNode.appendChild(hint);
+  function state() {
+    const err = validateElement(input, false);
+    input.style.borderColor = err ? '#c23b3b' : '';
+    hint.textContent = err || (input.value.trim() ? 'Объект выбран из общего справочника' : 'Найдите объект или добавьте новый через «＋»');
   }
-
-  input.addEventListener('focus', function() { renderOptions(input.value); });
-  input.addEventListener('input', function() { renderOptions(input.value); });
-  input.addEventListener('blur', function() { setTimeout(function() { listEl.style.display = 'none'; }, 150); });
+  function choose(name) {
+    input.value = name;
+    state();
+    fireInput(input); fireChange(input);
+    listEl.style.display = 'none';
+  }
+  function renderOptions() {
+    const f = window.__crmObjects.normalize(input.value);
+    const matches = options.filter(function(n) { return window.__crmObjects.normalize(n).indexOf(f) !== -1; });
+    listEl.innerHTML = matches.map(function(n) { return '<button type="button" class="cm-combo-item" data-object-choice style="display:block;width:100%;text-align:left;border:0;background:transparent;font-family:inherit;">' + esc(n) + '</button>'; }).join('')
+      + (!matches.length ? '<div style="padding:8px 12px;font-size:13px;color:#5b6478;">' + (input.__cmObjectState === 'loading' ? 'Загрузка…' : input.__cmObjectState === 'error' ? 'Нажмите на поле, чтобы повторить загрузку' : 'Объект не найден') + '</div>' : '')
+      + (canCreate ? '<button type="button" class="cm-combo-item" data-object-add style="display:block;width:100%;text-align:left;border:0;border-top:1px solid #e5e8ef;background:transparent;color:#1c2d58;font-family:inherit;">＋ Добавить объект</button>' : '');
+    listEl.style.display = 'block';
+    listEl.querySelectorAll('[data-object-choice]').forEach(function(item) {
+      item.addEventListener('mousedown', function(e) { e.preventDefault(); });
+      item.addEventListener('click', function() { choose(item.textContent); });
+    });
+    const add = listEl.querySelector('[data-object-add]');
+    if (add) {
+      add.addEventListener('mousedown', function(e) { e.preventDefault(); });
+      add.addEventListener('click', async function() {
+        listEl.style.display = 'none';
+        const object = await window.__crmObjects.open(input.value);
+        if (!object || !input.isConnected) return;
+        if (options.indexOf(object.name) === -1) options.push(object.name);
+        input.__cmObjectNames = options;
+        input.__cmObjectState = 'ready';
+        choose(object.name);
+      });
+    }
+  }
+  async function refresh() {
+    const my = ++sequence;
+    try {
+      const result = await Promise.all([window.__crmObjects.list(), window.__crmObjects.canCreate()]);
+      if (!input.isConnected || my !== sequence) return;
+      options = result[0].map(function(o) { return o.name; }).filter(Boolean);
+      canCreate = result[1];
+      input.__cmObjectNames = options;
+      input.__cmObjectState = 'ready';
+    } catch (err) {
+      if (!input.isConnected || my !== sequence) return;
+      input.__cmObjectState = 'error';
+    }
+    state();
+    if (document.activeElement === input) renderOptions();
+  }
+  input.addEventListener('focus', function() { renderOptions(); refresh(); });
+  input.addEventListener('input', function() { state(); if (document.activeElement === input) renderOptions(); });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); const first = listEl.querySelector('button'); if (first) first.focus(); }
+    if (e.key === 'Escape' && listEl.style.display !== 'none') { e.preventDefault(); e.stopPropagation(); listEl.style.display = 'none'; }
+  });
+  input.parentNode.addEventListener('focusout', function() { setTimeout(function() { if (!listEl.contains(document.activeElement) && document.activeElement !== input) listEl.style.display = 'none'; }, 150); });
+  refresh();
 }
 
 const ACTIVE_BLOCK_DEFS = [
@@ -3348,7 +3397,7 @@ const ACTIVE_BLOCK_DEFS = [
         + '</div>';
   } },
   { key: 'data', title: 'Блок Данных по договору', fields: [
-      { name: 'object_name', label: 'Объект', type: 'text' },
+      { name: 'object_name', label: 'Объект', type: 'combo' },
       { name: 'contract_number', label: 'Номер договора', type: 'text' },
       { name: 'object_kind', label: 'Вид объекта', type: 'select', options: OBJECT_KINDS },
       { name: 'tenant_name', label: 'Арендатор', type: 'text' },
@@ -3438,6 +3487,7 @@ function wireGenericFieldMasks(formEl) {
   wireTenantType(formEl);
   formEl.querySelectorAll('[data-field="inn"]').forEach(attachInnLookup);
   wireFieldRules(formEl);
+  bindComboField(formEl, 'object_name');
 }
 
 function collectFormValues(formEl, fieldTypes) {
@@ -4670,7 +4720,7 @@ async function openDraftModal(id, isQuickHint) {
     wireDerivedHints(overlay);
     wireHistory(overlay, 'cm-forming', 'draft', realId);
     if (r.is_quick || (r.current_stage || 0) === 0) {
-      loadObjectOptions().then(function(names) { bindComboField(body, 'object_name', names); });
+      bindComboField(body, 'object_name');
     }
 
     async function refreshDraftFiles() {
@@ -4787,7 +4837,7 @@ async function openDraftModal(id, isQuickHint) {
       const stageOrQuick = placeholder.is_quick ? 'quick' : 0;
       wireFieldMasks(overlay, stageOrQuick);
       if (placeholder.is_quick || (placeholder.current_stage || 0) === 0) {
-        loadObjectOptions().then(function(names) { bindComboField(body, 'object_name', names); });
+        bindComboField(body, 'object_name');
       }
       const pubBtnId = placeholder.is_quick ? 'cm-quick-publish' : 'cm-stage-advance';
       if (!placeholder.is_quick) {
@@ -5038,9 +5088,7 @@ async function openFormingContractModal(id) {
     wireHistory(overlay, 'cm-forming', 'forming', id);
 
     if (r.is_quick || (r.current_stage || 0) === 0) {
-      loadObjectOptions().then(function(names) {
-        bindComboField(body, 'object_name', names);
-      });
+      bindComboField(body, 'object_name');
     }
 
     async function refreshFormingFiles() {

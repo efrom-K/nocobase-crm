@@ -11,6 +11,18 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,3 +41,12 @@ jobs:
         run: python3 tests/price_logic_test.py
       - name: AHO routine dates
         run: node tests/aho_dates_test.js
+      - name: Object directory and contract selection
+        run: node tests/objects.test.js
+      - name: Object directory migration (isolated PostgreSQL schema)
+        run: python3 tests/object_directory_test.py
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres

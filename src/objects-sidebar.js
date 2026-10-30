@@ -1,4 +1,5 @@
 // @include src/_crm-profile.js
+// @include src/_crm-objects.js
 
 if (!document.getElementById('obj-list-style')) {
   const style = document.createElement('style');
@@ -32,12 +33,12 @@ if (card) {
   card.style.background = 'transparent';
 }
 
-ctx.render('<div><div id="obj-status-filter"></div><div id="obj-kind-filter"></div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#5b6478;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div></div>');
+ctx.render('<div><div id="obj-status-filter"></div><div id="obj-kind-filter"></div><div style="font-size:11px;font-weight:600;letter-spacing:.5px;color:#5b6478;text-transform:uppercase;padding:4px 10px 8px;">Объекты</div><div id="obj-list-root">Загрузка…</div><button type="button" id="obj-add-button" style="display:none;margin:10px 0 0;padding:8px 10px;border:1px solid #c3cad8;border-radius:6px;background:#fff;color:#1c2d58;cursor:pointer;font:inherit;font-size:13px;width:100%;text-align:left;">＋ Добавить объект</button></div>');
 
 const root = ctx.element ? ctx.element.querySelector('#obj-list-root') : document.getElementById('obj-list-root');
 
 function esc(v) {
-  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // на вкладке «Черновики» своей таблицы нет — фильтр ставится на «Активные»
@@ -68,17 +69,21 @@ function paintActive() {
   });
 }
 
+let initialObjectLoad = true, objectLoadSequence = 0;
 async function load() {
+  if (!root || !root.isConnected) return;
+  const sequence = ++objectLoadSequence;
   try {
     // число активных договоров считается вживую по rental_contracts (поле count в contract_objects больше не используется)
     const both = await Promise.all([
-      ctx.api.resource('contract_objects').list({ pageSize: 200, sort: 'name' }),
+      window.__crmObjects.list(),
       ctx.api.resource('rental_contracts').list({ paginate: false, fields: ['id', 'object_name'] })
     ]);
     const rows = function(res) { const d = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : []; return Array.isArray(d) ? d : []; };
+    if (!root.isConnected || sequence !== objectLoadSequence) return;
     const counts = {};
     rows(both[1]).forEach(function(r) { const n = (r.object_name || '').trim(); if (n) counts[n] = (counts[n] || 0) + 1; });
-    const list = rows(both[0]).map(function(o) { return { name: o.name, count: counts[o.name] || 0 }; })
+    const list = both[0].map(function(o) { return { name: o.name, count: counts[o.name] || 0 }; })
       .sort(function(a, b) { return b.count - a.count || String(a.name).localeCompare(String(b.name), 'ru'); });
     const total = list.reduce(function(sum, o) { return sum + (Number(o.count) || 0); }, 0);
     let html = '<div class="obj-item" data-obj="">'
@@ -94,11 +99,12 @@ async function load() {
     paintActive();
     // переход с дашборда: ?obj=<название> и/или ?status=<значение> — сразу фильтр на «Активных» (таблица может ещё не прогрузиться)
     // ?stage=<0..5>|quick — «Формирующиеся» на этапе оформления (кружки этапов на дашборде)
+    const applyInitialFilters = initialObjectLoad; initialObjectLoad = false;
     const mk = location.search.match(/[?&]kind=([^&]*)/);
     const m = location.search.match(/[?&]obj=([^&]*)/);
     const ms = location.search.match(/[?&]status=([^&]*)/);
     const mg = location.search.match(/[?&]stage=([^&]*)/);
-    if (m || ms || mg || mk) {
+    if (applyInitialFilters && (m || ms || mg || mk)) {
       const uid = mg ? 'formtbl000001' : 'ozazmpm4o4v';
       let tries = 0;
       const t = setInterval(function() {
@@ -114,10 +120,27 @@ async function load() {
       }, 200);
     }
   } catch (e) {
-    if (root) root.innerHTML = '<span style="color:#c23b3b;">Ошибка загрузки объектов</span>';
+    if (root.isConnected && sequence === objectLoadSequence) {
+      root.innerHTML = '<button type="button" style="color:#c23b3b;border:0;background:none;cursor:pointer;font:inherit;">Ошибка загрузки объектов · Повторить</button>';
+      root.querySelector('button').addEventListener('click', load);
+    }
   }
 }
 load();
+const addObjectButton = ctx.element ? ctx.element.querySelector('#obj-add-button') : document.getElementById('obj-add-button');
+window.__crmObjects.canCreate().then(function(allowed) { if (addObjectButton && addObjectButton.isConnected) addObjectButton.style.display = allowed ? '' : 'none'; });
+if (addObjectButton) addObjectButton.addEventListener('click', async function() {
+  addObjectButton.disabled = true;
+  try { const object = await window.__crmObjects.open(''); if (object) await load(); }
+  finally { addObjectButton.disabled = false; }
+});
+window.__crmObjectsSidebarRefresh = load;
+if (!window.__crmObjectsSidebarBound) {
+  window.__crmObjectsSidebarBound = true;
+  const refresh = function() { if (window.__crmObjectsSidebarRefresh) window.__crmObjectsSidebarRefresh(); };
+  window.addEventListener('crm-objects-changed', refresh);
+  window.addEventListener('focus', refresh);
+}
 
 // вид объекта: фильтр сразу на все три таблицы реестра (переключение вкладок его не сбрасывает); ?kind=<значение> с дашборда
 const KIND_CHIPS = [['', 'Все виды'], ['Помещение', 'Помещения'], ['Земельный участок', 'Земельные участки'], ['Машино-место', 'Машино-места'], ['none', 'Вид не указан']];

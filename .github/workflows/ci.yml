@@ -43,6 +43,8 @@ jobs:
         run: node tests/aho_dates_test.js
       - name: Object directory and contract selection
         run: node tests/objects.test.js
+      - name: Time input controls
+        run: node tests/time_controls.test.js
       - name: Object directory migration (isolated PostgreSQL schema)
         run: python3 tests/object_directory_test.py
         env:

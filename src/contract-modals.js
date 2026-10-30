@@ -3373,15 +3373,15 @@ function bindComboField(root, fieldName) {
       input.__cmObjectState = 'error';
     }
     state();
-    if (document.activeElement === input) renderOptions();
+    if (input.matches(':focus')) renderOptions();
   }
   input.addEventListener('focus', function() { renderOptions(); refresh(); });
-  input.addEventListener('input', function() { state(); if (document.activeElement === input) renderOptions(); });
+  input.addEventListener('input', function() { state(); if (input.matches(':focus')) renderOptions(); });
   input.addEventListener('keydown', function(e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); const first = listEl.querySelector('button'); if (first) first.focus(); }
     if (e.key === 'Escape' && listEl.style.display !== 'none') { e.preventDefault(); e.stopPropagation(); listEl.style.display = 'none'; }
   });
-  input.parentNode.addEventListener('focusout', function() { setTimeout(function() { if (!listEl.contains(document.activeElement) && document.activeElement !== input) listEl.style.display = 'none'; }, 150); });
+  input.parentNode.addEventListener('focusout', function() { setTimeout(function() { if (!listEl.contains(document.activeElement) && !input.matches(':focus')) listEl.style.display = 'none'; }, 150); });
   refresh();
 }
 

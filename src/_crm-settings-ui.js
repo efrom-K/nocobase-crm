@@ -1,3 +1,55 @@
+// ===== Поля времени: общий обработчик для всех модулей, в том числе динамических окон =====
+(function () {
+  if (window.__crmTimeControls) return;
+  window.__crmTimeControls = true;
+  const timeField = function(el) { return el && el.matches && el.matches('input[type="time"],input[type="datetime-local"]'); };
+  const change = function(el) { const e = document.createEvent('Event'); e.initEvent('change', true, false); el.dispatchEvent(e); };
+  function commit(el) {
+    if (!el.__crmTimePending) return;
+    el.__crmTimePending = false;
+    if (el.isConnected && el.validity.valid) change(el);
+  }
+  document.addEventListener('keydown', function(e) {
+    const el = e.target; if (!timeField(el)) return;
+    if (e.key === 'Enter') { e.preventDefault(); commit(el); return; }
+    if (/^\d$/.test(e.key) || ['Backspace', 'Delete', 'ArrowUp', 'ArrowDown'].indexOf(e.key) !== -1) el.__crmTimePending = true;
+  }, true);
+  // Native time inputs emit change after each digit; do not let autosave rerender a half-entered time.
+  document.addEventListener('change', function(e) { if (timeField(e.target) && e.target.__crmTimePending) e.stopImmediatePropagation(); }, true);
+  document.addEventListener('focusout', function(e) { if (timeField(e.target)) commit(e.target); }, true);
+  document.addEventListener('pointerdown', function(e) { if (timeField(e.target)) e.target.__crmTimePending = false; }, true);
+  document.addEventListener('focusin', function(e) {
+    const el = e.target; if (!timeField(el) || el.__crmTimeButtons || el.readOnly || el.disabled) return;
+    el.__crmTimeButtons = true;
+    const controls = document.createElement('span');
+    controls.style.cssText = 'display:inline-flex;gap:2px;margin-left:4px;vertical-align:middle;white-space:nowrap;';
+    controls.setAttribute('role', 'group'); controls.setAttribute('aria-label', 'Изменить время');
+    [[-60, '−ч', 'Уменьшить часы'], [-1, '−м', 'Уменьшить минуты'], [1, '+м', 'Увеличить минуты'], [60, '+ч', 'Увеличить часы']].forEach(function(spec) {
+      const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = spec[1];
+      btn.title = spec[2]; btn.setAttribute('aria-label', spec[2]);
+      btn.style.cssText = 'font:11px system-ui;padding:3px 5px;border:1px solid #c3cad8;border-radius:4px;background:#fff;color:#1c2d58;cursor:pointer;';
+      btn.addEventListener('mousedown', function(ev) { ev.preventDefault(); });
+      btn.addEventListener('click', function() {
+        if (!el.isConnected || el.disabled || el.readOnly) return;
+        const pad = function(n) { return String(n).padStart(2, '0'); };
+        if (el.type === 'datetime-local') {
+          const d = el.value ? new Date(el.value) : new Date();
+          if (isNaN(d.getTime())) return;
+          d.setMinutes(d.getMinutes() + spec[0]);
+          el.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        } else {
+          const parts = (el.value || '00:00').split(':');
+          const minutes = (Number(parts[0]) * 60 + Number(parts[1]) + spec[0] + 1440) % 1440;
+          el.value = pad(Math.floor(minutes / 60)) + ':' + pad(minutes % 60);
+        }
+        el.__crmTimePending = false;
+        if (el.validity.valid) change(el);
+      });
+      controls.appendChild(btn);
+    });
+    el.after(controls);
+  }, true);
+})();
 // ===== Настройки CRM (интерфейс) — общий фрагмент, подключается после src/_crm-config.js =====
 // Отдельного пункта меню нет: администратор открывает настройки
 //   • пунктом «Настройки CRM» в меню родной шестерёнки NocoBase (верхняя панель) — шторка поверх любой страницы;

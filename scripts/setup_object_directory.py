@@ -69,8 +69,12 @@ def apply():
             if create[0].get('fields') != ['name']:
                 raise SystemExit('Existing create permission differs for %s; inspect manually' % role)
         else:
-            # Add one action; never replace view/update/scopes or grant manager fields.
-            api('dataSourcesRolesResources/%s/actions:create' % resource['id'], {'name': 'create', 'fields': ['name']})
+            # The roles API reloads ACL; creating an action directly leaves the runtime cache stale.
+            actions = [{k: v for k, v in action.items() if k in ('id', 'name', 'fields', 'scopeId')}
+                       for action in resource['actions']]
+            actions.append({'name': 'create', 'fields': ['name']})
+            api('roles/%s/resources:update?filterByTk=%s' % (role, resource['id']),
+                {'usingActionsConfig': True, 'actions': actions})
         print('%s: object creation limited to name' % role)
 
 

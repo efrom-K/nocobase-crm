@@ -17,7 +17,23 @@ CREATE TABLE completed_contracts(LIKE rental_contracts INCLUDING ALL);
 CREATE TABLE draft_contracts(LIKE rental_contracts INCLUDING ALL);
 INSERT INTO contract_objects(name) VALUES ('Object A'),('Object B');
 INSERT INTO rental_contracts(object_name) VALUES ('Imported object');
-''' + migration + (ROOT / 'tests/object_directory.sql').read_text() + '\nROLLBACK;\n'
+''' + migration + (ROOT / 'tests/object_directory.sql').read_text()
+map_migration = (ROOT / 'db/migrations/006_object_map.sql').read_text().split('BEGIN;\n', 1)[1].removesuffix('COMMIT;\n')
+query += map_migration + map_migration + '''
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM contract_objects WHERE map_location IS NOT NULL) THEN
+    RAISE EXCEPTION 'New map data must be empty';
+  END IF;
+END $$;
+UPDATE contract_objects SET map_location='{"lat":55,"lon":37,"address":"Example street"}'::jsonb
+WHERE name='Object A';
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM contract_objects WHERE name='Object A' AND map_location->>'address'='Example street') THEN
+    RAISE EXCEPTION 'Object location not stored';
+  END IF;
+END $$;
+ROLLBACK;
+'''
 if '--sql' in sys.argv:
     print(query)
 else:

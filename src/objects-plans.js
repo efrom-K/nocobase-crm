@@ -50,6 +50,31 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-obj small { color:#5b6478; font-weight:600; font-size:11.5px; white-space:nowrap; }
     #crm-objplan .op-obj.on small { color:#dde5f3; }
     #crm-objplan .op-main { min-width:0; }
+    #crm-objplan .op-map-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+    #crm-objplan .op-map-head h2 { margin:4px 0; font-size:24px; }
+    #crm-objplan .op-map-head p { margin:0; color:var(--muted); }
+    #crm-objplan .op-map-wrap { display:grid; grid-template-columns:280px minmax(280px,1fr) 300px; gap:16px; align-items:start; }
+    #crm-objplan .op-map-list { padding:16px 10px; }
+    #crm-objplan .op-map-list label { display:block; margin:0 6px 12px; }
+    #crm-objplan .op-map-items { max-height:560px; overflow:auto; }
+    #crm-objplan .op-map-item { width:100%; border:0; background:transparent; text-align:left; font:inherit; margin:2px 0; }
+    #crm-objplan .op-map-item b { display:block; }
+    #crm-objplan .op-map-item small { display:block; white-space:normal; font-weight:400; line-height:1.4; margin-top:4px; }
+    #crm-objplan .op-map-item:focus-visible, #crm-objplan .op-btn:focus-visible { outline:3px solid #a6c2e8; outline-offset:2px; }
+    #crm-objplan .op-map-canvas { height:650px; overflow:hidden; background:var(--soft); }
+    #crm-objplan .op-map-canvas iframe { width:100%; height:100%; border:0; display:block; }
+    #crm-objplan .op-map-card { overflow:hidden; }
+    #crm-objplan .op-map-photo { display:block; width:100%; height:180px; object-fit:cover; }
+    #crm-objplan .op-map-detail, #crm-objplan .op-map-empty { padding:20px; }
+    #crm-objplan .op-map-detail h2 { font-size:22px; margin:6px 0 10px; }
+    #crm-objplan .op-map-detail p, #crm-objplan .op-map-empty p { line-height:1.5; }
+    #crm-objplan .op-map-note, #crm-objplan .op-map-count { font-size:12px; color:var(--muted); line-height:1.4; }
+    #crm-objplan .op-map-count { padding:0 6px; margin:12px 0 0; }
+    #crm-objplan .op-map-item.on .op-map-note { color:#dde5f3; }
+    #crm-objplan .op-map-facts { display:flex; flex-wrap:wrap; gap:18px; margin:20px 0; color:var(--muted); font-size:12px; }
+    #crm-objplan .op-map-facts b { display:block; color:var(--ink); font-size:20px; }
+    @media(max-width:1250px) { #crm-objplan .op-map-wrap { grid-template-columns:240px minmax(0,1fr); } #crm-objplan .op-map-card { grid-column:2; } #crm-objplan .op-map-canvas { height:480px; } }
+    @media(max-width:800px) { #crm-objplan .op-map-wrap { grid-template-columns:1fr; } #crm-objplan .op-map-items { max-height:200px; } #crm-objplan .op-map-card { grid-column:1; } #crm-objplan .op-map-canvas { height:380px; } #crm-objplan .op-map-head { align-items:start; flex-direction:column; } }
     /* шапка */
     #crm-objplan .op-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:10px; }
     #crm-objplan .op-title { font-size:20px; font-weight:700; line-height:1.15; margin-right:4px; }
@@ -206,7 +231,7 @@ const OP_DT = { one: 'Однопольная', two: 'Двупольная', open
 const OP_KEYS = {}; OP_TOOLS.forEach(function(t) { OP_KEYS['Key' + t[2]] = t[0]; });
 const OP_IT = { wall: 'Стена', door: 'Дверь', window: 'Окно', gate: 'Ворота', dim: 'Размер', text: 'Подпись', stair: 'Лестница', col: 'Колонна' };
 const OP_OPEN = { door: 1, window: 1, gate: 1 };
-const op = { me: null, edit: false, objs: [], plans: [], rooms: [], cons: [], objId: null, planId: null, sel: null, selItem: null, view: null, undo: [], panel: 'room', drag: null,
+const op = { me: null, screen: 'map', edit: false, objs: [], plans: [], rooms: [], cons: [], objId: null, planId: null, sel: null, selItem: null, view: null, undo: [], panel: 'room', drag: null,
   tool: 'sel', chain: [], cal: [], hover: null, typed: '', ghost: false, def: { wall: 0.5, wt: '', door: 0.9, window: 1.2, gate: 3, col: 0.4, colsh: 'sq' }, saveQ: Promise.resolve() };
 try { op.objId = Number(localStorage.getItem('crm-objplan-obj')) || null; } catch (e) { /* нет хранилища */ }
 try { Object.assign(op.def, JSON.parse(localStorage.getItem('crm-objplan-def') || '{}')); op.ghost = localStorage.getItem('crm-objplan-ghost') === '1'; } catch (e) { /* нет хранилища */ }
@@ -216,6 +241,7 @@ ctx.render('<div id="crm-objplan"><div style="color:#5b6478;padding:12px;">За�
 function opRoot() { return (ctx.element && ctx.element.querySelector('#crm-objplan')) || document.getElementById('crm-objplan'); }
 function opRows(res) { const d = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : []; return Array.isArray(d) ? d : (d ? [d] : []); }
 function opEsc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+// @include src/_crm-object-map.js
 function opNum(v) { if (v === null || v === undefined || v === '') return null; const n = Number(String(v).replace(',', '.').replace(/\s/g, '')); return isNaN(n) ? null : n; }
 function opArea(n) { return n === null || n === undefined ? '—' : Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + ' м²'; }
 function opM(n) { return Number(n || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); }
@@ -494,11 +520,12 @@ const OP_FMT = [['png', 'PNG', '#0e7c86', 'Картинка PNG', 'для соо
 function opRender() {
   const root = opRoot(); if (!root) return;
   op3dDispose();
+  op.mapFrame = null;
+  if (op.screen === 'map') { opMapRender(); return; }
   const plan = opPlan(), o = op.objs.find(function(x) { return x.id === op.objId; });
   const can = opCanEdit(), ed = can && op.edit, ps = op.plans.filter(function(p) { return p.object_id === op.objId; });
   if (!op.edit) op.tool = 'sel';
-  const q = (op.q || '').trim().toLowerCase();
-  const objList = op.objs.filter(function(x) { return !q || String(x.name).toLowerCase().indexOf(q) !== -1; }).map(function(x) {
+  const objList = opMapObjects().map(function(x) {
     const rs = op.rooms.filter(function(r) { return r.object_id === x.id; });
     return '<div class="op-obj' + (x.id === op.objId ? ' on' : '') + '" data-obj="' + x.id + '"><span>' + opEsc(x.name) + '</span><small>' + (rs.length ? rs.length + ' пом.' : '—') + '</small></div>';
   }).join('');
@@ -524,7 +551,7 @@ function opRender() {
   root.innerHTML = '<div class="op-wrap">'
     + '<div class="op-objs op-card"><div class="op-cap">Объекты</div><input class="op-search" data-q placeholder="Найти объект" value="' + opEsc(op.q || '') + '">' + objList + '</div>'
     + '<div class="op-main">'
-    + '<div class="op-head"><div class="op-title">' + opEsc(o ? o.name : 'Объекты') + '<small>Планы и помещения</small></div>' + tabs + '<span class="op-grow"></span>'
+    + '<div class="op-head"><button class="op-btn" data-act="back-map">← Карта объектов</button><div class="op-title">' + opEsc(o ? o.name : 'Объекты') + '<small>Планы и помещения</small></div>' + tabs + '<span class="op-grow"></span>'
     + (plan ? '<div class="op-seg"><button data-act="mode-view" class="' + (op.edit || op.v3 ? '' : 'on') + '">' + opIco('eye') + 'Просмотр</button><button data-act="mode-3d" class="' + (op.v3 ? 'on' : '') + '">' + opIco('cube') + '3D</button>'
       + (can ? '<button data-act="mode-edit" class="' + (op.edit ? 'on' : '') + '">' + opIco('edit') + 'Редактирование</button>' : '') + '</div>' : '')
     + (plan ? '<div class="op-menu-w"><button class="op-btn" data-act="exp-toggle">' + opIco('download') + 'Экспорт</button>' + menu + '</div>' : '')
@@ -2016,13 +2043,16 @@ function op3dLabel(T, code, area) {
 opRoot().addEventListener('click', async function(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
   const ob = c('[data-obj]'), pl = c('[data-plan]'), tr = c('tr[data-room]'), a = c('[data-act]'), tl = c('[data-tool]');
-  if (ob) { op.objId = Number(ob.getAttribute('data-obj')); try { localStorage.setItem('crm-objplan-obj', op.objId); } catch (x) { /* нет */ } op.sel = null; op.panel = 'room'; op.undo = []; opPickPlan(); opRender(); return; }
+  if (ob) { opSelectObject(Number(ob.getAttribute('data-obj'))); return; }
   if (pl) { opGoPlan(Number(pl.getAttribute('data-plan'))); return; }
   const bl = c('[data-bld]'); if (bl) { opGoBld(bl.getAttribute('data-bld')); return; }
   if (tl) { opSetTool(tl.getAttribute('data-tool')); return; }
   if (tr) { op.sel = Number(tr.getAttribute('data-room')); op.selItem = null; op.panel = 'room'; opRefresh(); return; }
   if (!a) return;
   const act = a.getAttribute('data-act');
+  if (act === 'open-plans') { op.screen = 'plans'; op.edit = false; op.v3 = false; opRender(); return; }
+  if (act === 'back-map') { op.screen = 'map'; op.edit = false; op.v3 = false; opRender(); return; }
+  if (act === 'map-all') { opMapSync(true); return; }
   if (act === 'edit' || act === 'mode-view' || act === 'mode-edit' || act === 'mode-3d') {
     const v = act === 'edit' ? !op.edit : act === 'mode-edit', v3 = act === 'mode-3d'; if (v === op.edit && v3 === !!op.v3) return;
     op.edit = v; op.v3 = v3; op.panel = 'room'; op.selItem = null; op.chain = []; opRender(); return;
@@ -2106,8 +2136,10 @@ opRoot().addEventListener('change', function(e) {
 opRoot().addEventListener('input', function(e) {
   const el = e.target;
   if (el.matches && el.matches('[data-q]')) {   // поиск объекта — фильтр списка без перерисовки страницы
-    op.q = el.value; const q = el.value.trim().toLowerCase();
-    opRoot().querySelectorAll('.op-obj').forEach(function(x) { x.style.display = !q || x.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none'; });
+    op.q = el.value;
+    if (op.screen === 'map') { opMapFilter(); return; }
+    const ids = opMapObjects().map(function(o) { return o.id; });
+    opRoot().querySelectorAll('.op-obj').forEach(function(x) { x.style.display = ids.indexOf(Number(x.getAttribute('data-obj'))) !== -1 ? '' : 'none'; });
   }
   if (el.matches && el.matches('[data-p="bg_opacity"]')) { const p = opPlan(); if (p) { p.bg_opacity = Number(el.value); opDraw(); } }
 });

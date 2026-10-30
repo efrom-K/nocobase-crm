@@ -53,6 +53,7 @@
       "rules.js",
       "routes.js",
       "portal.html",
+      "object-map.html",
       "package.json",
       "Dockerfile",
       "docker-compose.yml"

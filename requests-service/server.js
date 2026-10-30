@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const R = require('./rules');
 const {objectRoute, RouteError} = require('./routes');
+const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
 
 const env = process.env;
 const PORT = Number(env.PORT) || 8097;
@@ -433,6 +434,12 @@ http.createServer(async (req, res) => {
   const p = new URL(req.url, 'http://x').pathname;
   try {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
+    // Generic isolated renderer: object data arrives from its authenticated CRM parent, never from this endpoint.
+    if (p === '/object-map' && req.method === 'GET') {
+      res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-cache', 'Referrer-Policy':'origin',
+        'X-Content-Type-Options':'nosniff', 'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline' https://unpkg.com; style-src 'unsafe-inline' https://unpkg.com; img-src https://tile.openstreetmap.org data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self' " + ORIGINS.join(' ')});
+      return res.end(OBJECT_MAP_HTML);
+    }
     if (p === '/portal' || p === '/portal/' || (p === '/' && /^help\./.test(String(req.headers.host || '')))) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
         'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'" });

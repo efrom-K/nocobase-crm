@@ -27,14 +27,23 @@ listener({ origin: 'null', data: { ...message, id: 999 } }); assert.equal(select
 listener({ origin: 'null', data: message }); assert.equal(selected, 1);
 state.q = 'south'; selected = undefined;
 listener({ origin: 'null', data: message }); assert.equal(selected, undefined);
-const html = context.opMapDoc([{ id: 1, name: '</script><img src=x onerror=alert(1)>', lat: 0, lon: 0 }], 'test');
-assert(!html.includes('</script><img'));
-assert(html.includes('\\u003c/script>'));
-assert(html.includes('integrity="sha256-'));
+const html = fs.readFileSync('requests-service/object-map.html','utf8');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
 assert.equal(scripts.length, 1);
-new vm.Script(scripts[0][1]);
-console.log('Object map: coordinates, address search, message boundaries and frame escaping passed');
+let initialize, initialized;
+const parent = {};
+const frame = vm.createContext({parent,window:{addEventListener:(type,fn)=>{initialize=fn;}}});
+vm.runInContext(scripts[0][1],frame);
+frame.opMapFrame=(objects,channel)=>{initialized={objects,channel};};
+const init={type:'crm-object-map-init',channel:'test-channel',objects:[{id:1,name:'Object',lat:55,lon:37}]};
+initialize({source:{},data:init});assert.equal(initialized,undefined);
+for (const objects of [[{id:1,name:'Object',lat:null,lon:37}],[{id:-1,name:'Object',lat:55,lon:37}],Array(1001).fill(init.objects[0])]) {
+  initialize({source:parent,data:{...init,objects}});assert.equal(initialized,undefined);
+}
+initialize({source:parent,data:{...init,channel:''}});assert.equal(initialized,undefined);
+initialize({source:parent,data:init});assert.equal(initialized.channel,'test-channel');assert.equal(initialized.objects.length,1);
+initialized=null;initialize({source:parent,data:init});assert.equal(initialized,null,'Frame initializes only once');
+console.log('Object map: coordinates, address search, message boundaries and isolated frame initialization passed');
 (async function() {
   context.location = {port:''}; context.localStorage = {getItem:()=>''};
   context.opRoutePanel = ()=>{}; context.opRouteDraw = ()=>{};

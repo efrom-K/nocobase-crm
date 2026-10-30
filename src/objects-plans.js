@@ -107,7 +107,7 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-map-plans:hover { background:var(--brand2); color:#fff; }
     #crm-objplan .op-map-plans span { margin-left:auto; }
     @media(max-width:1100px) { #crm-objplan .op-map-wrap { grid-template-columns:234px minmax(0,1fr) 250px; gap:12px; padding:14px; } #crm-objplan .op-route { left:260px; right:276px; top:14px; } #crm-objplan .op-map-detail { padding:16px; } }
-    @media(max-width:800px) { #crm-objplan .op-map-wrap { display:flex; flex-direction:column; gap:12px; height:auto; min-height:0; padding:0; border:0; overflow:visible; background:none; } #crm-objplan .op-map-list { height:260px; flex:none; } #crm-objplan .op-map-center { position:relative; height:460px; flex:none; order:2; } #crm-objplan .op-map-card { max-height:none; order:3; } #crm-objplan .op-map-canvas { border-radius:14px; } #crm-objplan .op-route { top:12px; left:12px; right:12px; } }
+    @media(max-width:800px) { #crm-objplan .op-map-wrap { display:flex; flex-direction:column; gap:12px; height:auto; min-height:0; max-height:none; padding:0; border:0; overflow:visible; background:none; } #crm-objplan .op-map-list { height:260px; flex:none; } #crm-objplan .op-map-center { position:relative; height:460px; flex:none; order:2; } #crm-objplan .op-map-card { max-height:none; order:3; } #crm-objplan .op-map-canvas { border-radius:14px; } #crm-objplan .op-route { top:12px; left:12px; right:12px; } }
     /* шапка */
     #crm-objplan .op-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:10px; }
     #crm-objplan .op-title { font-size:20px; font-weight:700; line-height:1.15; margin-right:4px; }

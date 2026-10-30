@@ -19,6 +19,69 @@ function opSelectObject(id) {
   op.sel = null; op.panel = 'room'; op.undo = []; opPickPlan();
   if (op.screen === 'map') { opMapCard(); opMapSync(); } else opRender();
 }
+function opRoutePanel() {
+  const box = opRoot() && opRoot().querySelector('.op-route'); if (!box) return;
+  const options = function(id) { return '<option value="">Выберите объект</option>' + op.objs.filter(opLocated).map(function(o) {
+    return '<option value="' + o.id + '"' + (o.id === id ? ' selected' : '') + '>' + opEsc(o.name) + '</option>';
+  }).join(''); };
+  const disabled = op.routeBusy ? ' disabled' : '', r = op.routeResult;
+  let summary = op.routeBusy ? 'Рассчитываю маршрут…' : op.routeError || '';
+  if (r) {
+    const minutes = Math.max(1, Math.ceil(r.duration / 60)), hours = Math.floor(minutes / 60);
+    summary = opM(r.distance / 1000) + ' км · около ' + (hours ? hours + ' ч' + (minutes % 60 ? ' ' + minutes % 60 + ' мин' : '') : minutes + ' мин');
+  }
+  const approximate = r && op.objs.some(function(o) { return (o.id === r.from || o.id === r.to) && opLocation(o).approximate; });
+  box.innerHTML = '<div class="op-cap">Маршрут на автомобиле</div><div class="op-route-fields">'
+    + '<label>Откуда<select data-route="from"' + disabled + '>' + options(op.routeFrom) + '</select></label>'
+    + '<button class="op-btn" data-act="route-swap" aria-label="Поменять начало и конец маршрута" title="Поменять местами"' + disabled + '>⇄</button>'
+    + '<label>Куда<select data-route="to"' + disabled + '>' + options(op.routeTo) + '</select></label></div>'
+    + '<div class="op-route-actions"><button class="op-btn primary" data-act="route-build"' + disabled + '>' + (op.routeBusy ? 'Расчёт…' : 'Построить') + '</button>'
+    + '<button class="op-btn" data-act="route-clear">Убрать маршрут</button><span class="op-route-result" role="status" aria-live="polite">' + opEsc(summary) + '</span></div>'
+    + (r ? '<p class="op-map-note">Без учёта текущих пробок. Пунктир — участок от дороги до точки объекта.' + (approximate ? ' <b>Маршрут до примерной точки: уточните въезд.</b>' : '') + '</p>' : '')
+    + '<div class="op-route-credit">Расчёт: <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener noreferrer">OSRM / FOSSGIS</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">Исправить карту</a></div>';
+}
+function opRouteDraw(fit) {
+  if (op.screen !== 'map' || !op.mapFrame) return;
+  op.mapFrame.contentWindow.postMessage({type:'crm-object-map-route', channel:op.mapChannel, route:op.routeResult || null, fit:!!fit}, '*');
+}
+function opRouteReset() {
+  op.routeVersion = (op.routeVersion || 0) + 1;
+  op.routeBusy = false; op.routeResult = null; op.routeError = '';
+  opRoutePanel(); opRouteDraw(false);
+}
+function opRouteField(el) {
+  const key = el.getAttribute('data-route');
+  if (key !== 'from' && key !== 'to') return false;
+  op[key === 'from' ? 'routeFrom' : 'routeTo'] = Number(el.value) || null;
+  opRouteReset(); return true;
+}
+function opRouteHere() {
+  op.routeTo = op.objId;
+  if (op.routeFrom === op.routeTo) op.routeFrom = null;
+  opRouteReset();
+  const el = opRoot().querySelector(op.routeFrom ? '[data-act="route-build"]' : '[data-route="from"]');
+  if (el) el.focus();
+}
+async function opRouteBuild() {
+  if (op.routeBusy) return;
+  opRouteReset();
+  const from = op.routeFrom, to = op.routeTo;
+  if (!from || !to || from === to) { op.routeError = 'Выберите два разных объекта'; opRoutePanel(); return; }
+  op.routeBusy = true; opRoutePanel();
+  const version = op.routeVersion;
+  try {
+    const base = location.port ? location.protocol + '//' + location.hostname + ':8097' : '/rqsvc';
+    let token = ''; try { token = localStorage.getItem('NOCOBASE_TOKEN') || ''; } catch (e) { /* no storage */ }
+    const res = await fetch(base + '/object-route', {method:'POST', headers:{Authorization:'Bearer ' + token, 'Content-Type':'application/json'}, body:JSON.stringify({from:from,to:to})});
+    const result = await res.json().catch(function() { return null; });
+    if (!res.ok) throw new Error(result && result.error || 'Сервис маршрутов недоступен');
+    if (!result || !Number.isFinite(result.distance) || !Number.isFinite(result.duration) || !result.geometry) throw new Error('Не удалось получить маршрут');
+    if (version !== op.routeVersion) return;
+    op.routeResult = Object.assign({from:from,to:to}, result);
+    opRouteDraw(true);
+  } catch (e) { if (version === op.routeVersion) op.routeError = e.message || 'Не удалось рассчитать маршрут'; }
+  finally { if (version === op.routeVersion) { op.routeBusy = false; opRoutePanel(); } }
+}
 function opMapFrame(data, channel) {
   const status = document.getElementById('status');
   if (!window.L) { status.textContent = 'Карта недоступна. Выберите объект в списке слева.'; return; }
@@ -52,8 +115,28 @@ function opMapFrame(data, channel) {
       markers[message.id].openTooltip();
     }
   }
+  let routeLayer = null;
+  function drawRoute(message) {
+    if (routeLayer) map.removeLayer(routeLayer);
+    routeLayer = null;
+    const r = message.route; if (!r) return;
+    routeLayer = L.featureGroup().addTo(map);
+    L.geoJSON(r.geometry, {style:{color:'#fff',weight:9,opacity:0.95}}).addTo(routeLayer);
+    L.geoJSON(r.geometry, {style:{color:'#2f4a8a',weight:5,opacity:1}}).addTo(routeLayer);
+    [r.from,r.to].forEach(function(id,i) {
+      const o = data.find(function(x) { return x.id === id; }); if (!o) return;
+      const coords = r.geometry.coordinates, point = coords[i ? coords.length - 1 : 0], road = L.latLng(point[1],point[0]);
+      if (road.distanceTo([o.lat,o.lon]) > 20) L.polyline([[o.lat,o.lon],road], {color:'#2f4a8a',weight:3,dashArray:'5 7'}).addTo(routeLayer);
+      const label = document.createElement('span'); label.textContent = (i ? 'Б · ' : 'А · ') + o.name;
+      L.marker([o.lat,o.lon], {title:label.textContent,zIndexOffset:2000,icon:L.divIcon({className:'route-end',html:i ? 'Б' : 'А',iconSize:[28,28],iconAnchor:[14,14]})})
+        .bindTooltip(label).addTo(routeLayer);
+    });
+    if (message.fit) map.fitBounds(routeLayer.getBounds(), {padding:[45,45],maxZoom:15});
+  }
   window.addEventListener('message', function(e) {
-    if (e.source === parent && e.data && e.data.channel === channel && e.data.type === 'crm-object-map-state') update(e.data);
+    if (e.source !== parent || !e.data || e.data.channel !== channel) return;
+    if (e.data.type === 'crm-object-map-state') update(e.data);
+    if (e.data.type === 'crm-object-map-route') drawRoute(e.data);
   });
   map.on('click focus', function() { map.scrollWheelZoom.enable(); });
   parent.postMessage({ type: 'crm-object-map-ready', channel: channel }, '*');
@@ -65,6 +148,7 @@ function opMapDoc(data, channel) {
     + '<style>html,body,#map{height:100%;margin:0}body{font:14px Arial;color:#1f2433;background:#e9edf5}.leaflet-container{font:13px Arial}.pin{display:block;width:26px;height:26px;background:#1c2d58;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px #1c2d5855}.pin:after{content:"";display:block;width:8px;height:8px;background:#fff;border-radius:50%;margin:9px}.selected .pin{background:#2f4a8a;outline:5px solid #a6c2e8}.leaflet-marker-icon:focus{outline:3px solid #2f4a8a}#status{position:absolute;z-index:1000;bottom:28px;left:12px;right:12px;padding:10px;background:#fff;border-radius:6px;box-shadow:0 2px 8px #0002}button{font:inherit}</style>'
     + '</head><body><div id="map" aria-label="Карта объектов"></div><div id="status" role="status">Загрузка карты…</div>'
     + '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>'
+    + '<style>.route-end{background:#1c2d58;color:#fff;border:3px solid white;border-radius:50%;font:bold 14px/28px Arial;text-align:center;box-shadow:0 2px 8px #0004}</style>'
     + '<script>(' + opMapFrame.toString() + ')(' + json(data) + ',' + json(channel) + ');</script></body></html>';
 }
 function opMapSync(fit) {
@@ -84,6 +168,7 @@ function opMapCard() {
     + (!opLocated(o) ? '<p class="op-map-note">Точка на карте пока не подтверждена.</p>' : p.approximate ? '<p class="op-map-note">Примерная точка: ' + opEsc(p.precision || 'местоположение требует уточнения') + '.</p>' : '')
     + '<div class="op-map-facts"><span><b>' + plans.length + '</b>планов</span><span><b>' + rooms.length + '</b>помещений</span></div>'
     + '<button class="op-btn primary" data-act="open-plans">Планы и помещения →</button>'
+    + (opLocated(o) ? ' <button class="op-btn" data-act="route-here">Маршрут сюда</button>' : '')
     + (!plans.length ? '<p class="op-map-note">Планы ещё не добавлены. В разделе планов доступен редактор.</p>' : '') + '</div>';
 }
 function opMapRender() {
@@ -95,8 +180,8 @@ function opMapRender() {
       const p = opLocation(o), visible = objects.some(function(x) { return x.id === o.id; });
       return '<button class="op-obj op-map-item" data-obj="' + o.id + '" style="' + (visible ? '' : 'display:none') + '"><span><b>' + opEsc(o.name) + '</b><small>' + opEsc(p.address || 'Адрес уточняется') + '</small></span>' + (!opLocated(o) ? '<span class="op-map-note">Без точки</span>' : '') + '</button>';
     }).join('') + '</div><p class="op-map-count" role="status">' + opMapCount(objects, located) + '</p></aside>'
-    + '<div class="op-map-canvas op-card"></div><aside class="op-map-card op-card" aria-live="polite"></aside></div>';
-  opMapCard();
+    + '<div class="op-map-center"><section class="op-route op-card" aria-label="Построение маршрута"></section><div class="op-map-canvas op-card"></div></div><aside class="op-map-card op-card" aria-live="polite"></aside></div>';
+  opMapCard(); opRoutePanel();
   const frame = document.createElement('iframe'); frame.title = 'Карта объектов';
   frame.setAttribute('sandbox', 'allow-scripts allow-popups'); frame.setAttribute('referrerpolicy', 'no-referrer');
   op.mapChannel = String(Date.now()) + '-' + Math.random().toString(36).slice(2);
@@ -116,6 +201,6 @@ function opMapFilter() {
 window.addEventListener('message', function(e) {
   const d = e.data;
   if (op.screen !== 'map' || !opRoot() || !opRoot().isConnected || !d || d.channel !== op.mapChannel || e.origin !== 'null') return;
-  if (d.type === 'crm-object-map-ready') opMapSync(true);
+  if (d.type === 'crm-object-map-ready') { opMapSync(true); opRouteDraw(!!op.routeResult); }
   if (d.type === 'crm-object-map-select' && opMapObjects().some(function(o) { return o.id === d.id && opLocated(o); })) opSelectObject(d.id);
 });

@@ -64,6 +64,17 @@ if (!document.getElementById('crm-objplan-style')) {
     #crm-objplan .op-map-canvas { height:650px; overflow:hidden; background:var(--soft); }
     #crm-objplan .op-map-canvas iframe { width:100%; height:100%; border:0; display:block; }
     #crm-objplan .op-map-card { overflow:hidden; }
+    #crm-objplan .op-map-center { min-width:0; }
+    #crm-objplan .op-route { padding:14px; margin-bottom:12px; }
+    #crm-objplan .op-route-fields { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:10px; align-items:end; margin:10px 0; }
+    #crm-objplan .op-route-fields label { min-width:0; font-size:12px; color:var(--muted); }
+    #crm-objplan .op-route-fields select { display:block; width:100%; box-sizing:border-box; margin-top:4px; padding:6px 9px; font:inherit; color:var(--ink); }
+    #crm-objplan .op-route-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    #crm-objplan .op-route-actions .primary { background:var(--brand); color:#fff; }
+    #crm-objplan .op-route-result { font-weight:600; }
+    #crm-objplan .op-route-credit { margin-top:10px; font-size:11px; color:var(--muted); }
+    #crm-objplan .op-route-credit a { color:inherit; }
+    #crm-objplan .op-map-detail .op-btn { margin-bottom:6px; }
     #crm-objplan .op-map-photo { display:block; width:100%; height:180px; object-fit:cover; }
     #crm-objplan .op-map-detail, #crm-objplan .op-map-empty { padding:20px; }
     #crm-objplan .op-map-detail h2 { font-size:22px; margin:6px 0 10px; }
@@ -2053,6 +2064,10 @@ opRoot().addEventListener('click', async function(e) {
   if (act === 'open-plans') { op.screen = 'plans'; op.edit = false; op.v3 = false; opRender(); return; }
   if (act === 'back-map') { op.screen = 'map'; op.edit = false; op.v3 = false; opRender(); return; }
   if (act === 'map-all') { opMapSync(true); return; }
+  if (act === 'route-here') { opRouteHere(); return; }
+  if (act === 'route-build') return opRouteBuild();
+  if (act === 'route-clear') { opRouteReset(); return; }
+  if (act === 'route-swap') { const from = op.routeFrom; op.routeFrom = op.routeTo; op.routeTo = from; opRouteReset(); if (op.routeFrom && op.routeTo) return opRouteBuild(); return; }
   if (act === 'edit' || act === 'mode-view' || act === 'mode-edit' || act === 'mode-3d') {
     const v = act === 'edit' ? !op.edit : act === 'mode-edit', v3 = act === 'mode-3d'; if (v === op.edit && v3 === !!op.v3) return;
     op.edit = v; op.v3 = v3; op.panel = 'room'; op.selItem = null; op.chain = []; opRender(); return;
@@ -2117,6 +2132,7 @@ opRoot().addEventListener('click', async function(e) {
 });
 opRoot().addEventListener('change', function(e) {
   const el = e.target;
+  if (opRouteField(el)) return;
   if (el.matches && el.matches('[data-f]')) opRoomField(el);
   if (el.matches && el.matches('[data-i]')) opItemField(el);
   if (el.matches && el.matches('[data-d]')) {

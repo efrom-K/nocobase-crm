@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const R = require('./rules');
+const {objectRoute, RouteError} = require('./routes');
 
 const env = process.env;
 const PORT = Number(env.PORT) || 8097;
@@ -444,8 +445,21 @@ http.createServer(async (req, res) => {
       res.end(buf);
     });
     if (p.startsWith('/portal/api/')) return await portal(req, res, p, origin);
-    const user = await whoami(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const user = await whoami(token);
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
+    if (p === '/object-route' && req.method === 'POST') {
+      const route = await objectRoute(user, await readJson(req), async ids => {
+        const r = await fetch(NB_URL + '/api/contract_objects:list?paginate=false&fields=id,map_location&filter=' + q({id:{$in:ids}}), {
+          headers: {Authorization:'Bearer ' + token, 'X-Authenticator':'basic'}, signal:AbortSignal.timeout(10000)
+        });
+        if (!r.ok) throw new ApiError(r.status === 403 ? 403 : 502, 'Не удалось прочитать объекты CRM');
+        const j = await r.json();
+        if (!Array.isArray(j.data)) throw new ApiError(502, 'Не удалось прочитать объекты CRM');
+        return j.data;
+      });
+      return send(res, 200, route, origin);
+    }
     if (p === '/acts' && req.method === 'GET') return send(res, 200, await acts(user), origin);
     if (p === '/create' && req.method === 'POST') return send(res, 200, await create(user, await readJson(req)), origin);
     if (p === '/act' && req.method === 'POST') return send(res, 200, await act(user, await readJson(req)), origin);
@@ -453,7 +467,8 @@ http.createServer(async (req, res) => {
     if (p === '/object-person' && req.method === 'POST') return send(res, 200, await objectPerson(user, await readJson(req)), origin);
     throw new ApiError(404, 'Нет такого адреса');
   } catch (e) {
-    if (!(e instanceof ApiError)) console.error(e);
-    send(res, e.status || 500, { error: e instanceof ApiError ? e.message : 'Ошибка сервиса заявок', field: e.field || null }, origin);
+    const expected = e instanceof ApiError || e instanceof RouteError;
+    if (!expected) console.error(e);
+    send(res, e.status || 500, { error: expected ? e.message : 'Ошибка сервиса заявок', field: e.field || null }, origin);
   }
 }).listen(PORT, () => console.log('requests-service on', PORT));

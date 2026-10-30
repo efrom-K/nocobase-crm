@@ -45,6 +45,8 @@ jobs:
         run: node tests/objects.test.js
       - name: Time input controls
         run: node tests/time_controls.test.js
+      - name: Object map navigation
+        run: node tests/object_map.test.js
       - name: Object directory migration (isolated PostgreSQL schema)
         run: python3 tests/object_directory_test.py
         env:

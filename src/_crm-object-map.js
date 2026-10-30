@@ -143,9 +143,33 @@ function opMapFilter() {
   opRoot().querySelector('.op-map-count').textContent = opMapCount(objects, objects.filter(opLocated));
   opMapSync(true);
 }
+async function opMapTile(d) {
+  if (!Number.isSafeInteger(d.requestId) || d.requestId < 1 || !Number.isInteger(d.z) || d.z < 0 || d.z > 18
+    || !Number.isInteger(d.x) || !Number.isInteger(d.y) || d.x < 0 || d.y < 0 || d.x >= Math.pow(2,d.z) || d.y >= Math.pow(2,d.z)) return;
+  const frame = op.mapFrame, channel = op.mapChannel;
+  const reply = function(values) { if (frame && frame === op.mapFrame && channel === op.mapChannel) frame.contentWindow.postMessage(Object.assign({type:'crm-object-map-tile',channel:channel,requestId:d.requestId},values),'*'); };
+  if ((op.mapTileLoads || 0) >= 48) { reply({error:true}); return; }
+  op.mapTileLoads = (op.mapTileLoads || 0) + 1;
+  let timeout;
+  try {
+    // The CRM document supplies the real Referer; the opaque renderer never receives credentials.
+    const buffer = await Promise.race([
+      (async function() {
+        const response = await fetch('https://tile.openstreetmap.org/' + d.z + '/' + d.x + '/' + d.y + '.png', {referrerPolicy:'origin'});
+        if (!response.ok || !(response.headers.get('Content-Type') || '').startsWith('image/png')) throw new Error('Tile unavailable');
+        return response.arrayBuffer();
+      })(),
+      new Promise(function(resolve,reject) { timeout = setTimeout(function() { reject(new Error('Tile timeout')); },15000); })
+    ]);
+    if (buffer.byteLength > 524288) throw new Error('Tile too large');
+    reply({buffer:buffer});
+  } catch (e) { reply({error:true}); }
+  finally { clearTimeout(timeout); op.mapTileLoads--; }
+}
 window.addEventListener('message', function(e) {
   const d = e.data;
   if (op.screen !== 'map' || !opRoot() || !opRoot().isConnected || !d || d.channel !== op.mapChannel || e.origin !== 'null') return;
+  if (d.type === 'crm-object-map-tile-request') { opMapTile(d); return; }
   if (d.type === 'crm-object-map-ready') { opMapSync(true); opRouteDraw(!!op.routeResult); }
   if (d.type === 'crm-object-map-select' && opMapObjects().some(function(o) { return o.id === d.id && opLocated(o); })) opSelectObject(d.id);
 });

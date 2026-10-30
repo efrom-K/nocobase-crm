@@ -437,7 +437,7 @@ http.createServer(async (req, res) => {
     // Generic isolated renderer: object data arrives from its authenticated CRM parent, never from this endpoint.
     if (p === '/object-map' && req.method === 'GET') {
       res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-cache', 'Referrer-Policy':'origin',
-        'X-Content-Type-Options':'nosniff', 'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline' https://unpkg.com; style-src 'unsafe-inline' https://unpkg.com; img-src https://tile.openstreetmap.org data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self' " + ORIGINS.join(' ')});
+        'X-Content-Type-Options':'nosniff', 'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline' https://unpkg.com; style-src 'unsafe-inline' https://unpkg.com; img-src blob: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self' " + ORIGINS.join(' ')});
       return res.end(OBJECT_MAP_HTML);
     }
     if (p === '/portal' || p === '/portal/' || (p === '/' && /^help\./.test(String(req.headers.host || '')))) {

@@ -13,9 +13,27 @@ function opMapFrame(data, channel) {
   map.attributionControl.addAttribution('<a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">OSRM / FOSSGIS</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Исправить карту</a>');
   function padding() { const w = map.getSize().x; return {paddingTopLeft:w > 1100 ? [312,116] : w > 800 ? [274,116] : [32,116], paddingBottomRight:w > 1100 ? [328,56] : w > 800 ? [290,56] : [32,48]}; }
   let loaded = false;
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18, referrerPolicy:'origin', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
-  }).on('tileload', function() { loaded = true; status.hidden = true; })
+  let tileId = 0;
+  const pendingTiles = new Map();
+  const tiles = L.tileLayer('', {maxZoom:18,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'});
+  tiles.createTile = function(coords,done) {
+    const image = document.createElement('img'), requestId = ++tileId;
+    image.alt = ''; pendingTiles.set(requestId,{image:image,done:done});
+    parent.postMessage({type:'crm-object-map-tile-request',channel:channel,requestId:requestId,z:coords.z,x:coords.x,y:coords.y},'*');
+    return image;
+  };
+  window.addEventListener('message',function(e) {
+    const d = e.data;
+    if (e.source !== parent || !d || d.channel !== channel || d.type !== 'crm-object-map-tile') return;
+    const tile = pendingTiles.get(d.requestId); if (!tile) return;
+    pendingTiles.delete(d.requestId);
+    if (d.error || !(d.buffer instanceof ArrayBuffer)) { tile.done(new Error('Tile unavailable'),tile.image); return; }
+    const url = URL.createObjectURL(new Blob([d.buffer],{type:'image/png'}));
+    tile.image.onload = function() { URL.revokeObjectURL(url); tile.done(null,tile.image); };
+    tile.image.onerror = function() { URL.revokeObjectURL(url); tile.done(new Error('Tile unavailable'),tile.image); };
+    tile.image.src = url;
+  });
+  tiles.on('tileload', function() { loaded = true; status.hidden = true; })
     .on('tileerror', function() { if (!loaded) { status.hidden = false; status.textContent = 'Подложка карты недоступна. Метки и список объектов работают.'; } }).addTo(map);
   const markers = {};
   data.forEach(function(o) {

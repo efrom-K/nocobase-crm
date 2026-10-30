@@ -147,7 +147,7 @@ async function opMapTile(d) {
   if (!Number.isSafeInteger(d.requestId) || d.requestId < 1 || !Number.isInteger(d.z) || d.z < 0 || d.z > 18
     || !Number.isInteger(d.x) || !Number.isInteger(d.y) || d.x < 0 || d.y < 0 || d.x >= Math.pow(2,d.z) || d.y >= Math.pow(2,d.z)) return;
   const frame = op.mapFrame, channel = op.mapChannel;
-  const reply = function(values) { if (frame && frame === op.mapFrame && channel === op.mapChannel) frame.contentWindow.postMessage(Object.assign({type:'crm-object-map-tile',channel:channel,requestId:d.requestId},values),'*'); };
+  const reply = function(values) { const target = frame && frame.isConnected && frame.contentWindow; if (target && frame === op.mapFrame && channel === op.mapChannel) target.postMessage(Object.assign({type:'crm-object-map-tile',channel:channel,requestId:d.requestId},values),'*'); };
   if ((op.mapTileLoads || 0) >= 48) { reply({error:true}); return; }
   op.mapTileLoads = (op.mapTileLoads || 0) + 1;
   let timeout;

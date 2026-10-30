@@ -85,7 +85,7 @@ console.log('Object map: coordinates, address search, message boundaries and iso
   assert.equal(context.opMapPhoto({map_location:{photo:'https://untrusted.example/picture.webp'}}),'');
   assert.equal(context.opMapPhoto({map_location:{photo:'/storage/uploads/object-map/object-1.webp'}}),'/storage/uploads/object-map/object-1.webp');
   context.setTimeout=setTimeout;context.clearTimeout=clearTimeout;
-  const replies=[];state.mapChannel='tile-channel';state.mapFrame={contentWindow:{postMessage:d=>replies.push(d)}};
+  const replies=[];state.mapChannel='tile-channel';state.mapFrame={isConnected:true,contentWindow:{postMessage:d=>replies.push(d)}};
   let tileCalls=0;
   context.fetch=async(url,options)=>{tileCalls++;assert.equal(url,'https://tile.openstreetmap.org/2/1/2.png');assert.equal(options.referrerPolicy,'origin');assert.equal(options.headers,undefined);return {ok:true,headers:{get:()=> 'image/png'},arrayBuffer:async()=>new ArrayBuffer(8)};};
   const tile={requestId:1,z:2,x:1,y:2};
@@ -93,5 +93,6 @@ console.log('Object map: coordinates, address search, message boundaries and iso
   await context.opMapTile(tile);assert.equal(replies[0].buffer.byteLength,8);assert.equal(replies[0].channel,'tile-channel');assert.equal(state.mapTileLoads,0);
   state.mapTileLoads=48;await context.opMapTile(tile);assert.equal(tileCalls,1);assert.equal(replies.at(-1).error,true);state.mapTileLoads=0;
   context.fetch=async()=>({ok:false});await context.opMapTile(tile);assert.equal(replies.at(-1).error,true);assert.equal(state.mapTileLoads,0);
+  const replyCount=replies.length;state.mapFrame.contentWindow=null;await context.opMapTile(tile);assert.equal(replies.length,replyCount,'Closed frame safely ignores late tile response');
   console.log('Object route UI: request, cancellation, stale results, errors and identical endpoints passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});

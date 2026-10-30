@@ -25,7 +25,7 @@ function opSelectObject(id) {
 }
 function opRoutePanel() {
   const box = opRoot() && opRoot().querySelector('.op-route'); if (!box) return;
-  opMapCard();
+  opMapSelection();
   box.style.display = op.routeFrom || op.routeTo ? '' : 'none';
   if (!op.routeFrom && !op.routeTo) { box.innerHTML = ''; return; }
   const name = function(id, fallback) { const o = op.objs.find(function(x) { return x.id === id; }); return opEsc(o ? o.name : fallback); };
@@ -159,11 +159,17 @@ function opMapSync(fit) {
   const ids = opMapObjects().filter(opLocated).map(function(o) { return o.id; });
   op.mapFrame.contentWindow.postMessage({ type: 'crm-object-map-state', channel: op.mapChannel, ids: ids, id: op.objId, fit: !!fit, focus: !fit }, '*');
 }
+function opMapSelection() {
+  const root = opRoot(); if (!root) return;
+  root.querySelectorAll('[data-obj]').forEach(function(el) { const id = Number(el.getAttribute('data-obj')), selected = id === op.objId; el.classList.toggle('on', selected); el.setAttribute('aria-pressed', String(selected)); el.setAttribute('data-route-stop', id === op.routeFrom ? 'А' : id === op.routeTo ? 'Б' : ''); });
+  [['route-from',op.routeFrom],['route-here',op.routeTo]].forEach(function(action) {
+    const button = root.querySelector('[data-act="' + action[0] + '"]');
+    if (button) { const selected = action[1] === op.objId; button.classList.toggle('on', selected); button.setAttribute('aria-pressed', String(selected)); }
+  });
+}
 function opMapCard() {
   const root = opRoot(), card = root && root.querySelector('.op-map-card'); if (!card) return;
-  const focused = card.querySelector('button:focus'), focusAction = focused && focused.getAttribute('data-act');
   const o = op.objs.find(function(x) { return x.id === op.objId; });
-  root.querySelectorAll('[data-obj]').forEach(function(el) { const id = Number(el.getAttribute('data-obj')), selected = id === op.objId; el.classList.toggle('on', selected); el.setAttribute('aria-pressed', String(selected)); el.setAttribute('data-route-stop', id === op.routeFrom ? 'А' : id === op.routeTo ? 'Б' : ''); });
   if (!o) { card.innerHTML = '<div class="op-map-empty"><h3>Выберите объект</h3><p>Нажмите на метку на карте или на объект в списке слева.</p></div>'; return; }
   const p = opLocation(o), rooms = op.rooms.filter(function(r) { return r.object_id === o.id; }), plans = op.plans.filter(function(x) { return x.object_id === o.id; });
   const photo = opMapPhoto(o);
@@ -174,7 +180,7 @@ function opMapCard() {
     + (opLocated(o) ? '<div class="op-map-directions"><button data-act="route-from" class="' + (op.routeFrom === o.id ? 'on' : '') + '" aria-label="Маршрут отсюда"><span aria-hidden="true">↗</span>Отсюда</button><button data-act="route-here" class="' + (op.routeTo === o.id ? 'on' : '') + '" aria-label="Маршрут сюда"><span aria-hidden="true">↘</span>Сюда</button></div>' : '')
     + '<button class="op-btn op-map-plans" data-act="open-plans">' + opIco('layers') + 'Планы и помещения <span>→</span></button>'
     + (!plans.length ? '<p class="op-map-note">Планы ещё не добавлены. В разделе планов доступен редактор.</p>' : '') + '</div>';
-  if (focusAction) { const button = card.querySelector('[data-act="' + focusAction + '"]'); if (button) button.focus(); }
+  opMapSelection();
 }
 function opMapRender() {
   const root = opRoot(), objects = opMapObjects(), located = objects.filter(opLocated);
@@ -185,7 +191,7 @@ function opMapRender() {
       return '<button class="op-obj op-map-item" data-obj="' + o.id + '" style="' + (visible ? '' : 'display:none') + '"><span class="op-map-thumb">' + (photo ? '<img src="' + opEsc(photo) + '" alt="" loading="lazy">' : opIco('layers')) + '</span><span class="op-map-item-text"><b>' + opEsc(o.name) + '</b><small>' + opEsc(p.address || 'Адрес уточняется') + '</small></span></button>';
     }).join('') + '</div><p class="op-map-count" role="status">' + opMapCount(objects, located) + '</p></aside>'
     + '<div class="op-map-center"><section class="op-route op-card" aria-label="Построение маршрута"></section><div class="op-map-canvas op-card"></div></div><aside class="op-map-card op-card" aria-live="polite"></aside></div>';
-  opRoutePanel();
+  opMapCard(); opRoutePanel();
   const frame = document.createElement('iframe'); frame.title = 'Карта объектов';
   frame.setAttribute('sandbox', 'allow-scripts allow-popups'); frame.setAttribute('referrerpolicy', 'no-referrer');
   op.mapChannel = String(Date.now()) + '-' + Math.random().toString(36).slice(2);

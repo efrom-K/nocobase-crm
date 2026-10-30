@@ -3318,7 +3318,7 @@ function bindComboField(root, fieldName) {
   if (!input || !listEl || input.__cmObjectBound) return;
   input.__cmObjectBound = true;
   input.__cmObjectState = 'loading';
-  let options = [], canCreate = false, sequence = 0;
+  let options = [], canCreate = false, sequence = 0, opened = false;
   const hint = document.createElement('div');
   hint.style.cssText = 'font-size:12px;color:#5b6478;margin-top:4px;';
   hint.setAttribute('aria-live', 'polite');
@@ -3333,6 +3333,7 @@ function bindComboField(root, fieldName) {
     state();
     fireInput(input); fireChange(input);
     listEl.style.display = 'none';
+    opened = false;
   }
   function renderOptions() {
     const f = window.__crmObjects.normalize(input.value);
@@ -3373,15 +3374,17 @@ function bindComboField(root, fieldName) {
       input.__cmObjectState = 'error';
     }
     state();
-    if (input.matches(':focus')) renderOptions();
+    if (opened) renderOptions();
   }
-  input.addEventListener('focus', function() { renderOptions(); refresh(); });
-  input.addEventListener('input', function() { state(); if (input.matches(':focus')) renderOptions(); });
+  function openOptions() { opened = true; renderOptions(); refresh(); }
+  input.addEventListener('focus', openOptions);
+  input.addEventListener('click', openOptions); // autofocus can happen before binding; clicking must still open the list
+  input.addEventListener('input', function() { state(); if (opened) renderOptions(); });
   input.addEventListener('keydown', function(e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); const first = listEl.querySelector('button'); if (first) first.focus(); }
-    if (e.key === 'Escape' && listEl.style.display !== 'none') { e.preventDefault(); e.stopPropagation(); listEl.style.display = 'none'; }
+    if (e.key === 'Escape' && listEl.style.display !== 'none') { e.preventDefault(); e.stopPropagation(); opened = false; listEl.style.display = 'none'; }
   });
-  input.parentNode.addEventListener('focusout', function() { setTimeout(function() { if (!listEl.contains(document.activeElement) && !input.matches(':focus')) listEl.style.display = 'none'; }, 150); });
+  input.parentNode.addEventListener('focusout', function() { setTimeout(function() { if (!listEl.contains(document.activeElement) && !input.matches(':focus')) { opened = false; listEl.style.display = 'none'; } }, 150); });
   refresh();
 }
 

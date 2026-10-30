@@ -83,6 +83,21 @@ async function main() {
   el.closest = () => ({});
   assert.equal(validation.validateElement(el, false), '');
   assert.match(validation.validateElement(el, true), /выберите/);
+  // Autocomplete must open on click even when the browser autofocus preceded event binding.
+  const events = {}, list = { style: {}, innerHTML: '', querySelectorAll: () => [], querySelector: () => null };
+  const input = { value: '', style: {}, isConnected: true, parentNode: { appendChild() {}, addEventListener() {} },
+    addEventListener: (event, fn) => { events[event] = fn; } };
+  const combo = { window: { __crmObjects: h.api }, document: { createElement: () => ({ style: {}, setAttribute() {} }) },
+    validateElement: () => '', esc: x => x, fireInput() {}, fireChange() {}, setTimeout };
+  const begin = source.indexOf('function bindComboField(root, fieldName) {');
+  const finish = source.indexOf('\nconst ACTIVE_BLOCK_DEFS', begin);
+  vm.runInNewContext(source.slice(begin, finish) + '\nthis.bind = bindComboField;', combo);
+  combo.bind({ querySelector: selector => selector.includes('[data-field=') ? input : list }, 'object_name');
+  await new Promise(resolve => setImmediate(resolve));
+  events.click();
+  assert.match(list.innerHTML, /data-object-choice/);
+  assert.match(list.innerHTML, /data-object-add/);
+  assert.equal(list.style.display, 'block');
   console.log('objects: creation, permissions, duplicates/race, failures and contract validation passed');
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });

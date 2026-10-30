@@ -76,8 +76,8 @@
         if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (!saving) close(null); }
         if (e.key === 'Tab') {
           const last = save.disabled ? cancel : save;
-          if (e.shiftKey && document.activeElement === input) { e.preventDefault(); last.focus(); }
-          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); input.focus(); }
+          if (e.shiftKey && input.matches(':focus')) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && last.matches(':focus')) { e.preventDefault(); input.focus(); }
         }
       }
       cancel.addEventListener('click', function() { if (!saving) close(null); });

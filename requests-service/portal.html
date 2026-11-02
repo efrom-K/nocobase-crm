@@ -10,6 +10,7 @@
 <script>
   // фирменные шрифты, токены и иконка — рядом со страницей: /portal/brand/ (help.<домен>/ и /<префикс>/portal/ через CRM)
   var BRAND = (function(i) { return (i === -1 ? '' : location.pathname.slice(0, i)) + '/portal/brand/'; })(location.pathname.indexOf('/portal'));
+  document.documentElement.style.setProperty('--portal-lobby', 'url("' + BRAND + 'portal-lobby.jpg?v=1")');
   document.write('<link rel="stylesheet" href="' + BRAND + 'brand.css?v=13"><link rel="icon" type="image/svg+xml" href="' + BRAND + 'kn-mark.svg">');
 </script>
 <style>
@@ -206,7 +207,14 @@
   .notice svg { color:var(--navy); margin-top:2px; }
 
   /* вход */
-  .auth { max-width:460px; margin:48px auto 0; }
+  .auth-layout { display:grid; grid-template-columns:1.05fr .95fr; max-width:1040px; min-height:560px; margin:32px auto 0; overflow:hidden; border-radius:18px; background:#fff; box-shadow:0 24px 64px rgba(18,29,58,.16); }
+  .auth-visual { display:flex; align-items:flex-end; min-height:560px; padding:44px; background:linear-gradient(180deg,rgba(14,26,54,.05) 15%,rgba(14,26,54,.76) 100%),var(--portal-lobby) center/cover no-repeat; }
+  .auth-visual-copy { max-width:360px; color:#fff; }
+  .auth-visual-copy span { display:block; margin-bottom:12px; color:#d8e4f5; font:500 12px/1.2 var(--mono); letter-spacing:.12em; }
+  .auth-visual-copy h2 { margin-bottom:10px; color:#fff; font:600 30px/1.14 var(--cond); letter-spacing:-.02em; }
+  .auth-visual-copy p { margin:0; color:rgba(255,255,255,.88); font-size:15px; }
+  .auth { display:flex; align-items:center; max-width:none; margin:0; border:0; border-radius:0; box-shadow:none; }
+  .auth > .pad { width:100%; max-width:520px; margin:0 auto; padding:clamp(32px,5vw,64px); }
   .auth h1 { margin-bottom:8px; } .auth > .pad > p { margin:0 0 24px; color:var(--muted); }
   .auth .btn.pri { width:100%; height:48px; margin-top:18px; }
   .auth .alt { margin-top:22px; padding-top:20px; border-top:1px solid var(--line); font-size:14px; color:var(--muted); }
@@ -215,6 +223,9 @@
 
   @media (max-width:900px) {
     .wrap { padding:0 24px; }
+    .auth-layout { grid-template-columns:1fr; max-width:600px; min-height:0; margin:8px auto 0; }
+    .auth-visual { min-height:210px; padding:26px 30px; background-position:center 52%; }
+    .auth-visual-copy h2 { font-size:24px; }
     .detail { grid-template-columns:1fr; }
     .lh { display:none; }
     .row { grid-template-columns:minmax(0,1fr) 20px; gap:6px 12px; padding:0 20px; padding-top:14px; padding-bottom:14px; }
@@ -240,7 +251,12 @@
     .form-f .btn { flex:1; }
     .form-f .note { margin-left:0; width:100%; order:3; }
     .side .sec { padding:20px 18px; }
-    .auth { margin-top:16px; }
+    .auth-layout { margin-top:0; border-radius:14px; }
+    .auth-visual { min-height:160px; padding:20px; }
+    .auth-visual-copy span { margin-bottom:8px; font-size:11px; }
+    .auth-visual-copy h2 { margin-bottom:6px; font-size:21px; }
+    .auth-visual-copy p { font-size:13px; }
+    .auth > .pad { padding:24px 18px; }
   }
 </style>
 </head>
@@ -279,7 +295,7 @@ function busy(b, on, text) { if (on) { b.dataset.t = b.innerHTML; b.disabled = t
 // ---------- вход ----------
 function login(step, msg) {
   $('#who').textContent = ''; $('#out').hidden = true;
-  var h = '<div class="card auth"><div class="pad">';
+  var h = '<div class="auth-layout"><div class="auth-visual" aria-hidden="true"><div class="auth-visual-copy"><span>КОНСАЛТ НЕДВИЖИМОСТЬ</span><h2>Вопросы по объекту решаем вместе</h2><p>Оставляйте заявки и следите за их решением в одном месте.</p></div></div><div class="card auth"><div class="pad">';
   if (step === 'code') h += '<span class="eb">Портал арендатора</span><h1>Введите код</h1><p>Мы отправили шестизначный код на <b>' + esc(S.email) + '</b>. Он действует 15 минут.</p>'
     + '<div class="fld"><label for="code">Код из письма</label><input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>'
     + '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn pri" id="go">Войти</button>'
@@ -289,7 +305,7 @@ function login(step, msg) {
     + '<div class="fld"><label for="email">Электронная почта из договора аренды</label><input id="email" type="email" autocomplete="email" placeholder="name@company.ru" value="' + esc(S.email) + '"></div>'
     + '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn pri" id="go">Получить код</button>'
     + '<div class="alt">Если управляющий прислал вам личную ссылку на портал — просто откройте её, вводить почту не нужно.</div>';
-  $('#app').innerHTML = h + '</div></div>';
+  $('#app').innerHTML = h + '</div></div></div>';
   var f = $(step === 'code' ? '#code' : '#email'); f.focus();
   f.addEventListener('keydown', function(e) { if (e.key === 'Enter') $('#go').click(); });
   if (step === 'code') $('#back').onclick = function() { login('email'); };

@@ -1754,7 +1754,7 @@ function renderAllActiveReadonly(root, r) {
     el.innerHTML = block.readonlyRenderer ? block.readonlyRenderer(r)
       : '<div class="cm-grid">' + partyFields(block.fields, r).map(function(f) { return row(f.label, readonlyFieldValue(f, r), f.full); }).join('') + '</div>';
   });
-  paintInnStatus(root);
+  paintInnStatus(root, r);
 }
 // подсказки под полями АП/ЭС: «По ставке × площади = … — подставить»
 function wireDerivedHints(root) {
@@ -2398,6 +2398,9 @@ function attachBikLookup(el) {
 // ---------- реквизиты арендатора по ИНН из DaData (findById/party) ----------
 // Ключ хранится в коллекции app_settings (name = dadata_token), не в коде: репозиторий публичный.
 const PARTY_STATUS = { LIQUIDATING: 'ликвидируется', LIQUIDATED: 'ликвидирована', BANKRUPT: 'банкротство', REORGANIZING: 'реорганизация' };
+function tenantTypeShowsRegistryStatus(type, registryType) {
+  return !type || ((type === 'ИП' || type === 'Юрлицо') && (!registryType || type === registryType));
+}
 window.__cmPartyCache = window.__cmPartyCache || {};
 function dadataToken() {
   if (!window.__cmDadataToken) {
@@ -2565,14 +2568,19 @@ function attachInnLookup(el) {
   if (el.value) run();
 }
 // метка «ликвидирована / банкротство» у ИНН в режиме просмотра карточки
-async function paintInnStatus(root) {
+async function paintInnStatus(root, rec) {
   const cells = root.querySelectorAll('[data-inn-ro]');
   for (let i = 0; i < cells.length; i++) {
     const inn = cells[i].getAttribute('data-inn-ro');
     if (!/^(\d{10}|\d{12})$/.test(inn) || cells[i].__cmPainted === inn) continue;
+    const typeEl = root.querySelector('[data-field="tenant_type"]');
+    const type = (typeEl && typeEl.value) || (rec && rec.tenant_type) || (root.__cmActiveRec && root.__cmActiveRec.tenant_type) || '';
+    if (!tenantTypeShowsRegistryStatus(type)) continue;
     let p = null;
     try { p = await lookupParty(inn); } catch (e) { p = null; }
-    if (!p || !p.found) continue;
+    const currentTypeEl = root.querySelector('[data-field="tenant_type"]');
+    const currentType = (currentTypeEl && currentTypeEl.value) || (rec && rec.tenant_type) || (root.__cmActiveRec && root.__cmActiveRec.tenant_type) || '';
+    if (!p || !p.found || !tenantTypeShowsRegistryStatus(currentType, p.values.tenant_type)) continue;
     cells[i].__cmPainted = inn;
     cells[i].insertAdjacentHTML('beforeend', partyStatusBadge(p));
   }
@@ -2843,7 +2851,7 @@ async function openCompletedContractModal(id) {
 
     body.style.color = '';
     body.innerHTML = html;
-    paintInnStatus(overlay);
+    paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-completed', 'completed', id, currentUser);
     const addAddBtn = overlay.querySelector('#cm-completed-addendum-add-btn');
     if (addAddBtn && !isAdmin) addAddBtn.style.display = 'none';
@@ -2978,7 +2986,7 @@ async function openContractModal(id) {
 
     body.style.color = '';
     body.innerHTML = html;
-    paintInnStatus(overlay);
+    paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-active', 'active', id, currentUser);
     await wireContacts(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser));
     await wirePrices(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser), r);
@@ -3025,6 +3033,19 @@ window.openContractModal = openContractModal;
 // ОГРН бывает только у юрлица; у ИП свой номер — ОГРНИП; у физлица ни того, ни другого, зато паспорт.
 const OBJECT_KINDS = ['Помещение', 'Земельный участок', 'Машино-место'];   // вид объекта договора; значения в базе = подписи
 const TENANT_TYPES = ['Юрлицо', 'ИП', 'Самозанятый', 'Физлицо'];   // значения в базе; показываем полными словами (VALUE_LABELS)
+function tenantTypeChanges(type, current) {
+  if (TENANT_TYPES.indexOf(type) === -1) return {};
+  const clear = type === 'Юрлицо' ? ['passport', 'passport_issued']
+    : type === 'ИП' ? ['kpp', 'director', 'director_post', 'passport', 'passport_issued']
+    : ['kpp', 'ogrn', 'director', 'director_post'];
+  const changes = {};
+  clear.forEach(function(name) { if (current[name]) changes[name] = ''; });
+  if ((type === 'Самозанятый' || type === 'Физлицо') && current.tenant_name) {
+    const name = current.tenant_name.replace(/^ИП\s+/i, '');
+    if (name !== current.tenant_name) changes.tenant_name = name;
+  }
+  return changes;
+}
 const VALUE_LABELS = {
   tenant_type: { 'Юрлицо': 'Юридическое лицо', 'ИП': 'Индивидуальный предприниматель', 'Самозанятый': 'Самозанятый', 'Физлицо': 'Физическое лицо' },
   signing_method: { 'ЭДО': 'Электронный документооборот', 'Лично': 'Лично' }
@@ -3083,7 +3104,17 @@ function wireTenantType(scope, fallbackType) {
   if (!scope || scope.__cmTenantType) { applyTenantTypeToForm(scope, fallbackType); return; }
   scope.__cmTenantType = true;
   const sel = scope.querySelector('[data-field="tenant_type"]');
-  if (sel) sel.addEventListener('change', function() { applyTenantTypeToForm(scope); const inn = scope.querySelector('[data-field="inn"]'); if (inn && inn.__cmInnRun) inn.__cmInnRun(); });
+  if (sel) sel.addEventListener('change', function() {
+    const current = {};
+    scope.querySelectorAll('[data-field]').forEach(function(el) { current[el.getAttribute('data-field')] = el.value; });
+    const changes = tenantTypeChanges(sel.value, current);
+    Object.keys(changes).forEach(function(name) {
+      const el = scope.querySelector('[data-field="' + name + '"]');
+      if (el) { el.value = changes[name]; fireInput(el); }
+    });
+    applyTenantTypeToForm(scope);
+    const inn = scope.querySelector('[data-field="inn"]'); if (inn && inn.__cmInnRun) inn.__cmInnRun();
+  });
   applyTenantTypeToForm(scope, fallbackType);
 }
 
@@ -4718,7 +4749,7 @@ async function openDraftModal(id, isQuickHint) {
     overlay.__cmContractId = realId;
     body.style.color = '';
     body.innerHTML = r.is_quick ? renderQuickFormingBody(r, currentUser) : renderFormingBody(r, currentUser);
-    paintInnStatus(overlay);
+    paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-forming', 'draft', realId, currentUser);
     await wireContacts(overlay, 'cm-forming', 'draft', realId, canEditActiveBlocks(currentUser));
     await wirePrices(overlay, 'cm-forming', 'draft', realId, canEditActiveBlocks(currentUser), r);
@@ -5085,7 +5116,7 @@ async function openFormingContractModal(id) {
 
     body.style.color = '';
     body.innerHTML = r.is_quick ? renderQuickFormingBody(r, currentUser) : renderFormingBody(r, currentUser);
-    paintInnStatus(overlay);
+    paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-forming', 'forming', id, currentUser);
     await wireContacts(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser));
     await wirePrices(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser), r);

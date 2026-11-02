@@ -1331,16 +1331,17 @@ function wireAreaLines(scope) {
     const hidden = box.querySelector('[data-field="area_lines"]'), on = box.querySelector('[data-al-on]'), body = box.querySelector('[data-al-body]');
     const form = box.closest('.cm-stage-form') || box.parentNode;
     const modal = box.closest('#contract-modal-root') || box.closest('#forming-modal-root') || form;
+    const quick = form.getAttribute('data-stage') === 'quick';
     function rowOf(name, scopeEl) { const el = scopeEl.querySelector('[data-field="' + name + '"]'); return el ? { el: el, row: el.closest('.cm-field-row') } : null; }
     function setMode(multi) {
-      // площадь и ставка за метр — заменяются таблицей; арендная плата в месяц — только чтение (считается по площадям)
+      // площадь и ставка за метр — заменяются таблицей; в быстром договоре сумму можно поправить вручную
       ['area_sqm', 'rent_per_sqm', 'base_rent_per_sqm'].forEach(function(n) { const x = rowOf(n, form); if (x && x.row) x.row.style.display = multi ? 'none' : ''; });
       ['rent_amount', 'base_rent_amount'].forEach(function(n) {
         modal.querySelectorAll('[data-field="' + n + '"]').forEach(function(el) {
-          el.readOnly = multi; el.classList.toggle('cm-field-calc', multi);
+          el.readOnly = multi && !quick; el.classList.toggle('cm-field-calc', multi && !quick);
           const row = el.closest('.cm-field-row'); if (!row) return;
           let h = row.querySelector('.cm-al-hint');
-          if (multi && !h) { h = document.createElement('div'); h.className = 'cm-derived-hint cm-al-hint'; h.textContent = 'Считается по площадям'; row.appendChild(h); }
+          if (multi && !h) { h = document.createElement('div'); h.className = 'cm-derived-hint cm-al-hint'; h.textContent = quick ? 'Сумма рассчитана по площадям, её можно изменить' : 'Считается по площадям'; row.appendChild(h); }
           if (!multi && h) h.remove();
         });
       });
@@ -1520,7 +1521,7 @@ async function logFieldChanges(type, id, oldRec, values) {
 async function updateWithHistory(collection, id, values, opts) {
   let old = null;
   try { old = histPayload(await ctx.api.resource(collection).get({ filterByTk: id })); } catch (e) { old = null; }
-  let derived = areaLinesUpdates(values, collection);
+  let derived = areaLinesUpdates(values, collection, !!(old && old.is_quick));
   if (Object.keys(derived).length) values = Object.assign({}, values, derived);
   // цены по графику ставятся точными значениями — основные суммы от смены текущей площади не пересчитываем
   if (old && DERIVED_COLLECTIONS[collection] && !(opts && opts.schedule)) {
@@ -1694,13 +1695,14 @@ function hasKey(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
 // или совпадала с прежним расчётом (то есть не правилась вручную); ставка — только если пустая.
 // несколько площадей: площадь = сумма площадей, арендная плата = сумма «площадь × ставка», ставки за метр нет.
 // У активного это основная цена (base_*), текущую затем выставляет «Дополнительные расчёты аренды»
-function areaLinesUpdates(values, collection) {
+function areaLinesUpdates(values, collection, allowManualRent) {
   const upd = {};
   const lines = hasKey(values, 'area_lines') ? areaLinesOf(values.area_lines) : null;
   if (!lines || !lines.length) return upd;
   const t = areaLinesTotals(lines), act = collection === 'rental_contracts';
   upd.area_sqm = t.area;
-  upd[act ? 'base_rent_amount' : 'rent_amount'] = t.rent;
+  const rentField = act ? 'base_rent_amount' : 'rent_amount';
+  if (!allowManualRent || !hasKey(values, rentField)) upd[rentField] = t.rent;
   upd[act ? 'base_rent_per_sqm' : 'rent_per_sqm'] = null;
   return upd;
 }
@@ -4518,7 +4520,7 @@ function wireAutoSaveDraftLazy(root, stageOrQuick, statusElId, isQuick, currentU
     if (!hasAny) { if (statusEl) statusEl.textContent = ''; return Promise.resolve(); }
     creating = true;
     if (statusEl) statusEl.textContent = 'Сохранение…';
-    return ctx.api.resource('draft_contracts').create({ values: Object.assign({}, values, areaLinesUpdates(values, 'draft_contracts'), { is_quick: !!isQuick, created_by_id: currentUserId, last_activity_at: new Date().toISOString() }) })
+    return ctx.api.resource('draft_contracts').create({ values: Object.assign({}, values, areaLinesUpdates(values, 'draft_contracts', isQuick), { is_quick: !!isQuick, created_by_id: currentUserId, last_activity_at: new Date().toISOString() }) })
       .then(function(res) {
         const rec = (res && res.data && res.data.data) ? res.data.data : res.data;
         if (statusEl) {

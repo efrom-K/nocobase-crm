@@ -443,14 +443,17 @@
       badge = document.createElement('span');
       badge.id = 'crmp-mayday-countdown';
       badge.setAttribute('role', 'status');
-      badge.style.cssText = 'position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;white-space:nowrap;font-size:12px;color:inherit;pointer-events:none;z-index:20;';
+      badge.style.cssText = 'position:fixed;transform:translateY(-50%);display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;font-weight:600;line-height:16px;color:#fff;background:rgba(255,255,255,.15);padding:0 6px;border-radius:9px;pointer-events:none;z-index:1000;';
+      document.body.appendChild(badge);
     }
-    btn.style.position = 'relative';
-    if (badge.parentNode !== btn) btn.appendChild(badge);
     const days = mayDayCountdown(new Date());
-    const text = days === 0 ? 'С 1 Мая!' : 'До 1 мая: ' + days + ' дн.';
+    const text = days === 0 ? 'С 1 Мая!' : days + ' дн.';
     if (badge.textContent !== text) badge.textContent = text;
-    badge.title = 'Ежегодный отсчёт до 1 мая';
+    badge.title = days === 0 ? 'С 1 Мая!' : 'Дней до 1 мая';
+    const group = btn.parentNode.parentNode.parentNode.parentNode;
+    const groupRect = group.getBoundingClientRect(), buttonRect = btn.getBoundingClientRect();
+    badge.style.left = Math.max(8, groupRect.left - badge.getBoundingClientRect().width - 8) + 'px';
+    badge.style.top = buttonRect.top + buttonRect.height / 2 + 'px';
   }
   function decorate(force) {
     const me = P.me && (P.byId[P.me.id] || P.me);

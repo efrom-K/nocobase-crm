@@ -13,7 +13,7 @@ const { simpleParser } = require('mailparser');
 const iconv = require('iconv-lite');
 const libqp = require('libqp');
 const { convert: htmlToText } = require('html-to-text');
-const archiver = require('archiver');
+const { ZipArchive } = require('archiver');
 
 const env = process.env;
 const PORT = Number(env.PORT) || 8096;
@@ -106,6 +106,11 @@ async function boxesAdd(user, b) {
   if (mine.length >= 10) throw new ApiError(400, 'TOO_MANY', 'Можно подключить до 10 ящиков');
   let h = b.imapHost ? { imapHost: String(b.imapHost).trim(), imapPort: Number(b.imapPort) || 993, smtpHost: String(b.smtpHost || b.imapHost).trim(), smtpPort: Number(b.smtpPort) || 465 } : await guessHosts(email);
   if (!h) throw new ApiError(422, 'NEED_HOSTS', 'Не знаем серверы этой почты — укажите их вручную');
+  // Пользователь не должен превращать проверку почты в доступ к внутренним службам.
+  const allowed = Object.values(MAIL_PRESETS).concat({ imapHost: IMAP_HOST, imapPort: IMAP_PORT, smtpHost: SMTP_HOST, smtpPort: SMTP_PORT });
+  if (!allowed.some(a => a.imapHost === h.imapHost && a.imapPort === h.imapPort && a.smtpHost === h.smtpHost && a.smtpPort === h.smtpPort)) {
+    throw new ApiError(422, 'HOST_NOT_ALLOWED', 'Этот почтовый сервер не разрешён. Обратитесь к администратору');
+  }
   // проверить вход до сохранения: IMAP и SMTP
   const c = new ImapFlow({ host: h.imapHost, port: h.imapPort, secure: true, auth: { user: email, pass: pass }, logger: false, emitLogs: false });
   c.on('error', () => {});
@@ -423,6 +428,31 @@ async function readMessage(client, folder, uid) {
 // ---------- отправка ----------
 const uploads = new Map();   // id -> { owner, filename, contentType, content, exp }
 function cleanUploads() { const now = Date.now(); for (const [k, u] of uploads) if (u.exp < now) uploads.delete(k); }
+let pendingUploadBytes = 0;
+const pendingUploads = new Map();
+async function storeUpload(req, owner) {
+  cleanUploads();
+  let total = pendingUploadBytes, own = pendingUploads.get(owner) || 0;
+  for (const u of uploads.values()) { total += u.content.length; if (u.owner === owner) own += u.content.length; }
+  // Резервируем размер до чтения тела: параллельные запросы тоже входят в лимит.
+  if (total + MAX_UPLOAD > MAX_UPLOAD * 10 || own + MAX_UPLOAD > MAX_UPLOAD * 4) {
+    throw new ApiError(429, 'UPLOAD_LIMIT', 'Слишком много вложений. Отправьте письмо или попробуйте позже');
+  }
+  pendingUploadBytes += MAX_UPLOAD;
+  pendingUploads.set(owner, (pendingUploads.get(owner) || 0) + MAX_UPLOAD);
+  try {
+    const content = await readBody(req, MAX_UPLOAD);
+    const id = crypto.randomBytes(12).toString('hex');
+    let filename = 'file';
+    try { filename = decodeURIComponent(String(req.headers['x-filename'] || 'file')); } catch (e) { /* ignore */ }
+    uploads.set(id, { owner, filename: filename.slice(0, 200), contentType: req.headers['content-type'] || 'application/octet-stream', content, exp: Date.now() + 3600 * 1000 });
+    return { id, size: content.length };
+  } finally {
+    pendingUploadBytes -= MAX_UPLOAD;
+    const left = pendingUploads.get(owner) - MAX_UPLOAD;
+    if (left) pendingUploads.set(owner, left); else pendingUploads.delete(owner);
+  }
+}
 function transportFor(email) {
   const h = boxHosts(email);
   return nodemailer.createTransport({ host: h.smtpHost, port: h.smtpPort, secure: h.smtpPort === 465, auth: { user: boxAddr(email), pass: getPassword(email) } });
@@ -929,7 +959,7 @@ const server = http.createServer(async (req, res) => {
       if (!atts.length) throw new ApiError(404, 'NOT_FOUND', 'В письме нет вложений');
       res.writeHead(200, Object.assign({ 'Content-Type': 'application/zip', 'Cache-Control': 'no-store',
         'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent('Вложения.zip') }, corsHeaders(origin)));
-      const zip = archiver('zip', { zlib: { level: 6 } });
+      const zip = new ZipArchive({ zlib: { level: 6 } });
       zip.pipe(res);
       const used = new Set();
       atts.forEach((a, i) => {
@@ -1020,13 +1050,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true }, origin);
     }
     if (p === '/api/upload' && req.method === 'POST') {
-      cleanUploads();
-      const content = await readBody(req, MAX_UPLOAD);
-      const id = crypto.randomBytes(12).toString('hex');
-      let filename = 'file';
-      try { filename = decodeURIComponent(String(req.headers['x-filename'] || 'file')); } catch (e) { /* ignore */ }
-      uploads.set(id, { owner: email, filename: filename.slice(0, 200), contentType: req.headers['content-type'] || 'application/octet-stream', content, exp: Date.now() + 3600 * 1000 });
-      return send(res, 200, { id, size: content.length }, origin);
+      return send(res, 200, await storeUpload(req, email), origin);
     }
     if ((p === '/api/send' || p === '/api/draft') && req.method === 'POST') {
       const b = await readJson(req);

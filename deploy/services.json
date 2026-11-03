@@ -29,7 +29,8 @@
       "server.js",
       "Dockerfile",
       "docker-compose.yml",
-      "package.json"
+      "package.json",
+      "package-lock.json"
     ]
   },
   "brand": {

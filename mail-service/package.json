@@ -5,11 +5,14 @@
   "main": "server.js",
   "license": "MIT",
   "dependencies": {
+    "archiver": "^8.0.0",
+    "html-to-text": "^10.0.1",
     "imapflow": "^1.0.0",
-    "mailparser": "^3.7.0",
-    "nodemailer": "^6.9.0",
-    "archiver": "^7.0.1",
-    "html-to-text": "^9.0.5",
-    "libqp": "^2.1.0"
+    "libqp": "^2.1.0",
+    "mailparser": "^3.9.32",
+    "nodemailer": "^10.3.1"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }

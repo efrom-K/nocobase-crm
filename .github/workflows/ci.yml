@@ -41,6 +41,10 @@ jobs:
         run: python3 tests/price_logic_test.py
       - name: Mail quote security
         run: node tests/mail_quote_security_test.js
+      - name: Mail service security
+        run: |
+          npm ci --ignore-scripts --prefix mail-service
+          node mail-service/security.test.js
       - name: AHO routine dates
         run: node tests/aho_dates_test.js
       - name: Object directory and contract selection

@@ -430,12 +430,34 @@
 
   // кнопка профиля и её меню — NocoBase перерисовывает шапку сам, поэтому проверка по таймеру (MutationObserver в блоках нельзя)
   let lastKey = '';
+  function mayDayCountdown(now) {
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    let target = Date.UTC(now.getFullYear(), 4, 1);
+    if (today > target) target = Date.UTC(now.getFullYear() + 1, 4, 1);
+    return (target - today) / 86400000;
+  }
+  function paintMayDay(btn) {
+    if (!btn || !btn.parentNode) return;
+    let badge = document.getElementById('crmp-mayday-countdown');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'crmp-mayday-countdown';
+      badge.setAttribute('role', 'status');
+      badge.style.cssText = 'display:inline-flex;align-items:center;white-space:nowrap;font-size:12px;color:inherit;margin-right:8px;';
+    }
+    if (badge.parentNode !== btn.parentNode || badge.nextSibling !== btn) btn.parentNode.insertBefore(badge, btn);
+    const days = mayDayCountdown(new Date());
+    const text = days === 0 ? 'С 1 Мая!' : 'До 1 мая: ' + days + ' дн.';
+    if (badge.textContent !== text) badge.textContent = text;
+    badge.title = 'Ежегодный отсчёт до 1 мая';
+  }
   function decorate(force) {
     const me = P.me && (P.byId[P.me.id] || P.me);
     if (!me) return;
     const s = active(me);
     const key = me.id + '|' + photo(me) + '|' + JSON.stringify(s) + '|' + name(me) + '|' + me.phone + '|' + me.email + '|' + me.cover_style + '|' + JSON.stringify(me.cover || null);
     const btn = document.querySelector('[data-testid=user-center-button]');
+    paintMayDay(btn);
     if (btn && (force || key !== lastKey || !btn.querySelector('.crmp-ava'))) {
       btn.classList.add('crmp-on');
       const old = btn.querySelector('.crmp-ava'); if (old) old.remove();

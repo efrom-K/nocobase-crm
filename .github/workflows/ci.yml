@@ -51,6 +51,8 @@ jobs:
         run: node tests/objects.test.js
       - name: Contract tenant type changes
         run: node tests/tenant_type.test.js
+      - name: HR vacation PDF storage
+        run: node tests/hr_vacation_files.test.js
       - name: Time input controls
         run: node tests/time_controls.test.js
       - name: Object map navigation

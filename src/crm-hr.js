@@ -357,7 +357,7 @@ const HR_RANKS = ['рядовой', 'ефрейтор', 'младший серж
 const HR_AVA = ['#1c2d58', '#13a8a8', '#722ed1', '#d46b08', '#389e0d', '#c41d7f', '#2f4373', '#08979c'];
 const HR_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const hr = { d: null, me: null, myEmp: null, tab: '', staffView: 'list', le: '', type: '', dept: '', q: '', fired: false, only: null,
-  year: new Date().getFullYear(), orgQ: '', mxLe: '', hireView: 'funnel', hireVac: '', ownView: 'le', ownHist: false };
+  vacView: 'calendar', vacPdfQ: '', year: new Date().getFullYear(), orgQ: '', mxLe: '', hireView: 'funnel', hireVac: '', ownView: 'le', ownHist: false };
 
 // ---------- мелочи ----------
 function hEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -609,8 +609,8 @@ async function hLoadFiles() { try { hr.d.files = hRows(await ctx.api.resource('c
 function hFilesBox(entity, id, skip) {
   const list = id ? hFilesOf(entity, id).filter(function(f) { return !skip || skip.indexOf(f.doc) === -1; }) : [];
   return '<div class="hr-files" data-files="' + entity + '"><div class="hr-files-h"><b>' + (skip ? 'Другие документы' : 'Документы') + '</b>'
-    + '<select data-fkind>' + HR_DOC_KINDS[entity].map(function(k) { return '<option>' + hEsc(k) + '</option>'; }).join('') + '</select>'
-    + '<label class="hr-btn sm" style="cursor:pointer;">📎 Прикрепить<input type="file" multiple data-fup style="display:none;"></label></div>'
+    + '<select data-fkind' + (entity === 'vac_schedule' ? ' aria-label="Отдел"' : '') + '>' + HR_DOC_KINDS[entity].map(function(k) { return '<option>' + hEsc(k) + '</option>'; }).join('') + '</select>'
+    + '<label class="hr-btn sm" style="cursor:pointer;">📎 Прикрепить<input type="file" multiple data-fup' + (entity === 'vac_schedule' ? ' accept=".pdf,application/pdf"' : '') + ' style="display:none;"></label></div>'
     + '<div class="hr-lines" data-flist>' + (list.length ? list.map(hFileRow).join('') : '<div class="hr-hint" style="margin:0;">Файлов нет' + (id ? '' : ' — прикреплённые сейчас сохранятся вместе с записью') + '</div>') + '</div></div>';
 }
 // загрузить файлы и привязать к записи; у новой записи — отложить до сохранения (m.__pending)
@@ -618,6 +618,7 @@ async function hAttach(files, entity, id, doc, m) {
   let n = 0;
   for (const f of files) {
     try {
+      if (entity === 'vac_schedule' && (!/\.pdf$/i.test(f.name) || await f.slice(0, 5).text() !== '%PDF-')) { hToast('Выберите PDF: ' + f.name); continue; }
       const a = await hUpload(f);
       if (id) await ctx.api.resource('crm_hr_files').create({ values: { entity: entity, record_id: id, doc: doc, file_id: a.id } });
       else { m.__pending = m.__pending || []; m.__pending.push({ entity: entity, doc: doc, file_id: a.id, file: a }); }
@@ -980,6 +981,7 @@ hRoot().addEventListener('input', function(e) {
   const f = e.target.getAttribute('data-f');
   if (f === 'q') { hr.q = e.target.value; hRenderStaffList(); }
   if (f === 'oq') { hr.orgQ = e.target.value; hRenderOrg(); }
+  if (f === 'vacPdfQ') { hr.vacPdfQ = e.target.value; hFilterVacPdfs(); }
 });
 hStart();
 
@@ -1238,6 +1240,8 @@ function hXlsSpec(o, leIds) {
 function hOnClick(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
   if (c('a[href^="tel:"], a[href^="mailto:"], a[target], a[data-hrfile], a.hr-cb')) return;
+  const vacView = c('[data-vac-view]');
+  if (vacView && hCan()) { hr.vacView = vacView.getAttribute('data-vac-view'); hRenderVac(); return; }
   const tab = c('[data-tab]');
   if (tab) { hr.tab = tab.getAttribute('data-tab'); hr.only = null; hRender(); try { window.scrollTo(0, 0); } catch (err) { /* песочница */ } return; }
   const act = c('[data-act]'), a = act && act.getAttribute('data-act');
@@ -1981,6 +1985,36 @@ function hOpenVac(v, preset, after) {
     }, after: after });
 }
 function hRenderVac() {
+  const box = hBody();
+  if (!hCan()) { hRenderVacCalendar(box); return; }
+  box.innerHTML = '<div class="hr-tabs">' + [['calendar', 'Календарь'], ['files', 'PDF по отделам']].map(function(v) {
+    return '<button type="button" class="hr-tab' + (hr.vacView === v[0] ? ' on' : '') + '" data-vac-view="' + v[0] + '">' + v[1] + '</button>';
+  }).join('') + '</div><div data-vac-body></div>';
+  const panel = box.querySelector('[data-vac-body]');
+  if (hr.vacView === 'files') hRenderVacPdfs(panel); else hRenderVacCalendar(panel);
+}
+function hFilterVacPdfs() {
+  const box = hRoot().querySelector('[data-files="vac_schedule"]');
+  if (!box) return;
+  const q = hr.vacPdfQ.trim().toLocaleLowerCase('ru');
+  box.querySelector('[data-flist]').querySelectorAll(':scope > div').forEach(function(row) {
+    row.style.display = row.textContent.toLocaleLowerCase('ru').indexOf(q) === -1 ? 'none' : '';
+  });
+}
+function hRenderVacPdfs(box) {
+  HR_DOC_KINDS.vac_schedule = ['Общий график'].concat(hr.d.depts.map(function(d) { return d.name; }))
+    .filter(function(v, i, a) { return v && a.indexOf(v) === i; });
+  box.innerHTML = '<div class="hr-bar"><button class="hr-btn sm" data-act="year" data-d="-1" aria-label="Предыдущий год">←</button><b>' + hr.year + '</b>'
+    + '<button class="hr-btn sm" data-act="year" data-d="1" aria-label="Следующий год">→</button>'
+    + '<input type="search" data-f="vacPdfQ" aria-label="Поиск PDF по имени файла или отделу" placeholder="Файл или отдел" value="' + hEsc(hr.vacPdfQ) + '"></div>'
+    + '<div class="hr-hint">Графики отпусков за ' + hr.year + ' год. Выберите отдел и прикрепите PDF. Нажмите на имя файла, чтобы открыть.</div>'
+    + '<div class="hr-card">' + hFilesBox('vac_schedule', hr.year) + '</div>';
+  const year = hr.year;
+  hWireFiles(box, 'vac_schedule', function() { return year; }, hFilterVacPdfs);
+  hFilterVacPdfs();
+}
+
+function hRenderVacCalendar(box) {
   const y = hr.year, diy = hDays(y + '-01-01', (y + 1) + '-01-01'), t = hToday(), can = hCan();
   const mw = HR_MONTHS.map(function(x, i) { return hDays(hIso(new Date(y, i, 1)), hIso(new Date(y, i + 1, 1))) / diy * 100; });
   const bg = mw.map(function(w, i) { return '<i style="width:' + w + '%;"' + (i % 2 ? ' class="odd"' : '') + '></i>'; }).join('');
@@ -2000,7 +2034,7 @@ function hRenderVac() {
     return grp + '<tr><td class="nm" data-emp="' + e.id + '">' + hEsc(e.full_name) + '</td><td><div class="hr-track"' + (can ? ' data-track="' + e.id + '"' : '') + '>' + bg + bars + now + '</div></td>'
       + '<td class="rest' + (left < 0 ? ' hr-late' : left > 0 && y <= new Date().getFullYear() ? '' : ' hr-ok') + '"' + (can ? ' data-vdays="' + e.id + '" style="cursor:pointer;"' : '') + ' title="осталось из ' + (e.vacation_days || 28) + (can ? ' — нажмите, чтобы изменить норму' : '') + '">' + left + ' <span class="hr-hint">из ' + (e.vacation_days || 28) + '</span></td></tr>';
   }).join('');
-  hBody().innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1" title="Отпуска прошлого года">‹ ' + (y - 1) + '</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">' + (y + 1) + ' ›</button>'
+  box.innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1" title="Отпуска прошлого года">‹ ' + (y - 1) + '</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">' + (y + 1) + ' ›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
       + '<span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — оформление «—» (приказа пока нет)</span><span><i style="background:#c23b3b;width:2px;"></i>сегодня</span></div>'
     + (can ? '<button class="hr-btn" data-act="vac1c" style="margin-left:auto;margin-right:8px;" title="Отчёт 1С «Отпуска сотрудников», сохранённый в Excel">⬆ Загрузить из 1С</button>' : '')

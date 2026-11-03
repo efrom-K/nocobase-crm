@@ -18,7 +18,7 @@ vm.runInContext(src.slice(src.indexOf('const uploads ='), src.indexOf('function 
 const req = { headers: { 'x-filename': 'note.txt' } };
 (async () => {
   const user = { userId: 1, email: 'me@example.com' };
-  for (const host of ['127.0.0.1', '169.254.169.254', '192.168.1.249', '::1', 'evil.example']) {
+  for (const host of ['127.0.0.1', '169.254.169.254', '192.0.2.10', '::1', 'evil.example']) {
     await assert.rejects(ctx.boxesAdd(user, { email: 'box@example.com', password: 'test', imapHost: host }), { code: 'HOST_NOT_ALLOWED' });
   }
   assert.equal(connections, 0);

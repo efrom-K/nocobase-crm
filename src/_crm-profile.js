@@ -443,13 +443,13 @@
       badge = document.createElement('span');
       badge.id = 'crmp-mayday-countdown';
       badge.setAttribute('role', 'status');
-      badge.style.cssText = 'position:fixed;transform:translateY(-50%);display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;font-weight:600;line-height:16px;color:#fff;background:rgba(255,255,255,.15);padding:0 6px;border-radius:9px;pointer-events:none;z-index:1000;';
+      badge.style.cssText = 'position:fixed;transform:translateY(-50%);display:inline-flex;align-items:center;white-space:pre-line;text-align:center;font-size:10px;font-weight:600;line-height:12px;color:#fff;background:rgba(255,255,255,.15);padding:2px 6px;border-radius:9px;pointer-events:none;z-index:1000;';
       document.body.appendChild(badge);
     }
     const days = mayDayCountdown(new Date());
-    const text = days === 0 ? 'С 1 Мая!' : days + ' дн.';
+    const text = days === 0 ? 'С 1 Мая!' : 'До 1 мая\n' + days + ' дн.';
     if (badge.textContent !== text) badge.textContent = text;
-    badge.title = days === 0 ? 'С 1 Мая!' : 'Дней до 1 мая';
+    badge.title = days === 0 ? 'С 1 Мая!' : 'До 1 мая: ' + days + ' дн.';
     const group = btn.parentNode.parentNode.parentNode.parentNode;
     const groupRect = group.getBoundingClientRect(), buttonRect = btn.getBoundingClientRect();
     badge.style.left = Math.max(8, groupRect.left - badge.getBoundingClientRect().width - 8) + 'px';

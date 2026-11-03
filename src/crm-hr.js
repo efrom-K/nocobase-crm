@@ -221,6 +221,10 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-pick label { display:block; font-size:13px; padding:2px 0; break-inside:avoid; cursor:pointer; }
     .hr-lock { font-size:12.5px; color:#5b6478; }
     .hr-files { margin-top:14px; border-top:1px dashed #dfe3ec; padding-top:10px; }
+    .hr-vac-pdfs .hr-files { margin-top:0; border-top:none; padding-top:0; }
+    .hr-vac-pdfs .hr-lines > div { flex-wrap:wrap; }
+    .hr-vac-pdfs .hr-flink { overflow-wrap:anywhere; }
+    .hr-vac-pdfs .hr-files-h select { max-width:100%; }
     .hr-files-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
     .hr-files-h b { font-size:13.5px; margin-right:auto; }
     .hr-files-h select { font-size:12.5px; padding:4px 8px; }
@@ -241,6 +245,7 @@ if (!document.getElementById('crm-hr-style')) {
       .hr-cols, .hr-secs, .hr-form { grid-template-columns:1fr; }
       .hr-new { margin-left:0; width:100%; }
       .hr-bar select, .hr-bar input[type=text] { flex:1 1 100%; min-width:0; }
+      .hr-vac-pdfs .hr-lines > div > span:first-child { flex-basis:100%; }
       .hr-modal { padding:0; }
       .hr-box { border-radius:0; min-height:100%; max-width:none; }
       .hr-tl td.nm { width:110px; }
@@ -2006,9 +2011,9 @@ function hRenderVacPdfs(box) {
     .filter(function(v, i, a) { return v && a.indexOf(v) === i; });
   box.innerHTML = '<div class="hr-bar"><button class="hr-btn sm" data-act="year" data-d="-1" aria-label="Предыдущий год">←</button><b>' + hr.year + '</b>'
     + '<button class="hr-btn sm" data-act="year" data-d="1" aria-label="Следующий год">→</button>'
-    + '<input type="search" data-f="vacPdfQ" aria-label="Поиск PDF по имени файла или отделу" placeholder="Файл или отдел" value="' + hEsc(hr.vacPdfQ) + '"></div>'
+    + '<input type="text" data-f="vacPdfQ" aria-label="Поиск PDF по имени файла или отделу" placeholder="Файл или отдел" value="' + hEsc(hr.vacPdfQ) + '"></div>'
     + '<div class="hr-hint">Графики отпусков за ' + hr.year + ' год. Выберите отдел и прикрепите PDF. Нажмите на имя файла, чтобы открыть.</div>'
-    + '<div class="hr-card">' + hFilesBox('vac_schedule', hr.year) + '</div>';
+    + '<div class="hr-card hr-vac-pdfs">' + hFilesBox('vac_schedule', hr.year) + '</div>';
   const year = hr.year;
   hWireFiles(box, 'vac_schedule', function() { return year; }, hFilterVacPdfs);
   hFilterVacPdfs();

@@ -437,7 +437,7 @@
     return (target - today) / 86400000;
   }
   function paintMayDay(btn) {
-    if (!btn || !btn.parentNode) return;
+    if (!document.body) return;
     let badge = document.getElementById('crmp-mayday-countdown');
     if (!badge) {
       badge = document.createElement('span');
@@ -450,18 +450,26 @@
     const text = days === 0 ? 'С 1 Мая!' : 'До 1 мая\n' + days + ' дн.';
     if (badge.textContent !== text) badge.textContent = text;
     badge.title = days === 0 ? 'С 1 Мая!' : 'До 1 мая: ' + days + ' дн.';
-    const group = btn.parentNode.parentNode.parentNode.parentNode;
-    const groupRect = group.getBoundingClientRect(), buttonRect = btn.getBoundingClientRect();
-    badge.style.left = Math.max(8, groupRect.left - badge.getBoundingClientRect().width - 8) + 'px';
-    badge.style.top = buttonRect.top + buttonRect.height / 2 + 'px';
+    const buttonRect = btn && btn.getBoundingClientRect();
+    if (buttonRect && buttonRect.width) {
+      const group = btn.parentNode.parentNode.parentNode.parentNode;
+      const groupRect = group.getBoundingClientRect();
+      badge.style.left = Math.max(8, groupRect.left - badge.getBoundingClientRect().width - 8) + 'px';
+      badge.style.right = 'auto';
+      badge.style.top = buttonRect.top + buttonRect.height / 2 + 'px';
+    } else {
+      badge.style.left = 'auto';
+      badge.style.right = '44px';
+      badge.style.top = '23px';
+    }
   }
   function decorate(force) {
+    const btn = document.querySelector('[data-testid=user-center-button]');
+    paintMayDay(btn);
     const me = P.me && (P.byId[P.me.id] || P.me);
     if (!me) return;
     const s = active(me);
     const key = me.id + '|' + photo(me) + '|' + JSON.stringify(s) + '|' + name(me) + '|' + me.phone + '|' + me.email + '|' + me.cover_style + '|' + JSON.stringify(me.cover || null);
-    const btn = document.querySelector('[data-testid=user-center-button]');
-    paintMayDay(btn);
     if (btn && (force || key !== lastKey || !btn.querySelector('.crmp-ava'))) {
       btn.classList.add('crmp-on');
       const old = btn.querySelector('.crmp-ava'); if (old) old.remove();

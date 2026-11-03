@@ -1328,10 +1328,9 @@ function wireAreaLines(scope) {
   scope.querySelectorAll('[data-al]').forEach(function(box) {
     if (box.__cmAl) return;
     box.__cmAl = true;
-    const modal = box.closest('#contract-modal-root') || box.closest('#forming-modal-root') || box.parentNode;
-    const form = box.closest('.cm-stage-form') || (box.getAttribute('data-al-form') && modal.querySelector('.cm-stage-form[data-stage="quick"]')) || box.parentNode;
-    const hidden = box.querySelector('[data-field="area_lines"]') || form.querySelector('[data-field="area_lines"]'), on = box.querySelector('[data-al-on]'), body = box.querySelector('[data-al-body]');
-    if (!hidden || !on || !body) return;
+    const hidden = box.querySelector('[data-field="area_lines"]'), on = box.querySelector('[data-al-on]'), body = box.querySelector('[data-al-body]');
+    const form = box.closest('.cm-stage-form') || box.parentNode;
+    const modal = box.closest('#contract-modal-root') || box.closest('#forming-modal-root') || form;
     const quick = form.getAttribute('data-stage') === 'quick';
     function rowOf(name, scopeEl) { const el = scopeEl.querySelector('[data-field="' + name + '"]'); return el ? { el: el, row: el.closest('.cm-field-row') } : null; }
     function setMode(multi) {
@@ -1928,7 +1927,7 @@ function nextFieldChange(periods, rec, iso, field) {
 // реестр (registry-tabs.js) показывает ту же плашку «с даты: цена» рядом с ценой в таблице — расчёт один на оба места
 window.__cmNextFieldChange = nextFieldChange;
 
-function renderPricesSection(prefix, quickRec) {
+function renderPricesSection(prefix) {
   const comp = function(c) {
     return '<div class="cm-price-comp" data-comp="' + c.key + '"><label class="cm-price-check"><input type="checkbox" data-comp-on="' + c.key + '"> ' + esc(c.title) + '</label>'
       + '<div class="cm-price-comp-fields" style="display:none;">'
@@ -1942,7 +1941,6 @@ function renderPricesSection(prefix, quickRec) {
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные расчёты аренды</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Период</button></div>'
-    + (quickRec ? '<div class="cm-field-row full"><div class="cm-label">Основные площади и ставки договора</div>' + renderAreaLinesControl(quickRec.area_lines, false, true) + '</div>' : '')
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-list"><div style="color:#5b6478;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
@@ -3222,16 +3220,14 @@ function readonlyFieldValue(f, r) {
   return esc(v);
 }
 
-function renderAreaLinesControl(value, includeField, quick) {
-  const lines = areaLinesOf(value) || [];
-  return '<div class="cm-field-row cm-al" data-al' + (quick ? ' data-al-form="quick"' : '') + '>'
-    + '<label class="cm-field-checkbox" style="margin:0;"><input type="checkbox" data-al-on' + (lines.length ? ' checked' : '') + '> Несколько площадей с разными ставками</label>'
-    + (includeField ? '<input type="hidden" data-field="area_lines" value="' + escAttr(lines.length ? JSON.stringify(lines) : '') + '">' : '')
-    + '<div data-al-body></div></div>';
-}
 function renderEditableField(f, value, rec) {
   if (f.type === 'arealines') {
-    return renderAreaLinesControl(value, true, false);
+    // галочка + таблица «площадь × ставка» прямо в форме; при галочке поля площади и ставки заменяются таблицей (wireAreaLines)
+    const lines = areaLinesOf(value) || [];
+    return '<div class="cm-field-row cm-al" data-al>'
+      + '<label class="cm-field-checkbox" style="margin:0;"><input type="checkbox" data-al-on' + (lines.length ? ' checked' : '') + '> Несколько площадей с разными ставками</label>'
+      + '<input type="hidden" data-field="area_lines" value="' + escAttr(lines.length ? JSON.stringify(lines) : '') + '">'
+      + '<div data-al-body></div></div>';
   }
   if (f.type === 'scan') {
     return '<div class="cm-field-row"><div class="cm-label">' + esc(f.label) + '</div><div style="display:flex;align-items:center;gap:8px;">'
@@ -3346,8 +3342,6 @@ function wireFieldMasks(root, stageIndex) {
   wireTenantType(formEl);
   formEl.querySelectorAll('[data-field="inn"]').forEach(attachInnLookup);
   wireFieldRules(formEl);
-  const quickAreaLines = root.querySelector('[data-al-form="quick"]');
-  if (quickAreaLines) wireAreaLines(quickAreaLines.parentNode);
   bindComboField(formEl, 'object_name');
 }
 
@@ -3721,7 +3715,7 @@ function renderFormingBody(r, currentUser) {
 // beforeHistory — разметка между доп. соглашениями и историей (кнопки срочного договора стоят в самом низу)
 function renderFormingSideSections(r, currentUser, beforeHistory) {
   const files = r.contract_files || [];
-  return renderPricesSection('cm-forming', r.is_quick ? r : null) + renderContactsSection('cm-forming')
+  return renderPricesSection('cm-forming') + renderContactsSection('cm-forming')
     + '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
     + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser, recScans(r, true)) + '</div>'
     + '<div class="cm-upload-row"><input type="file" id="cm-forming-file-input" style="display:none;">'
@@ -3752,7 +3746,7 @@ function renderQuickFormingBody(r, currentUser) {
     + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — сразу вся карточка договора, без этапов оформления</div>';
   html += '<div class="cm-stage-form" data-stage="quick">' + QUICK_BLOCK_DEFS.map(function(block) {
     return '<div class="cm-section" style="order:' + (QUICK_BLOCK_ORDER[block.key] || 9) + '"><div class="cm-section-title">' + esc(block.title) + '</div>'
-      + block.fields.map(function(f) { const lines = areaLinesOf(r.area_lines); return f.name === 'area_lines' ? '<input type="hidden" data-field="area_lines" value="' + escAttr(lines && lines.length ? JSON.stringify(lines) : '') + '">' : renderEditableField(f, r[f.name], r); }).join('') + '</div>';
+      + block.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>';
   }).join('') + '</div>';
   const actions = '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>'
     + '<div class="cm-stage-actions" style="margin:0 0 14px;">'

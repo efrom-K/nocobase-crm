@@ -39,6 +39,8 @@ jobs:
           CI_DENYLIST_REGEX: ${{ secrets.CI_DENYLIST_REGEX }}
       - name: Price logic tests (card JS vs nightly Python vs expected values)
         run: python3 tests/price_logic_test.py
+      - name: Mail quote security
+        run: node tests/mail_quote_security_test.js
       - name: AHO routine dates
         run: node tests/aho_dates_test.js
       - name: Object directory and contract selection

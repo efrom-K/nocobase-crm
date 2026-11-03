@@ -1208,20 +1208,20 @@ function replyDraft(m, mode) {
     d.subject = fw.test(m.subject) ? m.subject : 'Fwd: ' + (m.subject || '');
     d.forward = { folder: m.folder, uid: m.uid };
     d.fwdAtts = (m.attachments || []).slice();
-    d.html = '<br>' + sig + '<br><div>-------- Пересылаемое сообщение --------<br>' + quoteHeader(m) + '<br>Тема: ' + esc(m.subject || '') + '</div><blockquote>' + (m.html || esc(m.text)) + '</blockquote>';
+    d.html = '<br>' + sig + '<br><div>-------- Пересылаемое сообщение --------<br>' + quoteHeader(m) + '<br>Тема: ' + esc(m.subject || '') + '</div><blockquote>' + esc(m.text || '') + '</blockquote>';
   } else {
     const from = (m.replyTo && m.replyTo.length ? m.replyTo : m.from) || [];
     d.to = from.map(function(a) { return a.address; });
     if (mode === 'replyAll') d.cc = (m.to || []).concat(m.cc || []).map(function(a) { return a.address; }).filter(function(x) { return x && x !== myself && d.to.indexOf(x) === -1; });
     d.subject = re.test(m.subject) ? m.subject : 'Re: ' + (m.subject || '');
     d.inReplyTo = m.messageId; d.references = m.references;
-    d.html = '<br>' + sig + '<br><div>' + quoteHeader(m) + '</div><blockquote>' + (m.html || esc(m.text)) + '</blockquote>';
+    d.html = '<br>' + sig + '<br><div>' + quoteHeader(m) + '</div><blockquote>' + esc(m.text || '') + '</blockquote>';
   }
   return d;
 }
 async function openDraft(uid) {
   const m = await fetchMessage(uid);
-  if (m) openCompose({ to: (m.to || []).map(function(a) { return a.address; }), cc: (m.cc || []).map(function(a) { return a.address; }), subject: m.subject, html: m.html || esc(m.text), draftUid: uid });
+  if (m) openCompose({ to: (m.to || []).map(function(a) { return a.address; }), cc: (m.cc || []).map(function(a) { return a.address; }), subject: m.subject, html: esc(m.text || ''), draftUid: uid });
 }
 async function loadContacts() {
   if (S.contacts) return S.contacts;

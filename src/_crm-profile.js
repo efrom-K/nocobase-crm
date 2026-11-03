@@ -443,9 +443,10 @@
       badge = document.createElement('span');
       badge.id = 'crmp-mayday-countdown';
       badge.setAttribute('role', 'status');
-      badge.style.cssText = 'display:inline-flex;align-items:center;white-space:nowrap;font-size:12px;color:inherit;margin-right:8px;';
+      badge.style.cssText = 'position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;white-space:nowrap;font-size:12px;color:inherit;pointer-events:none;z-index:20;';
     }
-    if (badge.parentNode !== btn.parentNode || badge.nextSibling !== btn) btn.parentNode.insertBefore(badge, btn);
+    btn.style.position = 'relative';
+    if (badge.parentNode !== btn) btn.appendChild(badge);
     const days = mayDayCountdown(new Date());
     const text = days === 0 ? 'С 1 Мая!' : 'До 1 мая: ' + days + ' дн.';
     if (badge.textContent !== text) badge.textContent = text;

@@ -324,7 +324,7 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-quick-flow > * { order: 20; }
     .cm-quick-flow > .cm-stage-form { display: contents !important; }
     .cm-quick-flow > .cm-stage-form > .cm-section { margin-bottom: 14px !important; }
-    .cm-quick-flow > #cm-forming-prices-section { order: 3; }
+    .cm-quick-flow #cm-forming-prices-section { order: 3; }
     .cm-quick-flow > #cm-forming-contacts-section { order: 5; }
     .cm-quick-flow > #cm-forming-addendums-section { order: 7; }
     .cm-quick-flow > #cm-forming-files-section { order: 6; }
@@ -1927,7 +1927,7 @@ function nextFieldChange(periods, rec, iso, field) {
 // реестр (registry-tabs.js) показывает ту же плашку «с даты: цена» рядом с ценой в таблице — расчёт один на оба места
 window.__cmNextFieldChange = nextFieldChange;
 
-function renderPricesSection(prefix) {
+function renderPricesSection(prefix, areaFields) {
   const comp = function(c) {
     return '<div class="cm-price-comp" data-comp="' + c.key + '"><label class="cm-price-check"><input type="checkbox" data-comp-on="' + c.key + '"> ' + esc(c.title) + '</label>'
       + '<div class="cm-price-comp-fields" style="display:none;">'
@@ -1941,6 +1941,7 @@ function renderPricesSection(prefix) {
   return '<div class="cm-section" id="' + prefix + '-prices-section">'
     + '<div class="cm-section-title-row"><div class="cm-section-title" style="margin-bottom:0;flex:1;">Дополнительные расчёты аренды</div>'
     + '<button class="cm-stage-edit-toggle" id="' + prefix + '-price-add-btn" style="display:none;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Период</button></div>'
+    + (areaFields || '')
     + '<div id="' + prefix + '-price-summary" class="cm-price-summary" style="display:none;"></div>'
     + '<div id="' + prefix + '-price-list"><div style="color:#5b6478;font-size:12px;">Загрузка…</div></div>'
     + '<div class="cm-price-form" id="' + prefix + '-price-form" style="display:none;">'
@@ -3713,9 +3714,9 @@ function renderFormingBody(r, currentUser) {
 }
 
 // beforeHistory — разметка между доп. соглашениями и историей (кнопки срочного договора стоят в самом низу)
-function renderFormingSideSections(r, currentUser, beforeHistory) {
+function renderFormingSideSections(r, currentUser, beforeHistory, pricesInForm) {
   const files = r.contract_files || [];
-  return renderPricesSection('cm-forming') + renderContactsSection('cm-forming')
+  return (pricesInForm ? '' : renderPricesSection('cm-forming')) + renderContactsSection('cm-forming')
     + '<div class="cm-section" id="cm-forming-files-section"><div class="cm-section-title">Файлы</div>'
     + '<div id="cm-forming-files-list">' + renderFilesList(files, currentUser, recScans(r, true)) + '</div>'
     + '<div class="cm-upload-row"><input type="file" id="cm-forming-file-input" style="display:none;">'
@@ -3746,14 +3747,15 @@ function renderQuickFormingBody(r, currentUser) {
     + 'padding:8px 12px;margin-bottom:14px;font-size:12.5px;font-weight:600;">⚡ Срочный договор — сразу вся карточка договора, без этапов оформления</div>';
   html += '<div class="cm-stage-form" data-stage="quick">' + QUICK_BLOCK_DEFS.map(function(block) {
     return '<div class="cm-section" style="order:' + (QUICK_BLOCK_ORDER[block.key] || 9) + '"><div class="cm-section-title">' + esc(block.title) + '</div>'
-      + block.fields.map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>';
+      + block.fields.filter(function(f) { return f.name !== 'area_lines'; }).map(function(f) { return renderEditableField(f, r[f.name], r); }).join('') + '</div>'
+      + (block.key === 'pay' ? renderPricesSection('cm-forming', renderEditableField({ type: 'arealines' }, r.area_lines, r)) : '');
   }).join('') + '</div>';
   const actions = '<div class="cm-save-status" id="cm-save-status-quick" style="margin-top:0;min-height:0;"></div>'
     + '<div class="cm-stage-actions" style="margin:0 0 14px;">'
     + '<button class="cm-btn-save cm-btn-primary" id="cm-quick-save">Сохранить</button>'
     + '<button class="cm-btn-advance cm-btn-finalize" id="cm-quick-publish">Опубликовать → Активные</button>'
     + '</div>';
-  html += renderFormingSideSections(r, currentUser, actions);
+  html += renderFormingSideSections(r, currentUser, actions, true);
   return '<div class="cm-quick-flow">' + html + '</div>';
 }
 

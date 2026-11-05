@@ -1,4 +1,5 @@
 // @include src/_crm-objects.js
+// @include src/_crm-plan.js
 
 // фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
 // иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
@@ -1332,7 +1333,7 @@ function wireAreaLines(scope) {
     const form = box.closest('.cm-stage-form') || box.parentNode;
     const modal = box.closest('#contract-modal-root') || box.closest('#forming-modal-root') || form;
     const quick = form.getAttribute('data-stage') === 'quick';
-    function rowOf(name, scopeEl) { const el = scopeEl.querySelector('[data-field="' + name + '"]'); return el ? { el: el, row: el.closest('.cm-field-row') } : null; }
+    function rowOf(name, scopeEl) { const el = scopeEl.querySelector('[data-field="' + name + '"]') || (form.getAttribute('data-active-form') === 'areas' ? modal.querySelector('[data-field="' + name + '"]') : null); return el ? { el: el, row: el.closest('.cm-field-row') } : null; }
     function setMode(multi) {
       // площадь и ставка за метр — заменяются таблицей; в быстром договоре сумму можно поправить вручную
       ['area_sqm', 'rent_per_sqm', 'base_rent_per_sqm'].forEach(function(n) { const x = rowOf(n, form); if (x && x.row) x.row.style.display = multi ? 'none' : ''; });
@@ -1858,7 +1859,7 @@ function periodFor(periods, iso, comp) {
 }
 // что поставить в поля цены comp (период p или основное значение). Ключа нет — поле не трогать:
 // не задано основное значение; ставка за метр без площади — сумму посчитать нельзя. Так же — target() в apply_price_schedule.py
-function compValues(comp, p, rec) {
+function compValues(comp, p, rec, iso) {
   const out = {};
   if (!p) {
     const per = comp.basePer ? numOf(rec[comp.basePer]) : null, amt = numOf(rec[comp.baseAmt]);
@@ -1869,7 +1870,7 @@ function compValues(comp, p, rec) {
   }
   const v = Number(comp.value(p)), area = numOf(rec.area_sqm);
   if (comp.perField && comp.basis(p) === 'per_sqm') { out[comp.perField] = v; if (area > 0) out[comp.amtField] = mulMoney(v, area); }
-  else { if (comp.perField) out[comp.perField] = null; out[comp.amtField] = v; }   // ставку делением суммы на площадь не выводим — только точные числа
+  else { if (comp.perField) out[comp.perField] = null; out[comp.amtField] = comp.basis(p) === 'period' ? round2(planPeriodMonthlyValue(p, v, iso)) : v; }   // ставку делением суммы на площадь не выводим — только точные числа
   return out;
 }
 // текущие цены договора на дату: { values: {поле: значение}, active: {rent|utility|deposit: период|null} }
@@ -1879,7 +1880,7 @@ function scheduleTarget(periods, rec, iso) {
   const ea = effectiveArea(rec, periodFor(periods, iso, PRICE_COMPONENTS[0])), area = ea ? ea.area : null;
   const r = area === null ? rec : Object.assign({}, rec, { area_sqm: area });
   PRICE_COMPONENTS.forEach(function(c) {
-    const p = periodFor(periods, iso, c), v = compValues(c, p, r), per = c.basePer ? numOf(rec[c.basePer]) : null;
+    const p = periodFor(periods, iso, c), v = compValues(c, p, r, iso), per = c.basePer ? numOf(rec[c.basePer]) : null;
     // основная цена «за 1 квадратный метр», когда площадь задана строками, — от площади на эту дату (площадь могла смениться периодом)
     if (!p && ea && ea.lines && per !== null && area > 0) v[c.amtField] = mulMoney(per, area);
     active[c.key] = p; Object.assign(values, v);
@@ -1889,6 +1890,7 @@ function scheduleTarget(periods, rec, iso) {
 }
 function compLabel(comp, p) {
   const v = formatNum(comp.value(p)) + ' ₽';
+  if (comp.basis(p) === 'period') return v + ' за весь период';
   const pl = comp.key === 'rent' ? areaLinesOf(p.rent_lines) : null;
   if (pl && pl.length) return v + ' в месяц (' + areaLinesText(pl) + ')';
   return comp.basis(p) === 'per_sqm' && comp.perField ? v + ' за 1 квадратный метр в месяц' : (comp.key === 'deposit' ? v : v + ' в месяц');
@@ -1913,6 +1915,7 @@ function nextFieldChange(periods, rec, iso, field) {
     // период аренды со своими площадями меняет площадь — а с ней цены «за 1 квадратный метр»
     if (!comp.on(p) && !(areaLinesOf(p.rent_lines) || []).length) return;
     if (p.date_from && p.date_from > iso) dates.push(String(p.date_from).slice(0, 10));
+    if (comp.basis(p) === 'period') { const d = isoToDate(iso); d.setMonth(d.getMonth() + 1, 1); const next = dateToIso(d); if (p.date_from <= next && next <= p.date_to) dates.push(next); }
     if (p.date_to && !isOpenEnd(p.date_to)) { const d = addDays(isoToDate(p.date_to), 1); if (d) { const di = dateToIso(d); if (di > iso) dates.push(di); } }
   });
   dates.sort();
@@ -1932,7 +1935,7 @@ function renderPricesSection(prefix, areaFields) {
     return '<div class="cm-price-comp" data-comp="' + c.key + '"><label class="cm-price-check"><input type="checkbox" data-comp-on="' + c.key + '"> ' + esc(c.title) + '</label>'
       + '<div class="cm-price-comp-fields" style="display:none;">'
       + (c.key === 'rent' ? '<label class="cm-field-checkbox" style="width:100%;margin:0;"><input type="checkbox" data-comp-multi="rent"> Несколько площадей с разными ставками</label>' : '')
-      + (c.perField ? '<div class="cm-price-comp-field"><div class="cm-label">Способ расчёта</div><select class="cm-field-input" data-comp-basis="' + c.key + '"><option value="per_sqm">За 1 квадратный метр в месяц</option><option value="fixed">Фиксированная сумма в месяц</option></select></div>' : '')
+      + (c.perField ? '<div class="cm-price-comp-field"><div class="cm-label">Способ расчёта</div><select class="cm-field-input" data-comp-basis="' + c.key + '"><option value="per_sqm">За 1 квадратный метр в месяц</option><option value="fixed">Фиксированная сумма в месяц</option><option value="period">Фиксированная сумма за весь период</option></select></div>' : '')
       + '<div class="cm-price-comp-field"><div class="cm-label" data-comp-label="' + c.key + '">' + (c.perField ? 'Новая ставка, ₽' : 'Новая сумма, ₽') + '</div>'
       + '<input type="text" class="cm-field-input" data-comp-value="' + c.key + '" inputmode="decimal" placeholder="0,00"></div>'
       + '<div class="cm-price-comp-calc" data-comp-calc="' + c.key + '"></div>'
@@ -2005,6 +2008,15 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       PRICE_COMPONENTS.forEach(function(c) { const ch = nextFieldChange(items, baseRec(), iso, c.amtField); if (ch && (!best || ch.date < best.ch.date)) best = { c: c, ch: ch }; });
       if (best) lines.push('Ближайшее изменение: с ' + escRaw(fmtDate(best.ch.date)) + ' — ' + escRaw(best.c.lower) + ' ' + (best.ch.period ? '<b>' + escRaw(compLabel(best.c, best.ch.period)) + '</b>' : 'вернётся к основному значению'));
     } else if (act.length) lines.push('Сегодня по периоду: ' + act.map(function(c) { return escRaw(c.lower) + ' <b>' + escRaw(compLabel(c, tgt.active[c.key])) + '</b>'; }).join(', '));
+    if (type === 'active' || type === 'completed') {
+      const months = [iso.slice(0, 7)];
+      items.forEach(function(p) { [p.date_from, p.date_to].forEach(function(d) { const m = String(d || '').slice(0, 7); if (m && !isOpenEnd(d) && months.indexOf(m) < 0) months.push(m); }); });
+      months.sort().forEach(function(month) {
+        const dt = isoToDate(month + '-01'), dim = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+        const m = planContractMonth(baseRec(), type, items, { dim: dim, iso: function(d) { return month + '-' + ('0' + d).slice(-2); } });
+        if (m) lines.push('Начисление за ' + escRaw(dt.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })) + ': <b>' + escRaw(formatNum(m.total / 100)) + ' ₽</b> (аренда ' + escRaw(formatNum(m.rent / 100)) + ' ₽ + сбор ' + escRaw(formatNum(m.util / 100)) + ' ₽)');
+      });
+    }
     summaryEl.innerHTML = lines.join('<br>');
     summaryEl.style.display = (type === 'active' || items.length) && lines.length ? 'block' : 'none';
     if ((type === 'active' || type === 'completed') && r) {
@@ -2074,7 +2086,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const basis = compEl(c.key, 'basis'), v = numOf(compEl(c.key, 'value').value), a0 = area();
     const perSqm = c.perField && basis && basis.value === 'per_sqm';
     const lab = compEl(c.key, 'label');
-    if (lab) lab.textContent = perSqm ? 'Новая ставка за 1 квадратный метр, ₽' : (c.perField ? 'Новая сумма в месяц, ₽' : 'Новая сумма, ₽');
+    if (lab) lab.textContent = perSqm ? 'Новая ставка за 1 квадратный метр, ₽' : (basis && basis.value === 'period' ? 'Сумма за весь период, ₽' : (c.perField ? 'Новая сумма в месяц, ₽' : 'Новая сумма, ₽'));
     out.textContent = perSqm && v > 0 && a0 > 0 ? 'Итого в месяц: ' + formatNum(mulMoney(v, a0)) + ' ₽ (площадь ' + formatNum(a0) + ' квадратных метров)' : '';
   }
   function setComp(c, on) {
@@ -2168,6 +2180,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const on = function(key) { return chosen.some(function(c) { return c.key === key; }); };
     const val = function(key) { return on(key) ? numOf(compEl(key, 'value').value) : null; };
     const bas = function(key) { const b = compEl(key, 'basis'); return on(key) && b ? b.value : null; };
+    if (chosen.some(function(c) { return !(c.key === 'rent' && rentLines) && bas(c.key) === 'period'; }) && isOpenEnd(newTo)) { cmToast('Для суммы за весь период укажите дату окончания'); toEl.focus(); return; }
     // «по» не указана — период без даты окончания
     const values = { contract_type: type, contract_ref_id: id, date_from: fromEl.value, date_to: newTo, unit: 'month', note: noteEl.value.trim(),
       rent_on: on('rent'), basis: bas('rent') || 'per_sqm', amount: val('rent'), rent_lines: null,
@@ -2839,7 +2852,7 @@ async function openCompletedContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
 
     let html = '<div class="cm-completed-banner">' + (isAdmin ? 'Договор в архиве · правка доступна администратору' : 'Договор в архиве · только просмотр') + '</div>';
-    html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
+    html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly && b.key !== 'areas'; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed', renderActiveBlockSection(ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === 'areas'; }), r)) : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
       + '<div id="cm-completed-files-list">' + renderFilesList(files, isAdmin ? currentUser : null) + '</div>'
@@ -2974,7 +2987,7 @@ async function openContractModal(id) {
     initChat(id, overlay, currentUser, isMember, contractNumber, state);
 
     let html = '';
-    html += ACTIVE_BLOCK_DEFS.map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-active') : '') + (block.key === 'counterparty' ? renderContactsSection('cm-active') : ''); }).join('');
+    html += ACTIVE_BLOCK_DEFS.filter(function(b) { return b.key !== 'areas'; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-active', renderActiveBlockSection(ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === 'areas'; }), r)) : '') + (block.key === 'counterparty' ? renderContactsSection('cm-active') : ''); }).join('');
 
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-active-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
@@ -3205,7 +3218,7 @@ function readonlyFieldValue(f, r) {
     let badge = '';
     if (ch && ch.value !== null && ch.value !== undefined)
       badge = '<span class="cm-sched-badge" title="' + escAttr(ch.period ? 'Период ' + periodRange(ch.period) : 'Основное значение договора') + '">с ' + esc(fmtDate(ch.date)) + ': ' + escRaw(formatNum(ch.value)) + ' ₽</span>';
-    return money(cur) + badge;
+    return money(cur) + (underPeriod && comp.basis(underPeriod) === 'period' && f.name === comp.baseAmt ? ' <span class="cm-derived-hint">в пересчёте на месяц</span>' : '') + badge;
   }
   if (f.name === 'total_amount') {
     const t = calcTotal(r.rent_amount, r.utility_amount);
@@ -3445,8 +3458,10 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'termination_date', label: 'Дата расторжения договора', type: 'date' }
   ]},
   // основная цена (на весь срок) — base_*; текущая цена договора (rent_*) считается по «Графику цены аренды»
+  { key: 'areas', title: 'Основные площади и ставки', fields: [
+      { name: 'area_lines', label: 'Площади и ставки', type: 'arealines' }
+  ]},
   { key: 'pay', title: 'Характеристики и расчёты', fields: [
-      { name: 'area_lines', label: 'Площади и ставки', type: 'arealines' },
       { name: 'area_sqm', label: 'Площадь, квадратных метров', type: 'decimal' },
       { name: 'base_rent_per_sqm', label: 'Арендная плата за 1 квадратный метр в месяц', type: 'money' },
       { name: 'base_rent_amount', label: 'Арендная плата в месяц', type: 'money' },
@@ -3733,8 +3748,8 @@ function renderFormingSideSections(r, currentUser, beforeHistory, pricesInForm) 
 // Дата расторжения есть (14.10, владелец): forming_contracts.termination_date → переносится в rental_contracts при публикации.
 const QUICK_FIELD_MAP = { base_rent_per_sqm: 'rent_per_sqm', base_rent_amount: 'rent_amount', base_utility_per_sqm: 'utility_per_sqm',
   base_utility_amount: 'utility_amount', base_deposit_amount: 'deposit_amount', calc_comment: 'comment_stage4' };
-const QUICK_BLOCK_DEFS = ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly; }).map(function(b) {
-  return { key: b.key, title: b.title, fields: b.fields.map(function(f) {
+const QUICK_BLOCK_DEFS = ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly && b.key !== 'areas'; }).map(function(b) {
+  return { key: b.key, title: b.title, fields: (b.key === 'pay' ? ACTIVE_BLOCK_DEFS.find(function(x) { return x.key === 'areas'; }).fields.concat(b.fields) : b.fields).map(function(f) {
     if (f.name === 'object_name') return Object.assign({}, f, { type: 'combo' });   // объект — выбор из справочника, как в «Создать договор»
     return QUICK_FIELD_MAP[f.name] ? Object.assign({}, f, { name: QUICK_FIELD_MAP[f.name] }) : f;
   }) };

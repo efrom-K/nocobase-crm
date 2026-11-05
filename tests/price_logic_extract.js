@@ -18,10 +18,10 @@ const names = [
   /function fromISODateDisplay\(v\) \{/, /function isoToDate\(s\) \{/, /function dateToIso\(d\) \{/, /function addDays\(d, n\) \{/,
   /function fmtDate\(iso\) \{/, /const OPEN_END = /, /function isOpenEnd\(iso\) \{/, /function periodRange\(p\) \{/,
   /const PRICE_COMPONENTS = \[/, /const COMPONENT_BY_FIELD = \{\};/, /PRICE_COMPONENTS\.forEach\(function\(c\) \{ \[c\.perField/,
-  /function periodFor\(periods, iso, comp\) \{/, /function compValues\(comp, p, rec\) \{/, /function scheduleTarget\(periods, rec, iso\) \{/,
+  /function periodFor\(periods, iso, comp\) \{/, /function compValues\(comp, p, rec, iso\) \{/, /function scheduleTarget\(periods, rec, iso\) \{/,
   /function compLabel\(comp, p\) \{/, /function priceLabel\(p\) \{/, /function baseLabel\(comp, rec\) \{/, /function nextFieldChange\(periods, rec, iso, field\) \{/,
   /function totalRentKey\(collection\) \{/, /function calcTotal\(rent, utility\) \{/, /function totalUpdate\(collection, oldRec, values\) \{/, /function areaLinesUpdates\(values, collection, allowManualRent\) \{/
 ];
-let code = names.map(grab).join('\n');
+let code = fs.readFileSync(require('path').join(__dirname, '..', 'src', '_crm-plan.js'), 'utf8') + '\n' + names.map(grab).join('\n');
 code = code.replace('const COMPONENT_BY_FIELD = {};', 'const COMPONENT_BY_FIELD = {};\n');
 module.exports = new Function(code + '\nreturn { formatNum, numOf, areaLinesOf, areaLinesTotals, areaLinesUpdates, effectiveArea, round2, isoToDate, dateToIso, addDays, OPEN_END, isOpenEnd, PRICE_COMPONENTS, COMPONENT_BY_FIELD, periodFor, compValues, scheduleTarget, compLabel, priceLabel, baseLabel, nextFieldChange, calcTotal, totalUpdate };')();

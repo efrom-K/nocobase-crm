@@ -3,15 +3,16 @@
 и против ожидаемых значений, посчитанных вручную. Запуск: python3 tests/price_logic_test.py (нужен node). Выполняется в CI."""
 import ast, json, subprocess, sys, os, random
 from datetime import date, timedelta
+from calendar import monthrange
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.environ.get('PY', os.path.join(HERE, '..', 'scripts', 'apply_price_schedule.py'))
 src = open(SCRIPT, encoding='utf-8').read()
 tree = ast.parse(src)
-keep = {'r2', 'mul_money', 'fmt', 'dmy', 'prange', 'comp_label', 'base_text', 'target', 'lines_of', 'lines_totals', 'effective_area'}
+keep = {'r2', 'mul_money', 'fmt', 'dmy', 'prange', 'comp_label', 'base_text', 'target', 'lines_of', 'lines_totals', 'effective_area', 'period_monthly_value'}
 nodes = [n for n in tree.body if (isinstance(n, ast.FunctionDef) and n.name in keep) or
          (isinstance(n, ast.Assign) and any(getattr(t, 'id', None) == 'COMPONENTS' for t in n.targets))]
-ns = {'periods': {}, 'json': json}
+ns = {'periods': {}, 'json': json, 'date': date, 'monthrange': monthrange}
 exec(compile(ast.Module(body=nodes, type_ignores=[]), 'py', 'exec'), ns)
 
 def py_values(contract, plist, iso):
@@ -55,6 +56,9 @@ BASE = {'id': 1, 'area_sqm': 10, 'base_rent_per_sqm': 100, 'base_rent_amount': 1
 S = []
 def case(name, rec, periods, iso, exp): S.append((name, rec, periods, iso, exp))
 B = dict(BASE)
+case('сумма за 1–15 января: месячный эквивалент ставки', B, [P(1, '2027-01-01', '2027-01-15', rent=7500, rent_basis='period')], '2027-01-05', {'rent_amount': 15500, 'rent_per_sqm': None})
+case('сумма за период через месяцы: февраль', B, [P(1, '2027-01-16', '2027-02-15', rent=31000, rent_basis='period')], '2027-02-05', {'rent_amount': 28000})
+case('после суммы за период — основная', B, [P(1, '2027-01-01', '2027-01-15', rent=7500, rent_basis='period')], '2027-01-16', {'rent_amount': 1000})
 case('без периодов — основные значения', B, [], '2026-10-01', {'rent_per_sqm': 100, 'rent_amount': 1000, 'utility_per_sqm': 20, 'utility_amount': 200, 'deposit_amount': 1000})
 case('аренда за метр 90', B, [P(1, '2026-10-01', None, rent=90)], '2026-10-01', {'rent_per_sqm': 90, 'rent_amount': 900, 'utility_amount': 200, 'deposit_amount': 1000})
 case('аренда суммой 950 — ставка пустая', B, [P(1, '2026-10-01', None, rent=950, rent_basis='fixed')], '2026-10-05', {'rent_per_sqm': None, 'rent_amount': 950, 'utility_amount': 200})

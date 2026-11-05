@@ -26,14 +26,22 @@ function planLinesArea(v) {
   return a ? a / 100 : null;
 }
 function planMul(rate, area) { const a = Math.round(Number(rate) * 100), b = Math.round(Number(area) * 100); return Math.floor((a * b + 50) / 100); }   // ставка × площадь в копейках, как mulMoney
+// Сумма за конечный период превращается в дневную долю, затем в месячный эквивалент ставки.
+function planPeriodMonthlyValue(p, value, iso) {
+  const from = plDate(p.date_from), to = plDate(p.date_to), day = plDate(iso);
+  if (!from || !to || !day || plIso(p.date_to) >= '2099-12-31' || to < from) throw new Error('У суммы за период должны быть конечные даты');
+  const utc = function(d) { return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); };
+  const days = (utc(to) - utc(from)) / 86400000 + 1;
+  return Number(value) * new Date(day.getFullYear(), day.getMonth() + 1, 0).getDate() / days;
+}
 // месячная цена договора r (тип typ) на день iso: { rent, util } в копейках и признак «по периоду»
 function planPrice(r, typ, per, iso) {
-  const ps = per.filter(function(p) { return plIso(p.date_from) <= iso && iso <= plIso(p.date_to) && (p.unit || 'month') === 'month'; });
+  const ps = per.filter(function(p) { return plIso(p.date_from) <= iso && iso <= plIso(p.date_to) && (p.unit || 'month') === 'month'; }).sort(function(a, b) { return plIso(a.date_from).localeCompare(plIso(b.date_from)) || (a.id - b.id); });
   const last = function(f) { const l = ps.filter(f); return l.length ? l[l.length - 1] : null; };
   const rp = last(function(p) { return p.rent_on === true || (p.rent_on !== false && p.amount !== null && p.amount !== undefined); });
   const up = last(function(p) { return !!p.utility_on; });
   const area = (rp && planLinesArea(rp.rent_lines)) || planLinesArea(r.area_lines) || Number(r.base_area_sqm != null ? r.base_area_sqm : r.area_sqm) || 0;
-  const val = function(p, basis, v) { return basis === 'per_sqm' ? (area > 0 ? planMul(v, area) : 0) : plKop(v) || 0; };
+  const val = function(p, basis, v) { if (basis === 'period') return (plKop(v) || 0) * planPeriodMonthlyValue(p, 1, iso); return basis === 'per_sqm' ? (area > 0 ? planMul(v, area) : 0) : plKop(v) || 0; };
   // без периодов — текущая цена договора (как в реестре); с периодами вне периода — основная (base_*)
   const base = function(b, cur) { const k = typ === 'active' && per.length ? plKop(r[b]) : null; return k !== null ? k : plKop(r[cur]) || 0; };
   return {

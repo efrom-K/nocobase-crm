@@ -22,6 +22,7 @@
 """
 import json, os, subprocess, sys
 from datetime import date, timedelta
+from calendar import monthrange
 
 DRY = '--dry-run' in sys.argv
 WARN = '--warn' in sys.argv
@@ -103,6 +104,7 @@ def comp_label(comp, p):
     key, _, per_f, *_rest = comp
     v = '%s ₽' % fmt(float(comp[8](p)))
     pl = lines_of(p.get('rent_lines')) if key == 'rent' else None
+    if comp[7](p) == 'period': return v + ' за весь период'
     if pl: return v + ' в месяц (' + '; '.join('%s м² × %s ₽ = %s ₽' % (fmt(float(l['area'])), fmt(float(l.get('rate') or 0)), fmt(mul_money(float(l.get('rate') or 0), float(l['area'])))) for l in pl if float(l.get('area') or 0) > 0) + ')'
     return v + ' за 1 квадратный метр в месяц' if per_f and comp[7](p) == 'per_sqm' else (v if key == 'deposit' else v + ' в месяц')
 def base_text(comp, c):
@@ -111,6 +113,11 @@ def base_text(comp, c):
     if per is not None: return '%s ₽ за 1 квадратный метр в месяц' % fmt(per)
     if amt is not None: return '%s ₽%s' % (fmt(amt), '' if comp[0] == 'deposit' else ' в месяц')
     return 'не задан'
+
+def period_monthly_value(p, value, iso):
+    start, end, day = date.fromisoformat(p['date_from']), date.fromisoformat(p['date_to']), date.fromisoformat(iso)
+    if end < start or p['date_to'] >= '2099-12-31': raise ValueError('Сумма за период требует конечных дат')
+    return float(value) * monthrange(day.year, day.month)[1] / ((end - start).days + 1)
 
 def target(c, iso):
     """Цены договора на дату iso: (sig, новые значения, текст «что действует», текст для предупреждения) или None, если цен нет вовсе."""
@@ -132,8 +139,8 @@ def target(c, iso):
                 if area > 0: new[amt_f] = mul_money(v, area)
             else:
                 if per_f: new[per_f] = None
-                new[amt_f] = v
-            sig.append('%s:p%s|%s|%s|%s' % (key, p['id'], value(p), basis(p), area))
+                new[amt_f] = r2(period_monthly_value(p, v, iso)) if basis(p) == 'period' else v
+            sig.append('%s:p%s|%s|%s|%s' % (key, p['id'], value(p), basis(p), area) + ('|' + iso[:7] if basis(p) == 'period' else ''))
             texts.append('%s по периоду %s: %s' % (title.capitalize(), prange(p), comp_label(comp, p)))
             warn.append('%s %s' % (title, comp_label(comp, p)))
         else:

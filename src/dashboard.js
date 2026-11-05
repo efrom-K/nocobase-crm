@@ -658,7 +658,7 @@ function dashExportXlsx() {
 // «Дополнительные расчёты аренды» договора текстом для выгрузки: период, что меняется, комментарий
 function planExtraTxt(per) {
   const n = function(v) { return Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); };
-  const b = function(basis) { return basis === 'per_sqm' ? ' ₽/м²' : ' ₽ в месяц'; };
+  const b = function(basis) { return basis === 'per_sqm' ? ' ₽/м²' : basis === 'period' ? ' ₽ за весь период' : ' ₽ в месяц'; };
   return per.map(function(p) {
     const parts = [];
     if (p.rent_on && p.amount !== null && p.amount !== undefined) parts.push('аренда ' + n(p.amount) + b(p.basis || 'per_sqm'));

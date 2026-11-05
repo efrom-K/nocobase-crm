@@ -1,7 +1,7 @@
 // «Планирование» на дашборде: посуточное начисление и цена по «Дополнительным расчётам». Запуск: node tests/plan.test.js (идёт в CI)
 const fs=require('fs'); const rd=f=>fs.readFileSync(require('path').join(__dirname, '../src/'+f),'utf8'), src=rd('dashboard.js')+'\n'+rd('_crm-plan.js');
 const grab=n=>{const i=src.indexOf('function '+n+'('); let d=0,j=src.indexOf('{',i); for(let k=j;;k++){if(src[k]=='{')d++; if(src[k]=='}'&&--d==0) return src.slice(i,k+1);} };
-eval(['dKop','dDate','dDateTxt','plKop','plDate','plDateTxt','plIso','planExtraTxt','planLinesArea','planMul','planPrice','planContractMonth'].map(grab).join('\n'));
+eval(['dKop','dDate','dDateTxt','plKop','plDate','plDateTxt','plIso','planExtraTxt','planLinesArea','planMul','planPeriodMonthlyValue','planPrice','planContractMonth'].map(grab).join('\n'));
 const assert=require('assert');
 const oct={dim:31,iso:d=>'2026-10-'+('0'+d).slice(-2)}, nov={dim:30,iso:d=>'2026-11-'+('0'+d).slice(-2)};
 // въезд 15-го: 17/31 от 100 000
@@ -29,3 +29,21 @@ console.log('ok');
   assert.deepStrictEqual(spec.sheets.map(s=>s.name),['Общая','Правдинский']);
   assert.strictEqual(spec.sheets[1].rows[0][2].paint,'orange'); assert.strictEqual(spec.sheets[1].rows[0][2].v,'с 11.11.2026, без даты окончания: аренда 200\u00a0000 ₽ в месяц. Комментарий: скидка на ремонт'); assert.strictEqual(spec.sheets[0].rows[0][2],1);
   assert.ok(blob(spec)); }
+
+// Конечная сумма за период не уменьшается второй раз; остальной месяц — основная ставка.
+{
+  const jan = { dim: 31, iso: d => '2027-01-' + ('0' + d).slice(-2) };
+  const rec = { date_act: '2026-09-16', base_rent_amount: 31000, base_utility_amount: 3100 };
+  const p = { id: 1, date_from: '2027-01-01', date_to: '2027-01-15', basis: 'period', amount: 7500, rent_on: true };
+  const m = planContractMonth(rec, 'active', [p], jan);
+  assert.strictEqual(m.rent, 2350000);
+  assert.strictEqual(m.total, 2660000);
+  assert.strictEqual(planContractMonth(rec, 'active', [Object.assign({}, p, { basis: 'fixed' })], jan).rent, Math.round((750000 * 15 + 3100000 * 16) / 31));
+  // Переход через месяц, високосный февраль, частичный срок договора и нулевая сумма.
+  const feb = { dim: 29, iso: d => '2028-02-' + ('0' + d).slice(-2) };
+  const span = { date_from: '2028-01-16', date_to: '2028-02-15', basis: 'period', amount: 31000, rent_on: true };
+  assert.strictEqual(planContractMonth({ date_act: '2028-02-01', base_rent_amount: 29000 }, 'active', [span], feb).rent, 2900000);
+  assert.strictEqual(planContractMonth({ date_act: '2027-01-06', termination_date: '2027-01-10' }, 'active', [p], jan).rent, Math.round(750000 / 3));
+  assert.strictEqual(planContractMonth(rec, 'active', [Object.assign({}, p, { amount: 0 })], jan).rent, Math.round(3100000 * 16 / 31));
+  assert.throws(() => planPeriodMonthlyValue(Object.assign({}, p, { date_to: '2099-12-31' }), 1, '2027-01-01'));
+}

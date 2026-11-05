@@ -2008,15 +2008,6 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       PRICE_COMPONENTS.forEach(function(c) { const ch = nextFieldChange(items, baseRec(), iso, c.amtField); if (ch && (!best || ch.date < best.ch.date)) best = { c: c, ch: ch }; });
       if (best) lines.push('Ближайшее изменение: с ' + escRaw(fmtDate(best.ch.date)) + ' — ' + escRaw(best.c.lower) + ' ' + (best.ch.period ? '<b>' + escRaw(compLabel(best.c, best.ch.period)) + '</b>' : 'вернётся к основному значению'));
     } else if (act.length) lines.push('Сегодня по периоду: ' + act.map(function(c) { return escRaw(c.lower) + ' <b>' + escRaw(compLabel(c, tgt.active[c.key])) + '</b>'; }).join(', '));
-    if (type === 'active' || type === 'completed') {
-      const months = [iso.slice(0, 7)];
-      items.forEach(function(p) { [p.date_from, p.date_to].forEach(function(d) { const m = String(d || '').slice(0, 7); if (m && !isOpenEnd(d) && months.indexOf(m) < 0) months.push(m); }); });
-      months.sort().forEach(function(month) {
-        const dt = isoToDate(month + '-01'), dim = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
-        const m = planContractMonth(baseRec(), type, items, { dim: dim, iso: function(d) { return month + '-' + ('0' + d).slice(-2); } });
-        if (m) lines.push('Начисление за ' + escRaw(dt.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })) + ': <b>' + escRaw(formatNum(m.total / 100)) + ' ₽</b> (аренда ' + escRaw(formatNum(m.rent / 100)) + ' ₽ + сбор ' + escRaw(formatNum(m.util / 100)) + ' ₽)');
-      });
-    }
     summaryEl.innerHTML = lines.join('<br>');
     summaryEl.style.display = (type === 'active' || items.length) && lines.length ? 'block' : 'none';
     if ((type === 'active' || type === 'completed') && r) {

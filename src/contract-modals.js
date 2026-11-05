@@ -180,6 +180,17 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-file-row:nth-child(even) { background:#f8f9fb; }   /* зебра: длинный список файлов не сливается */
     .cm-file-row:hover { background:#eaf0ff; }
     .cm-file-row:last-child { border-bottom: none; }
+    .cm-section[data-active-block="areas"] { border:0; border-radius:0; box-shadow:none; padding:0; margin-bottom:14px !important; }
+    .cm-section[data-active-block="areas"] > .cm-section-title-row { background:none; border:0; border-radius:0; margin:0 0 8px !important; padding:0; }
+    .cm-section[data-active-block="areas"] .cm-section-title { font-size:13px; color:#5b6478; }
+    .cm-areas-scroll { overflow-x:auto; border:1px solid #dfe3ec; border-radius:8px; }
+    .cm-areas-table { width:100%; min-width:320px; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+    .cm-areas-table th, .cm-areas-table td { padding:9px 12px; text-align:right; white-space:nowrap; }
+    .cm-areas-table th:first-child, .cm-areas-table td:first-child { text-align:left; }
+    .cm-areas-table thead { background:#f8f9fb; color:#5b6478; font-size:12px; }
+    .cm-areas-table thead th { font-weight:500; }
+    .cm-areas-table tbody tr { border-top:1px solid #f3f5f9; }
+    .cm-areas-table tfoot { background:#f8f9fb; border-top:1px solid #dfe3ec; font-weight:600; }
     .cm-al { grid-column: 1 / -1; }
     .cm-al-table { display:grid; grid-template-columns: 140px 170px 150px 24px; gap:6px 12px; align-items:center; margin-top:8px; }
     .cm-al-table input.cm-field-input { text-align:right; width:100% !important; min-width:0; max-width:none; box-sizing:border-box; margin:0; }   /* в периоде поля иначе 200px */
@@ -3187,10 +3198,12 @@ function hasRole(user, roleName) {
 
 function readonlyFieldValue(f, r) {
   if (f.type === 'arealines') {
-    const l = areaLinesOf(r.area_lines) || [];
-    return l.filter(function(x) { return numOf(x.area) > 0; }).map(function(x) {
-      return esc(formatNum(x.area)) + ' м² × ' + esc(formatNum(x.rate)) + ' ₽ = ' + esc(formatNum(mulMoney(numOf(x.rate) || 0, numOf(x.area)))) + ' ₽';
-    }).join('<br>');
+    const l = (areaLinesOf(r.area_lines) || []).filter(function(x) { return numOf(x.area) > 0; });
+    if (!l.length) return '<div class="cm-derived-hint">Площади с разными ставками не заданы</div>';
+    const totals = areaLinesTotals(l);
+    return '<div class="cm-areas-scroll"><table class="cm-areas-table" aria-label="Основные площади и ставки"><thead><tr><th scope="col">Площадь, м²</th><th scope="col">Ставка, ₽/м² в месяц</th><th scope="col">В месяц, ₽</th></tr></thead><tbody>'
+      + l.map(function(x) { return '<tr><td>' + esc(formatNum(x.area)) + '</td><td>' + esc(formatNum(x.rate)) + '</td><td>' + esc(formatNum(mulMoney(numOf(x.rate) || 0, numOf(x.area)))) + '</td></tr>'; }).join('')
+      + '</tbody><tfoot><tr><th scope="row" colspan="2">Итого: ' + esc(formatNum(totals.area)) + ' м²</th><td>' + esc(formatNum(totals.rent)) + '</td></tr></tfoot></table></div>';
   }
   let v = r[f.name];
   // в архиве нет отдельных «основных» значений — показываем текущие
@@ -3449,7 +3462,7 @@ const ACTIVE_BLOCK_DEFS = [
       { name: 'termination_date', label: 'Дата расторжения договора', type: 'date' }
   ]},
   // основная цена (на весь срок) — base_*; текущая цена договора (rent_*) считается по «Графику цены аренды»
-  { key: 'areas', title: 'Основные площади и ставки', fields: [
+  { key: 'areas', title: 'Основные площади', readonlyRenderer: function(r) { return readonlyFieldValue({ type: 'arealines' }, r); }, fields: [
       { name: 'area_lines', label: 'Площади и ставки', type: 'arealines' }
   ]},
   { key: 'pay', title: 'Характеристики и расчёты', fields: [

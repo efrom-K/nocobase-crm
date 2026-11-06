@@ -452,9 +452,11 @@ http.createServer(async (req, res) => {
       res.end(buf);
     });
     if (p.startsWith('/portal/api/')) return await portal(req, res, p, origin);
-    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const cookie = p === '/write-access-check' && String(req.headers.cookie || '').match(/(?:^|;\s*)nb_auth_token_main=([^;]+)/);
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || (cookie ? decodeURIComponent(cookie[1]) : '');
     const user = await whoami(token);
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
+    if (p === '/write-access-check' && req.method === 'GET') return send(res, user.readOnly ? 403 : 200, { ok: !user.readOnly }, origin);
     if (!R.allowHttp(user, req.method, p)) throw new ApiError(403, 'Доступ только для просмотра');
     if (p === '/object-route' && req.method === 'POST') {
       const route = await objectRoute(user, await readJson(req), async ids => {

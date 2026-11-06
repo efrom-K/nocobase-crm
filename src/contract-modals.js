@@ -193,6 +193,7 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-areas-table tfoot { background:#f8f9fb; border-top:1px solid #dfe3ec; font-weight:600; }
     .cm-al { grid-column: 1 / -1; }
     .cm-al-table { display:grid; grid-template-columns: 140px 170px 150px 24px; gap:6px 12px; align-items:center; margin-top:8px; }
+    .cm-al-table.cm-al-utility { grid-template-columns:140px 150px 140px 150px 140px 24px; min-width:800px; }
     .cm-al-table input.cm-field-input { text-align:right; width:100% !important; min-width:0; max-width:none; box-sizing:border-box; margin:0; }   /* в периоде поля иначе 200px */
     .cm-al-line { grid-column: 1 / -1; border-top:1px solid #dfe3ec; height:0; margin-top:2px; }
     .cm-al-head { font-size:12px; color:#5b6478; }
@@ -1253,6 +1254,8 @@ function revalidateAccounts(scope) {
 }
 function validateForm(formEl, strict) {
   if (!formEl) return null;
+  const invalidAreas = formEl.querySelector('[data-al-invalid="1"]');
+  if (invalidAreas) return { el: invalidAreas.querySelector('[data-al-area]') || invalidAreas, name: 'area_lines', msg: 'Проверьте площади и ставки: некорректную строку нельзя сохранить' };
   const els = formEl.querySelectorAll('[data-field]');
   for (let i = 0; i < els.length; i++) {
     const err = validateElement(els[i], strict);
@@ -1267,6 +1270,7 @@ function validateForm(formEl, strict) {
 function invalidFieldNames(formEl) {
   const names = [];
   if (!formEl) return names;
+  if (formEl.querySelector('[data-al-invalid="1"]')) names.push('area_lines');
   formEl.querySelectorAll('[data-field]').forEach(function(el) { if (validateElement(el, false)) names.push(el.getAttribute('data-field')); });
   return names;
 }
@@ -1292,43 +1296,51 @@ function tidyFieldRows(scope) {
 // таблица строк «площадь × ставка» (форма договора и период «Дополнительных расчётов»):
 // body — контейнер, initial — строки, onChange(строки) — после каждого изменения. В расчёт идут только правильно введённые числа (до сотых)
 function mountAreaLinesEditor(body, initial, onChange) {
-  let lines = (initial || []).map(function(l) { return { area: fixed2Input(l.area), rate: fixed2Input(l.rate) }; });
-  if (!lines.length) lines = [{ area: '', rate: '' }];
+  let utility = (initial || []).some(function(l) { return l.utility_rate !== undefined && l.utility_rate !== null; });
+  let lines = (initial || []).map(function(l) { return { area: fixed2Input(l.area), rate: fixed2Input(l.rate), utility_rate: fixed2Input(l.utility_rate) }; });
+  if (!lines.length) lines = [{ area: '', rate: '', utility_rate: '' }];
   const okNum = function(v) { return /^\d{1,9}(,\d{1,2})?$/.test(String(v)); };
-  function valid() { return lines.filter(function(l) { return okNum(l.area) && numOf(l.area) > 0 && (!l.rate || okNum(l.rate)); }).map(function(l) { return { area: numOf(l.area), rate: numOf(l.rate) || 0 }; }); }
-  function sum(l) { return okNum(l.area) && okNum(l.rate) && numOf(l.area) > 0 && numOf(l.rate) > 0 ? formatNum(mulMoney(numOf(l.rate), numOf(l.area))) + ' ₽' : '—'; }
+  function valid() {
+    const entered = lines.filter(function(l) { return l.area || l.rate || (utility && l.utility_rate); });
+    if (entered.some(function(l) { return !okNum(l.area) || !(numOf(l.area) > 0) || (l.rate && !okNum(l.rate)) || (utility && l.utility_rate && !okNum(l.utility_rate)); })) return [];
+    return entered.map(function(l) { const row = { area: numOf(l.area), rate: numOf(l.rate) || 0 }; if (utility) row.utility_rate = numOf(l.utility_rate) || 0; return row; });
+  }
+  function sum(l, key) { return okNum(l.area) && numOf(l.area) > 0 && (!l[key] || okNum(l[key])) ? formatNum(mulMoney(numOf(l[key]) || 0, numOf(l.area))) + ' ₽' : '—'; }
   function commit() {
     const v = valid(), t = areaLinesTotals(v);
-    const fa = body.querySelector('[data-al-foot="area"]'), fr = body.querySelector('[data-al-foot="rent"]');
+    const fa = body.querySelector('[data-al-foot="area"]'), fr = body.querySelector('[data-al-foot="rent"]'), fu = body.querySelector('[data-al-foot="utility"]');
     if (fa) fa.textContent = v.length ? 'Итого ' + formatNum(t.area) + ' м²' : 'Итого —';
     if (fr) fr.textContent = v.length ? formatNum(t.rent) + ' ₽' : '—';
-    if (onChange) onChange(v);
+    if (fu) fu.textContent = v.length ? formatNum(t.utility || 0) + ' ₽' : '—';
+    if (onChange) onChange(v, !v.length);
   }
   function render() {
-    // сетка: площадь | ставка | сумма в месяц | ✕, под ней — итог по столбцам
-    body.innerHTML = '<div class="cm-al-table">'
-      + '<div class="cm-al-head">Площадь, м²</div><div class="cm-al-head">Ставка за 1 м² в месяц, ₽</div><div class="cm-al-head num">Сумма в месяц</div><div></div>'
+    body.innerHTML = '<label class="cm-field-checkbox" style="margin-top:10px;"><input type="checkbox" data-al-utility-on' + (utility ? ' checked' : '') + '> Эксплуатационный сбор отдельно по каждой площади</label><div class="cm-areas-scroll"><div class="cm-al-table' + (utility ? ' cm-al-utility' : '') + '">'
+      + '<div class="cm-al-head">Площадь, м²</div><div class="cm-al-head">Аренда, ₽/м² в месяц</div><div class="cm-al-head num">Аренда в месяц</div>'
+      + (utility ? '<div class="cm-al-head">Эксплуатация, ₽/м² в месяц</div><div class="cm-al-head num">Сбор в месяц</div>' : '') + '<div></div>'
       + lines.map(function(l, i) {
-        return '<input type="text" class="cm-field-input" inputmode="decimal" data-al-area="' + i + '" placeholder="0,00" value="' + escAttr(l.area) + '">'
-          + '<input type="text" class="cm-field-input" inputmode="decimal" data-al-rate="' + i + '" placeholder="0,00" value="' + escAttr(l.rate) + '">'
-          + '<div class="cm-al-sum" data-al-sum="' + i + '">' + esc(sum(l)) + '</div>'
+        return '<input type="text" aria-label="Площадь строки ' + (i + 1) + '" class="cm-field-input" inputmode="decimal" data-al-area="' + i + '" placeholder="0,00" value="' + escAttr(l.area) + '">'
+          + '<input type="text" aria-label="Ставка аренды строки ' + (i + 1) + '" class="cm-field-input" inputmode="decimal" data-al-rate="' + i + '" placeholder="0,00" value="' + escAttr(l.rate) + '">'
+          + '<div class="cm-al-sum" data-al-sum="' + i + '">' + esc(sum(l, 'rate')) + '</div>'
+          + (utility ? '<input type="text" aria-label="Ставка эксплуатации строки ' + (i + 1) + '" class="cm-field-input" inputmode="decimal" data-al-utility="' + i + '" placeholder="0,00" value="' + escAttr(l.utility_rate) + '"><div class="cm-al-sum" data-al-usum="' + i + '">' + esc(sum(l, 'utility_rate')) + '</div>' : '')
           + (lines.length > 1 ? '<a href="#" class="cm-al-del" data-al-del="' + i + '" title="Убрать площадь">✕</a>' : '<div></div>');
-      }).join('')
-      + '<div class="cm-al-line"></div>'
-      + '<div class="cm-al-foot" data-al-foot="area"></div><div class="cm-al-foot"></div><div class="cm-al-foot num" data-al-foot="rent"></div><div class="cm-al-foot"></div>'
-      + '</div><button type="button" class="cm-upload-btn" data-al-add style="margin-top:8px;font-size:12px;"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Площадь</button>';
-    body.querySelectorAll('[data-al-area],[data-al-rate]').forEach(function(inp) {
-      const i = Number(inp.getAttribute('data-al-area') || inp.getAttribute('data-al-rate')), k = inp.hasAttribute('data-al-area') ? 'area' : 'rate';
+      }).join('') + '<div class="cm-al-line"></div><div class="cm-al-foot" data-al-foot="area"></div><div></div><div class="cm-al-foot num" data-al-foot="rent"></div>'
+      + (utility ? '<div></div><div class="cm-al-foot num" data-al-foot="utility"></div>' : '') + '<div></div></div></div><div class="cm-derived-hint">Пустая ставка означает 0. Для сохранения укажите корректную площадь и неотрицательные ставки во всех заполненных строках.</div>'
+      + '<button type="button" class="cm-upload-btn" data-al-add style="margin-top:8px;font-size:12px;">＋ Площадь</button>';
+    body.querySelector('[data-al-utility-on]').addEventListener('change', function(e) { utility = e.target.checked; render(); });
+    body.querySelectorAll('[data-al-area],[data-al-rate],[data-al-utility]').forEach(function(inp) {
+      const i = Number(inp.getAttribute('data-al-area') || inp.getAttribute('data-al-rate') || inp.getAttribute('data-al-utility')), k = inp.hasAttribute('data-al-area') ? 'area' : inp.hasAttribute('data-al-rate') ? 'rate' : 'utility_rate';
       inp.addEventListener('input', function() {
         lines[i][k] = inp.value.replace(/[\s ]/g, '').replace(/\./g, ',');
         inp.style.borderColor = lines[i][k] && !okNum(lines[i][k]) ? '#c23b3b' : '';
-        body.querySelector('[data-al-sum="' + i + '"]').textContent = sum(lines[i]);
+        body.querySelector('[data-al-sum="' + i + '"]').textContent = sum(lines[i], 'rate');
+        const u = body.querySelector('[data-al-usum="' + i + '"]'); if (u) u.textContent = sum(lines[i], 'utility_rate');
         commit();
       });
       inp.addEventListener('blur', function() { if (okNum(lines[i][k])) { lines[i][k] = fixed2Input(lines[i][k]); inp.value = lines[i][k]; } });
     });
     body.querySelectorAll('[data-al-del]').forEach(function(a) { a.addEventListener('click', function(e) { e.preventDefault(); lines.splice(Number(a.getAttribute('data-al-del')), 1); render(); }); });
-    body.querySelector('[data-al-add]').addEventListener('click', function(e) { e.preventDefault(); lines.push({ area: '', rate: '' }); render(); });
+    body.querySelector('[data-al-add]').addEventListener('click', function(e) { e.preventDefault(); lines.push({ area: '', rate: '', utility_rate: '' }); render(); });
     commit();
   }
   render();
@@ -1359,15 +1371,24 @@ function wireAreaLines(scope) {
       });
       body.style.display = multi ? '' : 'none';
     }
-    function changed(v) {
+    function changed(v, invalid) {
+      box.setAttribute('data-al-invalid', on.checked && invalid ? '1' : '0');
+      if (on.checked && invalid) return;
       hidden.value = on.checked && v.length ? JSON.stringify(v) : '';
       fireInput(hidden); fireChange(hidden);
+      const utility = on.checked && areaLinesTotals(v).utility !== null;
+      ['utility_per_sqm', 'base_utility_per_sqm'].forEach(function(n) { const x = rowOf(n, form); if (x && x.row) x.row.style.display = utility ? 'none' : ''; });
+      ['utility_amount', 'base_utility_amount'].forEach(function(n) { modal.querySelectorAll('[data-field="' + n + '"]').forEach(function(el) { el.readOnly = utility; el.classList.toggle('cm-field-calc', utility); }); });
       if (!on.checked || !v.length) return;
       // сразу показать итог в полях договора (сохраняется он всё равно из площадей)
       const t = areaLinesTotals(v), a = rowOf('area_sqm', form);
       if (a) a.el.value = fixed2Input(t.area);
       ['rent_amount', 'base_rent_amount'].forEach(function(n) { modal.querySelectorAll('[data-field="' + n + '"]').forEach(function(el) { el.value = fixed2Input(t.rent); }); });
       ['rent_per_sqm', 'base_rent_per_sqm'].forEach(function(n) { const x = rowOf(n, form); if (x) x.el.value = ''; });
+      if (t.utility !== null) {
+        ['utility_amount', 'base_utility_amount'].forEach(function(n) { modal.querySelectorAll('[data-field="' + n + '"]').forEach(function(el) { el.value = fixed2Input(t.utility); }); });
+        ['utility_per_sqm', 'base_utility_per_sqm'].forEach(function(n) { const x = rowOf(n, form); if (x) x.el.value = ''; });
+      }
     }
     on.addEventListener('change', function() {
       let init = areaLinesOf(hidden.value) || [];
@@ -1664,7 +1685,7 @@ function mulMoney(rate, area) {
   const a = Math.round(Number(rate) * 100), b = Math.round(Number(area) * 100);
   return Math.floor((a * b + 50) / 100) / 100;
 }
-// «Несколько площадей с разными ставками»: area_lines договора / rent_lines периода = [{ area, rate }]; null — обычный режим.
+// area_lines договора / rent_lines периода = [{ area, rate, utility_rate? }]; без utility_rate сохраняется общий сбор.
 // Площадь договора = сумма площадей, арендная плата = сумма «площадь × ставка» (каждая строка до копейки), ставки за метр нет.
 // Та же логика — lines_* в scripts/apply_price_schedule.py
 function areaLinesOf(v) {
@@ -1672,18 +1693,19 @@ function areaLinesOf(v) {
   return Array.isArray(v) ? v : null;
 }
 function areaLinesTotals(lines) {
-  let area = 0, rent = 0;
+  let area = 0, rent = 0, utility = null;
   (lines || []).forEach(function(l) {
     const a = numOf(l.area), r = numOf(l.rate);
     if (!(a > 0)) return;
     area += Math.round(a * 100);
+    if (l.utility_rate !== undefined && l.utility_rate !== null) utility = (utility || 0) + Math.round(mulMoney(numOf(l.utility_rate) || 0, a) * 100);
     if (r > 0) rent += Math.round(mulMoney(r, a) * 100);
   });
-  return { area: area / 100, rent: rent / 100 };
+  return { area: area / 100, rent: rent / 100, utility: utility === null ? null : utility / 100 };
 }
 function areaLinesText(lines) {
   return (lines || []).filter(function(l) { return numOf(l.area) > 0; }).map(function(l) {
-    return formatNum(l.area) + ' м² × ' + formatNum(l.rate) + ' ₽ = ' + formatNum(mulMoney(numOf(l.rate) || 0, numOf(l.area))) + ' ₽';
+    return formatNum(l.area) + ' м² × ' + formatNum(l.rate) + ' ₽ = ' + formatNum(mulMoney(numOf(l.rate) || 0, numOf(l.area))) + ' ₽' + (l.utility_rate !== undefined && l.utility_rate !== null ? '; эксплуатация ' + formatNum(l.utility_rate) + ' ₽/м² = ' + formatNum(mulMoney(numOf(l.utility_rate) || 0, numOf(l.area))) + ' ₽' : '');
   }).join('; ');
 }
 // площадь договора на дату: { area, lines } — по площадям периода аренды, иначе по основным площадям договора,
@@ -1716,6 +1738,7 @@ function areaLinesUpdates(values, collection, allowManualRent) {
   const rentField = act ? 'base_rent_amount' : 'rent_amount';
   if (!allowManualRent || !hasKey(values, rentField)) upd[rentField] = t.rent;
   upd[act ? 'base_rent_per_sqm' : 'rent_per_sqm'] = null;
+  if (t.utility !== null) { upd[act ? 'base_utility_amount' : 'utility_amount'] = t.utility; upd[act ? 'base_utility_per_sqm' : 'utility_per_sqm'] = null; }
   return upd;
 }
 function derivedUpdates(oldRec, values) {
@@ -1872,6 +1895,10 @@ function periodFor(periods, iso, comp) {
 // не задано основное значение; ставка за метр без площади — сумму посчитать нельзя. Так же — target() в apply_price_schedule.py
 function compValues(comp, p, rec, iso) {
   const out = {};
+  if (comp.key === 'utility') {
+    const lines = areaLinesOf(p ? p.rent_lines : rec.area_lines), utility = areaLinesTotals(lines).utility;
+    if (utility !== null) { out[comp.perField] = null; out[comp.amtField] = utility; return out; }
+  }
   if (!p) {
     const per = comp.basePer ? numOf(rec[comp.basePer]) : null, amt = numOf(rec[comp.baseAmt]);
     if (per === null && amt === null) return out;
@@ -1893,7 +1920,7 @@ function scheduleTarget(periods, rec, iso) {
   PRICE_COMPONENTS.forEach(function(c) {
     const p = periodFor(periods, iso, c), v = compValues(c, p, r, iso), per = c.basePer ? numOf(rec[c.basePer]) : null;
     // основная цена «за 1 квадратный метр», когда площадь задана строками, — от площади на эту дату (площадь могла смениться периодом)
-    if (!p && ea && ea.lines && per !== null && area > 0) v[c.amtField] = mulMoney(per, area);
+    if (!p && ea && ea.lines && per !== null && area > 0 && !(c.key === 'utility' && areaLinesTotals(areaLinesOf(rec.area_lines)).utility !== null)) v[c.amtField] = mulMoney(per, area);
     active[c.key] = p; Object.assign(values, v);
   });
   if (area !== null) values.area_sqm = area;
@@ -1910,6 +1937,7 @@ function priceLabel(p) {
   return PRICE_COMPONENTS.filter(function(c) { return c.on(p); }).map(function(c) { return c.lower + ' ' + compLabel(c, p); }).join('; ');
 }
 function baseLabel(comp, rec) {
+  if (comp.key === 'utility') { const u = areaLinesTotals(areaLinesOf(rec.area_lines)).utility; if (u !== null) return formatNum(u) + ' ₽ в месяц (по площадям)'; }
   const per = comp.basePer ? numOf(rec[comp.basePer]) : null, amt = numOf(rec[comp.baseAmt]);
   if (per !== null) return formatNum(per) + ' ₽ за 1 квадратный метр в месяц';
   if (amt !== null) return formatNum(amt) + ' ₽' + (comp.key === 'deposit' ? '' : ' в месяц');
@@ -2096,6 +2124,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     formEl.querySelector('[data-comp="' + c.key + '"] .cm-price-comp-fields').style.display = on ? 'flex' : 'none';
     formEl.querySelector('[data-comp="' + c.key + '"]').classList.toggle('on', on);
     if (c.key === 'rent') showRentMode();
+    if (c.key === 'utility') syncUtilityMode();
   }
   // аренда периода: одна ставка/сумма или своя таблица «площадь × ставка» — независимо от режима договора
   function rentMulti() { return compEl('rent', 'multi').checked; }
@@ -2103,9 +2132,26 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     const m = rentMulti(), on = compEl('rent', 'on').checked;
     formEl.querySelectorAll('[data-comp="rent"] .cm-price-comp-field, [data-comp="rent"] .cm-price-comp-calc').forEach(function(el) { el.style.display = m ? 'none' : ''; });
     compEl('rent', 'lines').style.display = on && m ? '' : 'none';
+    syncUtilityMode();
   }
   let rentLinesEd = null;
-  function mountRentLines(init) { rentLinesEd = mountAreaLinesEditor(compEl('rent', 'lines'), init, null); }
+  function syncUtilityMode() {
+    const utility = rentLinesEd && rentMulti() && compEl('rent', 'on').checked && compEl('utility', 'on').checked && areaLinesTotals(rentLinesEd.valid()).utility !== null;
+    compEl('utility', 'value').readOnly = !!utility; compEl('utility', 'basis').disabled = !!utility;
+  }
+  function mountRentLines(init, activateUtility) {
+    let mounted = false;
+    rentLinesEd = mountAreaLinesEditor(compEl('rent', 'lines'), init, function(v) {
+      const t = areaLinesTotals(v);
+      if (t.utility !== null) {
+        compEl('utility', 'basis').value = 'fixed'; compEl('utility', 'value').value = fixed2Input(t.utility);
+        if (activateUtility || mounted) setComp(PRICE_COMPONENTS[1], true);
+        compCalc(PRICE_COMPONENTS[1]);
+      }
+      compEl('utility', 'value').readOnly = t.utility !== null; compEl('utility', 'basis').disabled = t.utility !== null;
+    });
+    mounted = true;
+  }
   // строки по умолчанию — основные площади договора, а у договора с одной площадью — она и основная ставка
   function defaultRentLines() {
     const bl = areaLinesOf(recVal('area_lines'));
@@ -2114,7 +2160,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
     return a > 0 ? [{ area: a, rate: numOf(b.base_rent_per_sqm !== undefined ? b.base_rent_per_sqm : b.rent_per_sqm) || '' }] : [];
   }
   compEl('rent', 'multi').addEventListener('change', function() {
-    if (rentMulti() && !rentLinesEd) mountRentLines(defaultRentLines());
+    if (rentMulti() && !rentLinesEd) mountRentLines(defaultRentLines(), true);
     showRentMode();
   });
   // значение по умолчанию — основное значение договора
@@ -2132,7 +2178,7 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       setComp(c, e.target.checked);
       if (c.key === 'rent' && e.target.checked) {   // режим по умолчанию — как у договора
         compEl('rent', 'multi').checked = (areaLinesOf(recVal('area_lines')) || []).length > 0;
-        if (rentMulti() && !rentLinesEd) mountRentLines(defaultRentLines());
+        if (rentMulti() && !rentLinesEd) mountRentLines(defaultRentLines(), true);
         showRentMode();
         if (rentMulti()) return;
       }
@@ -2189,7 +2235,10 @@ async function wirePrices(overlay, prefix, type, id, canEdit, r) {
       utility_on: on('utility'), utility_basis: bas('utility'), utility_value: val('utility'),
       deposit_on: on('deposit'), deposit_value: val('deposit') };
     // аренда по площадям: в периоде — строки и итог суммой в месяц (ставки за метр на всю площадь нет)
-    if (rentLines) Object.assign(values, { rent_lines: rentLines, basis: 'fixed', amount: areaLinesTotals(rentLines).rent });
+    if (rentLines) {
+      const t = areaLinesTotals(rentLines); Object.assign(values, { rent_lines: rentLines, basis: 'fixed', amount: t.rent });
+      if (t.utility !== null && values.utility_on) Object.assign(values, { utility_basis: 'fixed', utility_value: t.utility });
+    }
     saveBtn.disabled = true; statusEl.textContent = 'Сохранение…';
     try {
       if (editId) await ctx.api.resource('contract_price_periods').update({ filterByTk: editId, values: values });
@@ -3200,10 +3249,10 @@ function readonlyFieldValue(f, r) {
   if (f.type === 'arealines') {
     const l = (areaLinesOf(r.area_lines) || []).filter(function(x) { return numOf(x.area) > 0; });
     if (!l.length) return '<div class="cm-derived-hint">Площади с разными ставками не заданы</div>';
-    const totals = areaLinesTotals(l);
-    return '<div class="cm-areas-scroll"><table class="cm-areas-table" aria-label="Основные площади и ставки"><thead><tr><th scope="col">Площадь, м²</th><th scope="col">Ставка, ₽/м² в месяц</th><th scope="col">В месяц, ₽</th></tr></thead><tbody>'
-      + l.map(function(x) { return '<tr><td>' + esc(formatNum(x.area)) + '</td><td>' + esc(formatNum(x.rate)) + '</td><td>' + esc(formatNum(mulMoney(numOf(x.rate) || 0, numOf(x.area)))) + '</td></tr>'; }).join('')
-      + '</tbody><tfoot><tr><th scope="row" colspan="2">Итого: ' + esc(formatNum(totals.area)) + ' м²</th><td>' + esc(formatNum(totals.rent)) + '</td></tr></tfoot></table></div>';
+    const totals = areaLinesTotals(l), utility = totals.utility !== null;
+    return '<div class="cm-areas-scroll"><table class="cm-areas-table" aria-label="Основные площади и ставки"><thead><tr><th scope="col">Площадь, м²</th><th scope="col">Аренда, ₽/м²</th><th scope="col">Аренда в месяц, ₽</th>' + (utility ? '<th scope="col">Эксплуатация, ₽/м²</th><th scope="col">Сбор в месяц, ₽</th>' : '') + '</tr></thead><tbody>'
+      + l.map(function(x) { return '<tr><td>' + esc(formatNum(x.area)) + '</td><td>' + esc(formatNum(x.rate)) + '</td><td>' + esc(formatNum(mulMoney(numOf(x.rate) || 0, numOf(x.area)))) + '</td>' + (utility ? '<td>' + esc(formatNum(x.utility_rate || 0)) + '</td><td>' + esc(formatNum(mulMoney(numOf(x.utility_rate) || 0, numOf(x.area)))) + '</td>' : '') + '</tr>'; }).join('')
+      + '</tbody><tfoot><tr><th scope="row" colspan="2">Итого: ' + esc(formatNum(totals.area)) + ' м²</th><td>' + esc(formatNum(totals.rent)) + '</td>' + (utility ? '<td></td><td>' + esc(formatNum(totals.utility)) + '</td>' : '') + '</tr></tfoot></table></div>';
   }
   let v = r[f.name];
   // в архиве нет отдельных «основных» значений — показываем текущие

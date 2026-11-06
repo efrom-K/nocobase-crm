@@ -57,6 +57,9 @@ def lines_totals(lines):
         area += round(a * 100)
         if r > 0: rent += round(mul_money(r, a) * 100)
     return area / 100, rent / 100
+def lines_utility(lines):
+    selected = [l for l in lines or [] if float(l.get('area') or 0) > 0 and l.get('utility_rate') is not None]
+    return sum(round(mul_money(float(l.get('utility_rate') or 0), float(l['area'])) * 100) for l in selected) / 100 if selected else None
 def effective_area(c, rent_period):
     # (площадь, задана строками?) или None — как effectiveArea в карточке
     pl = lines_of(rent_period.get('rent_lines')) if rent_period else None
@@ -108,6 +111,8 @@ def comp_label(comp, p):
     if pl: return v + ' в месяц (' + '; '.join('%s м² × %s ₽ = %s ₽' % (fmt(float(l['area'])), fmt(float(l.get('rate') or 0)), fmt(mul_money(float(l.get('rate') or 0), float(l['area'])))) for l in pl if float(l.get('area') or 0) > 0) + ')'
     return v + ' за 1 квадратный метр в месяц' if per_f and comp[7](p) == 'per_sqm' else (v if key == 'deposit' else v + ' в месяц')
 def base_text(comp, c):
+    utility = lines_utility(lines_of(c.get('area_lines'))) if comp[0] == 'utility' else None
+    if utility is not None: return '%s ₽ в месяц (по площадям)' % fmt(utility)
     per = c[comp[4]] if comp[4] else None
     amt = c[comp[5]]
     if per is not None: return '%s ₽ за 1 квадратный метр в месяц' % fmt(per)
@@ -140,6 +145,8 @@ def target(c, iso):
             else:
                 if per_f: new[per_f] = None
                 new[amt_f] = r2(period_monthly_value(p, v, iso)) if basis(p) == 'period' else v
+            utility = lines_utility(lines_of(p.get('rent_lines'))) if key == 'utility' else None
+            if utility is not None: new[per_f], new[amt_f] = None, utility
             sig.append('%s:p%s|%s|%s|%s' % (key, p['id'], value(p), basis(p), area) + ('|' + iso[:7] if basis(p) == 'period' else ''))
             texts.append('%s по периоду %s: %s' % (title.capitalize(), prange(p), comp_label(comp, p)))
             warn.append('%s %s' % (title, comp_label(comp, p)))
@@ -149,6 +156,8 @@ def target(c, iso):
                 new[amt_f] = c[base_amt]
                 # основная цена за метр при нескольких площадях — от площади на эту дату
                 if ea and ea[1] and base_per and c[base_per] is not None and area > 0: new[amt_f] = mul_money(c[base_per], area)
+            utility = lines_utility(lines_of(c.get('area_lines'))) if key == 'utility' else None
+            if utility is not None: new[per_f], new[amt_f] = None, utility
             sig.append('%s:base|%s|%s' % (key, c[base_per] if base_per else '', c[base_amt]))
             texts.append('%s: основное значение %s' % (title.capitalize(), base_text(comp, c)))
             warn.append('%s вернётся к основному значению %s' % (title, base_text(comp, c)))

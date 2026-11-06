@@ -9,7 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.environ.get('PY', os.path.join(HERE, '..', 'scripts', 'apply_price_schedule.py'))
 src = open(SCRIPT, encoding='utf-8').read()
 tree = ast.parse(src)
-keep = {'r2', 'mul_money', 'fmt', 'dmy', 'prange', 'comp_label', 'base_text', 'target', 'lines_of', 'lines_totals', 'effective_area', 'period_monthly_value'}
+keep = {'r2', 'mul_money', 'fmt', 'dmy', 'prange', 'comp_label', 'base_text', 'target', 'lines_of', 'lines_totals', 'lines_utility', 'effective_area', 'period_monthly_value'}
 nodes = [n for n in tree.body if (isinstance(n, ast.FunctionDef) and n.name in keep) or
          (isinstance(n, ast.Assign) and any(getattr(t, 'id', None) == 'COMPONENTS' for t in n.targets))]
 ns = {'periods': {}, 'json': json, 'date': date, 'monthrange': monthrange}
@@ -25,6 +25,12 @@ def js_values(cases):
     here = HERE
     code = """
 const L = require('%s/price_logic_extract.js');
+const assert = require('node:assert/strict');
+const lines = [{area:100,rate:100,utility_rate:30},{area:45,rate:50,utility_rate:10}];
+assert.deepEqual(L.areaLinesUpdates({area_lines:lines},'rental_contracts'),{area_sqm:145,base_rent_amount:12250,base_rent_per_sqm:null,base_utility_amount:3450,base_utility_per_sqm:null});
+assert.deepEqual(L.areaLinesUpdates({area_lines:lines},'draft_contracts'),{area_sqm:145,rent_amount:12250,rent_per_sqm:null,utility_amount:3450,utility_per_sqm:null});
+assert.equal('utility_amount' in L.areaLinesUpdates({area_lines:[{area:100,rate:10}]},'draft_contracts'),false);
+assert.equal(L.areaLinesUpdates({area_lines:[{area:100,rate:10,utility_rate:0}]},'draft_contracts').utility_amount,0);
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = cases.map(c => {
   const t = L.scheduleTarget(c.periods, c.rec, c.iso);
@@ -96,6 +102,13 @@ case('копейки: 99,99 × 1234,56 = 123443,6544 → 123443,65', dict(BASE, 
 # несколько площадей: 100 м² × 100 + 45 м² × 50 = 12 250, сбор 30 за метр на всю площадь
 ML = dict(BASE, area_sqm=145, area_lines=[{'area': 100, 'rate': 100}, {'area': 45, 'rate': 50}], base_rent_per_sqm=None, base_rent_amount=12250,
           base_utility_per_sqm=30, base_utility_amount=4350, rent_per_sqm=None, rent_amount=12250, utility_per_sqm=30, utility_amount=4350)
+MU = dict(ML, area_lines=[{'area': 100, 'rate': 100, 'utility_rate': 30}, {'area': 45, 'rate': 50, 'utility_rate': 10}], base_utility_per_sqm=None, base_utility_amount=3450)
+case('сбор по площадям: основная сумма', MU, [], '2026-10-02', {'utility_per_sqm': None, 'utility_amount': 3450})
+case('сбор по площадям: период общей суммой приоритетнее', MU, [P(1, '2026-10-01', '2026-10-31', util=2000, util_basis='fixed')], '2026-10-02', {'utility_amount': 2000})
+case('сбор по площадям: после периода возврат', MU, [P(1, '2026-10-01', '2026-10-31', util=2000, util_basis='fixed')], '2026-11-01', {'utility_amount': 3450})
+case('сбор по площадям: ставки периода', MU, [P(1, '2026-10-01', None, util=999, util_basis='fixed', lines=[{'area': 100, 'rate': 100, 'utility_rate': 0}, {'area': 45, 'rate': 50, 'utility_rate': 20}])], '2026-10-02', {'utility_per_sqm': None, 'utility_amount': 900})
+case('сбор по площадям: нулевые ставки', dict(MU, area_lines=[{'area': 100, 'rate': 100, 'utility_rate': 0}]), [], '2026-10-02', {'utility_amount': 0})
+case('сбор по площадям: копейки по каждой строке', dict(MU, area_lines=[{'area': 10.05, 'rate': 1, 'utility_rate': 33.33}, {'area': 0.1, 'rate': 1, 'utility_rate': 26.75}]), [], '2026-10-02', {'utility_amount': 337.65})
 case('площади: без периодов', ML, [], '2026-10-02', {'area_sqm': 145, 'rent_per_sqm': None, 'rent_amount': 12250, 'utility_amount': 4350})
 case('площади: период вернул 45 м² — аренда и сбор от 100 м²', ML, [P(1, '2026-10-01', None, lines=[{'area': 100, 'rate': 100}])], '2026-10-02',
      {'area_sqm': 100, 'rent_amount': 10000, 'utility_amount': 3000})

@@ -30,7 +30,7 @@ run(`hr.d = { emps: [
   { id: 4, full_name: 'Test D', employment_type: 'self', started_on: '2027-01-01', birthday: '1900-02-15', acts:{'2026-01':'2026-02-01'} }
 ], les: [{ id: 1, name: 'Test LE1' }, { id: 2, name: 'Test LE2' }],
 priv: [{ employee_id: 1, passport: 'test-only', mil_note: 'mil', wp_strengths: 'strength', file_docs:['Document A'] }],
-vacs: [], safety: [], pos: [], vacancies: [{id:8,legal_entity_id:1}], cands: [{id:9,vacancy_id:8,employee_id:1,probation:3,comp_scores:{Communication:4}}], owners: [], sout: [], lna: [{id:10,title:'Test LNA',need_ack:true,legal_entity_id:1,acks:{1:'2026-01-01'}}], progs: [], events: [{id:11,event_date:'2026-01-01',participants:[1]}], files:[{entity:'emp',record_id:1,doc:'Document B'}] };
+  vacs: [{id:12,employee_id:1,start_date:'2025-12-31',end_date:'2026-01-02',days:3}], safety: [], pos: [], vacancies: [{id:8,legal_entity_id:1}], cands: [{id:9,vacancy_id:8,employee_id:1,probation:3,comp_scores:{Communication:4}}], owners: [], sout: [], lna: [{id:10,title:'Test LNA',need_ack:true,legal_entity_id:1,acks:{1:'2026-01-01'}}], progs: [], events: [{id:11,event_date:'2026-01-01',participants:[1]}], files:[{entity:'emp',record_id:1,doc:'Document B'}] };
 var o = { year: 2026, asOf: '2026-11-06', parts: ['sum','emp','vac','ot','mil','pos','hire','own','le','sout','lna','prog','event','docs','acks','acts'], types: ['staff','self'], status: 'current', schema: true };
 var spec = hXlsSpec(o, [1,2,0]);`);
 assert.equal(run(`hXlsYears('2024-11-07','2026-11-06')`), 1);
@@ -76,6 +76,11 @@ run(`hr.d.priv = null; spec = hXlsSpec(o,[1]);`);
 assert.equal(run(`spec.sheets.some(s=>['Воинский учёт','Доли подробно','Личное дело','Ознакомления с ЛНА','Акты самозанятых'].includes(s.name))`), false);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=>c.h.startsWith('Личное:')||c.h.startsWith('Рабочий профиль:'))`), false);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Сводка').cols.some(c=>c.h==='Военнообязанных')`), false);
+run(`spec = hXlsSpec(Object.assign({},o,{from:'2025-12-30',to:'2026-01-02',year:2026,parts:['emp','vac','event'],status:'current',department:'',object:''}), [1]);`);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 2); // fired 2026-01-01 included, 2023 dismissal excluded
+assert.equal(run(`spec.sheets.find(s=>s.name==='Отпуска').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Отпуска подробно').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Мероприятия').rows.length`), 1);
 run(`var preview = hXlsPreview({name:'<unsafe>',cols:[{h:'A & B'},{h:'Date',t:'date'},{h:'Number',t:'int'}],rows:Array.from({length:7},()=>['<img onerror=bad>', '2026-11-06', 0])});`);
 assert.match(run('preview'), /&lt;img onerror=bad&gt;/);
 assert.doesNotMatch(run('preview'), /<img/);

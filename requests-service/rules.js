@@ -44,6 +44,7 @@ function canAccept(ctx) {
 
 // какие действия доступны пользователю по заявке (ключи — те же, что принимает apply)
 function actions(ctx) {
+  if (ctx.readOnly) return [];
   const r = ctx.r, x = role(ctx), st = r.status, open = OPEN.indexOf(st) !== -1, a = [];
   const ask = function(kind) { return !(ctx.pending || []).some(function(p) { return p.kind === kind && p.status === 'pending'; }); };
   if (st === 'new' && (x.resp || x.boss)) a.push('take');
@@ -252,4 +253,6 @@ function tenantApply(t, r, a, inp, now) {
   return out;
 }
 
-module.exports = { OPEN, SOURCES, TENANT_WAIT, DEF, addWorkDays, actions, create, apply, role, tenantSees, tenantActions, tenantCreate, tenantApply };
+function allowHttp(user, method, path) { return !user.readOnly || method === 'GET' || method === 'HEAD' || (method === 'POST' && path === '/object-route'); }
+
+module.exports = { allowHttp, OPEN, SOURCES, TENANT_WAIT, DEF, addWorkDays, actions, create, apply, role, tenantSees, tenantActions, tenantCreate, tenantApply };

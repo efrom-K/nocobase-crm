@@ -23,6 +23,8 @@ async function main() {
   let reads=0;
   await assert.rejects(objectRoute({isAdmin:false},{from:1,to:2},async()=>{reads++;return objects;}),status(403));
   assert.equal(reads,0);
+  await assert.rejects(objectRoute({readOnly:true},{from:1,to:1},load),status(400));
+  await assert.rejects(objectRoute({readOnly:true},{from:1,to:99},load),status(404));
   for (const body of [null,{}, {from:1,to:1},{from:'1',to:2},{from:-1,to:2},{from:1,to:NaN},{from:1,to:2.5}]) {
     await assert.rejects(objectRoute(admin,body,load),status(400));
   }

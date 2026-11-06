@@ -287,7 +287,7 @@ function opToast(t) {
 }
 // деньги договора — тем, кто видит их в реестре (аренда, юристы, бухгалтерия), руководству и админам; остальным раздел не показывается
 // ponytail: скрыто только на странице, суммы договора читаются через API — закрыть правами роли на rental_contracts, если понадобится
-function opCanMoney() { return !!(op.me && (op.me.roles || []).some(function(r) { return ['admin', 'root', 'requests_control', 'rental_dept', 'legal_dept', 'accounting_dept'].indexOf(r.name) !== -1; })); }
+function opCanMoney() { return !!(op.me && (op.me.roles || []).some(function(r) { return ['admin', 'root', 'crm_readonly', 'requests_control', 'rental_dept', 'legal_dept', 'accounting_dept'].indexOf(r.name) !== -1; })); }
 function opCanEdit() { return !!(op.me && (op.me.roles || []).some(function(r) { return r.name === 'admin' || r.name === 'root'; })); }
 function opPlan() { return op.plans.find(function(p) { return p.id === op.planId; }) || null; }
 function opRoom(id) { return op.rooms.find(function(r) { return r.id === id; }) || null; }

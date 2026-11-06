@@ -12,6 +12,9 @@ const ctx = vm.createContext({
   ImapFlow: class { constructor() { connections++; } on() {} async connect() {} async logout() {} },
   nodemailer: { createTransport: () => ({ verify: async () => {} }) }
 });
+vm.runInContext(src.slice(src.indexOf('function requireMailboxAccess('), src.indexOf('const server = http.createServer(')), ctx);
+assert.throws(() => ctx.requireMailboxAccess({readOnly:true}), {status:403,code:'READ_ONLY'});
+assert.doesNotThrow(() => ctx.requireMailboxAccess({readOnly:false}));
 vm.runInContext(src.slice(src.indexOf('const MAIL_PRESETS'), src.indexOf('async function guessHosts')), ctx);
 vm.runInContext(src.slice(src.indexOf('async function boxesAdd'), src.indexOf('function boxesRemove')), ctx);
 vm.runInContext(src.slice(src.indexOf('const uploads ='), src.indexOf('function transportFor')), ctx);

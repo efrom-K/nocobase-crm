@@ -9,8 +9,8 @@ function located(p) {
     && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180;
 }
 async function objectRoute(user, body, loadObjects) {
-  // This tab is currently admin-only; routing must not widen access to object locations.
-  if (!user.isAdmin) throw new RouteError(403, 'Нет доступа к карте объектов');
+  // Read-only reviewers may calculate routes; object reads still use their own CRM permissions.
+  if (!user.isAdmin && !user.readOnly) throw new RouteError(403, 'Нет доступа к карте объектов');
   const {from, to} = body || {};
   if (!Number.isSafeInteger(from) || from < 1 || !Number.isSafeInteger(to) || to < 1 || from === to) {
     throw new RouteError(400, 'Выберите два разных объекта');

@@ -169,7 +169,7 @@ async function whoami(token) {
   } catch (e) { u = null; }
   if (!u || !u.id) { tokenCache.delete(token); return null; }
   await refreshMailUsers(token);
-  const v = { userId: u.id, email: String(u.email || '').trim().toLowerCase(), name: u.nickname || u.username || '', exp: Date.now() + 60000 };
+  const v = { userId: u.id, readOnly: (u.roles || []).some(r => r.name === 'crm_readonly'), email: String(u.email || '').trim().toLowerCase(), name: u.nickname || u.username || '', exp: Date.now() + 60000 };
   tokenCache.set(token, v);
   if (tokenCache.size > 500) for (const [k, x] of tokenCache) if (x.exp < Date.now()) tokenCache.delete(k);
   return v;
@@ -843,6 +843,8 @@ function readBody(req, limit) {
 async function readJson(req) { const b = await readBody(req, 8 * 1024 * 1024); try { return b.length ? JSON.parse(b.toString('utf8')) : {}; } catch (e) { throw new ApiError(400, 'BAD_JSON'); } }
 function uidList(v) { return [].concat(v || []).map(Number).filter(n => n > 0); }
 
+function requireMailboxAccess(user) { if (user.readOnly) throw new ApiError(403, 'READ_ONLY', 'Режим просмотра CRM не включает почту и переписки'); }
+
 const server = http.createServer(async (req, res) => {
   const origin = req.headers.origin;
   if (req.method === 'OPTIONS') { res.writeHead(204, corsHeaders(origin)); return res.end(); }
@@ -853,6 +855,7 @@ const server = http.createServer(async (req, res) => {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     let user = await whoami(token);
     if (!user) throw new ApiError(401, 'NO_SESSION', 'Войдите в NocoBase заново');
+    requireMailboxAccess(user);
     // звонки мессенджера — всем вошедшим (не только тем, кому включена почта)
     if (p === '/rtc/stream') return rtcStream(req, res, user, origin);
     if (p === '/rtc/send' && req.method === 'POST') return send(res, 200, rtcSend(user, await readJson(req)), origin);

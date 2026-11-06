@@ -62,7 +62,7 @@ async function whoami(token) {
   } catch (e) { u = null; }
   if (!u || !u.id) { tokenCache.delete(token); return null; }
   const roles = (u.roles || []).map(x => x.name);
-  const v = { id: u.id, isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), exp: Date.now() + 60000 };
+  const v = { id: u.id, isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), readOnly: roles.includes('crm_readonly'), exp: Date.now() + 60000 };
   tokenCache.set(token, v);
   if (tokenCache.size > 500) for (const [k, x] of tokenCache) if (x.exp < Date.now()) tokenCache.delete(k);
   return v;
@@ -93,7 +93,7 @@ async function refs() {
   return ref;
 }
 function ctxFor(user, rf, r, pending, doneBy) {
-  return { me: user.id, isAdmin: user.isAdmin, isCtl: user.isCtl, depts: rf.depts[user.id] || [], r: r, pending: pending || [], doneBy: doneBy || null, userName: id => rf.names[id] || '#' + id };
+  return { me: user.id, readOnly: user.readOnly, isAdmin: user.isAdmin, isCtl: user.isCtl, depts: rf.depts[user.id] || [], r: r, pending: pending || [], doneBy: doneBy || null, userName: id => rf.names[id] || '#' + id };
 }
 // кто отметил «Решена» (последнее такое событие) — по заявкам на приёмке; он же их принять не может
 async function doneByOf(ids) {
@@ -455,6 +455,7 @@ http.createServer(async (req, res) => {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const user = await whoami(token);
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
+    if (!R.allowHttp(user, req.method, p)) throw new ApiError(403, 'Доступ только для просмотра');
     if (p === '/object-route' && req.method === 'POST') {
       const route = await objectRoute(user, await readJson(req), async ids => {
         const r = await fetch(NB_URL + '/api/contract_objects:list?paginate=false&fields=id,map_location&filter=' + q({id:{$in:ids}}), {

@@ -125,3 +125,11 @@ const has = (ctx, a) => R.actions(ctx).indexOf(a) !== -1;
   assert.strictEqual(R.apply(as(MGR, req({ due_date: '2026-10-20' })), 'to_dept', t, { deptDays: 3 }, now).upd.dept_due, '2026-10-26');
 }
 console.log('rules ok');
+
+// Read-only access must be enforced before service-account writes.
+for (const path of ['/create','/act','/portal-link','/object-person','/unknown']) assert.equal(R.allowHttp({readOnly:true},'POST',path),false);
+for (const method of ['PUT','PATCH','DELETE']) assert.equal(R.allowHttp({readOnly:true},method,'/object-route'),false);
+assert.equal(R.allowHttp({readOnly:true},'POST','/object-route'),true);
+assert.equal(R.allowHttp({readOnly:true},'GET','/acts'),true);
+assert.equal(R.allowHttp({},'POST','/create'),true);
+assert.deepEqual(R.actions(as(MGR,req(),{readOnly:true})),[]);

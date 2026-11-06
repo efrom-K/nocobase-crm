@@ -21,6 +21,7 @@ load('function hOpts(', 'function hField(');
 load('const hLeOpts', '// ---------- «требует внимания»');
 load('const HR_OWN_KIND', 'function hOwnNow(');
 load('function hXlsYears(', 'function hOpenExport(');
+load('function hSafetyRecs(', '// для статуса');
 load('function hXlsSpec(', 'function hOnClick(');
 const run = js => vm.runInContext(js, c);
 run(`hr.d = { emps: [
@@ -30,7 +31,7 @@ run(`hr.d = { emps: [
   { id: 4, full_name: 'Test D', employment_type: 'self', started_on: '2027-01-01', birthday: '1900-02-15', acts:{'2026-01':'2026-02-01'} }
 ], les: [{ id: 1, name: 'Test LE1' }, { id: 2, name: 'Test LE2' }],
 priv: [{ employee_id: 1, passport: 'test-only', mil_note: 'mil', wp_strengths: 'strength', file_docs:['Document A'] }],
-  vacs: [{id:12,employee_id:1,start_date:'2025-12-31',end_date:'2026-01-02',days:3}], safety: [], pos: [], vacancies: [{id:8,legal_entity_id:1}], cands: [{id:9,vacancy_id:8,employee_id:1,probation:3,comp_scores:{Communication:4}}], owners: [], sout: [], lna: [{id:10,title:'Test LNA',need_ack:true,legal_entity_id:1,acks:{1:'2026-01-01'}}], progs: [], events: [{id:11,event_date:'2026-01-01',participants:[1]}], files:[{entity:'emp',record_id:1,doc:'Document B'}] };
+  vacs: [{id:12,employee_id:1,start_date:'2025-12-31',end_date:'2026-01-02',days:3}], safety: [], pos: [], vacancies: [{id:8,legal_entity_id:1,opened_on:'2026-01-01',due_on:'2026-12-31',status:'open'}], cands: [{id:9,vacancy_id:8,employee_id:1,createdAt:'2026-01-10',probation:3,comp_scores:{Communication:4}}], owners: [], sout: [], lna: [{id:10,title:'Test LNA',need_ack:true,legal_entity_id:1,acks:{1:'2026-01-01'}}], progs: [], events: [{id:11,event_date:'2026-01-01',participants:[1]}], files:[{entity:'emp',record_id:1,doc:'Document B'}] };
 var o = { year: 2026, asOf: '2026-11-06', parts: ['sum','emp','vac','ot','mil','pos','hire','own','le','sout','lna','prog','event','docs','acks','acts'], types: ['staff','self'], status: 'current', schema: true };
 var spec = hXlsSpec(o, [1,2,0]);`);
 assert.equal(run(`hXlsYears('2024-11-07','2026-11-06')`), 1);
@@ -61,8 +62,8 @@ assert.equal(run(`hXlsAuto({birthday:'2000-02-29'},'2027-02-28',2027)[3]`), 1);
 assert.equal(cell('Сотрудники', 'Личное: Паспорт (серия, номер, кем и когда выдан)'), 'test-only');
 assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 4);
 run(`spec = hXlsSpec(Object.assign({},o,{status:'all'}), [1]);`);
-assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 3);
-assert.equal(cell('Сотрудники', 'Полных лет работает (от приёма)', 1), 3); // stops at dismissal
+assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 2);
+assert.equal(cell('Сотрудники', 'Полных лет работает (от приёма)', 1), 6); // stops at dismissal
 run(`spec = hXlsSpec(Object.assign({},o,{status:'active',department:'A',object:'X'}), [1]);`);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 1);
 assert.equal(cell('Сводка', 'Договор истекает за 30 дней'), 1);
@@ -90,6 +91,25 @@ assert.ok(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=
 assert.ok(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=>c.h==='Осталось запланировать отпусков 2026, дней')`));
 assert.equal(cell('Сводка', 'Отпуск 2022: норма, дн.'), 56);
 assert.equal(cell('Сотрудники', 'Осталось запланировать отпусков 2022, дней'), null);
+run(`hr.d.safety = [
+  {employee_id:1,kind:'Вводный инструктаж (журнал)',doc:'Организация',done_on:'2025-12-31',next_on:'2026-01-01'},
+  {employee_id:1,kind:'Вводный инструктаж (журнал)',doc:'Организация',done_on:'2027-01-01',next_on:'2027-12-31'}
+];
+hr.d.sout = [{id:20,legal_entity_id:1,assessed_on:'2024-01-01',next_on:'2026-12-31'},{id:21,legal_entity_id:1,assessed_on:'2018-01-01',next_on:'2020-12-31'}];
+hr.d.lna.push({id:22,title:'In range',legal_entity_id:1,approved_on:'2024-01-01',review_on:'2026-12-31'},{id:23,title:'Out',legal_entity_id:1,approved_on:'2018-01-01',review_on:'2020-12-31'});
+hr.d.progs = [{id:24,title:'In range',start_on:'2024-01-01',end_on:'2026-12-31'},{id:25,title:'Out',start_on:'2018-01-01',end_on:'2020-12-31'}];
+hr.d.vacancies = [{id:8,legal_entity_id:1,opened_on:'2024-01-01',due_on:'2025-01-01',closed_on:'2025-02-01'},{id:12,legal_entity_id:1,opened_on:'2018-01-01',due_on:'2019-01-01',closed_on:'2020-01-01'}];
+hr.d.cands = [{id:9,vacancy_id:8,createdAt:'2025-12-31',employee_id:1},{id:13,vacancy_id:12,createdAt:'2019-01-01'}];
+hr.d.events.push({id:14,event_date:'2020-01-01'});
+spec = hXlsSpec(Object.assign({},o,{from:'2022-01-01',to:'2026-12-31',year:2026,parts:['ot','hire','sout','lna','prog','event'],status:'current',department:'',object:''}), [1]);`);
+assert.equal(run(`spec.sheets.find(s=>s.name==='СОУТ').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Локальные акты').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Мотивационные программы').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Мероприятия').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Вакансии подробно').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Кандидаты').rows.length`), 1);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Обучение подробно').rows.length`), 1);
+assert.equal(run(`hSafetyRecs(1,'Вводный инструктаж (журнал)','2022-01-01','2026-12-31').length`), 1);
 run(`var preview = hXlsPreview({name:'<unsafe>',cols:[{h:'A & B'},{h:'Date',t:'date'},{h:'Number',t:'int'}],rows:Array.from({length:7},()=>['<img onerror=bad>', '2026-11-06', 0])});`);
 assert.match(run('preview'), /&lt;img onerror=bad&gt;/);
 assert.doesNotMatch(run('preview'), /<img/);

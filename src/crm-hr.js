@@ -209,10 +209,24 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-xls-field select, .hr-xls-field input { width:100%; min-width:0; box-sizing:border-box; padding:8px; border:1px solid #dfe3ec; border-radius:7px; background:#fff; color:#1f2433; }
     .hr-xls-sheet { border-top:1px solid #e8ecf2; padding:10px 0; }
     .hr-xls-sheet summary { cursor:pointer; font-weight:600; padding:6px 0; }
-    .hr-xls-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:4px 20px; }
-    .hr-xls-col { display:flex; align-items:center; gap:8px; padding:6px 0; }
-    .hr-xls-col label { flex:1; overflow-wrap:anywhere; }
-    .hr-xls-col input[type="number"] { width:54px; padding:5px; border:1px solid #dfe3ec; border-radius:6px; }
+    .hr-xls-editor { display:grid; grid-template-columns:minmax(230px,280px) minmax(0,1fr); gap:16px; align-items:start; }
+    .hr-xls-cols { max-height:380px; overflow:auto; border:1px solid #e8ecf2; border-radius:8px; padding:6px; }
+    .hr-xls-col { display:flex; align-items:center; gap:6px; padding:6px; border-radius:6px; background:#f6f8fb; margin:3px 0; }
+    .hr-xls-col label { flex:1; min-width:0; overflow-wrap:anywhere; font-size:12px; }
+    .hr-xls-drag { cursor:grab; border:0; background:transparent; color:#66738d; padding:4px; font-size:16px; }
+    .hr-xls-move { display:flex; gap:2px; }
+    .hr-xls-move button { border:0; border-radius:4px; background:#fff; color:#1c2d58; cursor:pointer; padding:3px 5px; }
+    .hr-xls-col:focus-within, .hr-xls-drop { outline:2px solid #668ac5; outline-offset:-2px; }
+    .hr-xls-preview { overflow:auto; max-height:380px; border:1px solid #dfe3ec; border-radius:8px; background:#fff; }
+    .hr-xls-preview table { border-collapse:collapse; width:max-content; min-width:100%; font-size:12px; }
+    .hr-xls-preview th, .hr-xls-preview td { padding:9px 12px; border:1px solid #e1e6ef; min-width:100px; max-width:240px; white-space:normal; overflow-wrap:anywhere; }
+    .hr-xls-preview th { background:#1c2d58; color:#fff; position:sticky; top:0; cursor:grab; }
+    .hr-xls-preview tbody tr:nth-child(even) { background:#f3f6fb; }
+    .hr-xls-preview .hr-xls-num { text-align:right; font-variant-numeric:tabular-nums; }
+    .hr-xls-preview caption { text-align:left; padding:10px 12px; background:#eef2f9; color:#1c2d58; font-weight:600; }
+    .hr-xls-preview-note { padding:9px 12px; color:#66738d; font-size:12px; }
+    .hr-xls-sheet summary { display:list-item; }
+    @media(max-width:700px) { .hr-xls-editor { grid-template-columns:minmax(0,1fr); } .hr-xls-cols { max-height:240px; } }
     .hr-xls .hr-actions { position:sticky; bottom:0; padding:14px 0 0; background:#f6f8fb; }
     .hr-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center; }
     .hr-btn { border:1px solid #c3cad8; background:#fff; border-radius:6px; padding:6px 13px; font:inherit; font-size:13.5px; cursor:pointer; color:#1f2433; text-decoration:none; }
@@ -1176,6 +1190,20 @@ function hXlsSelect(spec, o) {
   if (o.notes === false) spec.notes = [];
   return spec;
 }
+function hXlsPreview(sh) {
+  if (!sh.cols.length) return '<div class="hr-xls-preview-note">Выберите столбцы слева — здесь появится таблица.</div>';
+  const cell = function(v, c) {
+    if (v == null || v === '') return '';
+    if (c.t === 'date') return hEsc(hDate(v));
+    if (typeof v === 'number') return hEsc(v.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + (c.t === 'money' ? ' ₽' : c.t === 'pct' ? ' %' : ''));
+    return hEsc(v);
+  };
+  return '<table><caption>' + hEsc(sh.title || sh.name) + '</caption><thead><tr>' + sh.cols.map(function(c) {
+    return '<th scope="col" draggable="true" data-xdrag="' + hEsc(c.h) + '" title="Перетащите, чтобы изменить порядок">' + hEsc(c.h) + '</th>';
+  }).join('') + '</tr></thead><tbody>' + sh.rows.slice(0, 5).map(function(r) {
+    return '<tr>' + sh.cols.map(function(c, i) { return '<td' + (['int', 'num', 'money', 'pct'].indexOf(c.t) !== -1 ? ' class="hr-xls-num"' : '') + '>' + cell(r[i], c) + '</td>'; }).join('') + '</tr>';
+  }).join('') + '</tbody></table><div class="hr-xls-preview-note">' + (sh.rows.length ? 'Показаны первые ' + Math.min(5, sh.rows.length) + ' из ' + sh.rows.length + ' строк.' : 'По выбранным фильтрам нет строк.') + ' В Excel сохранятся все строки; здесь показаны состав и порядок столбцов.</div>';
+}
 function hOpenExport() {
   const y = new Date().getFullYear(), d = hr.d;
   const parts = HR_XLS_PARTS.filter(function(p) { return (p[0] !== 'mil' && p[0] !== 'own') || hHasHr(); });
@@ -1195,7 +1223,7 @@ function hOpenExport() {
       + '<label class="hr-xls-check"><input type="radio" name="xmode" value="one" checked> Один файл на все юрлица</label><label class="hr-xls-check"><input type="radio" name="xmode" value="each"> Отдельный файл на юрлицо</label>'
       + chk('data-xtotals', 1, 'Итоги на листах', true) + chk('data-xnotes', 1, 'Пояснения к столбцам', true)
       + '<div class="hr-hint">Фильтры отдела и объекта относятся к сотрудникам и подбору. Программы и мероприятия общие для компании. Несколько файлов могут потребовать разрешение браузера. Сводка показывает текущий состав, а не исторический срез.</div>')
-    + '</div><section class="hr-xls-card"><h3>5. Столбцы и порядок</h3><p class="hr-hint">Раскройте лист, отметьте поля и задайте порядок числами. Лист без выбранных столбцов не выгружается. Личные данные выключены по умолчанию.</p><div data-xcolumns></div></section>'
+    + '</div><section class="hr-xls-card"><h3>5. Столбцы и порядок</h3><p class="hr-hint">Раскройте лист и отметьте поля. Перетаскивайте за ⠿ или за заголовки таблицы — порядок в файле будет таким же. Лист без выбранных столбцов не выгружается. Личные данные выключены по умолчанию.</p><div data-xcolumns></div></section>'
     + '<div class="hr-actions"><span class="hr-hint" data-xcount></span><button class="hr-btn pri" data-go-x>Скачать Excel</button><button class="hr-btn hr-x">Отмена</button></div></div>', true);
   const got = function(a) { return Array.prototype.map.call(m.querySelectorAll('[' + a + ']:checked'), function(x) { return x.getAttribute(a); }); };
   const options = function() { return { year: Number(m.querySelector('[data-xyear]').value), asOf: m.querySelector('[data-xasof]').value,
@@ -1203,29 +1231,78 @@ function hOpenExport() {
     department: m.querySelector('[data-xdept]').value, object: m.querySelector('[data-xobject]').value,
     fired: true, each: m.querySelector('[name="xmode"]:checked').value === 'each', totals: !!m.querySelector('[data-xtotals]:checked'), notes: !!m.querySelector('[data-xnotes]:checked') }; };
   const choices = {};
+  let previewSpec = null;
   const saveColumns = function() { m.querySelectorAll('[data-xsheet]').forEach(function(box) {
-    choices[box.getAttribute('data-xsheet')] = Array.prototype.map.call(box.querySelectorAll('[data-xcol]'), function(row) {
-      return { h: row.getAttribute('data-xcol'), on: row.querySelector('input[type="checkbox"]').checked, order: Number(row.querySelector('input[type="number"]').value) || 1 };
+    choices[box.getAttribute('data-xsheet')] = Array.prototype.map.call(box.querySelectorAll('[data-xcol]'), function(row, i) {
+      return { h: row.getAttribute('data-xcol'), on: row.querySelector('input[type="checkbox"]').checked, order: i };
     });
   }); };
+  const selectedColumns = function() {
+    const columns = {};
+    Object.keys(choices).forEach(function(k) { columns[k] = choices[k].filter(function(x) { return x.on; }).map(function(x) { return x.h; }); });
+    return columns;
+  };
+  const preview = function(box) {
+    saveColumns();
+    const name = box.getAttribute('data-xsheet'), sh = previewSpec.sheets.find(function(s) { return s.name === name; });
+    const spec = hXlsSelect({ sheets: [{ name: sh.name, title: sh.title, cols: sh.cols, rows: sh.rows }] }, { columns: selectedColumns() });
+    const area = box.querySelector('[data-xpreview]'), left = area.scrollLeft, top = area.scrollTop;
+    area.innerHTML = hXlsPreview(spec.sheets[0] || { cols: [], rows: [] });
+    area.scrollLeft = left; area.scrollTop = top;
+    box.querySelector('[data-xselected]').textContent = (choices[name] || []).filter(function(x) { return x.on; }).length + ' из ' + sh.cols.length + ' столбцов';
+  };
   const refresh = function() {
-    saveColumns(); const o = options(), spec = hXlsSpec(Object.assign({}, o, { schema: true }), o.les.length ? o.les : [0]);
-    m.querySelector('[data-xcolumns]').innerHTML = spec.sheets.map(function(sh) {
-      const saved = choices[sh.name];
-      return '<details class="hr-xls-sheet" data-xsheet="' + hEsc(sh.name) + '"><summary>' + hEsc(sh.name) + ' · ' + sh.cols.length + ' полей</summary><div class="hr-xls-tools"><button class="hr-btn sm" data-xall="1">Все поля</button><button class="hr-btn sm" data-xall="0">Снять все</button></div><div class="hr-xls-cols">'
-        + sh.cols.map(function(c, i) { const prev = saved && saved.find(function(x) { return x.h === c.h; }), on = prev ? prev.on : c.optional !== true;
-          return '<div class="hr-xls-col" data-xcol="' + hEsc(c.h) + '"><label><input type="checkbox"' + (on ? ' checked' : '') + '> ' + hEsc(c.h) + '</label><input type="number" min="1" max="999" aria-label="Порядок: ' + hEsc(c.h) + '" value="' + (prev ? prev.order : i + 1) + '"></div>';
-        }).join('') + '</div></details>';
+    saveColumns(); const opened = Array.prototype.map.call(m.querySelectorAll('[data-xsheet][open]'), function(x) { return x.getAttribute('data-xsheet'); });
+    const o = options(); previewSpec = hXlsSpec(Object.assign({}, o, { schema: true }), o.les.length ? o.les : [0]);
+    m.querySelector('[data-xcolumns]').innerHTML = previewSpec.sheets.map(function(sh, si) {
+      const saved = choices[sh.name], order = function(c) { const x = saved && saved.find(function(x) { return x.h === c.h; }); return x ? x.order : 1000 + sh.cols.indexOf(c); };
+      return '<details class="hr-xls-sheet" data-xsheet="' + hEsc(sh.name) + '"' + (opened.indexOf(sh.name) !== -1 || (!opened.length && si === 0) ? ' open' : '') + '><summary>' + hEsc(sh.name) + ' <span class="hr-hint" data-xselected></span></summary><div class="hr-xls-tools"><button class="hr-btn sm" data-xall="1">Все поля</button><button class="hr-btn sm" data-xall="0">Снять все</button></div><div class="hr-xls-editor"><div class="hr-xls-cols">'
+        + sh.cols.slice().sort(function(a, b) { return order(a) - order(b); }).map(function(c) { const prev = saved && saved.find(function(x) { return x.h === c.h; }), on = prev ? prev.on : c.optional !== true;
+          return '<div class="hr-xls-col" data-xcol="' + hEsc(c.h) + '"><button class="hr-xls-drag" draggable="true" data-xdrag="' + hEsc(c.h) + '" aria-label="Перетащить: ' + hEsc(c.h) + '" title="Перетащите столбец">⠿</button><label><input type="checkbox"' + (on ? ' checked' : '') + '> ' + hEsc(c.h) + '</label><span class="hr-xls-move"><button data-xmove="-1" aria-label="Левее: ' + hEsc(c.h) + '" title="На столбец левее">←</button><button data-xmove="1" aria-label="Правее: ' + hEsc(c.h) + '" title="На столбец правее">→</button></span></div>';
+        }).join('') + '</div><div class="hr-xls-preview" data-xpreview tabindex="0" role="region" aria-label="Предпросмотр: ' + hEsc(sh.name) + '"></div></div></details>';
     }).join('');
+    m.querySelectorAll('[data-xsheet]').forEach(preview);
     m.querySelector('[data-xcount]').textContent = o.les.length + ' юрлиц · ' + o.parts.length + ' разделов';
   };
   m.querySelector('[data-lall]').addEventListener('click', function() { m.querySelectorAll('[data-xle]').forEach(function(x) { x.checked = x.getAttribute('data-xle') !== '0'; }); refresh(); });
   m.querySelector('[data-lnone]').addEventListener('click', function() { m.querySelectorAll('[data-xle]').forEach(function(x) { x.checked = false; }); refresh(); });
-  m.addEventListener('change', function(e) { if (!e.target.closest('[data-xsheet]')) refresh(); });
-  m.querySelector('[data-xcolumns]').addEventListener('click', function(e) { const b = e.target.closest('[data-xall]'); if (b) b.closest('[data-xsheet]').querySelectorAll('input[type="checkbox"]').forEach(function(x) { x.checked = b.getAttribute('data-xall') === '1'; }); });
+  m.addEventListener('change', function(e) { const box = e.target.closest('[data-xsheet]'); if (box) preview(box); else refresh(); });
+  const editor = m.querySelector('[data-xcolumns]');
+  const move = function(box, from, to) {
+    const rows = Array.prototype.slice.call(box.querySelectorAll('[data-xcol]')), a = rows.findIndex(function(r) { return r.getAttribute('data-xcol') === from; }), b = rows.findIndex(function(r) { return r.getAttribute('data-xcol') === to; });
+    if (a < 0 || b < 0 || a === b) return;
+    rows[a].parentNode.insertBefore(rows[a], a < b ? rows[b].nextSibling : rows[b]);
+    preview(box);
+  };
+  editor.addEventListener('click', function(e) {
+    const all = e.target.closest('[data-xall]'), arrow = e.target.closest('[data-xmove]');
+    if (all) { const box = all.closest('[data-xsheet]'); box.querySelectorAll('input[type="checkbox"]').forEach(function(x) { x.checked = all.getAttribute('data-xall') === '1'; }); preview(box); }
+    if (arrow) {
+      const box = arrow.closest('[data-xsheet]'), row = arrow.closest('[data-xcol]'), rows = Array.prototype.slice.call(box.querySelectorAll('[data-xcol]')).filter(function(x) { return !row.querySelector('input[type="checkbox"]').checked || x.querySelector('input[type="checkbox"]').checked; }), to = rows[rows.findIndex(function(x) { return x.getAttribute('data-xcol') === row.getAttribute('data-xcol'); }) + Number(arrow.getAttribute('data-xmove'))];
+      if (to) move(box, row.getAttribute('data-xcol'), to.getAttribute('data-xcol'));
+    }
+  });
+  let drag = null;
+  const clearDrag = function() { editor.querySelectorAll('.hr-xls-drop').forEach(function(x) { x.classList.remove('hr-xls-drop'); }); };
+  editor.addEventListener('dragstart', function(e) {
+    const handle = e.target.closest('[data-xdrag]');
+    if (!handle) return;
+    drag = { box: handle.closest('[data-xsheet]'), name: handle.getAttribute('data-xdrag') };
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', drag.name);
+  });
+  editor.addEventListener('dragover', function(e) {
+    const target = e.target.closest('[data-xdrag], [data-xcol]');
+    if (!drag || !target || target.closest('[data-xsheet]').getAttribute('data-xsheet') !== drag.box.getAttribute('data-xsheet')) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move'; clearDrag(); target.classList.add('hr-xls-drop');
+  });
+  editor.addEventListener('drop', function(e) {
+    const target = e.target.closest('[data-xdrag], [data-xcol]');
+    if (drag && target && target.closest('[data-xsheet]').getAttribute('data-xsheet') === drag.box.getAttribute('data-xsheet')) { e.preventDefault(); move(drag.box, drag.name, target.getAttribute('data-xdrag') || target.getAttribute('data-xcol')); }
+    drag = null; clearDrag();
+  });
+  editor.addEventListener('dragend', function() { drag = null; clearDrag(); });
   m.querySelector('[data-go-x]').addEventListener('click', function() {
-    saveColumns(); const o = options(); o.columns = {};
-    Object.keys(choices).forEach(function(k) { o.columns[k] = choices[k].filter(function(x) { return x.on; }).sort(function(a, b) { return a.order - b.order; }).map(function(x) { return x.h; }); });
+    saveColumns(); const o = options(); o.columns = selectedColumns();
     if (!o.les.length) return hToast('Отметьте хотя бы одно юрлицо');
     if (!o.parts.length || !o.types.length) return hToast('Выберите разделы и типы занятости');
     if (!Number.isInteger(o.year) || o.year < 1900 || o.year > 2200 || !/^\d{4}-\d{2}-\d{2}$/.test(o.asOf)) return hToast('Укажите корректные год и дату расчёта');

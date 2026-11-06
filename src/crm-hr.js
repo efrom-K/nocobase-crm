@@ -1144,16 +1144,45 @@ function hrExportXlsx() {
 }
 // ---------- выгрузка в Excel по юрлицам: окно выбора (год, юрлица, разделы, типы занятости, один файл или по файлу на юрлицо) ----------
 const HR_XLS_PARTS = [['sum', 'Сводная статистика по юрлицам'], ['emp', 'Сотрудники'], ['vac', 'Отпуска и остатки дней'], ['ot', 'Охрана труда'],
-  ['mil', 'Воинский учёт'], ['pos', 'Штатное расписание'], ['hire', 'Подбор (вакансии и кандидаты)'], ['own', 'Учредители'], ['le', 'Реквизиты юрлиц'], ['sout', 'СОУТ'], ['lna', 'Локальные акты'], ['prog', 'Мотивационные программы'], ['event', 'Мероприятия']];
+  ['mil', 'Воинский учёт'], ['pos', 'Штатное расписание'], ['hire', 'Подбор (вакансии и кандидаты)'], ['own', 'Учредители'], ['le', 'Реквизиты юрлиц'], ['sout', 'СОУТ'], ['lna', 'Локальные акты'], ['prog', 'Мотивационные программы'], ['event', 'Мероприятия'], ['docs', 'Личные дела и документы'], ['acks', 'Ознакомления с ЛНА'], ['acts', 'Акты самозанятых']];
 // Полные годовщины; незаполненная или будущая дата не превращается в нулевой стаж.
 function hXlsYears(from, to) {
   from = hD(from); to = hD(to);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) return null;
   return Number(to.slice(0, 4)) - Number(from.slice(0, 4)) - (to.slice(5) < from.slice(5) ? 1 : 0);
 }
+function hXlsBirthday(e) {
+  const d = hD(e.birthday);
+  return d && d.slice(0, 4) !== '1900' ? d : null;
+}
+function hXlsDocs(e) {
+  const type = e.employment_type || 'staff', have = (hPriv(e.id) || {}).file_docs || [];
+  const list = type === 'self' ? HR_FILE_DOCS_SELF : type === 'staff' ? HR_FILE_DOCS : ['Договор с внештатным сотрудником', 'Копия паспорта', 'СНИЛС и ИНН', 'Согласие на обработку персональных данных'];
+  return list.map(function(doc) { const n = hFilesOf('emp', e.id, doc).length; return { doc: doc, manual: have.indexOf(doc) !== -1, files: n, present: have.indexOf(doc) !== -1 || n > 0 }; });
+}
+function hXlsAuto(e, asOf, year) {
+  const end = e.status === 'fired' && e.fired_on && hD(e.fired_on) < asOf ? hD(e.fired_on) : asOf, hired = hD(e.hired_on), started = hD(e.started_on);
+  const months = hXlsYears(hired, end) === null ? null : (Number(end.slice(0, 4)) - Number(hired.slice(0, 4))) * 12 + Number(end.slice(5, 7)) - Number(hired.slice(5, 7)) - (end.slice(8) < hired.slice(8) ? 1 : 0);
+  let birthday = null;
+  if (e.birthday) {
+    const d = hD(e.birthday), next = function(y) { return hIso(new Date(y, Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)))); };
+    birthday = next(Number(asOf.slice(0, 4))); if (birthday < asOf) birthday = next(Number(asOf.slice(0, 4)) + 1);
+  }
+  const out = [months, hXlsYears(hired, end) === null ? null : hDays(hired, end), hXlsYears(started, end) === null ? null : hDays(started, end), birthday ? hDays(asOf, birthday) : null,
+    (e.employment_type || 'staff') === 'staff' ? hVacLeft(e, year) : null];
+  if (hHasHr()) {
+    const cand = hr.d.cands.find(function(c) { return Number(c.employee_id) === e.id; }), begin = started || (cand && hD(cand.start_on)), trial = cand && begin && Number.isInteger(Number(cand.probation)) && Number(cand.probation) > 0 ? hAddM(begin, Number(cand.probation)) : null;
+    const docs = hXlsDocs(e), missing = docs.filter(function(d) { return !d.present; });
+    const lna = hr.d.lna.filter(function(l) { return l.need_ack && (!l.legal_entity_id || hInLe(e, l.legal_entity_id)) && !(l.acks || {})[e.id]; });
+    const safety = (e.employment_type || 'staff') === 'staff' ? HR_SAFETY.map(function(k) { const r = hSafetyLast(e.id, k[0]); return r && r.next_on ? hDays(asOf, r.next_on) : null; }) : [];
+    out.push(trial, trial ? hDays(asOf, trial) : null, docs.length - missing.length, missing.length, missing.map(function(d) { return d.doc; }).join(', '),
+      (e.employment_type || 'staff') === 'staff' ? lna.length : null, safety.filter(function(n) { return n !== null && n < 0; }).length, safety.filter(function(n) { return n !== null && n >= 0 && n <= 30; }).length);
+  }
+  return out;
+}
 function hXlsFields() {
-  return H_MAIN.concat(hHasHr() ? H_PERSONAL.concat(H_MIL, H_MOT, H_WP) : []).filter(function(f) {
-    return ['position', 'department', 'employment_type', 'rate', 'hired_on', 'started_on', 'fired_on', 'status', 'object_name', 'contract_until', 'phone', 'email'].indexOf(f[0]) === -1;
+  return H_MAIN.concat(hHasHr() ? H_PERSONAL.concat(H_MIL, H_MOT, H_WP, [['wp_reviewed_on', 'Рабочий профиль обновлён', 'date']]) : []).filter(function(f) {
+    return ['position', 'department', 'employment_type', 'rate', 'hired_on', 'started_on', 'fired_on', 'status', 'object_name', 'contract_until', 'phone', 'email', 'birthday'].indexOf(f[0]) === -1;
   });
 }
 function hXlsLabel(f) {
@@ -1164,6 +1193,9 @@ function hXlsValue(data, f) {
   if (v == null || v === '') return null;
   if (f[2] === 'date') return hD(v) || null;
   if (f[2] === 'num') return Number(v);
+  if (f[0] === 'position_id') { const pos = hr.d.pos.find(function(p) { return Number(p.id) === Number(v); }); return pos ? [pos.department, pos.position].filter(Boolean).join(' · ') : ''; }
+  if (f[0] === 'participants') return (Array.isArray(v) ? v : []).map(function(id) { return (hEmp(id) || {}).full_name || 'Сотрудник #' + id; }).join(', ');
+  if (f[0] === 'comp_scores') return Object.keys(v).map(function(k) { return k + ': ' + v[k]; }).join('; ');
   if (f[0] === 'employee_id') return (hEmp(v) || {}).full_name || '';
   if (f[0] === 'sout_id') return (hSout(v) || {}).workplace || '';
   if (f[2] === 'select' || f[2] === 'multi') {
@@ -1206,14 +1238,14 @@ function hXlsPreview(sh) {
 }
 function hOpenExport() {
   const y = new Date().getFullYear(), d = hr.d;
-  const parts = HR_XLS_PARTS.filter(function(p) { return (p[0] !== 'mil' && p[0] !== 'own') || hHasHr(); });
+  const parts = HR_XLS_PARTS.filter(function(p) { return ['mil', 'own', 'docs', 'acks', 'acts'].indexOf(p[0]) === -1 || hHasHr(); });
   const chk = function(attr, v, label, on) { return '<label class="hr-xls-check"><input type="checkbox" ' + attr + '="' + hEsc(v) + '"' + (on ? ' checked' : '') + '> <span>' + hEsc(label) + '</span></label>'; };
   const card = function(t, html) { return '<section class="hr-xls-card"><h3>' + t + '</h3>' + html + '</section>'; };
   const m = hModal('<div class="hr-box-h"><div class="hr-box-t">Excel по юрлицам</div><button class="hr-x" aria-label="Закрыть">✕</button></div><div class="hr-box-b hr-xls">'
     + '<p class="hr-hint">Настройте состав книги и столбцы каждого листа. Данные выгружаются с вашими текущими правами.</p><div class="hr-xls-grid">'
     + card('1. Юрлица', '<div class="hr-xls-tools"><button class="hr-btn sm" data-lall>Выбрать все</button><button class="hr-btn sm" data-lnone>Снять все</button></div><div class="hr-xls-list">'
       + d.les.map(function(l) { return chk('data-xle', l.id, l.name, true); }).join('') + chk('data-xle', 0, 'Без юрлица', false) + '</div>')
-    + card('2. Состав книги', parts.map(function(p) { return chk('data-xpart', p[0], p[1], ['hire', 'le', 'sout', 'lna', 'prog', 'event'].indexOf(p[0]) === -1); }).join(''))
+    + card('2. Состав книги', parts.map(function(p) { return chk('data-xpart', p[0], p[1], ['hire', 'le', 'sout', 'lna', 'prog', 'event', 'docs', 'acks', 'acts'].indexOf(p[0]) === -1); }).join(''))
     + card('3. Сотрудники', Object.keys(HR_EMP_TYPE).map(function(k) { return chk('data-xtype', k, HR_EMP_TYPE[k], true); }).join('')
       + '<label class="hr-xls-field">Статус<select data-xstatus><option value="current">Работающие + уволенные за год</option><option value="active">Только работающие</option><option value="fired">Только уволенные за год</option><option value="all">Все, включая уволенных за все годы</option></select></label>'
       + '<label class="hr-xls-field">Отдел<select data-xdept><option value="">Все отделы</option>' + hDeptNames().map(function(v) { return '<option>' + hEsc(v) + '</option>'; }).join('') + '</select></label>'
@@ -1374,13 +1406,15 @@ function hXlsSpec(o, leIds) {
   }
   const rowsBy = function(f) { return [].concat.apply([], leIds.map(f)); };
   const extraFields = hXlsFields();
+  const autoFields = [['Стаж от приёма, полных месяцев', 'int'], ['Стаж от приёма, дней', 'int'], ['От фактического выхода, дней', 'int'], ['До дня рождения, дней', 'int'], ['Осталось запланировать отпуска за год, дней', 'int']]
+    .concat(hHasHr() ? [['Плановое окончание испытания', 'date'], ['До окончания испытания, дней', 'int'], ['Личное дело: документов есть', 'int'], ['Личное дело: документов не хватает', 'int'], ['Личное дело: недостающие документы', 'text'], ['ЛНА: не ознакомлен', 'int'], ['ОТ: просрочено', 'int'], ['ОТ: скоро (30 дней)', 'int']] : []);
   if (has('emp')) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: one ? 1 : 2,
-    cols: lc.concat([{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Тип занятости' }, { h: 'Ставка', t: 'num', total: false }, { h: 'Принят', t: 'date' }, { h: 'Фактический выход на работу', t: 'date', w: 28 }, { h: 'Уволен', t: 'date' },
-      { h: 'Статус' }, { h: 'Объект', w: 22 }, { h: 'Договор до', t: 'date' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }, { h: 'Полных лет работает (от приёма)', t: 'int', total: false }, { h: 'Полных лет от фактического выхода', t: 'int', total: false }, { h: 'Возраст, полных лет', t: 'int', total: false, optional: true }, { h: 'До конца договора, дней', t: 'int', total: false, optional: true }]
-      .concat(extraFields.map(function(f) { return { h: hXlsLabel(f), t: f[2] === 'date' ? 'date' : f[2] === 'num' ? 'num' : 'text', w: 28, total: false, optional: true }; })).concat(has('own') && hHasHr() ? [{ h: 'Учредитель в', w: 40 }] : [])),
+    cols: lc.concat([{ h: 'ФИО', w: 32 }, { h: 'Дата рождения', t: 'date' }, { h: 'Возраст, полных лет', t: 'int', total: false }, { h: 'День и месяц рождения', optional: true }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Тип занятости' }, { h: 'Ставка', t: 'num', total: false }, { h: 'Принят', t: 'date' }, { h: 'Фактический выход на работу', t: 'date', w: 28 }, { h: 'Уволен', t: 'date' },
+      { h: 'Статус' }, { h: 'Объект', w: 22 }, { h: 'Договор до', t: 'date' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }, { h: 'Полных лет работает (от приёма)', t: 'int', total: false }, { h: 'Полных лет от фактического выхода', t: 'int', total: false }, { h: 'До конца договора, дней', t: 'int', total: false, optional: true }]
+      .concat(autoFields.map(function(f) { return { h: f[0], t: f[1], total: false, optional: true, w: 28 }; })).concat(extraFields.map(function(f) { return { h: hXlsLabel(f), t: f[2] === 'date' ? 'date' : f[2] === 'num' ? 'num' : 'text', w: 28, total: false, optional: true }; })).concat(has('own') && hHasHr() ? [{ h: 'Учредитель в', w: 40 }] : [])),
     rows: rowsBy(function(id) { return people(id).map(function(e) {
-      return lv(id).concat([e.full_name || '', e.position || '', e.department || '', HR_EMP_TYPE[typ(e)] || '', typ(e) === 'staff' ? Number(e.rate || 1) : null, hD(e.hired_on) || null, hD(e.started_on) || null, hD(e.fired_on) || null,
-        HR_EMP_ST[e.status] || HR_EMP_ST.active, e.object_name || '', hD(e.contract_until) || null, e.phone || '', e.email || '', hXlsYears(e.hired_on, endOf(e)), hXlsYears(e.started_on, endOf(e)), hXlsYears(e.birthday, asOf), e.contract_until ? hDays(asOf, hD(e.contract_until)) : null].concat(extraFields.map(function(f) { return hXlsField(e, f); })).concat(has('own') && hHasHr() ? [hOwnSharesTxt(e)] : []));
+      return lv(id).concat([e.full_name || '', hXlsBirthday(e), hXlsYears(hXlsBirthday(e), asOf), e.birthday ? hD(e.birthday).slice(8, 10) + '.' + hD(e.birthday).slice(5, 7) : '', e.position || '', e.department || '', HR_EMP_TYPE[typ(e)] || '', typ(e) === 'staff' ? Number(e.rate || 1) : null, hD(e.hired_on) || null, hD(e.started_on) || null, hD(e.fired_on) || null,
+        HR_EMP_ST[e.status] || HR_EMP_ST.active, e.object_name || '', hD(e.contract_until) || null, e.phone || '', e.email || '', hXlsYears(e.hired_on, endOf(e)), hXlsYears(e.started_on, endOf(e)), e.contract_until ? hDays(asOf, hD(e.contract_until)) : null].concat(hXlsAuto(e, asOf, y)).concat(extraFields.map(function(f) { return hXlsField(e, f); })).concat(has('own') && hHasHr() ? [hOwnSharesTxt(e)] : []));
     }); }) });
   if (has('vac')) {
     sheets.push({ name: 'Остатки отпусков', title: 'Ежегодный отпуск ' + y + ': норма и остаток (штатные)', total: true, freezeCols: one ? 1 : 2,
@@ -1419,19 +1453,40 @@ function hXlsSpec(o, leIds) {
   raw('sout', 'СОУТ', H_SOUT, d.sout.filter(inSelectedLe));
   raw('lna', 'Локальные акты', H_LNA, d.lna.filter(function(r) { return !r.legal_entity_id || inSelectedLe(r); }));
   raw('prog', 'Мотивационные программы', H_PROG, d.progs);
-  raw('event', 'Мероприятия', H_EVENT, d.events.filter(function(r) { return hD(r.event_date).slice(0, 4) === ys; }));
-  raw('hire', 'Вакансии подробно', H_VACANCY, d.vacancies.filter(function(r) { return inSelectedLe(r) && (!o.department || r.department === o.department) && (!o.object || r.object_name === o.object); }));
+  raw('event', 'Мероприятия', H_EVENT.concat([['participants', 'Участники', 'text']]), d.events.filter(function(r) { return hD(r.event_date).slice(0, 4) === ys; }));
+  raw('hire', 'Вакансии подробно', H_VACANCY.concat([['closed_on', 'Закрыта', 'date'], ['position_id', 'Позиция штатного расписания', 'text']]), d.vacancies.filter(function(r) { return inSelectedLe(r) && (!o.department || r.department === o.department) && (!o.object || r.object_name === o.object); }));
   const vacancyIds = d.vacancies.filter(function(r) { return inSelectedLe(r) && (!o.department || r.department === o.department) && (!o.object || r.object_name === o.object); }).map(function(r) { return r.id; });
-  raw('hire', 'Кандидаты', H_CAND, d.cands.filter(function(r) { return vacancyIds.indexOf(Number(r.vacancy_id)) !== -1; }));
-  raw('vac', 'Отпуска подробно', H_VAC, d.vacs.filter(function(r) { return employeeIds.indexOf(Number(r.employee_id)) !== -1 && hD(r.start_date).slice(0, 4) === ys; }));
-  raw('ot', 'Обучение подробно', H_SAFETY, d.safety.filter(function(r) { return employeeIds.indexOf(Number(r.employee_id)) !== -1; }));
+  raw('hire', 'Кандидаты', H_CAND.concat([['employee_id', 'Оформлен как сотрудник', 'text'], ['comp_scores', 'Оценки по компетенциям', 'text']]), d.cands.filter(function(r) { return vacancyIds.indexOf(Number(r.vacancy_id)) !== -1; }));
+  raw('vac', 'Отпуска подробно', H_VAC.concat([['days', 'Дней', 'num']]), d.vacs.filter(function(r) { return employeeIds.indexOf(Number(r.employee_id)) !== -1 && hD(r.start_date).slice(0, 4) === ys; }));
+  raw('ot', 'Обучение подробно', H_SAFETY, d.safety.filter(function(r) { return !r.employee_id || employeeIds.indexOf(Number(r.employee_id)) !== -1; }));
   raw('pos', 'Штат подробно', H_POS, d.pos.filter(inSelectedLe));
   if (hHasHr()) raw('own', 'Доли подробно', H_OWN, (d.owners || []).filter(inSelectedLe));
+  if (hHasHr() && has('docs')) {
+    sheets.push({ name: 'Личное дело', title: 'Личное дело: отметки и загруженные документы', freezeCols: one ? 1 : 2,
+      cols: lc.concat([{ h: 'Сотрудник', w: 32 }, { h: 'Документ', w: 38 }, { h: 'Есть в личном деле' }, { h: 'Отмечен вручную' }, { h: 'Загружено файлов', t: 'int', total: false }]),
+      rows: rowsBy(function(id) { return [].concat.apply([], people(id).map(function(e) {
+        return hXlsDocs(e).map(function(d) { return lv(id).concat([e.full_name, d.doc, d.present ? 'да' : 'нет', d.manual ? 'да' : 'нет', d.files]); });
+      })); }) });
+  }
+  if (hHasHr() && has('acks')) {
+    sheets.push({ name: 'Ознакомления с ЛНА', title: 'Ознакомления с локальными актами', freezeCols: one ? 1 : 2,
+      cols: lc.concat([{ h: 'Сотрудник', w: 32 }, { h: 'Документ', w: 38 }, { h: 'Требуется ознакомление' }, { h: 'Ознакомлен' }, { h: 'Дата ознакомления', t: 'date' }]),
+      rows: rowsBy(function(id) { return [].concat.apply([], staffOf(id).map(function(e) { return d.lna.filter(function(l) { return !l.legal_entity_id || Number(l.legal_entity_id) === id; }).map(function(l) {
+        const date = (l.acks || {})[e.id]; return lv(id).concat([e.full_name, l.title, l.need_ack ? 'да' : 'нет', date ? 'да' : 'нет', hD(date) || null]);
+      }); })); }) });
+  }
+  if (hHasHr() && has('acts')) {
+    sheets.push({ name: 'Акты самозанятых', title: 'Акты самозанятых за ' + y + ' год', freezeCols: one ? 1 : 2,
+      cols: lc.concat([{ h: 'Сотрудник', w: 32 }, { h: 'Месяц' }, { h: 'Акт подписан' }, { h: 'Дата отметки', t: 'date' }, { h: 'Загружено файлов', t: 'int', total: false }]),
+      rows: rowsBy(function(id) { return [].concat.apply([], people(id).filter(function(e) { return typ(e) === 'self'; }).map(function(e) {
+        return Array.from({ length: 12 }, function(_, i) { const month = ys + '-' + ('0' + (i + 1)).slice(-2), date = (e.acts || {})[month]; return lv(id).concat([e.full_name, month, date ? 'да' : 'нет', hD(date) || null, hFilesOf('act', e.id, month).length]); });
+      })); }) });
+  }
   if (has('own') && hHasHr() && leIds.some(Boolean)) sheets.push.apply(sheets, hOwnSheets(leIds, o.schema));
   return {
     title: one ? 'HR — ' + leName(leIds[0]) : 'HR по юрлицам',
     filters: [['Дата расчёта', asOf], ['Статус сотрудников', ({ current: 'Работающие + уволенные за год', active: 'Только работающие', fired: 'Уволенные за год', all: 'Все за все годы' })[o.status || 'current']], ['Отдел', o.department || 'Все'], ['Объект', o.object || 'Все'], ['Год', y], ['Юрлица', leIds.map(leName).join(', ')], ['Кого учитывать', o.types.map(function(k) { return HR_EMP_TYPE[k]; }).join(', ')]],
-    notes: [['Стаж и возраст', 'Полные годовщины на дату расчёта; стаж уволенных — до даты увольнения, если она раньше. Пустая или будущая дата — пустая ячейка. От приёма и от фактического выхода считаются отдельно.'], ['Статистика', 'Текущий состав выбранных сотрудников с учётом фильтров; год относится к событиям и отпускам. Это не исторический срез.'], ['Юрлицо', 'Человек, оформленный в нескольких юрлицах (совместительство, директор), учитывается в каждом'],
+    notes: [['Автоматические показатели', 'Стаж, возраст и сроки рассчитаны на дату расчёта; испытание — от фактического выхода или даты начала в карточке кандидата и указанного числа месяцев. Отрицательное число дней означает истёкший срок. Для 29 февраля ближайший день рождения в невисокосный год — 1 марта.'], ['Дата рождения', 'Если год рождения неизвестен (в системе записан 1900), полная дата и возраст пустые. День и месяц доступны отдельным столбцом.'], ['Личное дело', 'Документ есть, если стоит отметка или загружен файл, как в карточке сотрудника.'], ['Акты самозанятых', 'Показаны все 12 месяцев выбранного года; отсутствие отметки само по себе не означает долг по акту.'], ['Стаж и возраст', 'Полные годовщины на дату расчёта; стаж уволенных — до даты увольнения, если она раньше. Пустая или будущая дата — пустая ячейка. От приёма и от фактического выхода считаются отдельно.'], ['Статистика', 'Текущий состав выбранных сотрудников с учётом фильтров; год относится к событиям и отпускам. Это не исторический срез.'], ['Юрлицо', 'Человек, оформленный в нескольких юрлицах (совместительство, директор), учитывается в каждом'],
       ['Отпуска', 'Норма — «дней отпуска в год» из карточки; остаток = норма − ежегодные отпуска, начинающиеся в ' + y + ' году; перенос с прошлых лет не учитывается'],
       ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'],
       ['Область фильтров', 'Отдел и объект фильтруют сотрудников и подбор; реквизиты, СОУТ, акты, штат и доли — по юрлицам; программы общие, мероприятия общие за выбранный год.'],

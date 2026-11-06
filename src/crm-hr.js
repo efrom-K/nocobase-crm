@@ -1078,10 +1078,10 @@ function hrExportXlsx() {
   const d = hr.d, y = new Date().getFullYear(), sheets = [];
   const emps = d.emps.slice().sort(function(a, b) { return (a.status === 'fired' ? 1 : 0) - (b.status === 'fired' ? 1 : 0) || String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
   if (emps.length) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: 1,
-    cols: [{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Юрлицо', w: 28 }, { h: 'Тип занятости' }, { h: 'Принят', t: 'date' }, { h: 'Статус' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }].concat(hHasHr() ? [{ h: 'Учредитель в', w: 40 }] : []),
+    cols: [{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Юрлицо', w: 28 }, { h: 'Тип занятости' }, { h: 'Принят', t: 'date' }, { h: 'Фактический выход на работу', t: 'date', w: 28 }, { h: 'Статус' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }].concat(hHasHr() ? [{ h: 'Учредитель в', w: 40 }] : []),
     rows: emps.map(function(e) {
       return [e.full_name || '', e.position || '', e.department || '', hLes(e).map(hLe).filter(Boolean).map(function(l) { return l.name; }).join(', '), HR_EMP_TYPE[e.employment_type || 'staff'] || '',
-        hD(e.hired_on) || null, HR_EMP_ST[e.status] || HR_EMP_ST.active, e.phone || '', e.email || ''].concat(hHasHr() ? [hOwnSharesTxt(e)] : []);
+        hD(e.hired_on) || null, hD(e.started_on) || null, HR_EMP_ST[e.status] || HR_EMP_ST.active, e.phone || '', e.email || ''].concat(hHasHr() ? [hOwnSharesTxt(e)] : []);
     }) });
   const vacs = d.vacs.filter(function(v) { return hD(v.start_date).slice(0, 4) === String(y) && hEmp(v.employee_id); })
     .sort(function(a, b) { return hD(a.start_date).localeCompare(hD(b.start_date)); });
@@ -1199,10 +1199,10 @@ function hXlsSpec(o, leIds) {
   }
   const rowsBy = function(f) { return [].concat.apply([], leIds.map(f)); };
   if (has('emp')) sheets.push({ name: 'Сотрудники', title: 'Сотрудники', freezeCols: one ? 1 : 2,
-    cols: lc.concat([{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Тип занятости' }, { h: 'Ставка', t: 'num', total: false }, { h: 'Принят', t: 'date' }, { h: 'Уволен', t: 'date' },
+    cols: lc.concat([{ h: 'ФИО', w: 32 }, { h: 'Должность', w: 28 }, { h: 'Отдел', w: 24 }, { h: 'Тип занятости' }, { h: 'Ставка', t: 'num', total: false }, { h: 'Принят', t: 'date' }, { h: 'Фактический выход на работу', t: 'date', w: 28 }, { h: 'Уволен', t: 'date' },
       { h: 'Статус' }, { h: 'Объект', w: 22 }, { h: 'Договор до', t: 'date' }, { h: 'Телефон' }, { h: 'Почта', w: 28 }].concat(has('own') && hHasHr() ? [{ h: 'Учредитель в', w: 40 }] : [])),
     rows: rowsBy(function(id) { return people(id).map(function(e) {
-      return lv(id).concat([e.full_name || '', e.position || '', e.department || '', HR_EMP_TYPE[typ(e)] || '', typ(e) === 'staff' ? Number(e.rate || 1) : null, hD(e.hired_on) || null, hD(e.fired_on) || null,
+      return lv(id).concat([e.full_name || '', e.position || '', e.department || '', HR_EMP_TYPE[typ(e)] || '', typ(e) === 'staff' ? Number(e.rate || 1) : null, hD(e.hired_on) || null, hD(e.started_on) || null, hD(e.fired_on) || null,
         HR_EMP_ST[e.status] || HR_EMP_ST.active, e.object_name || '', hD(e.contract_until) || null, e.phone || '', e.email || ''].concat(has('own') && hHasHr() ? [hOwnSharesTxt(e)] : []));
     }); }) });
   if (has('vac')) {

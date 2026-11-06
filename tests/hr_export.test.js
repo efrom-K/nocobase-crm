@@ -85,6 +85,9 @@ assert.equal(run(`spec.sheets.find(s=>s.name==='Мероприятия').rows.le
 run(`spec = hXlsSpec(Object.assign({},o,{from:'2022-01-01',to:'2026-12-31',year:2026,parts:['sum','emp','vac'],status:'current',department:'',object:''}), [1]);`);
 const balance = run(`spec.sheets.find(s=>s.name==='Остатки отпусков')`);
 assert.deepEqual(Array.from(balance.rows.map(r => r[balance.cols.findIndex(c => c.h === 'Год')])), [2024, 2025, 2026, 2022, 2023, 2022, 2023, 2024, 2025, 2026]);
+const leftCol = balance.cols.findIndex(c => c.h === 'Осталось, дн.'), totalCol = balance.cols.findIndex(c => c.h === 'Остаток за весь период, дн.');
+assert.equal(balance.rows[0][totalCol], balance.rows.slice(0, 3).reduce((n, r) => n + r[leftCol], 0));
+assert.equal(balance.rows[0][totalCol], balance.rows[2][totalCol]);
 assert.ok(run(`spec.sheets.find(s=>s.name==='Сводка').cols.some(c=>c.h==='Остаток 2022, дн.')`));
 assert.ok(run(`spec.sheets.find(s=>s.name==='Сводка').cols.some(c=>c.h==='Остаток 2026, дн.')`));
 assert.ok(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=>c.h==='Осталось запланировать отпусков 2022, дней')`));

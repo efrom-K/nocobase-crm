@@ -1447,8 +1447,8 @@ function hXlsSpec(o, leIds) {
     }); }) });
   if (has('vac')) {
     sheets.push({ name: 'Остатки отпусков', title: 'Норма и остаток ежегодного отпуска за ' + hDate(from) + ' – ' + hDate(to) + ' (штатные)', total: true, freezeCols: one ? 1 : 2,
-      cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'Год', t: 'int', total: false }, { h: 'Отдел', w: 24 }, { h: 'Норма, дн.', t: 'int' }, { h: 'Запланировано, дн.', t: 'int' }, { h: 'Осталось, дн.', t: 'int' }]),
-      rows: rowsBy(function(id) { return [].concat.apply([], people(id).filter(function(e) { return typ(e) === 'staff'; }).map(function(e) { return periodYears.filter(function(year) { return employedInYear(e, year); }).map(function(year) { const n = Number(e.vacation_days) || 28, l = hVacLeft(e, year); return lv(id).concat([e.full_name, year, e.department || '', n, n - l, l]); }); })); }) });
+      cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'Год', t: 'int', total: false }, { h: 'Отдел', w: 24 }, { h: 'Норма, дн.', t: 'int' }, { h: 'Запланировано, дн.', t: 'int' }, { h: 'Осталось, дн.', t: 'int' }, { h: 'Остаток за весь период, дн.', t: 'int', total: false }]),
+      rows: rowsBy(function(id) { return [].concat.apply([], people(id).filter(function(e) { return typ(e) === 'staff'; }).map(function(e) { const years = periodYears.filter(function(year) { return employedInYear(e, year); }), total = years.reduce(function(n, year) { return n + hVacLeft(e, year); }, 0); return years.map(function(year) { const n = Number(e.vacation_days) || 28, l = hVacLeft(e, year); return lv(id).concat([e.full_name, year, e.department || '', n, n - l, l, total]); }); })); }) });
     sheets.push({ name: 'Отпуска', title: 'Отпуска, начинающиеся с ' + hDate(from) + ' по ' + hDate(to), total: true, freezeCols: one ? 1 : 2,
       cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Вид', w: 24 }, { h: 'По графику' }, { h: 'Оформление' }]),
       rows: rowsBy(function(id) { return [].concat.apply([], people(id).map(function(e) { return vacOf(e).map(function(v) {

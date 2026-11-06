@@ -81,6 +81,15 @@ assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.leng
 assert.equal(run(`spec.sheets.find(s=>s.name==='Отпуска').rows.length`), 1);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Отпуска подробно').rows.length`), 1);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Мероприятия').rows.length`), 1);
+run(`spec = hXlsSpec(Object.assign({},o,{from:'2022-01-01',to:'2026-12-31',year:2026,parts:['sum','emp','vac'],status:'current',department:'',object:''}), [1]);`);
+const balance = run(`spec.sheets.find(s=>s.name==='Остатки отпусков')`);
+assert.deepEqual(Array.from(balance.rows.map(r => r[balance.cols.findIndex(c => c.h === 'Год')])), [2024, 2025, 2026, 2022, 2023, 2022, 2023, 2024, 2025, 2026]);
+assert.ok(run(`spec.sheets.find(s=>s.name==='Сводка').cols.some(c=>c.h==='Остаток 2022, дн.')`));
+assert.ok(run(`spec.sheets.find(s=>s.name==='Сводка').cols.some(c=>c.h==='Остаток 2026, дн.')`));
+assert.ok(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=>c.h==='Осталось запланировать отпусков 2022, дней')`));
+assert.ok(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=>c.h==='Осталось запланировать отпусков 2026, дней')`));
+assert.equal(cell('Сводка', 'Отпуск 2022: норма, дн.'), 56);
+assert.equal(cell('Сотрудники', 'Осталось запланировать отпусков 2022, дней'), null);
 run(`var preview = hXlsPreview({name:'<unsafe>',cols:[{h:'A & B'},{h:'Date',t:'date'},{h:'Number',t:'int'}],rows:Array.from({length:7},()=>['<img onerror=bad>', '2026-11-06', 0])});`);
 assert.match(run('preview'), /&lt;img onerror=bad&gt;/);
 assert.doesNotMatch(run('preview'), /<img/);

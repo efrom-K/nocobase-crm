@@ -1,0 +1,63 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), vm = require('node:vm');
+const src = fs.readFileSync('src/crm-hr.js', 'utf8');
+const cfg = k => ({ 'hr.empType': { staff: 'Штат', self: 'Самозанятый' }, 'hr.vacKinds': ['Ежегодный', 'За свой счёт'] }[k] || {});
+const c = vm.createContext({ cfg, console, hToday: () => '2026-11-06', hD: v => String(v || '').slice(0, 10),
+  hDays: (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000),
+  hVacLeft: () => 28, hSafetyLast: () => null, hDue: () => 'ok', hPosFree: p => p.units,
+  hVacCls: () => 'sched', hOwnSheets: () => [], hOwnersOf: () => [], hOwnSum: () => 0,
+  hOwnSharesTxt: () => '', hPct: v => String(v) });
+function load(a, b) { vm.runInContext(src.slice(src.indexOf(a), src.indexOf(b, src.indexOf(a))), c); }
+load('const HR_EMP_TYPE', 'const hr =');
+vm.runInContext('var hr = { d: {} };', c);
+load('function hHasHr()', 'function hMonthName(');
+load('function hLe(', 'function hDeptNames(');
+load('function hOpts(', 'function hField(');
+load('const hLeOpts', '// ---------- «требует внимания»');
+load('const HR_OWN_KIND', 'function hOwnNow(');
+load('function hXlsYears(', 'function hOpenExport(');
+load('function hXlsSpec(', 'function hOnClick(');
+const run = js => vm.runInContext(js, c);
+run(`hr.d = { emps: [
+  { id: 1, full_name: 'Test A', legal_entity_id: 1, extra_le_ids: [2], department: 'A', object_name: 'X', hired_on: '2024-11-07', started_on: '2025-11-06', birthday: '1990-11-07', contract_until: '2026-11-20' },
+  { id: 2, full_name: 'Test B', legal_entity_id: 1, department: 'B', hired_on: '2020-01-01', status: 'fired', fired_on: '2023-02-01' },
+  { id: 3, full_name: 'Test C', legal_entity_id: 1, department: 'A', status: 'fired', hired_on: '2020-01-01', fired_on: '2026-01-01' },
+  { id: 4, full_name: 'Test D', employment_type: 'self', started_on: '2027-01-01' }
+], les: [{ id: 1, name: 'Test LE1' }, { id: 2, name: 'Test LE2' }],
+priv: [{ employee_id: 1, passport: 'test-only', mil_note: 'mil', wp_strengths: 'strength' }],
+vacs: [], safety: [], pos: [], vacancies: [], cands: [], owners: [], sout: [], lna: [], progs: [], events: [] };
+var o = { year: 2026, asOf: '2026-11-06', parts: ['sum','emp','vac','ot','mil','pos','hire','own','le','sout','lna','prog','event'], types: ['staff','self'], status: 'current', schema: true };
+var spec = hXlsSpec(o, [1,2,0]);`);
+assert.equal(run(`hXlsYears('2024-11-07','2026-11-06')`), 1);
+assert.equal(run(`hXlsYears('2024-11-06','2026-11-06')`), 2);
+assert.equal(run(`hXlsYears('', '2026-11-06')`), null);
+assert.equal(run(`hXlsYears('2027-01-01', '2026-11-06')`), null);
+for (const sh of run('spec.sheets')) {
+  assert.equal(new Set(sh.cols.map(c => c.h)).size, sh.cols.length, sh.name + ': unique labels');
+  for (const row of sh.rows) assert.equal(row.length, sh.cols.length, sh.name + ': row width');
+}
+const cell = (name, label, row = 0) => run(`spec.sheets.find(s=>s.name===${JSON.stringify(name)}).rows[${row}][spec.sheets.find(s=>s.name===${JSON.stringify(name)}).cols.findIndex(c=>c.h===${JSON.stringify(label)})]`);
+assert.equal(cell('Сотрудники', 'Полных лет работает (от приёма)'), 1);
+assert.equal(cell('Сотрудники', 'Полных лет от фактического выхода'), 1);
+assert.equal(cell('Сотрудники', 'Возраст, полных лет'), 35);
+assert.equal(cell('Сотрудники', 'До конца договора, дней'), 14);
+assert.equal(cell('Сотрудники', 'Личное: Паспорт (серия, номер, кем и когда выдан)'), 'test-only');
+assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 4);
+run(`spec = hXlsSpec(Object.assign({},o,{status:'all'}), [1]);`);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 3);
+assert.equal(cell('Сотрудники', 'Полных лет работает (от приёма)', 1), 3); // stops at dismissal
+run(`spec = hXlsSpec(Object.assign({},o,{status:'active',department:'A',object:'X'}), [1]);`);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').rows.length`), 1);
+assert.equal(cell('Сводка', 'Договор истекает за 30 дней'), 1);
+run(`var selected = hXlsSelect(spec,{columns:{'Сотрудники':['Полных лет работает (от приёма)','ФИО']},notes:false,totals:false});`);
+assert.equal(run('selected.sheets.length'), 1);
+assert.equal(run('selected.sheets[0].cols[0].h'), 'Полных лет работает (от приёма)');
+assert.equal(run('selected.sheets[0].rows[0][0]'), 1);
+assert.equal(run('selected.notes.length'), 0);
+assert.equal(run('selected.sheets[0].total'), false);
+run(`hr.d.priv = null; spec = hXlsSpec(o,[1]);`);
+assert.equal(run(`spec.sheets.some(s=>s.name==='Воинский учёт'||s.name==='Доли подробно')`), false);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=>c.h.startsWith('Личное:')||c.h.startsWith('Рабочий профиль:'))`), false);
+assert.equal(run(`spec.sheets.find(s=>s.name==='Сводка').cols.some(c=>c.h==='Военнообязанных')`), false);
+console.log('HR export: anniversaries, dismissal, filters, multiple employers, column order, row alignment, private field access passed');

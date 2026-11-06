@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs'), vm = require('node:vm');
 const src = fs.readFileSync('src/crm-hr.js', 'utf8');
 const cfg = k => ({ 'hr.empType': { staff: 'Штат', self: 'Самозанятый' }, 'hr.vacKinds': ['Ежегодный', 'За свой счёт'] }[k] || {});
-const c = vm.createContext({ cfg, console, hToday: () => '2026-11-06', hD: v => String(v || '').slice(0, 10),
+const c = vm.createContext({ cfg, console, hDate: v => String(v).split('-').reverse().join('.'), hToday: () => '2026-11-06', hD: v => String(v || '').slice(0, 10),
   hDays: (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000),
   hVacLeft: () => 28, hSafetyLast: () => null, hDue: () => 'ok', hPosFree: p => p.units,
   hVacCls: () => 'sched', hOwnSheets: () => [], hOwnersOf: () => [], hOwnSum: () => 0,
@@ -13,6 +13,7 @@ load('const HR_EMP_TYPE', 'const hr =');
 vm.runInContext('var hr = { d: {} };', c);
 load('function hHasHr()', 'function hMonthName(');
 load('function hLe(', 'function hDeptNames(');
+load('function hEsc(', 'function hToken(');
 load('function hOpts(', 'function hField(');
 load('const hLeOpts', '// ---------- «требует внимания»');
 load('const HR_OWN_KIND', 'function hOwnNow(');
@@ -60,4 +61,13 @@ run(`hr.d.priv = null; spec = hXlsSpec(o,[1]);`);
 assert.equal(run(`spec.sheets.some(s=>s.name==='Воинский учёт'||s.name==='Доли подробно')`), false);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Сотрудники').cols.some(c=>c.h.startsWith('Личное:')||c.h.startsWith('Рабочий профиль:'))`), false);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Сводка').cols.some(c=>c.h==='Военнообязанных')`), false);
+run(`var preview = hXlsPreview({name:'<unsafe>',cols:[{h:'A & B'},{h:'Date',t:'date'},{h:'Number',t:'int'}],rows:Array.from({length:7},()=>['<img onerror=bad>', '2026-11-06', 0])});`);
+assert.match(run('preview'), /&lt;img onerror=bad&gt;/);
+assert.doesNotMatch(run('preview'), /<img/);
+assert.match(run('preview'), /A &amp; B/);
+assert.match(run('preview'), /06\.11\.2026/);
+assert.match(run('preview'), />0<\/td>/);
+assert.equal((run('preview').match(/<tr>/g)||[]).length, 6);
+assert.match(run('preview'), /5 из 7/);
+assert.match(run(`hXlsPreview({cols:[],rows:[]})`), /Выберите столбцы/);
 console.log('HR export: anniversaries, dismissal, filters, multiple employers, column order, row alignment, private field access passed');

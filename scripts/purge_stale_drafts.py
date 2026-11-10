@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Удаляет личные черновики договоров (draft_contracts) без активности дольше 3 суток,
+"""Удаляет личные черновики договоров (draft_contracts) без активности дольше 5 суток,
 чтобы они не копились мусором у сотрудников.
 
 Активность = самое позднее из (draft_contracts.last_activity_at, последняя запись в
@@ -10,13 +10,13 @@ contract_history с contract_type='draft' и этим contract_ref_id — так
 
     purge_stale_drafts.py             # удалить
     purge_stale_drafts.py --dry-run   # только показать, ничего не удалять
-    purge_stale_drafts.py --days N    # свой порог вместо 3 суток (для теста)
-Запуск: cron ежедневно, например 3 3 * * *
+    purge_stale_drafts.py --days N    # свой порог вместо 5 суток (для теста)
+Запуск: cron ежедневно, 15 3 * * * (МСК)
 """
 import json, subprocess, sys
 
 DRY = '--dry-run' in sys.argv
-DAYS = 3
+DAYS = 5
 if '--days' in sys.argv:
     DAYS = int(sys.argv[sys.argv.index('--days') + 1])
 
@@ -32,7 +32,7 @@ def jrows(sql): return json.loads(psql("select coalesce(json_agg(t), '[]'::json)
 def setting(key, default):   # значение со страницы «Настройки CRM» (коллекция crm_config); нет записи или мусор — по умолчанию
     try: v = json.loads(psql("select coalesce((select value::text from crm_config where key = '%s'), 'null')" % key.replace("'", "''")).strip() or 'null')
     except Exception: v = None
-    if isinstance(default, int): return int(v) if isinstance(v, (int, float)) and v >= 0 else default
+    if isinstance(default, int): return int(v) if type(v) in (int, float) and v >= 0 else default
     if isinstance(default, list): return [int(x) for x in v if isinstance(x, (int, float)) and x > 0] or default if isinstance(v, list) else default
     return default if v is None else v
 if '--days' not in sys.argv: DAYS = max(1, setting('contracts.draftPurgeDays', DAYS))   # 0 стёр бы все черновики

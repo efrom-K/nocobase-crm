@@ -1,5 +1,6 @@
 // @include src/_crm-objects.js
 // @include src/_crm-plan.js
+// @include src/_crm-config.js
 
 // фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
 // иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
@@ -4593,7 +4594,10 @@ function closeDraftModal(immediate) {
   document.removeEventListener('keydown', onDraftModalEscape);
   const draftId = root.__cmContractId;
   if (draftId) {
-    Promise.all(flushes).then(function() { return purgeIfEmptyDraftRecord(draftId); }).catch(function() {});
+    Promise.all(flushes).then(function() { return purgeIfEmptyDraftRecord(draftId); }).then(function() {
+      const panel = document.getElementById('cm-drafts-panel');
+      if (!immediate && panel && panel.style.display !== 'none') refreshDraftsList();
+    }).catch(function() {});
   }
   if (immediate) { root.remove(); return; }
   root.classList.remove('cm-open');
@@ -4999,13 +5003,50 @@ function ensureDraftsPanel() {
   else document.body.appendChild(panel);
   return panel;
 }
-function draftCardHtml(d) {
+const DRAFT_DAY_MS = 86400000;
+// Сверено с cron purge_stale_drafts.py: 03:15 МСК = 00:15 UTC.
+const DRAFT_PURGE_OFFSET_MS = 15 * 60000;
+
+function draftPurgeAt(activity, days, now) {
+  const cutoff = Math.max(activity + days * DRAFT_DAY_MS, now);
+  return (Math.floor((cutoff - DRAFT_PURGE_OFFSET_MS) / DRAFT_DAY_MS) + 1) * DRAFT_DAY_MS + DRAFT_PURGE_OFFSET_MS;
+}
+function draftPurgeLabel(at, now) {
+  if (!at) return 'Срок автоудаления недоступен';
+  const minutes = Math.ceil((at - now) / 60000);
+  if (minutes <= 0) return 'Срок истёк · ожидает автоудаления';
+  const days = Math.floor(minutes / 1440), hours = Math.floor(minutes / 60) % 24;
+  return 'До автоудаления: ' + (days ? days + ' д ' : '') + (hours ? hours + ' ч ' : '') + minutes % 60 + ' мин';
+}
+async function draftPurgeTimes(items) {
+  const times = new Map();
+  if (!items.length) return times;
+  const key = 'contracts.draftPurgeDays';
+  const value = (await crmCfgLoad())[key];
+  const days = typeof value === 'number' && value >= 0 ? Math.max(1, Math.floor(value)) : CRM_SETTINGS[key].v;
+  const now = Date.now();
+  const activity = new Map(items.map(d => [String(d.id), Date.parse(d.last_activity_at) || 0]));
+  const res = await ctx.api.resource('contract_history').list({
+    filter: { contract_type: 'draft', contract_ref_id: { '$in': items.map(d => d.id) },
+      created_at: { '$gte': new Date(now - days * DRAFT_DAY_MS).toISOString() } },
+    fields: ['contract_ref_id', 'created_at'], paginate: false
+  });
+  for (const h of histPayload(res)) {
+    const id = String(h.contract_ref_id);
+    activity.set(id, Math.max(activity.get(id) || 0, Date.parse(h.created_at) || 0));
+  }
+  for (const [id, at] of activity) times.set(id, draftPurgeAt(at, days, now));
+  return times;
+}
+function draftCardHtml(d, purgeAt) {
   const title = d.contract_number || d.object_name || d.tenant_name || ('Черновик #' + d.id);
   const sub = [d.object_name, d.tenant_name].filter(Boolean).join(' · ') || 'Пока без данных';
   return '<div class="cm-draft-card" data-draft-id="' + d.id + '" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid #dfe3ec;border-radius:8px;margin-bottom:8px;cursor:pointer;background:#fff;">'
     + '<div><div style="font-weight:600;font-size:14px;">' + esc(title)
     + (d.is_quick ? ' <span style="font-size:11px;color:#8a5a00;background:#f6eedb;border:1px solid #e8d3a6;border-radius:4px;padding:1px 6px;margin-left:6px;">срочный</span>' : '')
-    + '</div><div style="font-size:12px;color:#5b6478;margin-top:2px;">' + esc(sub) + '</div></div>'
+    + '</div><div style="font-size:12px;color:#5b6478;margin-top:2px;">' + esc(sub) + '</div>'
+    + '<div data-draft-purge-at="' + (purgeAt || '') + '" style="font-size:12px;color:#5b6478;margin-top:2px;">'
+    + draftPurgeLabel(purgeAt, Date.now()) + '</div></div>'
     + '<button class="cm-draft-discard" data-draft-discard="' + d.id + '" title="Удалить черновик" style="border:none;background:transparent;color:#8a92a3;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>'
     + '</div>';
 }
@@ -5058,6 +5099,15 @@ async function loadDraftsCount() {
 loadDraftsCount();
 // вкладки рисует другой блок и может перерисовать их — держим бейдж на месте (только DOM, без запросов)
 if (!window.__cmDraftsBadgeInterval) window.__cmDraftsBadgeInterval = setInterval(paintDraftsBadge, 700);
+if (!window.__cmDraftsPurgeInterval) window.__cmDraftsPurgeInterval = setInterval(function() {
+  const panel = document.getElementById('cm-drafts-panel');
+  if (!panel || panel.style.display === 'none') return;
+  const now = Date.now();
+  panel.querySelectorAll('[data-draft-purge-at]').forEach(function(el) {
+    const label = draftPurgeLabel(Number(el.getAttribute('data-draft-purge-at')), now);
+    if (el.textContent !== label) el.textContent = label;
+  });
+}, 1000);
 
 async function refreshDraftsList() {
   const panel = ensureDraftsPanel();
@@ -5066,8 +5116,9 @@ async function refreshDraftsList() {
     const currentUser = await getCurrentUser();
     const res = await ctx.api.resource('draft_contracts').list({ filter: { created_by_id: currentUser.id }, sort: ['-id'], pageSize: 100 });
     const items = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : [];
+    const purgeTimes = await draftPurgeTimes(items).catch(function() { return new Map(); });
     setDraftsCount(items.length);
-    listEl.innerHTML = items.length ? items.map(draftCardHtml).join('')
+    listEl.innerHTML = items.length ? items.map(d => draftCardHtml(d, purgeTimes.get(String(d.id)))).join('')
       : '<div style="color:#8a92a3;font-size:13px;">Черновиков нет — нажмите «+ Создать договор» или «+ Срочный договор»</div>';
     listEl.querySelectorAll('.cm-draft-card').forEach(function(card) {
       card.addEventListener('click', function(e) {

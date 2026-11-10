@@ -5004,6 +5004,8 @@ function ensureDraftsPanel() {
   return panel;
 }
 const DRAFT_DAY_MS = 86400000;
+const DRAFT_MAX_EXTENSION_DAYS = 10;
+const DRAFT_EXTENSION_ACTION = 'draft_expiry_extended';
 // Сверено с cron purge_stale_drafts.py: 03:15 МСК = 00:15 UTC.
 const DRAFT_PURGE_OFFSET_MS = 15 * 60000;
 
@@ -5025,29 +5027,50 @@ async function draftPurgeTimes(items) {
   const value = (await crmCfgLoad())[key];
   const days = typeof value === 'number' && value >= 0 ? Math.max(1, Math.floor(value)) : CRM_SETTINGS[key].v;
   const now = Date.now();
-  const activity = new Map(items.map(d => [String(d.id), Date.parse(d.last_activity_at) || 0]));
+  const drafts = new Map(items.map(d => [String(d.id), {
+    owner: String(d.created_by_id), activity: Date.parse(d.last_activity_at) || 0, extendedUntil: 0
+  }]));
   const res = await ctx.api.resource('contract_history').list({
     filter: { contract_type: 'draft', contract_ref_id: { '$in': items.map(d => d.id) },
-      created_at: { '$gte': new Date(now - days * DRAFT_DAY_MS).toISOString() } },
-    fields: ['contract_ref_id', 'created_at'], paginate: false
+      '$or': [{ action: DRAFT_EXTENSION_ACTION }, { created_at: { '$gte': new Date(now - days * DRAFT_DAY_MS).toISOString() } }] },
+    fields: ['contract_ref_id', 'created_at', 'action', 'author_id', 'old_value', 'new_value'], paginate: false
   });
   for (const h of histPayload(res)) {
-    const id = String(h.contract_ref_id);
-    activity.set(id, Math.max(activity.get(id) || 0, Date.parse(h.created_at) || 0));
+    const draft = drafts.get(String(h.contract_ref_id));
+    if (!draft) continue;
+    if (h.action === DRAFT_EXTENSION_ACTION) {
+      const extraDays = (Number(h.new_value) - Number(h.old_value)) / DRAFT_DAY_MS;
+      if (String(h.author_id) === draft.owner && /^\d{13}$/.test(h.old_value) && /^\d{13}$/.test(h.new_value) &&
+          Number.isInteger(extraDays) && extraDays >= 1 && extraDays <= DRAFT_MAX_EXTENSION_DAYS) {
+        draft.extendedUntil = Math.max(draft.extendedUntil, Number(h.new_value));
+      }
+    } else {
+      draft.activity = Math.max(draft.activity, Date.parse(h.created_at) || 0);
+    }
   }
-  for (const [id, at] of activity) times.set(id, draftPurgeAt(at, days, now));
+  for (const [id, d] of drafts) {
+    times.set(id, Math.max(draftPurgeAt(d.activity, days, now), d.extendedUntil));
+  }
   return times;
 }
+const DRAFT_EXTENSION_OPTIONS = Array.from({ length: DRAFT_MAX_EXTENSION_DAYS }, function(_, i) {
+  return '<option value="' + (i + 1) + '">' + (i + 1) + ' дн.</option>';
+}).join('');
 function draftCardHtml(d, purgeAt) {
   const title = d.contract_number || d.object_name || d.tenant_name || ('Черновик #' + d.id);
   const sub = [d.object_name, d.tenant_name].filter(Boolean).join(' · ') || 'Пока без данных';
-  return '<div class="cm-draft-card" data-draft-id="' + d.id + '" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid #dfe3ec;border-radius:8px;margin-bottom:8px;cursor:pointer;background:#fff;">'
+  return '<div class="cm-draft-card" data-draft-id="' + d.id + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:12px 14px;border:1px solid #dfe3ec;border-radius:8px;margin-bottom:8px;cursor:pointer;background:#fff;">'
     + '<div><div style="font-weight:600;font-size:14px;">' + esc(title)
     + (d.is_quick ? ' <span style="font-size:11px;color:#8a5a00;background:#f6eedb;border:1px solid #e8d3a6;border-radius:4px;padding:1px 6px;margin-left:6px;">срочный</span>' : '')
     + '</div><div style="font-size:12px;color:#5b6478;margin-top:2px;">' + esc(sub) + '</div>'
     + '<div data-draft-purge-at="' + (purgeAt || '') + '" style="font-size:12px;color:#5b6478;margin-top:2px;">'
     + draftPurgeLabel(purgeAt, Date.now()) + '</div></div>'
-    + '<button class="cm-draft-discard" data-draft-discard="' + d.id + '" title="Удалить черновик" style="border:none;background:transparent;color:#8a92a3;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>'
+    + '<div style="display:flex;align-items:flex-start;gap:6px;margin-left:auto;">'
+    + '<details data-draft-extend style="color:#1c2d58;"><summary style="cursor:pointer;padding:4px 0;">Продлить</summary>'
+    + '<form style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:4px;">'
+    + '<select aria-label="На сколько дней продлить черновик">' + DRAFT_EXTENSION_OPTIONS + '</select>'
+    + '<button type="submit" class="cm-stage-edit-toggle">Применить</button></form></details>'
+    + '<button type="button" class="cm-draft-discard" data-draft-discard="' + d.id + '" title="Удалить черновик" aria-label="Удалить черновик" style="border:none;background:transparent;color:#8a92a3;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button></div>'
     + '</div>';
 }
 // ---------- индикатор у вкладки «Черновики»: счётчик + пульсация, когда туда падает новый договор ----------
@@ -5122,8 +5145,34 @@ async function refreshDraftsList() {
       : '<div style="color:#8a92a3;font-size:13px;">Черновиков нет — нажмите «+ Создать договор» или «+ Срочный договор»</div>';
     listEl.querySelectorAll('.cm-draft-card').forEach(function(card) {
       card.addEventListener('click', function(e) {
-        if (e.target.closest('[data-draft-discard]')) return;
+        if (e.target.closest('[data-draft-discard], [data-draft-extend]')) return;
         openDraftModal(Number(card.getAttribute('data-draft-id')));
+      });
+      const form = card.querySelector('[data-draft-extend] form');
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const days = Number(form.querySelector('select').value);
+        if (!Number.isInteger(days) || days < 1 || days > DRAFT_MAX_EXTENSION_DAYS) return;
+        const btn = form.querySelector('button');
+        if (btn.disabled) return;
+        btn.disabled = true;
+        const id = Number(card.getAttribute('data-draft-id'));
+        try {
+          const draft = histPayload(await ctx.api.resource('draft_contracts').get({ filterByTk: id,
+            fields: ['id', 'created_by_id', 'last_activity_at'] }));
+          if (!draft || String(draft.created_by_id) !== String(currentUser.id)) throw new Error('Черновик недоступен');
+          const at = (await draftPurgeTimes([draft])).get(String(id));
+          await histWriteOne('draft', id, currentUser, { action: DRAFT_EXTENSION_ACTION, old: String(at),
+            new: String(at + days * DRAFT_DAY_MS), text: 'Срок автоудаления продлён на ' + days + ' дн.' });
+          await refreshDraftsList();
+          const summary = listEl.querySelector('[data-draft-id="' + id + '"] summary');
+          if (summary && panel.style.display !== 'none') summary.focus();
+          cmToast('Срок продлён на ' + days + ' дн.');
+        } catch (err) {
+          cmToast('Не удалось продлить черновик');
+        } finally {
+          btn.disabled = false;
+        }
       });
     });
     listEl.querySelectorAll('[data-draft-discard]').forEach(function(btn) {

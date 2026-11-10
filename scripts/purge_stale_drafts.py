@@ -7,6 +7,7 @@ contract_history с contract_type='draft' и этим contract_ref_id — так
 правки полей формы, но и загрузка файлов/контактов/график цены/переход этапа, которые пишут
 только в историю, но не трогают сам draft_contracts). У черновика без единой правки после
 ленивого создания last_activity_at всегда есть (ставится в момент создания).
+Продление хранится отдельно от активности в записи draft_expiry_extended.
 
     purge_stale_drafts.py             # удалить
     purge_stale_drafts.py --dry-run   # только показать, ничего не удалять
@@ -37,31 +38,59 @@ def setting(key, default):   # значение со страницы «Наст
     return default if v is None else v
 if '--days' not in sys.argv: DAYS = max(1, setting('contracts.draftPurgeDays', DAYS))   # 0 стёр бы все черновики
 
+STALE = """
+    greatest(
+        coalesce(d.last_activity_at, 'epoch'::timestamptz),
+        coalesce((select max(h.created_at) from contract_history h
+                  where h.contract_type='draft' and h.contract_ref_id=d.id
+                    and h.action is distinct from 'draft_expiry_extended'), 'epoch'::timestamptz)
+    ) < now() - interval '%d days'
+    and not exists (
+        select 1 from contract_history h
+        where h.contract_type='draft' and h.contract_ref_id=d.id and h.author_id=d.created_by_id
+          and h.action='draft_expiry_extended'
+          and case when h.old_value ~ '^[0-9]{13}$' and h.new_value ~ '^[0-9]{13}$' then
+            h.new_value::bigint - h.old_value::bigint between 86400000 and 864000000
+            and (h.new_value::bigint - h.old_value::bigint) %% 86400000 = 0
+            and h.new_value::bigint > extract(epoch from now()) * 1000
+          else false end
+    )
+""" % DAYS
+
 stale = jrows("""
     select d.id, d.contract_number, d.object_name, d.tenant_name, d.created_by_id
-    from draft_contracts d
-    where greatest(
-        coalesce(d.last_activity_at, 'epoch'::timestamptz),
-        coalesce((select max(h.created_at) from contract_history h where h.contract_type='draft' and h.contract_ref_id=d.id), 'epoch'::timestamptz)
-    ) < now() - interval '%d days'
-""" % DAYS)
+    from draft_contracts d where
+""" + STALE)
 
 if not stale:
     print('нет черновиков без активности дольше %d сут.' % DAYS)
     sys.exit(0)
 
+deleted = 0
 for d in stale:
     label = d['contract_number'] or d['object_name'] or d['tenant_name'] or ('#%s' % d['id'])
+    if not DRY:
+        # Перепроверяем срок и удаляем связанные записи только для реально удалённого черновика.
+        count = psql(f"""
+            with purged as (
+                delete from draft_contracts d where d.id={int(d['id'])} and {STALE}
+                returning id
+            ), contacts as (
+                delete from contract_contacts where contract_type='draft' and contract_ref_id in (select id from purged)
+            ), addendums as (
+                delete from contract_addendums where contract_type='draft' and contract_ref_id in (select id from purged)
+            ), history as (
+                delete from contract_history where contract_type='draft' and contract_ref_id in (select id from purged)
+            ), prices as (
+                delete from contract_price_periods where contract_type='draft' and contract_ref_id in (select id from purged)
+            ), attachments as (
+                delete from "draftContractsAttachments" where f_fdhqbbbf30h in (select id from purged)
+            )
+            select count(*) from purged
+        """)
+        if count.strip() != '1':
+            continue
     print(('[dry-run] ' if DRY else '') + 'удаляю черновик %s (id=%s, автор userId=%s)' % (label, d['id'], d['created_by_id']))
-    if DRY:
-        continue
-    psql("""
-        delete from contract_contacts where contract_type='draft' and contract_ref_id=%(id)s;
-        delete from contract_addendums where contract_type='draft' and contract_ref_id=%(id)s;
-        delete from contract_history where contract_type='draft' and contract_ref_id=%(id)s;
-        delete from contract_price_periods where contract_type='draft' and contract_ref_id=%(id)s;
-        delete from "draftContractsAttachments" where f_fdhqbbbf30h=%(id)s;
-        delete from draft_contracts where id=%(id)s;
-    """.replace('%(id)s', str(d['id'])))
+    deleted += 1
 
-print('%sудалено черновиков: %d' % ('[dry-run] ' if DRY else '', len(stale)))
+print('%sудалено черновиков: %d' % ('[dry-run] ' if DRY else '', deleted))

@@ -20,10 +20,18 @@ load('function hEsc(', 'function hToken(');
 load('function hOpts(', 'function hField(');
 load('const hLeOpts', '// ---------- «требует внимания»');
 load('const HR_OWN_KIND', 'function hOwnNow(');
+load('const HR_RU_HOLIDAYS', 'function hEditVacDays(');
 load('function hXlsYears(', 'function hOpenExport(');
 load('function hSafetyRecs(', '// для статуса');
 load('function hXlsSpec(', 'function hOnClick(');
 const run = js => vm.runInContext(js, c);
+assert.equal(run(`HR_RU_HOLIDAYS.length`), 14);
+assert.equal(run(`hVacDays({start_date:'2026-01-01',end_date:'2026-01-10'})`), 2);
+assert.equal(run(`hVacDays({start_date:'2026-02-21',end_date:'2026-02-24'})`), 3);
+assert.equal(run(`hVacDays({start_date:'2026-01-01',end_date:'2026-01-04',kind:'За свой счёт'})`), 4);
+assert.equal(run(`hVacDays({start_date:'2025-12-30',end_date:'2026-01-09'})`), 3);
+assert.equal(run(`hVacDays({start_date:'2026-01-01',end_date:'2026-01-08'})`), 0);
+assert.equal(run(`hVacDays({days:7})`), 7);
 run(`hr.d = { emps: [
   { id: 1, full_name: 'Test A', legal_entity_id: 1, extra_le_ids: [2], department: 'A', object_name: 'X', hired_on: '2024-11-07', started_on: '2025-11-06', birthday: '1990-11-07', contract_until: '2026-11-20' },
   { id: 2, full_name: 'Test B', legal_entity_id: 1, department: 'B', hired_on: '2020-01-01', status: 'fired', fired_on: '2023-02-01' },

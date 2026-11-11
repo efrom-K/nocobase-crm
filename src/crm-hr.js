@@ -1149,7 +1149,7 @@ function hrExportXlsx() {
   });
 }
 // ---------- выгрузка в Excel по юрлицам: окно выбора (год, юрлица, разделы, типы занятости, один файл или по файлу на юрлицо) ----------
-const HR_XLS_PARTS = [['sum', 'Сводная статистика по юрлицам'], ['emp', 'Сотрудники'], ['vac', 'Отпуска и остатки дней'], ['ot', 'Охрана труда'],
+const HR_XLS_PARTS = [['sum', 'Сводная статистика по юрлицам'], ['emp', 'Сотрудники'], ['vac', 'Отпуска и остатки дней'], ['vacbalance', 'Остатки отпусков с даты приёма на сегодня'], ['ot', 'Охрана труда'],
   ['mil', 'Воинский учёт'], ['pos', 'Штатное расписание'], ['hire', 'Подбор (вакансии и кандидаты)'], ['own', 'Учредители'], ['le', 'Реквизиты юрлиц'], ['sout', 'СОУТ'], ['lna', 'Локальные акты'], ['prog', 'Мотивационные программы'], ['event', 'Мероприятия'], ['docs', 'Личные дела и документы'], ['acks', 'Ознакомления с ЛНА'], ['acts', 'Акты самозанятых']];
 // Полные годовщины; незаполненная или будущая дата не превращается в нулевой стаж.
 function hXlsYears(from, to) {
@@ -1260,7 +1260,7 @@ function hOpenExport() {
     + '<p class="hr-hint">Настройте состав книги и столбцы каждого листа. Данные выгружаются с вашими текущими правами.</p><div class="hr-xls-grid">'
     + card('1. Юрлица', '<div class="hr-xls-tools"><button class="hr-btn sm" data-lall>Выбрать все</button><button class="hr-btn sm" data-lnone>Снять все</button></div><div class="hr-xls-list">'
       + d.les.map(function(l) { return chk('data-xle', l.id, l.name, true); }).join('') + chk('data-xle', 0, 'Без юрлица', false) + '</div>')
-    + card('2. Состав книги', parts.map(function(p) { return chk('data-xpart', p[0], p[1], ['hire', 'le', 'sout', 'lna', 'prog', 'event', 'docs', 'acks', 'acts'].indexOf(p[0]) === -1); }).join(''))
+    + card('2. Состав книги', parts.map(function(p) { return chk('data-xpart', p[0], p[1], ['vacbalance', 'hire', 'le', 'sout', 'lna', 'prog', 'event', 'docs', 'acks', 'acts'].indexOf(p[0]) === -1); }).join(''))
     + card('3. Сотрудники', Object.keys(HR_EMP_TYPE).map(function(k) { return chk('data-xtype', k, HR_EMP_TYPE[k], true); }).join('')
       + '<label class="hr-xls-field">Статус<select data-xstatus><option value="current">Работающие + уволенные за период</option><option value="active">Только работающие</option><option value="fired">Только уволенные за период</option><option value="all">Все, работавшие в периоде</option></select></label>'
       + '<label class="hr-xls-field">Отдел<select data-xdept><option value="">Все отделы</option>' + hDeptNames().map(function(v) { return '<option>' + hEsc(v) + '</option>'; }).join('') + '</select></label>'
@@ -1448,6 +1448,15 @@ function hXlsSpec(o, leIds) {
       return lv(id).concat([e.full_name || '', hXlsBirthday(e), hXlsYears(hXlsBirthday(e), asOf), e.birthday ? hD(e.birthday).slice(8, 10) + '.' + hD(e.birthday).slice(5, 7) : '', e.position || '', e.department || '', HR_EMP_TYPE[typ(e)] || '', typ(e) === 'staff' ? Number(e.rate || 1) : null, hD(e.hired_on) || null, hD(e.started_on) || null, hD(e.fired_on) || null,
         HR_EMP_ST[e.status] || HR_EMP_ST.active, e.object_name || '', hD(e.contract_until) || null, e.phone || '', e.email || '', hXlsYears(e.hired_on, endOf(e)), hXlsYears(e.started_on, endOf(e)), e.contract_until ? hDays(asOf, hD(e.contract_until)) : null].concat(hXlsAuto(e, asOf, periodYears, { from: from, to: to })).concat(extraFields.map(function(f) { return hXlsField(e, f); })).concat(has('own') && hHasHr() ? [(d.owners || []).filter(function(o) { return o.owner_kind === 'emp' && Number(o.employee_id) === e.id && overlapsPeriod(o.since_on, o.until_on); }).map(function(o) { return (hLe(o.legal_entity_id) || {}).name + ' ' + hPct(o.share_pct); }).join(', ')] : []));
     }); }) });
+  if (has('vacbalance')) {
+    const today = hToday();
+    sheets.push({ name: 'Отпуск с даты приёма', title: 'Остатки ежегодного отпуска с даты приёма на ' + hDate(today), total: true, freezeCols: one ? 1 : 2,
+      cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'Отдел', w: 24 }, { h: 'Принят', t: 'date' }, { h: 'Дата расчёта', t: 'date' }, { h: 'Норма в год, дн.', t: 'int', total: false }, { h: 'Начислено, дн.', t: 'num' }, { h: 'Использовано по приказам, дн.', t: 'num' }, { h: 'Остаток, дн.', t: 'num' }, { h: 'Примечание', w: 40 }]),
+      rows: rowsBy(function(id) { return people(id).filter(function(e) { return typ(e) === 'staff' && (!e.hired_on || hD(e.hired_on) <= today); }).map(function(e) {
+        const date = e.status === 'fired' && e.fired_on && hD(e.fired_on) < today ? hD(e.fired_on) : today, b = hVacBalance(e, date);
+        return lv(id).concat([e.full_name, e.department || '', hD(e.hired_on) || null, date, Number(e.vacation_days) || 28, b ? b.acc : null, b ? b.used : null, b ? b.left : null, !b ? 'Нет даты приёма — расчёт невозможен' : b.left < 0 ? 'Отпуск взят авансом' : '']);
+      }); }) });
+  }
   if (has('vac')) {
     sheets.push({ name: 'Остатки отпусков', title: 'Норма и остаток ежегодного отпуска за ' + hDate(from) + ' – ' + hDate(to) + ' (штатные)', total: true, freezeCols: one ? 1 : 2,
       cols: lc.concat([{ h: 'Сотрудник', w: 32, total: 'Итого' }, { h: 'Год', t: 'int', total: false }, { h: 'Отдел', w: 24 }, { h: 'Норма, дн.', t: 'int' }, { h: 'Запланировано, дн.', t: 'int' }, { h: 'Осталось, дн.', t: 'int' }, { h: 'Остаток за весь период, дн.', t: 'int', total: false }]),
@@ -1523,6 +1532,7 @@ function hXlsSpec(o, leIds) {
     title: one ? 'HR — ' + leName(leIds[0]) : 'HR по юрлицам',
     filters: [['Дата расчёта', asOf], ['Статус сотрудников', ({ current: 'Работающие + уволенные за период', active: 'Только работающие', fired: 'Уволенные за период', all: 'Все, работавшие в периоде' })[o.status || 'current']], ['Отдел', o.department || 'Все'], ['Объект', o.object || 'Все'], ['Период', hDate(from) + ' – ' + hDate(to)], ['Юрлица', leIds.map(leName).join(', ')], ['Кого учитывать', o.types.map(function(k) { return HR_EMP_TYPE[k]; }).join(', ')]],
     notes: [['Автоматические показатели', 'Стаж, возраст и сроки рассчитаны на дату расчёта; испытание — от фактического выхода или даты начала в карточке кандидата и указанного числа месяцев. Отрицательное число дней означает истёкший срок. Для 29 февраля ближайший день рождения в невисокосный год — 1 марта.'], ['Дата рождения', 'Если год рождения неизвестен (в системе записан 1900), полная дата и возраст пустые. День и месяц доступны отдельным столбцом.'], ['Личное дело', 'Документы и личные поля показывают текущее состояние карточек сотрудников, работавших в выбранном периоде.'], ['Акты самозанятых', 'Показаны месяцы выбранного периода; отсутствие отметки само по себе не означает долг по акту.'], ['Стаж и возраст', 'Полные годовщины на дату расчёта; стаж уволенных — до даты увольнения, если она раньше. Пустая или будущая дата — пустая ячейка. От приёма и от фактического выхода считаются отдельно.'], ['Статистика', 'Сотрудники включены, если работали в выбранном периоде; приём, увольнения, мероприятия и отпуска фильтруются по датам периода. Текущие реквизиты карточек не являются историческим срезом.'], ['Юрлицо', 'Человек, оформленный в нескольких юрлицах (совместительство, директор), учитывается в каждом'],
+      ['Остаток с даты приёма', 'Лист «Отпуск с даты приёма»: начисление по рабочим годам от даты приёма до сегодняшнего дня, для уволенных — до даты увольнения. За неполный год — пропорционально месяцам, хвост от 15 дней округляется до месяца. Списываются только ежегодные отпуска «По приказу» и «По приказу факт», начавшиеся к дате расчёта; праздники исключены. Период выгрузки отбирает сотрудников, но не ограничивает историю расчёта. Отрицательный остаток — отпуск авансом; без даты приёма расчёт не выполняется.'],
       ['Отпуска', 'Остатки и планирование показаны отдельно по каждому календарному году выбранного периода. Сотрудник включён только за годы работы; остаток за год = норма минус ежегодный отпуск за вычетом федеральных нерабочих праздничных дней. Перенос с прошлых лет не учитывается.'],
       ['Охрана труда', 'Только штатные работающие; по каждому виду — самая срочная запись; «скоро» — срок в ближайшие 30 дней'],
       ['Область фильтров', 'Все события и записи с датами действия отфильтрованы по выбранному периоду. Реквизиты, штатное расписание и другие поля без истории отражают текущее состояние на дату выгрузки.'],

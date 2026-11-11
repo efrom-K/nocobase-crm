@@ -159,3 +159,34 @@ vr("hr.d.vacs = ['ordered','ordered_fact','none','plan'].map(status=>({employee_
 assert.equal(vr("hVacBalance(e,'2025-12-31').planned"), 14);
 assert.equal(vr("hVacBalance(e,'2025-12-31').left"), 28);
 console.log('Vacation balance: only ordered and ordered_fact annual leave deducted');
+
+// The optional lifetime sheet uses actual accrual, independently of report dates/asOf.
+run("hToday = () => '2026-11-06';");
+load('function hR2(', 'function hN2(');
+run(`hr.d.emps = [
+  {id:1,full_name:'Active',legal_entity_id:1,hired_on:'2025-11-06',vacation_days:28},
+  {id:2,full_name:'Fired',legal_entity_id:1,hired_on:'2025-11-06',status:'fired',fired_on:'2026-05-06'},
+  {id:3,full_name:'Missing',legal_entity_id:1},
+  {id:4,full_name:'Self',legal_entity_id:1,employment_type:'self',hired_on:'2025-11-06'},
+  {id:5,full_name:'Recent',legal_entity_id:1,hired_on:'2026-10-06'},
+  {id:6,full_name:'Future',legal_entity_id:1,hired_on:'2026-12-01'}
+];
+hr.d.vacs = ['ordered','ordered_fact','none','plan'].map(status=>({employee_id:1,kind:HR_VAC_KINDS[0],status,start_date:'2025-12-01',end_date:'2025-12-07'}));
+hr.d.vacs.push({employee_id:1,kind:HR_VAC_KINDS[0],status:'ordered',start_date:'2026-12-01',end_date:'2026-12-07'});
+var lifetimeOptions = Object.assign({},o,{parts:['vacbalance'],from:'2026-01-01',to:'2026-12-31',asOf:'2020-01-01',status:'all'});
+spec = hXlsSpec(lifetimeOptions,[1]);`);
+const life = run('spec.sheets[0]');
+assert.equal(life.name, 'Отпуск с даты приёма');
+assert.equal(life.rows.length, 4);
+const row = name => life.rows.find(r => r[0] === name);
+assert.deepEqual(Array.from(row('Active').slice(3,8)), ['2026-11-06',28,28,14,14]);
+assert.deepEqual(Array.from(row('Fired').slice(3,8)), ['2026-05-06',28,14,0,14]);
+assert.equal(row('Recent')[5], 2.33);
+assert.equal(row('Missing')[7], null);
+assert.match(row('Missing')[8], /Нет даты приёма/);
+run(`spec = hXlsSpec(Object.assign({},lifetimeOptions,{parts:['vac']}),[1]);`);
+assert.equal(run(`spec.sheets.some(s=>s.name==='Отпуск с даты приёма')`), false);
+run(`spec = hXlsSpec(Object.assign({},lifetimeOptions,{status:'active'}),[1,2]);`);
+assert.equal(run(`spec.sheets[0].rows.length`), 3);
+assert.equal(run(`spec.sheets[0].rows.every(r=>r.length===spec.sheets[0].cols.length)`), true);
+console.log('Lifetime vacation export: accrual, order statuses, dismissal, missing hire date, fractional days and filters passed');

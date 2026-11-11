@@ -11,6 +11,7 @@ const c = vm.createContext({ cfg, console, hDate: v => String(v).split('-').reve
 function load(a, b) { vm.runInContext(src.slice(src.indexOf(a), src.indexOf(b, src.indexOf(a))), c); }
 load('const HR_EMP_TYPE', 'const hr =');
 vm.runInContext('var hr = { d: {} };', c);
+load('function hVacDeducts(', 'function hVacUsed(');
 load('function hHasHr()', 'function hMonthName(');
 load('function hLe(', 'function hDeptNames(');
 load('function hFilesOf(', 'function hFileA(');
@@ -131,3 +132,30 @@ assert.equal((run('preview').match(/<tr>/g)||[]).length, 6);
 assert.match(run('preview'), /5 из 7/);
 assert.match(run(`hXlsPreview({cols:[],rows:[]})`), /Выберите столбцы/);
 console.log('HR export: anniversaries, dismissal, filters, multiple employers, column order, row alignment, private field access passed');
+
+// Only annual leave with an order reduces the company balance and yearly norm.
+const vc = vm.createContext({ cfg, Date });
+function vacLoad(a, b) { vm.runInContext(src.slice(src.indexOf(a), src.indexOf(b, src.indexOf(a))), vc); }
+vacLoad('const HR_EMP_TYPE', 'const hr =');
+vm.runInContext('var hr = { d: { vacs: [] } };', vc);
+vacLoad('function hIso(', 'function hDate(');
+vacLoad('function hD(', 'function hDays(');
+vacLoad('function hDays(', 'function hNoun(');
+vacLoad('function hVacDeducts(', '// последняя запись');
+vacLoad('const HR_RU_HOLIDAYS', 'function hEditVacDays(');
+const vr = js => vm.runInContext(js, vc);
+vr("var e = {id:1,hired_on:'2025-01-01',vacation_days:28};");
+for (const status of ['ordered', 'ordered_fact', 'none', 'plan', '', undefined, 'unknown']) {
+  vc.testStatus = status;
+  vr("hr.d.vacs = [{employee_id:1,kind:HR_VAC_KINDS[0],status:testStatus,start_date:'2025-07-01',end_date:'2025-07-07'}];");
+  const days = ['ordered', 'ordered_fact'].includes(status) ? 7 : 0;
+  assert.equal(vr('hVacUsed(e,2025)'), days);
+  assert.equal(vr("hVacBalance(e,'2025-12-31').left"), 28 - days);
+  assert.equal(vr('hVacLeft(e,2025)'), 28 - days);
+}
+vr("hr.d.vacs = [{employee_id:1,kind:HR_VAC_KINDS[1],status:'ordered',days:5,start_date:'2025-07-01',end_date:'2025-07-05'}, {employee_id:2,kind:HR_VAC_KINDS[0],status:'ordered',days:5}, {employee_id:1,kind:HR_VAC_KINDS[0],status:'ordered',start_date:'2024-07-01',end_date:'2024-07-05'}];");
+assert.equal(vr("hVacBalance(e,'2025-12-31').used"), 0);
+vr("hr.d.vacs = ['ordered','ordered_fact','none','plan'].map(status=>({employee_id:1,kind:HR_VAC_KINDS[0],status,start_date:'2026-07-01',end_date:'2026-07-07'}));");
+assert.equal(vr("hVacBalance(e,'2025-12-31').planned"), 14);
+assert.equal(vr("hVacBalance(e,'2025-12-31').left"), 28);
+console.log('Vacation balance: only ordered and ordered_fact annual leave deducted');

@@ -78,6 +78,8 @@ jobs:
       - name: Contract document closing
         run: |
           python3 tests/contract_closing_test.py
+          python3 tests/contract_closing_details_test.py
+          node tests/contract_closing_money.test.js
           node tests/contract_closing_ui.test.js
         env:
           PGHOST: localhost

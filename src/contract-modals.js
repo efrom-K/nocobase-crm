@@ -2901,6 +2901,7 @@ async function openCompletedContractModal(id) {
     const res = await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members', 'closing_files'] });
     const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
     const pending = r.closure_state === 'pending';
+    const isAdmin = !!(currentUser && currentUser.__isAdmin);
     const canCloseDocs = pending && canArchiveContract(currentUser);
     overlay.querySelector('.ant-modal-title').textContent = pending ? 'Закрытие документов' : 'Договор в архиве';
     const members = r.contract_members || [];
@@ -2908,7 +2909,7 @@ async function openCompletedContractModal(id) {
     const contractNumber = r.contract_number || ('#' + id);
     const state = { members: members };
 
-    if (canCloseContract(currentUser)) {
+    if (isAdmin) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
       delBtn.style.display = '';
       delBtn.addEventListener('click', async function() {
@@ -2933,10 +2934,10 @@ async function openCompletedContractModal(id) {
     }
 
     // администратор: правит архивный договор и может вернуть его в действующие; остальным — только просмотр
-    const isAdmin = !!(currentUser && currentUser.__isAdmin);
     if (isAdmin) {
       const resBtn = overlay.querySelector('#cm-restore-btn');
       resBtn.style.display = '';
+      resBtn.textContent = 'Вернуть в активные';
       resBtn.addEventListener('click', async function() {
         resBtn.disabled = true;
         try { await restoreContract(id, contractNumber); }
@@ -2945,7 +2946,7 @@ async function openCompletedContractModal(id) {
       });
     }
 
-    initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
+    initChat(id, overlay, currentUser, isMember || canCloseDocs, contractNumber, state, 'completed');
 
     let html = '<div class="cm-completed-banner">' + (pending ? 'Договор завершён · бухгалтерия собирает закрывающие документы' : isAdmin ? 'Договор в архиве · правка доступна администратору' : 'Договор в архиве · только просмотр') + '</div>';
     html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly && b.key !== 'areas'; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed', renderActiveBlockSection(ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === 'areas'; }), r)) : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');

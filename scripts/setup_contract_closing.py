@@ -3,7 +3,6 @@
 NB_SSH, NB_URL, NB_TOKEN as in setup_object_directory.py. No data moves.
 """
 import argparse
-import json
 from pathlib import Path
 from setup_object_directory import api, sql
 
@@ -12,6 +11,17 @@ def apply():
     if sql("SELECT count(*) FROM information_schema.columns WHERE table_name='completed_contracts' AND column_name='closure_state'") == '0':
         sql((Path(__file__).resolve().parents[1] / 'db/migrations/008_contract_closing.sql').read_text())
     fields = {f['name'] for f in api('collections/completed_contracts/fields:list?paginate=false')}
+    # NocoBase's field-create hook spreads action.fields; legacy NULL (all fields) crashes it.
+    for role in api('roles:list?paginate=false'):
+        resources = api('roles/%s/resources:list?paginate=false&appends=actions&filter[name]=completed_contracts' % role['name'])
+        for resource in resources:
+            if any(a.get('fields') is None for a in resource['actions']):
+                actions = [{k: v for k, v in a.items() if k in ('id', 'name', 'fields', 'scopeId')} for a in resource['actions']]
+                for action in actions:
+                    if action.get('fields') is None:
+                        action['fields'] = sorted(fields)
+                api('roles/%s/resources:update?filterByTk=%s' % (role['name'], resource['id']),
+                    {'usingActionsConfig': resource['usingActionsConfig'], 'actions': actions})
     definitions = [
         {'name': 'closure_state', 'type': 'string', 'defaultValue': 'pending', 'interface': 'select',
          'uiSchema': {'title': 'Закрытие документов', 'type': 'string', 'x-component': 'Select', 'enum': [
@@ -30,9 +40,10 @@ def apply():
     if not scope:
         scope = api('dataSourcesRolesResourcesScopes:create', {'key': 'contract_closing_pending', 'name': 'Document closing', 'dataSourceKey': 'main', 'resourceName': 'completed_contracts',
                     'scope': {'closure_state': 'pending'}})
+    all_fields = [f['name'] for f in api('collections/completed_contracts/fields:list?paginate=false')]
     # Explicit resource ACL overrides the departments' broad default CRUD strategy.
     for role in ('accounting_dept', 'legal_dept', 'rental_dept', 'hr', 'aho', 'crm_test'):
-        actions = [{'name': 'view'}, {'name': 'export'}]
+        actions = [{'name': 'view', 'fields': all_fields}, {'name': 'export', 'fields': all_fields}]
         if role in ('legal_dept', 'rental_dept'):
             actions.append({'name': 'create', 'fields': [f['name'] for f in api('collections/completed_contracts/fields:list?paginate=false')
                                                       if f['name'] not in ('closure_state', 'closed_at', 'archived_at', 'closing_files')]})
@@ -45,7 +56,7 @@ def apply():
         # The implicit through collection must not inherit broad default CRUD.
         through = api('roles/%s/resources:list?paginate=false&filter[name]=completed_contract_closing_files' % role)
         api('roles/%s/resources:%s' % (role, 'update?filterByTk=' + str(through[0]['id']) if through else 'create'),
-            {'name': 'completed_contract_closing_files', 'usingActionsConfig': True, 'actions': [{'name': 'view'}]})
+            {'name': 'completed_contract_closing_files', 'usingActionsConfig': True, 'actions': [{'name': 'view', 'fields': ['contract_id', 'attachment_id', 'createdAt', 'updatedAt']}]})
         print(role + ': closing permissions configured')
 
 

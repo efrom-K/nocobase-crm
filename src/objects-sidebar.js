@@ -42,7 +42,7 @@ function esc(v) {
 }
 
 // на вкладке «Черновики» своей таблицы нет — фильтр ставится на «Активные»
-function getActiveTable() { const t = window.__activeRegistryTable; return ['ozazmpm4o4v', 'formtbl000001', 'ipb7gfluldk'].indexOf(t) !== -1 ? t : 'ozazmpm4o4v'; }
+function getActiveTable() { const t = window.__cmRegistryTableUid ? window.__cmRegistryTableUid(window.__activeRegistryTable) : window.__activeRegistryTable; return ['ozazmpm4o4v', 'formtbl000001', 'ipb7gfluldk'].indexOf(t) !== -1 ? t : 'ozazmpm4o4v'; }
 
 async function applyFilter(name) {
   const uid = getActiveTable();

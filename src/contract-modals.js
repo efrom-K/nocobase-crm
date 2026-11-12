@@ -479,7 +479,7 @@ function bindFileOpenLinks(root) {
   });
 }
 
-function bindFileDeleteLinks(root, contractId, collectionName, onDone) {
+function bindFileDeleteLinks(root, contractId, collectionName, onDone, relation) {
   root.querySelectorAll('.cm-file-delete').forEach(function(a) {
     if (a.__cmBound) return;
     a.__cmBound = true;
@@ -490,13 +490,14 @@ function bindFileDeleteLinks(root, contractId, collectionName, onDone) {
       const fileRow = a.closest('.cm-file-row');
       const fileName = fileRow && fileRow.firstElementChild ? fileRow.firstElementChild.textContent : '';
       try {
-        await fetch('/api/' + collectionName + '/' + contractId + '/contract_files:remove', {
+        const detached = await fetch('/api/' + collectionName + '/' + contractId + '/' + (relation || 'contract_files') + ':remove', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify([fileId])
         });
+        if (!detached.ok) throw new Error('attachment detach failed');
         try {
-          await fetch('/api/attachments:destroy?filterByTk=' + fileId, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken() } });
+          if (relation !== 'closing_files') await fetch('/api/attachments:destroy?filterByTk=' + fileId, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken() } });
         } catch (e2) { /* best-effort, ownership scope may block this — detach still succeeded */ }
         logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Удалён файл: ' + fileName }]);
         try {
@@ -2804,6 +2805,46 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
   });
 }
 
+function canArchiveContract(user) {
+  return !!(user && !hasRole(user, 'crm_readonly') && (user.__isAdmin || hasRole(user, 'accounting_dept')));
+}
+
+async function wireClosingDocuments(overlay, id, r, user, canEdit) {
+  const section = document.createElement('div');
+  section.className = 'cm-section';
+  section.innerHTML = '<div class="cm-section-title">Закрывающие документы</div>'
+    + '<div data-closing-list></div>'
+    + (canEdit ? '<p>Прикрепите документы и проверьте полноту комплекта перед передачей в архив.</p>'
+      + '<div class="cm-upload-row"><input type="file" id="cm-closing-file" style="display:none;">'
+      + '<button class="cm-upload-btn" id="cm-closing-upload">Прикрепить документ</button><span id="cm-closing-status"></span></div>'
+      + '<button class="cm-upload-btn" id="cm-archive-contract" style="margin-top:12px;">Документы проверены → В архив</button>' : '');
+  const body = overlay.querySelector('#cm-body');
+  body.insertBefore(section, body.firstChild);
+  const archive = section.querySelector('#cm-archive-contract');
+  async function refresh() {
+    const rec = histPayload(await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['closing_files'] }));
+    const files = rec.closing_files || [];
+    section.querySelector('[data-closing-list]').innerHTML = renderFilesList(files, canEdit && rec.closure_state === 'pending' ? user : null);
+    bindFileOpenLinks(section);
+    if (canEdit) bindFileDeleteLinks(section, id, 'completed_contracts', refresh, 'closing_files');
+    if (archive) { archive.disabled = !files.length || rec.closure_state !== 'pending'; archive.title = files.length ? '' : 'Сначала прикрепите закрывающие документы'; }
+  }
+  await refresh();
+  if (!canEdit) return;
+  bindFileUpload(section, id, 'completed_contracts', { input: 'cm-closing-file', btn: 'cm-closing-upload', status: 'cm-closing-status', relation: 'closing_files' }, refresh, r);
+  archive.addEventListener('click', async function() {
+    if (!(await cmConfirm('Подтвердить, что комплект закрывающих документов проверен, и передать договор в архив?'))) return;
+    archive.disabled = true;
+    try {
+      await ctx.api.resource('completed_contracts').update({ filterByTk: id, values: { closure_state: 'archived' } });
+      await logHistory('completed', id, [{ action: 'status', text: 'Закрывающие документы проверены. Договор передан в архив' }]);
+      closeContractModal();
+      cmToast('Договор передан в архив');
+      setTimeout(function() { location.reload(); }, 400);
+    } catch (e) { cmToast('Не удалось передать в архив. Проверьте документы и права доступа'); await refresh(); }
+  });
+}
+
 async function openCompletedContractModal(id) {
   const overlay = document.createElement('div');
   overlay.id = 'contract-modal-root';
@@ -2857,14 +2898,18 @@ async function openCompletedContractModal(id) {
   const body = overlay.querySelector('#cm-body');
   try {
     const currentUser = await getCurrentUser();
-    const res = await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
+    const res = await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members', 'closing_files'] });
     const r = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
+    const pending = r.closure_state === 'pending';
+    const isAdmin = !!(currentUser && currentUser.__isAdmin);
+    const canCloseDocs = pending && canArchiveContract(currentUser);
+    overlay.querySelector('.ant-modal-title').textContent = pending ? 'Закрытие документов' : 'Договор в архиве';
     const members = r.contract_members || [];
     const isMember = !!(currentUser && members.some(function(m) { return m.id === currentUser.id; }));
     const contractNumber = r.contract_number || ('#' + id);
     const state = { members: members };
 
-    if (canCloseContract(currentUser)) {
+    if (isAdmin) {
       const delBtn = overlay.querySelector('#cm-delete-btn');
       delBtn.style.display = '';
       delBtn.addEventListener('click', async function() {
@@ -2889,10 +2934,10 @@ async function openCompletedContractModal(id) {
     }
 
     // администратор: правит архивный договор и может вернуть его в действующие; остальным — только просмотр
-    const isAdmin = !!(currentUser && currentUser.__isAdmin);
     if (isAdmin) {
       const resBtn = overlay.querySelector('#cm-restore-btn');
       resBtn.style.display = '';
+      resBtn.textContent = 'Вернуть в активные';
       resBtn.addEventListener('click', async function() {
         resBtn.disabled = true;
         try { await restoreContract(id, contractNumber); }
@@ -2901,9 +2946,9 @@ async function openCompletedContractModal(id) {
       });
     }
 
-    initChat(id, overlay, currentUser, isMember, contractNumber, state, 'completed');
+    initChat(id, overlay, currentUser, isMember || canCloseDocs, contractNumber, state, 'completed');
 
-    let html = '<div class="cm-completed-banner">' + (isAdmin ? 'Договор в архиве · правка доступна администратору' : 'Договор в архиве · только просмотр') + '</div>';
+    let html = '<div class="cm-completed-banner">' + (pending ? 'Договор завершён · бухгалтерия собирает закрывающие документы' : isAdmin ? 'Договор в архиве · правка доступна администратору' : 'Договор в архиве · только просмотр') + '</div>';
     html += ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly && b.key !== 'areas'; }).map(function(block) { return renderActiveBlockSection(block, r) + (block.key === 'pay' ? renderPricesSection('cm-completed', renderActiveBlockSection(ACTIVE_BLOCK_DEFS.find(function(b) { return b.key === 'areas'; }), r)) : '') + (block.key === 'counterparty' ? renderContactsSection('cm-completed') : ''); }).join('');
     const files = r.contract_files || [];
     html += '<div class="cm-section" id="cm-completed-files-section" style="margin-bottom:0;"><div class="cm-section-title">Файлы</div>'
@@ -2917,6 +2962,7 @@ async function openCompletedContractModal(id) {
 
     body.style.color = '';
     body.innerHTML = html;
+    await wireClosingDocuments(overlay, id, r, currentUser, canCloseDocs);
     paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-completed', 'completed', id, currentUser);
     const addAddBtn = overlay.querySelector('#cm-completed-addendum-add-btn');
@@ -4196,7 +4242,7 @@ async function wireAddendums(overlay, prefix, contractType, contractId, currentU
   });
 }
 
-async function uploadContractFile(file, contractId, collectionName, fileName) {
+async function uploadContractFile(file, contractId, collectionName, fileName, relation) {
   const boundary = '----cmBoundary' + Math.random().toString(16).slice(2);
   const parts = [];
   parts.push('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + (fileName || file.name) + '"\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n');
@@ -4210,11 +4256,12 @@ async function uploadContractFile(file, contractId, collectionName, fileName) {
   const data = await res.json();
   const attId = data && data.data && data.data.id;
   if (!attId) throw new Error('upload failed');
-  await fetch('/api/' + collectionName + '/' + contractId + '/contract_files:add', {
+  const linked = await fetch('/api/' + collectionName + '/' + contractId + '/' + (relation || 'contract_files') + ':add', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
     body: JSON.stringify([attId])
   });
+  if (!linked.ok) throw new Error('attachment link failed');
 }
 
 function bindFileUpload(root, contractId, collectionName, ids, onDone, rec) {
@@ -4232,7 +4279,7 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone, rec) {
     if (!file) return;
     let scanField = root.__cmScanField; root.__cmScanField = null;
     // «+ Прикрепить файл»: спрашиваем, что это за документ — сканы договора и акта нужны для статуса «Не хватает документов»
-    if (!scanField) {
+    if (!scanField && ids.relation !== 'closing_files') {
       const regularForming = collectionName !== 'rental_contracts' && collectionName !== 'completed_contracts' && !(rec && rec.is_quick);
       const kind = await cmChoice('Что это за файл «' + file.name + '»?', regularForming ? PYRUS_DOC_CHOICES : SCAN_CHOICES);
       if (kind === null) { input.value = ''; return; }
@@ -4244,7 +4291,7 @@ function bindFileUpload(root, contractId, collectionName, ids, onDone, rec) {
     btn.disabled = true;
     status.textContent = 'Загрузка…';
     try {
-      await uploadContractFile(file, contractId, collectionName, fileName);
+      await uploadContractFile(file, contractId, collectionName, fileName, ids.relation);
       logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Загружен файл: ' + fileName }]);
       status.textContent = 'Готово';
       if (scanField) {
@@ -4336,7 +4383,7 @@ function contractMovePayload(f) {
 }
 
 async function completeContract(id, members, contractNumber) {
-  if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перенести в «Архив»?'))) return;
+  if (!(await cmConfirm('Завершить договор «' + contractNumber + '» и перенести в «Закрытие документов»?'))) return;
   const res = await ctx.api.resource('rental_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] });
   const f = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   const payload = contractMovePayload(f);
@@ -4378,9 +4425,9 @@ async function completeContract(id, members, contractNumber) {
 
   await moveSide('contract_price_periods', 'active', id, 'completed', newId);
   await moveHistory('active', id, 'completed', newId);
-  await logHistory('completed', newId, [{ action: 'status', text: 'Договор завершён и перенесён в «Архив»' }]);
+  await logHistory('completed', newId, [{ action: 'status', text: 'Договор завершён и перенесён в «Закрытие документов»' }]);
   memberIds.forEach(function(uid) {
-    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор завершён и перенесён в раздел «Архив»', 'completed', 'status');
+    createNotification(uid, newId, 'Договор ' + (f.contract_number || f.object_name || contractNumber), 'Договор завершён и перенесён в раздел «Закрытие документов»', 'completed', 'status');
   });
 
   try {
@@ -4389,7 +4436,7 @@ async function completeContract(id, members, contractNumber) {
     cmToast('Договор перенесён, но исходная запись не удалилась — уберите вручную');
   }
   closeContractModal();
-  cmToast('Готово: договор перенесён в «Архив»');
+  cmToast('Готово: договор перенесён в «Закрытие документов»');
   setTimeout(function() { location.reload(); }, 400);
 }
 
@@ -4398,14 +4445,14 @@ async function restoreContract(id, contractNumber) {
   const me = await getCurrentUser();
   if (!(me && me.__isAdmin)) return;
   if (!(await cmConfirm('Вернуть договор «' + contractNumber + '» из «Архива» в действующие?'))) return;
-  const f = histPayload(await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members'] }));
+  const f = histPayload(await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members', 'closing_files'] }));
   const createRes = await ctx.api.resource('rental_contracts').create({ values: contractMovePayload(f) });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
   const newId = newRec.id;
   const post = function(url, body) {
     return fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   };
-  const fileIds = (f.contract_files || []).map(function(x) { return x.id; });
+  const fileIds = (f.contract_files || []).concat(f.closing_files || []).map(function(x) { return x.id; });
   if (fileIds.length) await post('/api/rental_contracts/' + newId + '/contract_files:add', fileIds);
   const memberIds = (f.contract_members || []).map(function(x) { return x.id; });
   if (memberIds.length) await post('/api/rental_contracts/' + newId + '/contract_members:add', memberIds);

@@ -11,9 +11,25 @@ function nbSessionAlive() {
 }
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
+ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-closing-tab" role="button" tabindex="0" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Закрытие документов</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
 
 const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
+const CLOSING_TAB = 'cm-closing-tab';
+window.__cmRegistryTableUid = function(uid) { return uid === CLOSING_TAB ? 'ipb7gfluldk' : uid; };
+let closureFilterState = null;
+function applyClosureFilter(uid) {
+  const model = colTable('ipb7gfluldk');
+  if (!model || !model.resource) return false;
+  const state = uid === CLOSING_TAB ? 'pending' : 'archived';
+  if (closureFilterState !== state) {
+    model.resource.addFilterGroup('closure', { closure_state: state });
+    model.resource.removeFilterGroup('search');
+    model.resource.setPage(1);
+    closureFilterState = state;
+    model.resource.refresh();
+  }
+  return true;
+}
 const DRAFTS_TAB = "cm-drafts-tab"; // не нативная NocoBase-таблица — личный список черновиков, рисуется contract-modals.js
 
 function paintActive(uid) {
@@ -27,12 +43,12 @@ function paintActive(uid) {
 }
 
 function applyVisibility(uid) {
-  let allFound = true;
+  let allFound = applyClosureFilter(uid);
   TABLES.forEach(function(t) {
     const el = document.querySelector('[data-uid="' + t + '"]');
     const card = el ? el.closest('.ant-card') : null;
     if (card) {
-      card.style.display = (uid === DRAFTS_TAB) ? 'none' : ((t === uid) ? '' : 'none');
+      card.style.display = (uid === DRAFTS_TAB) ? 'none' : ((t === window.__cmRegistryTableUid(uid)) ? '' : 'none');
     } else {
       allFound = false;
     }
@@ -55,6 +71,9 @@ window.switchRegistryTable = switchRegistryTable;
 document.querySelectorAll('.registry-local-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
     switchRegistryTable(tab.getAttribute('data-table'));
+  });
+  if (tab.getAttribute('data-table') === CLOSING_TAB) tab.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchRegistryTable(CLOSING_TAB); }
   });
 });
 
@@ -89,7 +108,7 @@ function colAuthHeaders() {
 }
 function colTable(uid) {
   const e = window.__cmEngine;
-  return e && e.getModel ? e.getModel(uid) : null;
+  return e && e.getModel ? e.getModel(window.__cmRegistryTableUid(uid)) : null;
 }
 function colModels(uid) {
   const t = colTable(uid);
@@ -307,7 +326,7 @@ function tableTitle(uid) {
 function renderColsPanel() {
   const panel = document.getElementById('cm-cols-panel');
   if (!panel) return;
-  const uid = window.__activeRegistryTable || TABLES[0];
+  const uid = window.__cmRegistryTableUid(window.__activeRegistryTable || TABLES[0]);
   const names = currentOrderNames(uid);
   const cfg = effectiveCfg(uid);
   const hidden = {};
@@ -488,7 +507,8 @@ function installPinInterceptor() {
       async function fetchIds(list, keepFilter) {
         if (!list.length) return [];
         const byId = { id: { $in: list } };
-        const filter = keepFilter && userFilter && Object.keys(userFilter).length ? { $and: [userFilter, byId] } : byId;
+        let filter = keepFilter && userFilter && Object.keys(userFilter).length ? { $and: [userFilter, byId] } : byId;
+        if (m[1] === 'completed_contracts' && userFilter) filter = { $and: [filter, userFilter] };
         const params = Object.assign({}, params0, { filter: filter, page: 1, pageSize: list.length, sort: keepFilter && params0.sort ? params0.sort : ['-id'] });
         const pr = await api.axios.request({ url: cfg.url, method: 'get', params: params, headers: cfg.headers, __cmPinned: true });
         return (pr && pr.data && Array.isArray(pr.data.data)) ? pr.data.data : [];
@@ -551,7 +571,7 @@ function paintNotifRows() {
     const tab = document.querySelector('.registry-local-tab[data-table="' + uid + '"] .ant-tabs-tab-btn');
     if (tab) {
       let badge = tab.querySelector('.cm-tab-badge');
-      const n = Object.keys(ids).length;
+      const n = Object.keys(ids).filter(function(id) { return uid !== 'ipb7gfluldk' || (window.__cmCompletedNotifStates || {})[id] !== 'pending'; }).length;
       if (n) {
         if (!badge) { badge = document.createElement('span'); badge.className = 'cm-tab-badge'; tab.appendChild(badge); }
         if (badge.textContent !== String(n)) badge.textContent = String(n);
@@ -574,6 +594,19 @@ async function refreshNotifRows() {
       map[uid] = map[uid] || {};
       map[uid][mm[2]] = (map[uid][mm[2]] || []).concat([(m.title ? m.title + ': ' : '') + (m.content || '')]);
     });
+    const completedIds = Object.keys(map.ipb7gfluldk || {});
+    const states = {};
+    if (completedIds.length) {
+      const rr = await fetch('/api/completed_contracts:list?paginate=false&fields=id,closure_state&filter=' + encodeURIComponent(JSON.stringify({ id: { $in: completedIds } })), { headers: colAuthHeaders() });
+      const jj = await rr.json();
+      (jj.data || []).forEach(function(c) { states[c.id] = c.closure_state; });
+    }
+    window.__cmCompletedNotifStates = states;
+    const closingTab = document.querySelector('.registry-local-tab[data-table="cm-closing-tab"] .ant-tabs-tab-btn');
+    if (closingTab) {
+      const count = completedIds.filter(function(id) { return states[id] === 'pending'; }).length;
+      closingTab.textContent = 'Закрытие документов' + (count ? ' · ' + count : '');
+    }
     window.__cmNotifRows = map;
     refreshPinnedTables();
   } catch (e) { /* остаёмся на прошлом состоянии */ }

@@ -8,7 +8,7 @@ if (ctx.element && ctx.element.addEventListener) {
     const val = (e.target.value || '').trim();
     timeout = setTimeout(async () => {
       const uid = window.__activeRegistryTable || 'ozazmpm4o4v';
-      const target = ctx.model.flowEngine.getModel(uid);
+      const target = ctx.model.flowEngine.getModel(window.__cmRegistryTableUid ? window.__cmRegistryTableUid(uid) : uid);
       if (!target || !target.resource) return;
       if (!val) {
         target.resource.removeFilterGroup('search');

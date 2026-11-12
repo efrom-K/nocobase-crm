@@ -4,13 +4,14 @@ import subprocess
 import sys
 migration = (Path(__file__).resolve().parents[1] / 'db/migrations/008_contract_closing.sql').read_text()
 assert migration.startswith('BEGIN;\n') and migration.endswith('COMMIT;\n')
+delete_migration = (Path(__file__).resolve().parents[1] / 'db/migrations/009_contract_closing_delete.sql').read_text()
 query = '''BEGIN;
 CREATE SCHEMA crm_closing_test;
 SET LOCAL search_path = crm_closing_test;
 CREATE TABLE completed_contracts(id bigint PRIMARY KEY);
 CREATE TABLE attachments(id bigint PRIMARY KEY);
 INSERT INTO completed_contracts VALUES (1);
-''' + migration.removeprefix('BEGIN;\n').removesuffix('COMMIT;\n') + '''
+''' + migration.removeprefix('BEGIN;\n').removesuffix('COMMIT;\n') + delete_migration.removeprefix('BEGIN;\n').removesuffix('COMMIT;\n') + '''
 DO $$
 BEGIN
   ASSERT (SELECT closure_state = 'archived' FROM completed_contracts WHERE id=1), 'legacy archive';
@@ -30,6 +31,7 @@ BEGIN
   INSERT INTO completed_contract_closing_files(contract_id,attachment_id) VALUES(2,20);
   UPDATE completed_contracts SET closure_state='archived' WHERE id=2;
   ASSERT (SELECT archived_at IS NOT NULL FROM completed_contracts WHERE id=2);
+  SET CONSTRAINTS cm_guard_closing_file_delete IMMEDIATE;
   BEGIN
     DELETE FROM completed_contract_closing_files WHERE contract_id=2;
     RAISE EXCEPTION 'archive file removal accepted';
@@ -46,7 +48,10 @@ BEGIN
     DELETE FROM attachments WHERE id=20;
     RAISE EXCEPTION 'archived attachment deleted';
   EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+  SET CONSTRAINTS cm_guard_closing_file_delete DEFERRED;
+  DELETE FROM completed_contract_closing_files WHERE contract_id=2;
   DELETE FROM completed_contracts WHERE id=2;
+  SET CONSTRAINTS cm_guard_closing_file_delete IMMEDIATE;
   ASSERT NOT EXISTS(SELECT 1 FROM completed_contract_closing_files WHERE contract_id=2);
 END $$;
 ROLLBACK;

@@ -10,6 +10,8 @@ from setup_object_directory import api, sql
 def apply():
     if sql("SELECT count(*) FROM information_schema.columns WHERE table_name='completed_contracts' AND column_name='closure_state'") == '0':
         sql((Path(__file__).resolve().parents[1] / 'db/migrations/008_contract_closing.sql').read_text())
+    if sql("SELECT count(*) FROM pg_trigger WHERE tgname='cm_guard_closing_file_delete' AND NOT tgisinternal") == '0':
+        sql((Path(__file__).resolve().parents[1] / 'db/migrations/009_contract_closing_delete.sql').read_text())
     fields = {f['name'] for f in api('collections/completed_contracts/fields:list?paginate=false')}
     # NocoBase's field-create hook spreads action.fields; legacy NULL (all fields) crashes it.
     for role in api('roles:list?paginate=false'):

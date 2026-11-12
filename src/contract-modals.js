@@ -2905,7 +2905,7 @@ async function openCompletedContractModal(id) {
     }
 
     // администратор: правит архивный договор и может вернуть его в действующие; остальным — только просмотр
-    if (isAdmin) {
+    if (isAdmin && closingCanRestore(r)) {
       const resBtn = overlay.querySelector('#cm-restore-btn');
       resBtn.style.display = '';
       resBtn.textContent = 'Вернуть в активные';
@@ -4417,6 +4417,7 @@ async function restoreContract(id, contractNumber) {
   if (!(me && me.__isAdmin)) return;
   if (!(await cmConfirm('Вернуть договор «' + contractNumber + '» из «Архива» в действующие?'))) return;
   const f = histPayload(await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['contract_files', 'contract_members', 'closing_files'] }));
+  if (!closingCanRestore(f)) { cmToast('Возврат в активные недоступен: в архиве зафиксирован расчёт обеспечительного платежа'); return; }
   const createRes = await ctx.api.resource('rental_contracts').create({ values: contractMovePayload(f) });
   const newRec = (createRes && createRes.data && createRes.data.data) ? createRes.data.data : createRes.data;
   const newId = newRec.id;

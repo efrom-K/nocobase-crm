@@ -1,6 +1,7 @@
 // Contract closing: money is parsed in kopecks; the database computes and freezes the settlement.
 const CLOSING_DOC_KINDS = [['termination_agreement', 'Соглашение о расторжении'], ['return_act', 'Акт возврата'], ['reconciliation_act', 'Акт сверки'], ['other', 'Дополнительный документ']];
 const CLOSING_DEPOSIT_ACTIONS = [['refund', 'Возвращается полностью'], ['retain', 'Не возвращается'], ['rent', 'В счёт аренды'], ['partial', 'Частично возвращается']];
+function closingCanRestore(r) { return r.closure_state !== 'archived' || !r.closure_deposit_action; }
 function closingMoney(value) {
   const s = String(value == null ? '' : value).replace(/[\s\u00a0]/g, '').replace(',', '.');
   if (!s) return null;

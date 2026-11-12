@@ -26,3 +26,7 @@ for (const [action,expected] of [['refund',{refund:10001,retained:0,rent:0}],['r
   assert.deepStrictEqual(plain(context.closingSettlement({...v,closure_deposit_action:action})), expected);
 }
 console.log('Closing validation and exact kopeck allocation passed');
+
+assert.strictEqual(context.closingCanRestore({closure_state:'archived',closure_deposit_action:'partial'}), false);
+assert.strictEqual(context.closingCanRestore({closure_state:'archived'}), true);
+assert.strictEqual(context.closingCanRestore({closure_state:'pending',closure_deposit_action:'partial'}), true);

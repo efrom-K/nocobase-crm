@@ -12,6 +12,8 @@ def apply():
         sql((Path(__file__).resolve().parents[1] / 'db/migrations/008_contract_closing.sql').read_text())
     if sql("SELECT count(*) FROM pg_trigger WHERE tgname='cm_guard_closing_file_delete' AND NOT tgisinternal") == '0':
         sql((Path(__file__).resolve().parents[1] / 'db/migrations/009_contract_closing_delete.sql').read_text())
+    if sql("SELECT count(*) FROM information_schema.columns WHERE table_name='completed_contracts' AND column_name='closure_documents'") == '0':
+        sql((Path(__file__).resolve().parents[1] / 'db/migrations/010_contract_closing_details.sql').read_text())
     fields = {f['name'] for f in api('collections/completed_contracts/fields:list?paginate=false')}
     # NocoBase's field-create hook spreads action.fields; legacy NULL (all fields) crashes it.
     for role in api('roles:list?paginate=false'):
@@ -34,6 +36,16 @@ def apply():
          'through': 'completed_contract_closing_files', 'foreignKey': 'contract_id', 'otherKey': 'attachment_id',
          'sourceKey': 'id', 'targetKey': 'id',
          'uiSchema': {'title': 'Закрывающие документы', 'type': 'array', 'x-component': 'Upload.Attachment'}}]
+    definitions.extend([
+        {'name': name, 'type': 'string', 'interface': 'input', 'uiSchema': {'title': title, 'type': 'string', 'x-component': 'Input'}}
+        for name, title in [('closure_termination_mode', 'Вид завершения'), ('closure_deposit_action', 'Решение по обеспечительному платежу'), ('closure_deposit_remainder', 'Распределение остатка')]])
+    definitions.append({'name': 'closure_documents', 'type': 'json', 'interface': 'json', 'defaultValue': [],
+                        'uiSchema': {'title': 'Закрывающие документы и даты подписи', 'type': 'array', 'x-component': 'Input.JSON'}})
+    definitions.extend([
+        {'name': name, 'type': 'decimal', 'precision': 18, 'scale': 2, 'interface': 'number',
+         'uiSchema': {'title': title, 'type': 'number', 'x-component': 'InputNumber', 'x-component-props': {'stringMode': True}}}
+        for name, title in [('closure_deposit_amount', 'Обеспечительный платёж к распределению'), ('closure_deposit_refund', 'Возврат обеспечительного платежа'),
+                            ('closure_deposit_retained', 'Удержанный обеспечительный платёж'), ('closure_deposit_rent', 'Обеспечительный платёж в счёт аренды')]])
     for field in definitions:
         if field['name'] not in fields:
             api('collections/completed_contracts/fields:create', field)
@@ -48,10 +60,10 @@ def apply():
         actions = [{'name': 'view', 'fields': all_fields}, {'name': 'export', 'fields': all_fields}]
         if role in ('legal_dept', 'rental_dept'):
             actions.append({'name': 'create', 'fields': [f['name'] for f in api('collections/completed_contracts/fields:list?paginate=false')
-                                                      if f['name'] not in ('closure_state', 'closed_at', 'archived_at', 'closing_files')]})
+                                                      if not f['name'].startswith('closure_') and f['name'] not in ('closed_at', 'archived_at', 'closing_files')]})
             actions.append({'name': 'update', 'fields': ['contract_files', 'contract_members'], 'scopeId': scope['id']})
         elif role == 'accounting_dept':
-            actions.append({'name': 'update', 'fields': ['closure_state', 'closing_files'], 'scopeId': scope['id']})
+            actions.append({'name': 'update', 'fields': ['closure_state', 'closing_files', 'closure_termination_mode', 'closure_documents', 'closure_deposit_action', 'closure_deposit_remainder', 'closure_deposit_amount', 'closure_deposit_refund'], 'scopeId': scope['id']})
         existing = api('roles/%s/resources:list?paginate=false&filter[name]=completed_contracts' % role)
         body = {'name': 'completed_contracts', 'usingActionsConfig': True, 'actions': actions}
         api('roles/%s/resources:%s' % (role, 'update?filterByTk=' + str(existing[0]['id']) if existing else 'create'), body)

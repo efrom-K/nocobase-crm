@@ -32,7 +32,11 @@ KINDS = [  # коллекция, тип в побочных таблицах, р
 STAGES = ['1. Заявка на аренду', '2. Размещение объявления', '3. Согласование условий', '4. Подписание договора', '5. Оплата счетов', '6. Финал (акт и скан)']
 STATUS = {'1_problem': 'Проблема', '2_terminating': 'На расторжении', '2_docs': 'Не хватает документов', '2_attention': 'Требует внимания', '3_ok': 'В порядке'}
 LABELS = {'tenant_type': {'Юрлицо': 'Юридическое лицо', 'ИП': 'Индивидуальный предприниматель', 'Самозанятый': 'Самозанятый', 'Физлицо': 'Физическое лицо'},
-          'signing_method': {'ЭДО': 'Электронный документооборот'}}
+          'signing_method': {'ЭДО': 'Электронный документооборот'},
+          'closure_termination_mode': {'unilateral': 'Одностороннее', 'bilateral': 'Двустороннее'},
+          'closure_deposit_action': {'refund': 'Возвращается', 'retain': 'Не возвращается', 'rent': 'В счёт аренды', 'partial': 'Частично возвращается'},
+          'closure_deposit_remainder': {'retain': 'Удержан', 'rent': 'В счёт аренды'},
+          'closure_document_kind': {'termination_agreement': 'Соглашение о расторжении', 'return_act': 'Акт возврата', 'reconciliation_act': 'Акт сверки', 'other': 'Дополнительный документ'}}
 
 # (заголовок, ключ или функция) — порядок столбцов в таблице
 def g(k): return lambda r: r.get(k)
@@ -57,6 +61,14 @@ COLS = [
     ('Сумма в месяц', lambda r: r.get('total_amount') if r.get('total_amount') is not None else (None if r.get('rent_amount') is None and r.get('utility_amount') is None else (r.get('rent_amount') or 0) + (r.get('utility_amount') or 0))), ('Обеспечительный платёж', g('deposit_amount')),
     ('Основная арендная плата в месяц', g('base_rent_amount')), ('Основной эксплуатационный сбор в месяц', g('base_utility_amount')),
     ('Основной обеспечительный платёж', g('base_deposit_amount')),
+    ('Способ расторжения', lambda r: LABELS['closure_termination_mode'].get(r.get('closure_termination_mode'), r.get('closure_termination_mode'))),
+    ('Решение по обеспечительному платежу', lambda r: LABELS['closure_deposit_action'].get(r.get('closure_deposit_action'), r.get('closure_deposit_action'))),
+    ('Распределение остатка обеспечительного платежа', lambda r: LABELS['closure_deposit_remainder'].get(r.get('closure_deposit_remainder'), r.get('closure_deposit_remainder'))),
+    ('Сумма обеспечительного платежа при закрытии', g('closure_deposit_amount')),
+    ('Сумма возврата при закрытии', g('closure_deposit_refund')),
+    ('Сумма удержания при закрытии', g('closure_deposit_retained')),
+    ('Сумма зачёта в аренду при закрытии', g('closure_deposit_rent')),
+    ('Документы закрытия', lambda r: r['_closing_documents']),
     ('Периоды цены', lambda r: r['_periods']),
     ('ИНН', g('inn')), ('КПП', g('kpp')), ('ОГРН / ОГРНИП', g('ogrn')), ('Юридический адрес / адрес регистрации', g('legal_address')),
     ('Должность руководителя', g('director_post')), ('ФИО руководителя', g('director')),
@@ -72,7 +84,8 @@ COLS = [
     ('Примечания', g('notes')),
     ('Создан', lambda r: (r.get('createdAt') or '')[:10] or None), ('Изменён', lambda r: (r.get('updatedAt') or '')[:10] or None),
 ]
-MONEY = {c[0] for c in COLS if any(w in c[0] for w in ('плата', 'сбор', 'Сумма', 'платёж'))}
+MONEY = {c[0] for c in COLS if any(w in c[0] for w in ('плата', 'сбор', 'Сумма', 'платёж'))} | {
+    'Сумма обеспечительного платежа при закрытии', 'Сумма возврата при закрытии', 'Сумма удержания при закрытии', 'Сумма зачёта в аренду при закрытии'}
 DATES = {c[0] for c in COLS if c[0].startswith('Дата') or c[0] in ('Создан', 'Изменён')}
 
 def ddmmyyyy(v):
@@ -125,6 +138,15 @@ for coll, t, kind, mem, at in KINDS:
                                     + (' [файлы: %s]' % ', '.join(add_files[a['id']]) if add_files.get(a['id']) else ' [без скана]') for a in by_ref(addendums, t, i)) or None
         r['_periods'] = '; '.join(fmt_period(p) for p in by_ref(periods, t, i)) or None
         r['_files'] = ', '.join(fl.get(i, [])) or None
+        docs = r.get('closure_documents') or []
+        if isinstance(docs, str):
+            try: docs = json.loads(docs)
+            except ValueError: docs = []
+        r['_closing_documents'] = '; '.join('%s: %s%s' % (
+            LABELS['closure_document_kind'].get(d.get('kind'), d.get('kind') or 'Документ'),
+            files.get(d.get('file_id'), '#%s' % d.get('file_id')) if d.get('file_id') else 'без имени файла',
+            ' (подписан %s)' % ddmmyyyy(d['signed_on']) if d.get('signed_on') else '')
+            for d in docs if isinstance(d, dict)) or None
         r['_att_ids'] = fl_ids.get(i, []) + [f for a in by_ref(addendums, t, i) for f in add_ids.get(a['id'], [])]
         data.append(r)
 

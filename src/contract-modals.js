@@ -1,6 +1,7 @@
 // @include src/_crm-objects.js
 // @include src/_crm-plan.js
 // @include src/_crm-config.js
+// @include src/_crm-closing.js
 
 // фоновые опросы не ходят в API, когда пользователь не вошёл (страница входа, сессия истекла):
 // иначе NocoBase на каждый такой запрос показывает «Пожалуйста, войдите, чтобы продолжить»
@@ -501,6 +502,7 @@ function bindFileDeleteLinks(root, contractId, collectionName, onDone, relation)
         } catch (e2) { /* best-effort, ownership scope may block this — detach still succeeded */ }
         logHistory(HIST_TYPE_BY_COLL[collectionName] || 'active', contractId, [{ action: 'file', text: 'Удалён файл: ' + fileName }]);
         try {
+          if (relation === 'closing_files') { if (onDone) await onDone(); return; }
           const rec = histPayload(await ctx.api.resource(collectionName).get({ filterByTk: contractId }));
           const clear = {};
           if (rec && rec.contract_scan_url === fileName) clear.contract_scan_url = null;
@@ -1201,7 +1203,7 @@ function validateValue(name, val, el) {
   return '';
 }
 
-const FIELD_LABEL_EXTRA = { tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Электронная почта', rent_per_sqm: 'Текущая арендная плата за 1 квадратный метр', rent_amount: 'Текущая арендная плата' };
+const FIELD_LABEL_EXTRA = { closure_termination_mode: 'Вид завершения', closure_documents: 'Закрывающие документы и даты подписи', closure_deposit_action: 'Решение по обеспечительному платежу', closure_deposit_remainder: 'Распределение остатка', closure_deposit_amount: 'Обеспечительный платёж к распределению', closure_deposit_refund: 'Сумма возврата обеспечительного платежа', closure_state: 'Этап закрытия', tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Электронная почта', rent_per_sqm: 'Текущая арендная плата за 1 квадратный метр', rent_amount: 'Текущая арендная плата' };
 function fieldLabel(name) {
   let label = FIELD_LABEL_EXTRA[name] || name;
   const scan = function(defs) { (defs || []).forEach(function(d) { (d.fields || []).forEach(function(f) { if (f.name === name) label = f.label; }); }); };
@@ -1496,7 +1498,12 @@ function histPayload(res) {
   const p = (res && res.data && res.data.data) ? res.data.data : (res && res.data) ? res.data : res;
   return p;
 }
-function histVal(v) {
+function histVal(v, field) {
+  if (field === 'closure_termination_mode') return { unilateral: 'Одностороннее', bilateral: 'Двустороннее' }[v] || '';
+  if (field === 'closure_deposit_remainder') return { retain: 'Не возвращается', rent: 'В счёт аренды' }[v] || '';
+  if (field === 'closure_deposit_action') { const action = CLOSING_DEPOSIT_ACTIONS.find(function(a) { return a[0] === v; }); return action ? action[1] : ''; }
+  if (field === 'closure_state') return { pending: 'Закрытие документов', archived: 'Архив' }[v] || '';
+  if (field === 'closure_documents') return (v || []).map(function(d) { const kind = CLOSING_DOC_KINDS.find(function(k) { return k[0] === d.kind; }); return (kind ? kind[1] : d.kind || 'Документ') + ' #' + d.file_id + ' · ' + (d.signed_on || 'без даты подписи'); }).join('; ');
   if (v === null || v === undefined) return '';
   if (v === true) return 'Да';
   if (v === false) return 'Нет';
@@ -1546,7 +1553,7 @@ async function logFieldChanges(type, id, oldRec, values) {
   const entries = [];
   Object.keys(values).forEach(function(k) {
     if (HIST_SKIP[k]) return;
-    const a = histVal(oldRec[k]), b = histVal(values[k]);
+    const a = histVal(oldRec[k], k), b = histVal(values[k], k);
     if (a === b) return;
     entries.push({ action: 'field', field: k, old: a, new: b });
   });
@@ -2807,42 +2814,6 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
 
 function canArchiveContract(user) {
   return !!(user && !hasRole(user, 'crm_readonly') && (user.__isAdmin || hasRole(user, 'accounting_dept')));
-}
-
-async function wireClosingDocuments(overlay, id, r, user, canEdit) {
-  const section = document.createElement('div');
-  section.className = 'cm-section';
-  section.innerHTML = '<div class="cm-section-title">Закрывающие документы</div>'
-    + '<div data-closing-list></div>'
-    + (canEdit ? '<p>Прикрепите документы и проверьте полноту комплекта перед передачей в архив.</p>'
-      + '<div class="cm-upload-row"><input type="file" id="cm-closing-file" style="display:none;">'
-      + '<button class="cm-upload-btn" id="cm-closing-upload">Прикрепить документ</button><span id="cm-closing-status"></span></div>'
-      + '<button class="cm-upload-btn" id="cm-archive-contract" style="margin-top:12px;">Документы проверены → В архив</button>' : '');
-  const body = overlay.querySelector('#cm-body');
-  body.insertBefore(section, body.firstChild);
-  const archive = section.querySelector('#cm-archive-contract');
-  async function refresh() {
-    const rec = histPayload(await ctx.api.resource('completed_contracts').get({ filterByTk: id, appends: ['closing_files'] }));
-    const files = rec.closing_files || [];
-    section.querySelector('[data-closing-list]').innerHTML = renderFilesList(files, canEdit && rec.closure_state === 'pending' ? user : null);
-    bindFileOpenLinks(section);
-    if (canEdit) bindFileDeleteLinks(section, id, 'completed_contracts', refresh, 'closing_files');
-    if (archive) { archive.disabled = !files.length || rec.closure_state !== 'pending'; archive.title = files.length ? '' : 'Сначала прикрепите закрывающие документы'; }
-  }
-  await refresh();
-  if (!canEdit) return;
-  bindFileUpload(section, id, 'completed_contracts', { input: 'cm-closing-file', btn: 'cm-closing-upload', status: 'cm-closing-status', relation: 'closing_files' }, refresh, r);
-  archive.addEventListener('click', async function() {
-    if (!(await cmConfirm('Подтвердить, что комплект закрывающих документов проверен, и передать договор в архив?'))) return;
-    archive.disabled = true;
-    try {
-      await ctx.api.resource('completed_contracts').update({ filterByTk: id, values: { closure_state: 'archived' } });
-      await logHistory('completed', id, [{ action: 'status', text: 'Закрывающие документы проверены. Договор передан в архив' }]);
-      closeContractModal();
-      cmToast('Договор передан в архив');
-      setTimeout(function() { location.reload(); }, 400);
-    } catch (e) { cmToast('Не удалось передать в архив. Проверьте документы и права доступа'); await refresh(); }
-  });
 }
 
 async function openCompletedContractModal(id) {

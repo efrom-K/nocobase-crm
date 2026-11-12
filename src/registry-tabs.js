@@ -11,9 +11,25 @@ function nbSessionAlive() {
 }
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
+ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-closing-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Закрытие документов</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
 
 const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
+const CLOSING_TAB = 'cm-closing-tab';
+window.__cmRegistryTableUid = function(uid) { return uid === CLOSING_TAB ? 'ipb7gfluldk' : uid; };
+let closureFilterState = null;
+function applyClosureFilter(uid) {
+  const model = colTable('ipb7gfluldk');
+  if (!model || !model.resource) return false;
+  const state = uid === CLOSING_TAB ? 'pending' : 'archived';
+  if (closureFilterState !== state) {
+    model.resource.addFilterGroup('closure', { closure_state: state });
+    model.resource.removeFilterGroup('search');
+    model.resource.setPage(1);
+    closureFilterState = state;
+    model.resource.refresh();
+  }
+  return true;
+}
 const DRAFTS_TAB = "cm-drafts-tab"; // не нативная NocoBase-таблица — личный список черновиков, рисуется contract-modals.js
 
 function paintActive(uid) {
@@ -27,12 +43,12 @@ function paintActive(uid) {
 }
 
 function applyVisibility(uid) {
-  let allFound = true;
+  let allFound = applyClosureFilter(uid);
   TABLES.forEach(function(t) {
     const el = document.querySelector('[data-uid="' + t + '"]');
     const card = el ? el.closest('.ant-card') : null;
     if (card) {
-      card.style.display = (uid === DRAFTS_TAB) ? 'none' : ((t === uid) ? '' : 'none');
+      card.style.display = (uid === DRAFTS_TAB) ? 'none' : ((t === window.__cmRegistryTableUid(uid)) ? '' : 'none');
     } else {
       allFound = false;
     }
@@ -89,7 +105,7 @@ function colAuthHeaders() {
 }
 function colTable(uid) {
   const e = window.__cmEngine;
-  return e && e.getModel ? e.getModel(uid) : null;
+  return e && e.getModel ? e.getModel(window.__cmRegistryTableUid(uid)) : null;
 }
 function colModels(uid) {
   const t = colTable(uid);
@@ -307,7 +323,7 @@ function tableTitle(uid) {
 function renderColsPanel() {
   const panel = document.getElementById('cm-cols-panel');
   if (!panel) return;
-  const uid = window.__activeRegistryTable || TABLES[0];
+  const uid = window.__cmRegistryTableUid(window.__activeRegistryTable || TABLES[0]);
   const names = currentOrderNames(uid);
   const cfg = effectiveCfg(uid);
   const hidden = {};
@@ -488,7 +504,8 @@ function installPinInterceptor() {
       async function fetchIds(list, keepFilter) {
         if (!list.length) return [];
         const byId = { id: { $in: list } };
-        const filter = keepFilter && userFilter && Object.keys(userFilter).length ? { $and: [userFilter, byId] } : byId;
+        let filter = keepFilter && userFilter && Object.keys(userFilter).length ? { $and: [userFilter, byId] } : byId;
+        if (m[1] === 'completed_contracts' && userFilter) filter = { $and: [filter, userFilter] };
         const params = Object.assign({}, params0, { filter: filter, page: 1, pageSize: list.length, sort: keepFilter && params0.sort ? params0.sort : ['-id'] });
         const pr = await api.axios.request({ url: cfg.url, method: 'get', params: params, headers: cfg.headers, __cmPinned: true });
         return (pr && pr.data && Array.isArray(pr.data.data)) ? pr.data.data : [];

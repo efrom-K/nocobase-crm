@@ -112,9 +112,13 @@ for coll, t, kind, mem, at in KINDS:
     for a in rows('select "%s" as c, "%s" as f from "%s"' % (at[1], at[2], at[0])):
         fl.setdefault(a['c'], []).append(files.get(a['f'], '#%s' % a['f']))
         fl_ids.setdefault(a['c'], []).append(a['f'])
+    if coll == 'completed_contracts':
+        for a in rows('select contract_id as c, attachment_id as f from completed_contract_closing_files'):
+            fl.setdefault(a['c'], []).append(files.get(a['f'], '#%s' % a['f']))
+            fl_ids.setdefault(a['c'], []).append(a['f'])
     for r in rows('select * from %s order by id' % coll):
         i = r['id']
-        r['_kind'], r['_type'] = kind, t
+        r['_kind'], r['_type'] = ('Закрытие документов' if coll == 'completed_contracts' and r.get('closure_state') == 'pending' else kind), t
         r['_contacts'] = '; '.join(', '.join(x for x in (c.get('name'), c.get('position'), c.get('phone'), c.get('email')) if x) for c in by_ref(contacts, t, i)) or None
         r['_members'] = ', '.join(sorted(members.get(i, []))) or None
         r['_addendums'] = '; '.join((a.get('title') or 'Доп. соглашение') + (' от ' + '.'.join(reversed(str(a['date_signed'])[:10].split('-'))) if a.get('date_signed') else '') + (' — ' + a['description'] if a.get('description') else '')

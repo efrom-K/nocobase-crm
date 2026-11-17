@@ -30,5 +30,26 @@ assert(calls.some(x => x[0] === 'closure' && x[1] === 'archived'));
 const n = calls.length;
 vm.runInContext("applyVisibility('ipb7gfluldk')", context);
 assert.strictEqual(calls.length, n, 'visibility retry must not refetch unchanged state');
-assert(source.indexOf('>Закрытие документов<') < source.indexOf('>Архив<'));
+assert(source.indexOf('>Завершение документов · …<') < source.indexOf('>Архив<'));
 console.log('Contract closing tabs passed');
+
+const countStart = source.indexOf('async function refreshClosingCount()');
+const countEnd = source.indexOf('async function refreshNotifRows()', countStart);
+const tab = {textContent:'Завершение документов · …'};
+let countResponse = {ok:true,json:async()=>({data:[{id:1}],meta:{count:137}})}, countUrl;
+context.colAuthHeaders = () => ({});
+context.fetch = async url => {countUrl=url;return countResponse;};
+context.document.querySelector = () => tab;
+vm.runInContext(source.slice(countStart,countEnd),context);
+(async()=>{
+  await context.refreshClosingCount();
+  assert.strictEqual(tab.textContent,'Завершение документов · 137');
+  assert.deepStrictEqual(JSON.parse(decodeURIComponent(countUrl.split('filter=')[1])),{closure_state:'pending'});
+  assert(countUrl.includes('pageSize=1'), 'counter should not download every contract');
+  countResponse={ok:true,json:async()=>({data:[],meta:{count:0}})};
+  await context.refreshClosingCount();
+  assert.strictEqual(tab.textContent,'Завершение документов · 0');
+  countResponse={ok:false};await context.refreshClosingCount();
+  assert.strictEqual(tab.textContent,'Завершение документов · 0','failed request must keep the last count');
+  console.log('Closing tab total count passed');
+})().catch(error=>{console.error(error);process.exitCode=1;});

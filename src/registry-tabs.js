@@ -11,7 +11,7 @@ function nbSessionAlive() {
 }
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-closing-tab" role="button" tabindex="0" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Закрытие документов</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
+ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-closing-tab" role="button" tabindex="0" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Завершение документов · …</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
 
 const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
 const CLOSING_TAB = 'cm-closing-tab';
@@ -580,7 +580,19 @@ function paintNotifRows() {
     }
   });
 }
+async function refreshClosingCount() {
+  try {
+    const r = await fetch('/api/completed_contracts:list?pageSize=1&fields=id&filter=' + encodeURIComponent(JSON.stringify({ closure_state: 'pending' })), { headers: colAuthHeaders() });
+    if (!r.ok) return;
+    const j = await r.json();
+    const count = j.meta && j.meta.count;
+    if (!Number.isInteger(count) || count < 0) return;
+    const tab = document.querySelector('.registry-local-tab[data-table="cm-closing-tab"] .ant-tabs-tab-btn');
+    if (tab) tab.textContent = 'Завершение документов · ' + count;
+  } catch (e) { /* сохраняем последнее полученное количество */ }
+}
 async function refreshNotifRows() {
+  refreshClosingCount();
   try {
     const r = await fetch('/api/myInAppMessages:list?filter[status]=unread&pageSize=200', { headers: colAuthHeaders() });
     const j = await r.json();
@@ -602,11 +614,6 @@ async function refreshNotifRows() {
       (jj.data || []).forEach(function(c) { states[c.id] = c.closure_state; });
     }
     window.__cmCompletedNotifStates = states;
-    const closingTab = document.querySelector('.registry-local-tab[data-table="cm-closing-tab"] .ant-tabs-tab-btn');
-    if (closingTab) {
-      const count = completedIds.filter(function(id) { return states[id] === 'pending'; }).length;
-      closingTab.textContent = 'Закрытие документов' + (count ? ' · ' + count : '');
-    }
     window.__cmNotifRows = map;
     refreshPinnedTables();
   } catch (e) { /* остаёмся на прошлом состоянии */ }

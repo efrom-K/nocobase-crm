@@ -34,7 +34,8 @@ function closingProblem(v, files) {
     kinds.push(doc.kind);
     if (doc.kind === 'termination_and_return') kinds.push('termination_agreement', 'return_act');
   }
-  if (CLOSING_DOC_KINDS.slice(0, 3).some(function(k) { return kinds.indexOf(k[0]) === -1; })) return 'Нужны соглашение о расторжении, акт возврата и акт сверки';
+  const missing = CLOSING_DOC_KINDS.slice(0, 3).filter(function(k) { return kinds.indexOf(k[0]) === -1; });
+  if (missing.length) return 'Не хватает: ' + missing.map(function(k) { return k[1].toLowerCase(); }).join(', ');
   if (!closingSettlement(v)) return 'Укажите сумму обеспечительного платежа, решение по нему и сумму частичного возврата';
   return '';
 }

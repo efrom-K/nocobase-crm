@@ -51,3 +51,8 @@ assert(context.closingProblem({...combined,closure_documents:[{...combined.closu
 console.log('Combined termination and return document passed');
 
 assert.deepStrictEqual(plain(context.closingSettlement({...v,closure_state:'archived',closure_deposit_retained:'0',closure_deposit_rent:'69.99'})), {refund:3002,retained:0,rent:6999});
+
+assert.strictEqual(context.closingProblem({...combined,closure_documents:combined.closure_documents.slice(0,1)},[files[0]]), 'Не хватает: акт сверки');
+assert.strictEqual(context.closingProblem({...v,closure_documents:[v.closure_documents[2]]},[files[2]]), 'Не хватает: соглашение о расторжении, акт возврата');
+assert.strictEqual(context.closingProblem({...v,closure_documents:[{...v.closure_documents[0],kind:'other'}]},[files[0]]), 'Не хватает: соглашение о расторжении, акт возврата, акт сверки');
+console.log('Missing closing document names passed');

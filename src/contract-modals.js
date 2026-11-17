@@ -1203,7 +1203,7 @@ function validateValue(name, val, el) {
   return '';
 }
 
-const FIELD_LABEL_EXTRA = { closure_termination_mode: 'Вид завершения', closure_documents: 'Закрывающие документы и даты подписи', closure_deposit_action: 'Решение по обеспечительному платежу', closure_deposit_remainder: 'Распределение остатка', closure_deposit_amount: 'Обеспечительный платёж к распределению', closure_deposit_refund: 'Сумма возврата обеспечительного платежа', closure_state: 'Этап закрытия', tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Электронная почта', rent_per_sqm: 'Текущая арендная плата за 1 квадратный метр', rent_amount: 'Текущая арендная плата' };
+const FIELD_LABEL_EXTRA = { closure_termination_mode: 'Вид завершения', closure_documents: 'Закрывающие документы и даты подписания', closure_deposit_action: 'Решение по обеспечительному платежу', closure_deposit_remainder: 'Распределение остатка', closure_deposit_amount: 'Обеспечительный платёж к распределению', closure_deposit_refund: 'Сумма возврата обеспечительного платежа', closure_state: 'Этап закрытия', tenant_fio: 'Контактное лицо', contact_person: 'Контактное лицо', phone: 'Телефон', email: 'Электронная почта', rent_per_sqm: 'Текущая арендная плата за 1 квадратный метр', rent_amount: 'Текущая арендная плата' };
 function fieldLabel(name) {
   let label = FIELD_LABEL_EXTRA[name] || name;
   const scan = function(defs) { (defs || []).forEach(function(d) { (d.fields || []).forEach(function(f) { if (f.name === name) label = f.label; }); }); };
@@ -1503,7 +1503,7 @@ function histVal(v, field) {
   if (field === 'closure_deposit_remainder') return { retain: 'Не возвращается', rent: 'В счёт аренды' }[v] || '';
   if (field === 'closure_deposit_action') { const action = CLOSING_DEPOSIT_ACTIONS.find(function(a) { return a[0] === v; }); return action ? action[1] : ''; }
   if (field === 'closure_state') return { pending: 'Закрытие документов', archived: 'Архив' }[v] || '';
-  if (field === 'closure_documents') return (v || []).map(function(d) { const kind = CLOSING_DOC_KINDS.find(function(k) { return k[0] === d.kind; }); return (kind ? kind[1] : d.kind || 'Документ') + ' #' + d.file_id + ' · ' + (d.signed_on || 'без даты подписи'); }).join('; ');
+  if (field === 'closure_documents') return (v || []).map(function(d) { const kind = CLOSING_DOC_KINDS.find(function(k) { return k[0] === d.kind; }); return (kind ? kind[1] : d.kind || 'Документ') + ' #' + d.file_id + ' · ' + (d.signed_on || 'без даты подписания'); }).join('; ');
   if (v === null || v === undefined) return '';
   if (v === true) return 'Да';
   if (v === false) return 'Нет';

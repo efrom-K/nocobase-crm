@@ -4,9 +4,16 @@ import subprocess
 import sys
 root = Path(__file__).resolve().parents[1]
 migrations = ''
-for name in ('008_contract_closing.sql', '009_contract_closing_delete.sql', '010_contract_closing_details.sql', '011_combined_closing_document.sql'):
+for name in ('008_contract_closing.sql', '009_contract_closing_delete.sql', '010_contract_closing_details.sql', '011_combined_closing_document.sql', '012_partial_refund_retained.sql'):
     m = (root / 'db/migrations' / name).read_text()
     assert m.startswith('BEGIN;\n') and m.endswith('COMMIT;\n')
+    if name == '012_partial_refund_retained.sql':
+        migrations += '''
+INSERT INTO completed_contracts(id,closure_termination_mode,closure_deposit_amount,closure_deposit_action,closure_deposit_refund,closure_deposit_remainder) VALUES(99,'bilateral',100.01,'partial',30.02,'rent');
+INSERT INTO attachments VALUES(990),(991);
+INSERT INTO completed_contract_closing_files(contract_id,attachment_id) VALUES(99,990),(99,991);
+UPDATE completed_contracts SET closure_documents='[{"file_id":990,"kind":"termination_and_return","signed_on":"2026-11-12"},{"file_id":991,"kind":"reconciliation_act","signed_on":"2026-11-12"}]',closure_state='archived' WHERE id=99;
+'''
     migrations += m.removeprefix('BEGIN;\n').removesuffix('COMMIT;\n')
 query = '''BEGIN;
 CREATE SCHEMA crm_closing_details_test;
@@ -24,6 +31,8 @@ END $$;
 DO $$
 DECLARE docs jsonb := '[{"file_id":20,"kind":"termination_agreement","signed_on":"2026-11-10"},{"file_id":21,"kind":"return_act","signed_on":"2026-11-11"},{"file_id":22,"kind":"reconciliation_act","signed_on":"2026-11-12"}]';
 BEGIN
+  UPDATE completed_contracts SET note='historical settlement remains unchanged' WHERE id=99;
+  ASSERT (SELECT closure_deposit_remainder='rent' AND closure_deposit_rent=69.99 AND closure_deposit_retained=0 FROM completed_contracts WHERE id=99);
   UPDATE completed_contracts SET note='legacy archive can still be viewed/managed' WHERE id=1;
   ASSERT (SELECT closure_state='archived' AND closure_deposit_amount IS NULL FROM completed_contracts WHERE id=1);
   INSERT INTO completed_contracts(id) VALUES(2),(3);
@@ -57,11 +66,11 @@ BEGIN
   PERFORM must_reject('UPDATE completed_contracts SET closure_deposit_action=''partial'',closure_deposit_refund=100.01 WHERE id=2');
   PERFORM must_reject('UPDATE completed_contracts SET closure_deposit_action=''partial'',closure_deposit_refund=-0.01 WHERE id=2');
   UPDATE completed_contracts SET closure_deposit_action='partial',closure_deposit_refund=30.02 WHERE id=2;
-  PERFORM must_reject('UPDATE completed_contracts SET closure_state=''archived'' WHERE id=2');
+  ASSERT (SELECT closure_deposit_remainder='retain' AND closure_deposit_retained=69.99 AND closure_deposit_rent=0 FROM completed_contracts WHERE id=2), 'partial remainder is retained without clarification';
   UPDATE completed_contracts SET closure_deposit_remainder='retain' WHERE id=2;
   ASSERT (SELECT closure_deposit_refund=30.02 AND closure_deposit_retained=69.99 AND closure_deposit_rent=0 FROM completed_contracts WHERE id=2);
   UPDATE completed_contracts SET closure_deposit_remainder='rent' WHERE id=2;
-  ASSERT (SELECT closure_deposit_refund=30.02 AND closure_deposit_retained=0 AND closure_deposit_rent=69.99 FROM completed_contracts WHERE id=2);
+  ASSERT (SELECT closure_deposit_refund=30.02 AND closure_deposit_retained=69.99 AND closure_deposit_rent=0 FROM completed_contracts WHERE id=2);
   UPDATE completed_contracts SET closure_state='archived' WHERE id=2;
   PERFORM must_reject('UPDATE completed_contracts SET closure_deposit_amount=200 WHERE id=2');
   PERFORM must_reject('UPDATE completed_contracts SET closure_documents=''[]'' WHERE id=2');

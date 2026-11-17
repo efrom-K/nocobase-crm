@@ -1,5 +1,5 @@
 // Contract closing: money is parsed in kopecks; the database computes and freezes the settlement.
-const CLOSING_DOC_KINDS = [['termination_agreement', 'Соглашение о расторжении'], ['return_act', 'Акт возврата'], ['reconciliation_act', 'Акт сверки'], ['other', 'Дополнительный документ']];
+const CLOSING_DOC_KINDS = [['termination_agreement', 'Соглашение о расторжении'], ['return_act', 'Акт возврата'], ['reconciliation_act', 'Акт сверки'], ['termination_and_return', 'Соглашение о расторжении + акт возврата'], ['other', 'Дополнительный документ']];
 const CLOSING_DEPOSIT_ACTIONS = [['refund', 'Возвращается полностью'], ['retain', 'Не возвращается'], ['rent', 'В счёт аренды'], ['partial', 'Частично возвращается']];
 function closingCanRestore(r) { return r.closure_state !== 'archived' || !r.closure_deposit_action; }
 function closingMoney(value) {
@@ -31,6 +31,7 @@ function closingProblem(v, files) {
     const date = new Date(doc.signed_on + 'T00:00:00Z');
     if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== doc.signed_on) return 'Проверьте даты подписи документов';
     kinds.push(doc.kind);
+    if (doc.kind === 'termination_and_return') kinds.push('termination_agreement', 'return_act');
   }
   if (CLOSING_DOC_KINDS.slice(0, 3).some(function(k) { return kinds.indexOf(k[0]) === -1; })) return 'Нужны соглашение о расторжении, акт возврата и акт сверки';
   if (!closingSettlement(v)) return 'Заполните сумму обеспечительного платежа, решение по нему и распределение остатка';
@@ -49,7 +50,7 @@ async function wireClosingDocuments(overlay, id, r, user, canEdit) {
   }
   section.innerHTML = '<div class="cm-section-title">Закрытие договора</div>'
     + closingSelect('closure_termination_mode', 'Завершение договора', [['unilateral', 'Одностороннее'], ['bilateral', 'Двустороннее']], r.closure_termination_mode, !canEdit)
-    + '<p>Обязательны: соглашение о расторжении, акт возврата и акт сверки. У каждого файла, включая дополнительные, укажите дату подписи.</p>'
+    + '<p>Обязательны: соглашение о расторжении, акт возврата и акт сверки. Соглашение и акт возврата можно приложить одним файлом, выбрав соответствующий тип. У каждого файла, включая дополнительные, укажите дату подписи.</p>'
     + '<div data-closing-list></div>'
     + (canEdit ? '<div class="cm-upload-row"><input type="file" id="cm-closing-file" style="display:none;"><button class="cm-upload-btn" id="cm-closing-upload">Прикрепить документ</button><span id="cm-closing-status" role="status"></span></div>' : '')
     + '<div class="cm-section-title" style="margin-top:18px;">Обеспечительный платёж</div>'

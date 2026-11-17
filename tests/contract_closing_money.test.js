@@ -30,3 +30,16 @@ console.log('Closing validation and exact kopeck allocation passed');
 assert.strictEqual(context.closingCanRestore({closure_state:'archived',closure_deposit_action:'partial'}), false);
 assert.strictEqual(context.closingCanRestore({closure_state:'archived'}), true);
 assert.strictEqual(context.closingCanRestore({closure_state:'pending',closure_deposit_action:'partial'}), true);
+
+// hasRole grants administrators every capability; readonly membership must be checked directly.
+const modals = fs.readFileSync('src/contract-modals.js', 'utf8');
+for (const name of ['hasRole', 'canArchiveContract']) {
+  vm.runInContext(modals.match(new RegExp('function ' + name + '\\([^]*?\\n}'))[0], context);
+}
+assert.strictEqual(context.canArchiveContract({__isAdmin:true,roles:[{name:'admin'}]}), true);
+assert.strictEqual(context.canArchiveContract({roles:[{name:'accounting_dept'}]}), true);
+assert.strictEqual(context.canArchiveContract({roles:[{name:'legal_dept'}]}), false);
+assert.strictEqual(context.canArchiveContract({roles:[{name:'accounting_dept'},{name:'crm_readonly'}]}), false);
+assert.strictEqual(context.canArchiveContract({__isAdmin:true,roles:[{name:'admin'},{name:'crm_readonly'}]}), false);
+assert.strictEqual(context.canArchiveContract(null), false);
+console.log('Closing archive permissions passed');

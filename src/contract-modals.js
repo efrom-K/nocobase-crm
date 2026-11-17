@@ -2813,7 +2813,7 @@ async function wireContacts(overlay, prefix, contractType, contractId, canEdit) 
 }
 
 function canArchiveContract(user) {
-  return !!(user && !hasRole(user, 'crm_readonly') && (user.__isAdmin || hasRole(user, 'accounting_dept')));
+  return !!(user && !(user.roles || []).some(function(role) { return role.name === 'crm_readonly'; }) && (user.__isAdmin || hasRole(user, 'accounting_dept')));
 }
 
 async function openCompletedContractModal(id) {

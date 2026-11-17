@@ -36,7 +36,7 @@ LABELS = {'tenant_type': {'Юрлицо': 'Юридическое лицо', 'И
           'closure_termination_mode': {'unilateral': 'Одностороннее', 'bilateral': 'Двустороннее'},
           'closure_deposit_action': {'refund': 'Возвращается', 'retain': 'Не возвращается', 'rent': 'В счёт аренды', 'partial': 'Частично возвращается'},
           'closure_deposit_remainder': {'retain': 'Удержан', 'rent': 'В счёт аренды'},
-          'closure_document_kind': {'termination_agreement': 'Соглашение о расторжении', 'return_act': 'Акт возврата', 'reconciliation_act': 'Акт сверки', 'other': 'Дополнительный документ'}}
+          'closure_document_kind': {'termination_and_return': 'Соглашение о расторжении + акт возврата', 'termination_agreement': 'Соглашение о расторжении', 'return_act': 'Акт возврата', 'reconciliation_act': 'Акт сверки', 'other': 'Дополнительный документ'}}
 
 # (заголовок, ключ или функция) — порядок столбцов в таблице
 def g(k): return lambda r: r.get(k)

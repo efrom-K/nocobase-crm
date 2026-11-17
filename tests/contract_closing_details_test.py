@@ -4,7 +4,7 @@ import subprocess
 import sys
 root = Path(__file__).resolve().parents[1]
 migrations = ''
-for name in ('008_contract_closing.sql', '009_contract_closing_delete.sql', '010_contract_closing_details.sql'):
+for name in ('008_contract_closing.sql', '009_contract_closing_delete.sql', '010_contract_closing_details.sql', '011_combined_closing_document.sql'):
     m = (root / 'db/migrations' / name).read_text()
     assert m.startswith('BEGIN;\n') and m.endswith('COMMIT;\n')
     migrations += m.removeprefix('BEGIN;\n').removesuffix('COMMIT;\n')
@@ -65,6 +65,14 @@ BEGIN
   UPDATE completed_contracts SET closure_state='archived' WHERE id=2;
   PERFORM must_reject('UPDATE completed_contracts SET closure_deposit_amount=200 WHERE id=2');
   PERFORM must_reject('UPDATE completed_contracts SET closure_documents=''[]'' WHERE id=2');
+  INSERT INTO completed_contracts(id,closure_termination_mode,closure_deposit_amount,closure_deposit_action) VALUES(4,'bilateral',100,'refund');
+  INSERT INTO completed_contract_closing_files(contract_id,attachment_id) VALUES(4,20),(4,22);
+  UPDATE completed_contracts SET closure_documents='[{"file_id":20,"kind":"termination_and_return","signed_on":"2026-11-12"}]' WHERE id=4;
+  PERFORM must_reject('UPDATE completed_contracts SET closure_state=''archived'' WHERE id=4');
+  UPDATE completed_contracts SET closure_documents='[{"file_id":20,"kind":"termination_and_return","signed_on":null},{"file_id":22,"kind":"reconciliation_act","signed_on":"2026-11-12"}]' WHERE id=4;
+  PERFORM must_reject('UPDATE completed_contracts SET closure_state=''archived'' WHERE id=4');
+  UPDATE completed_contracts SET closure_documents='[{"file_id":20,"kind":"termination_and_return","signed_on":"2026-11-12"},{"file_id":22,"kind":"reconciliation_act","signed_on":"2026-11-12"}]',closure_state='archived' WHERE id=4;
+  ASSERT (SELECT closure_state='archived' FROM completed_contracts WHERE id=4), 'combined document must satisfy agreement and return act';
   UPDATE completed_contracts SET closure_termination_mode='bilateral',closure_deposit_amount=0,closure_deposit_action='refund' WHERE id=3;
   ASSERT (SELECT closure_deposit_refund=0 AND closure_deposit_retained=0 AND closure_deposit_rent=0 FROM completed_contracts WHERE id=3);
   PERFORM must_reject('UPDATE completed_contracts SET closure_deposit_amount=-1 WHERE id=3');

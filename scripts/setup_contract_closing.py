@@ -14,6 +14,8 @@ def apply():
         sql((Path(__file__).resolve().parents[1] / 'db/migrations/009_contract_closing_delete.sql').read_text())
     if sql("SELECT count(*) FROM information_schema.columns WHERE table_name='completed_contracts' AND column_name='closure_documents'") == '0':
         sql((Path(__file__).resolve().parents[1] / 'db/migrations/010_contract_closing_details.sql').read_text())
+    if sql("SELECT position('termination_and_return' in pg_get_functiondef('cm_closing_details_error(completed_contracts)'::regprocedure))") == '0':
+        sql((Path(__file__).resolve().parents[1] / 'db/migrations/011_combined_closing_document.sql').read_text())
     fields = {f['name'] for f in api('collections/completed_contracts/fields:list?paginate=false')}
     # NocoBase's field-create hook spreads action.fields; legacy NULL (all fields) crashes it.
     for role in api('roles:list?paginate=false'):

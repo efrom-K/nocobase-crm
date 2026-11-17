@@ -43,3 +43,9 @@ assert.strictEqual(context.canArchiveContract({roles:[{name:'accounting_dept'},{
 assert.strictEqual(context.canArchiveContract({__isAdmin:true,roles:[{name:'admin'},{name:'crm_readonly'}]}), false);
 assert.strictEqual(context.canArchiveContract(null), false);
 console.log('Closing archive permissions passed');
+
+const combined = {...v,closure_documents:[{...v.closure_documents[0],kind:'termination_and_return'},v.closure_documents[2]]};
+assert.strictEqual(context.closingProblem(combined,[files[0],files[2]]), '');
+assert(context.closingProblem({...combined,closure_documents:combined.closure_documents.slice(0,1)},[files[0]]));
+assert(context.closingProblem({...combined,closure_documents:[{...combined.closure_documents[0],signed_on:null},combined.closure_documents[1]]},[files[0],files[2]]));
+console.log('Combined termination and return document passed');

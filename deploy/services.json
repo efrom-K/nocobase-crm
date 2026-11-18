@@ -55,6 +55,7 @@
       "routes.js",
       "pyrus-payments.js",
       "portal.html",
+      "payment-request.html",
       "object-map.html",
       "package.json",
       "Dockerfile",

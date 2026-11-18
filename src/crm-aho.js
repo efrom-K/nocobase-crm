@@ -704,9 +704,40 @@ async function aDone(id) {
 // ---------- счета и расходы ----------
 try { if (localStorage.getItem('crm-aho-exp-layout') === 'board') ah.expLayout = 'board'; } catch (e) { /* хранилище недоступно — таблица */ }
 function aExpChip(x) { return '<span class="hr-chip ' + (A_EXP_C[x.status] || '') + '">' + hEsc(A_EXP_ST[x.status] || 'Новый') + '</span>'; }
+function aCanReadPyrus() {
+  const roles = ((ah.me && ah.me.roles) || []).map(function(role) { return role.name; });
+  return !roles.includes('crm_readonly') && (roles.includes('admin') || roles.includes('root'));
+}
+async function aRenderPyrus(seg) {
+  const body = aBody();
+  body.innerHTML = '<div class="hr-bar">' + seg + '<button type="button" data-act="mv" data-v="pyrus">Обновить</button></div>'
+    + '<div data-pyrus-register role="status">Загрузка заявок…</div>';
+  const panel = body.querySelector('[data-pyrus-register]');
+  try {
+    const res = await fetch('/rqsvc/pyrus-payments', { headers: { Authorization: 'Bearer ' + hToken() } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Не удалось загрузить заявки');
+    const rows = data.rows.map(function(x) {
+      const amount = x.amount === null ? '—' : x.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
+      return '<tr><td>' + hEsc(x.purpose || '—') + '</td><td>' + hEsc(x.object || '—')
+        + '</td><td class="n">' + hEsc(amount) + '</td><td>' + hEsc(hDate(x.due) || '—')
+        + '</td><td>' + hEsc(x.status || 'Не указан') + '</td><td><a href="https://pyrus.com/t#id'
+        + Number(x.id) + '" target="_blank" rel="noopener noreferrer">№ ' + Number(x.id) + '</a></td></tr>';
+    });
+    panel.innerHTML = rows.length ? '<div class="hr-card" style="overflow-x:auto"><table><thead><tr><th>Цель расхода</th><th>Объект</th>'
+      + '<th class="n">Сумма</th><th>Оплатить до</th><th>Статус в Pyrus</th><th>Заявка Pyrus</th></tr></thead><tbody>'
+      + rows.join('') + '</tbody></table></div>' : 'Заявок в Pyrus нет';
+  } catch (error) {
+    panel.textContent = error.message || 'Не удалось загрузить заявки из Pyrus';
+  }
+}
 function aRenderMoney() {
-  const v = ah.moneyView;
-  const seg = '<div class="hr-seg">' + [['exp', 'Счета'], ['subs', 'Регулярные платежи'], ['plan', 'План / факт']].map(function(x) { return '<button data-act="mv" data-v="' + x[0] + '"' + (v === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
+  const canReadPyrus = aCanReadPyrus();
+  const v = ah.moneyView === 'pyrus' && !canReadPyrus ? 'exp' : ah.moneyView;
+  const views = [['exp', 'Счета'], ['subs', 'Регулярные платежи'], ['plan', 'План / факт']];
+  if (canReadPyrus) views.push(['pyrus', 'Заявки на оплату']);
+  const seg = '<div class="hr-seg">' + views.map(function(x) { return '<button data-act="mv" data-v="' + x[0] + '"' + (v === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
+  if (v === 'pyrus') return aRenderPyrus(seg);
   if (v === 'subs') return aRenderSubs(seg);
   if (v === 'plan') return aRenderPlan(seg);
   const groups = { open: ['new', 'approval', 'approved', 'paid', 'docs'], approval: ['approval'], topay: ['approved'], nodocs: ['paid'], rejected: ['rejected'], done: ['handed'], all: null };

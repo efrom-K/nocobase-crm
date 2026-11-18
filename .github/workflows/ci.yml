@@ -61,6 +61,8 @@ jobs:
         run: node tests/object_map.test.js
       - name: Object routing permissions and provider handling
         run: node requests-service/routes.test.js
+      - name: Pyrus payment register
+        run: node requests-service/pyrus-payments.test.js
       - name: Object directory migration (isolated PostgreSQL schema)
         run: python3 tests/object_directory_test.py
         env:

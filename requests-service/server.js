@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const R = require('./rules');
 const {objectRoute, RouteError} = require('./routes');
+const {createPaymentReader} = require('./pyrus-payments');
 const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
 
 const env = process.env;
@@ -22,6 +23,9 @@ const ORIGINS = (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter
 const PAGE = '/admin/j3a32zo1jzo';
 const CTL_ROLE = 'requests_control';   // роль «Контроль заявок»: главный управляющий, операционный директор
 if (!NB_URL || !env.NB_SERVICE_USER || !env.NB_SERVICE_PASSWORD) { console.error('Нужны NB_URL, NB_SERVICE_USER, NB_SERVICE_PASSWORD'); process.exit(1); }
+
+const readPayments = env.PYRUS_PAYMENTS_LOGIN && env.PYRUS_PAYMENTS_KEY
+  ? createPaymentReader(env.PYRUS_PAYMENTS_LOGIN, env.PYRUS_PAYMENTS_KEY) : null;
 
 class ApiError extends Error { constructor(status, message, field) { super(message); this.status = status; this.field = field; } }
 
@@ -458,6 +462,12 @@ http.createServer(async (req, res) => {
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
     if (p === '/write-access-check' && req.method === 'GET') return send(res, user.readOnly ? 403 : 200, { ok: !user.readOnly }, origin);
     if (!R.allowHttp(user, req.method, p)) throw new ApiError(403, 'Доступ только для просмотра');
+    if (p === '/pyrus-payments' && req.method === 'GET') {
+      if (!user.isAdmin || user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам Pyrus');
+      if (!readPayments) throw new ApiError(503, 'Подключение к Pyrus не настроено');
+      const rows = await readPayments().catch(() => { throw new ApiError(502, 'Не удалось загрузить заявки из Pyrus'); });
+      return send(res, 200, { rows }, origin);
+    }
     if (p === '/object-route' && req.method === 'POST') {
       const route = await objectRoute(user, await readJson(req), async ids => {
         const r = await fetch(NB_URL + '/api/contract_objects:list?paginate=false&fields=id,map_location&filter=' + q({id:{$in:ids}}), {

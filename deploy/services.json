@@ -53,6 +53,7 @@
       "server.js",
       "rules.js",
       "routes.js",
+      "pyrus-payments.js",
       "portal.html",
       "object-map.html",
       "package.json",

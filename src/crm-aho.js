@@ -706,7 +706,7 @@ try { if (localStorage.getItem('crm-aho-exp-layout') === 'board') ah.expLayout =
 function aExpChip(x) { return '<span class="hr-chip ' + (A_EXP_C[x.status] || '') + '">' + hEsc(A_EXP_ST[x.status] || 'Новый') + '</span>'; }
 function aCanReadPyrus() {
   const roles = ((ah.me && ah.me.roles) || []).map(function(role) { return role.name; });
-  return !roles.includes('crm_readonly') && (roles.includes('admin') || roles.includes('root'));
+  return !roles.includes('crm_readonly') && (roles.includes('admin') || roles.includes('root') || roles.includes('aho'));
 }
 async function aRenderPyrus(seg) {
   const body = aBody();

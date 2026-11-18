@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Заявка на оплату · CRM</title>
+<style>
+  body { margin: 0; background: #f3f5f9; color: #1f2433; font: 16px system-ui, sans-serif; }
+  main { max-width: 620px; margin: 24px auto; background: white; border: 1px solid #dfe3ec; border-radius: 12px; padding: 24px; }
+  h1 { font-size: 24px; margin: 20px 0; }
+  a { color: #233d75; }
+  form, label { display: grid; gap: 8px; }
+  form { gap: 16px; }
+  form[hidden] { display: none; }
+  input, select, textarea, button { font: inherit; box-sizing: border-box; padding: 9px; border-radius: 6px; border: 1px solid #8d9ab2; width: 100%; }
+  button { background: #1c2d58; color: white; cursor: pointer; }
+  button:disabled { opacity: .55; }
+  small { color: #43516a; }
+  #status { min-height: 24px; }
+  @media (max-width: 680px) { main { margin: 12px; padding: 16px; } }
+</style>
+</head>
+<body>
+<main>
+  <a href="/admin/">← В CRM</a>
+  <h1>Заявка на оплату</h1>
+  <form hidden id="request">
+    <label>Объект<select name="object" required><option value="">Выберите объект</option></select></label>
+    <label>Цель расхода<textarea name="purpose" rows="3" maxlength="1000" required></textarea></label>
+    <label>Сумма, ₽<input name="amount" inputmode="decimal" pattern="[0-9]{1,10}([.,][0-9]{1,2})?" required></label>
+    <label>Оплатить до<input type="date" name="due" required></label>
+    <label>Комментарий<textarea name="comment" rows="2" maxlength="2000"></textarea></label>
+    <label>Счёт<input name="bill" type="file" accept=".pdf,.jpg,.jpeg,.png" required><small>PDF, JPEG или PNG до 5 МБ</small></label>
+    <button type="submit">Отправить на согласование</button>
+  </form>
+  <p id="status" role="status">Загрузка формы…</p>
+</main>
+<script>
+  const form = document.getElementById('request');
+  const status = document.getElementById('status');
+  const button = form.querySelector('button');
+  async function api(input) {
+    const token = localStorage.getItem('NOCOBASE_TOKEN');
+    const response = await fetch('/rqsvc/payment-request/api', {
+      method: input ? 'POST' : 'GET',
+      headers: { Authorization: 'Bearer ' + (token || ''), 'Content-Type': 'application/json' },
+      body: input && JSON.stringify(input)
+    });
+    if (response.status === 401) throw new Error('Войдите в CRM, затем снова откройте форму');
+    if (response.status === 413) throw new Error('Файл слишком большой');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Не удалось связаться с Pyrus');
+    return result;
+  }
+  api().then(result => {
+    for (const object of result.objects) form.elements.object.add(new Option(object.name, object.id));
+    form.hidden = false;
+    status.textContent = '';
+  }).catch(error => { status.textContent = error.message; });
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (button.disabled) return;
+    const bill = form.elements.bill.files[0];
+    if (!bill || bill.size > 5 * 1024 * 1024) {
+      status.textContent = 'Приложите счёт размером до 5 МБ';
+      return;
+    }
+    button.disabled = true;
+    status.textContent = 'Отправляем заявку…';
+    let sending = false;
+    try {
+      const data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(bill);
+      });
+      sending = true;
+      const result = await api({
+        object: Number(form.elements.object.value), purpose: form.elements.purpose.value,
+        amount: form.elements.amount.value, due: form.elements.due.value,
+        comment: form.elements.comment.value, file: { name: bill.name, data }
+      });
+      form.reset();
+      form.hidden = true;
+      status.textContent = 'Заявка № ' + result.id + ' отправлена на согласование.';
+    } catch (error) {
+      status.textContent = error instanceof TypeError && sending
+        ? 'Связь прервалась. Уточните в АХО, появилась ли заявка, прежде чем отправлять её повторно'
+        : error.message || 'Не удалось прочитать счёт';
+      button.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

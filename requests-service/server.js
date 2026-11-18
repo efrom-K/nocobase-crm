@@ -13,7 +13,8 @@ const fs = require('fs');
 const path = require('path');
 const R = require('./rules');
 const {objectRoute, RouteError} = require('./routes');
-const {createPaymentReader} = require('./pyrus-payments');
+const {createPyrusPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE} = require('./pyrus-payments');
+const PAYMENT_HTML = fs.readFileSync(path.join(__dirname, 'payment-request.html'));
 const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
 
 const env = process.env;
@@ -24,8 +25,8 @@ const PAGE = '/admin/j3a32zo1jzo';
 const CTL_ROLE = 'requests_control';   // роль «Контроль заявок»: главный управляющий, операционный директор
 if (!NB_URL || !env.NB_SERVICE_USER || !env.NB_SERVICE_PASSWORD) { console.error('Нужны NB_URL, NB_SERVICE_USER, NB_SERVICE_PASSWORD'); process.exit(1); }
 
-const readPayments = env.PYRUS_PAYMENTS_LOGIN && env.PYRUS_PAYMENTS_KEY
-  ? createPaymentReader(env.PYRUS_PAYMENTS_LOGIN, env.PYRUS_PAYMENTS_KEY) : null;
+const payments = env.PYRUS_PAYMENTS_LOGIN && env.PYRUS_PAYMENTS_KEY
+  ? createPyrusPayments(env.PYRUS_PAYMENTS_LOGIN, env.PYRUS_PAYMENTS_KEY) : null;
 
 class ApiError extends Error { constructor(status, message, field) { super(message); this.status = status; this.field = field; } }
 
@@ -66,7 +67,7 @@ async function whoami(token) {
   } catch (e) { u = null; }
   if (!u || !u.id) { tokenCache.delete(token); return null; }
   const roles = (u.roles || []).map(x => x.name);
-  const v = { id: u.id, isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), readOnly: roles.includes('crm_readonly'), exp: Date.now() + 60000 };
+  const v = { id: u.id, name: u.nickname || u.username || '#' + u.id, isAho: roles.includes('aho'), isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), readOnly: roles.includes('crm_readonly'), exp: Date.now() + 60000 };
   tokenCache.set(token, v);
   if (tokenCache.size > 500) for (const [k, x] of tokenCache) if (x.exp < Date.now()) tokenCache.delete(k);
   return v;
@@ -313,7 +314,7 @@ async function portalFile(t, res, evId) {
 }
 
 // ponytail: лимиты и коды в памяти — после перезапуска сервиса сбрасываются; для одного сервера достаточно
-const hits = new Map(), codes = new Map();
+const hits = new Map(), codes = new Map(), paymentInFlight = new Set();
 function limit(key, n, ms) {
   const h = hits.get(key);
   if (!h || h.reset < Date.now()) { hits.set(key, { n: 1, reset: Date.now() + ms }); return; }
@@ -424,10 +425,10 @@ function send(res, status, obj, origin) {
   res.writeHead(status, Object.assign({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }, cors(origin)));
   res.end(JSON.stringify(obj));
 }
-function readJson(req) {
+function readJson(req, max = 256 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = []; let size = 0;
-    req.on('data', c => { size += c.length; if (size > 256 * 1024) { reject(new ApiError(413, 'Слишком большой запрос')); req.destroy(); } else chunks.push(c); });
+    req.on('data', c => { size += c.length; if (size > max) { reject(new ApiError(413, 'Слишком большой запрос')); req.destroy(); } else chunks.push(c); });
     req.on('end', () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); } catch (e) { reject(new ApiError(400, 'Неверный запрос')); } });
     req.on('error', reject);
   });
@@ -438,6 +439,12 @@ http.createServer(async (req, res) => {
   const p = new URL(req.url, 'http://x').pathname;
   try {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
+    if (p === '/payment-request' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'" });
+      return res.end(PAYMENT_HTML);
+    }
     // Generic isolated renderer: object data arrives from its authenticated CRM parent, never from this endpoint.
     if (p === '/object-map' && req.method === 'GET') {
       res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-cache', 'Referrer-Policy':'origin',
@@ -461,11 +468,30 @@ http.createServer(async (req, res) => {
     const user = await whoami(token);
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
     if (p === '/write-access-check' && req.method === 'GET') return send(res, user.readOnly ? 403 : 200, { ok: !user.readOnly }, origin);
+    if (p === '/payment-request/api' && ['GET', 'POST'].includes(req.method)) {
+      const employees = await list('crm_employees', '&fields=full_name,status,fired_on&filter=' + q({ user_id: user.id }));
+      const employee = employees?.find(x => !x.fired_on && x.status !== 'fired');
+      if (!user.isAdmin && !employee) throw new ApiError(403, 'Форма доступна сотрудникам компании');
+      if (!payments) throw new ApiError(503, 'Подключение к Pyrus не настроено');
+      if (req.method === 'GET') {
+        limit('payment-form:' + user.id, 20, 600000);
+        return send(res, 200, { objects: await payments.objects() }, origin);
+      }
+      limit('payment-submit:' + user.id, 6, 600000);
+      if (paymentInFlight.has(user.id)) throw new ApiError(409, 'Предыдущая заявка ещё отправляется');
+      paymentInFlight.add(user.id);
+      try {
+        const input = await readJson(req, Math.ceil(MAX_PAYMENT_FILE / 3) * 4 + 16384);
+        return send(res, 201, await payments.submit(input, (employee?.full_name || user.name) + ' (ID ' + user.id + ')'), origin);
+      } finally {
+        paymentInFlight.delete(user.id);
+      }
+    }
     if (!R.allowHttp(user, req.method, p)) throw new ApiError(403, 'Доступ только для просмотра');
     if (p === '/pyrus-payments' && req.method === 'GET') {
-      if (!user.isAdmin || user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам Pyrus');
-      if (!readPayments) throw new ApiError(503, 'Подключение к Pyrus не настроено');
-      const rows = await readPayments().catch(() => { throw new ApiError(502, 'Не удалось загрузить заявки из Pyrus'); });
+      if ((!user.isAdmin && !user.isAho) || user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам Pyrus');
+      if (!payments) throw new ApiError(503, 'Подключение к Pyrus не настроено');
+      const rows = await payments.readPayments().catch(() => { throw new ApiError(502, 'Не удалось загрузить заявки из Pyrus'); });
       return send(res, 200, { rows }, origin);
     }
     if (p === '/object-route' && req.method === 'POST') {
@@ -487,7 +513,7 @@ http.createServer(async (req, res) => {
     if (p === '/object-person' && req.method === 'POST') return send(res, 200, await objectPerson(user, await readJson(req)), origin);
     throw new ApiError(404, 'Нет такого адреса');
   } catch (e) {
-    const expected = e instanceof ApiError || e instanceof RouteError;
+    const expected = e instanceof ApiError || e instanceof RouteError || e instanceof PaymentError;
     if (!expected) console.error(e);
     send(res, e.status || 500, { error: expected ? e.message : 'Ошибка сервиса заявок', field: e.field || null }, origin);
   }

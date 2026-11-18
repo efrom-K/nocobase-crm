@@ -496,6 +496,12 @@
         li.parentNode.insertBefore(set, li.nextSibling);
       }
       set.innerHTML = '<span class="ant-dropdown-menu-title-content">' + ICON.smile + (s ? 'Изменить статус' : 'Установить статус') + '</span>';
+      if (!li.parentNode.querySelector('.crmp-li-payment')) {
+        const payment = document.createElement('li');
+        payment.className = 'ant-dropdown-menu-item crmp-li-payment';
+        payment.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/rqsvc/payment-request">Подать заявку на оплату</a>';
+        li.parentNode.insertBefore(payment, set.nextSibling);
+      }
       // одна форма профиля: стандартный пункт «Редактировать профиль» открывает редактор выше (стандартная форма остаётся
       // служебной — по ней users:updateProfile решает, какие поля можно сохранять)
       li.parentNode.querySelectorAll('li').forEach(function (x) {

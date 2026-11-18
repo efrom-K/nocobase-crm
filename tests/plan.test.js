@@ -1,7 +1,7 @@
 // «Планирование» на дашборде: посуточное начисление и цена по «Дополнительным расчётам». Запуск: node tests/plan.test.js (идёт в CI)
 const fs=require('fs'); const rd=f=>fs.readFileSync(require('path').join(__dirname, '../src/'+f),'utf8'), src=rd('dashboard.js')+'\n'+rd('_crm-plan.js');
 const grab=n=>{const i=src.indexOf('function '+n+'('); let d=0,j=src.indexOf('{',i); for(let k=j;;k++){if(src[k]=='{')d++; if(src[k]=='}'&&--d==0) return src.slice(i,k+1);} };
-eval(['dKop','dDate','dDateTxt','plKop','plDate','plDateTxt','plIso','planExtraTxt','planLinesArea','planMul','planPeriodMonthlyValue','planPrice','planContractMonth'].map(grab).join('\n'));
+eval(['dKop','dDate','dDateTxt','plKop','plDate','plDateTxt','plIso','planExtraTxt','planLines','planLinesArea','planMul','planLineAmount','planPeriodMonthlyValue','planPrice','planContractMonth'].map(grab).join('\n'));
 const assert=require('assert');
 const oct={dim:31,iso:d=>'2026-10-'+('0'+d).slice(-2)}, nov={dim:30,iso:d=>'2026-11-'+('0'+d).slice(-2)};
 // въезд 15-го: 17/31 от 100 000
@@ -47,4 +47,29 @@ console.log('ok');
   assert.strictEqual(planContractMonth({ date_act: '2027-01-06', termination_date: '2027-01-10' }, 'active', [p], jan).rent, Math.round(750000 / 3));
   assert.strictEqual(planContractMonth(rec, 'active', [Object.assign({}, p, { amount: 0 })], jan).rent, Math.round(3100000 * 16 / 31));
   assert.throws(() => planPeriodMonthlyValue(Object.assign({}, p, { date_to: '2099-12-31' }), 1, '2027-01-01'));
+}
+
+// Эталон Sheets: площадь × ставка × доля дней, округление в конце.
+{
+  const rate = 150.13, area = 1.12;
+  const rec = { date_act: '2026-11-12', area_sqm: area, rent_amount: 168.15, rent_per_sqm: rate };
+  const period = { date_from: nov.iso(1), date_to: nov.iso(30), rent_on: true, basis: 'per_sqm', amount: rate };
+  assert.strictEqual(planContractMonth(rec, 'active', [period], nov).rent, 10649);
+  assert.strictEqual(planContractMonth(rec, 'active', [], nov).rent, 10649);
+  assert.strictEqual(planContractMonth({ ...rec, rent_amount: 169 }, 'active', [], nov).rent, 10703);
+  const lines = [{ area, rate }];
+  assert.strictEqual(planContractMonth({ ...rec, area_lines: lines }, 'active', [], nov).rent, 10649);
+  assert.strictEqual(planContractMonth({ ...rec, area_lines: lines, rent_amount: 169 }, 'active', [], nov).rent, 10703);
+}
+
+// При изменении арендуемой площади базовый сбор за метр следует за площадью.
+{
+  const rec = { date_act: nov.iso(1), base_area_sqm: 100, base_utility_per_sqm: 100, base_utility_amount: 10000 };
+  const period = { date_from: nov.iso(1), date_to: nov.iso(15), rent_on: true, basis: 'fixed',
+    amount: 25000, rent_lines: [{ area: 50, rate: 500 }] };
+  assert.strictEqual(planContractMonth(rec, 'active', [period], nov).util, 750000);
+  assert.strictEqual(planContractMonth({ ...rec, base_utility_per_sqm: null }, 'active', [period], nov).util, 1000000);
+  const utility = { ...period, utility_on: true, utility_basis: 'fixed', utility_value: 1000,
+    rent_lines: [{ area: 50, rate: 500, utility_rate: 20 }] };
+  assert.strictEqual(planContractMonth(rec, 'active', [utility], nov).util, 550000);
 }

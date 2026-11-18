@@ -19,13 +19,20 @@ function planMonths() {
   }
   return out;
 }
-function planLinesArea(v) {
-  let l = v; if (typeof l === 'string') { try { l = JSON.parse(l); } catch (e) { l = null; } }
-  if (!Array.isArray(l)) return null;
-  const a = l.reduce(function(n, x) { const k = plKop(x && x.area); return n + (k && k > 0 ? k : 0); }, 0);
-  return a ? a / 100 : null;
+function planLines(v) {
+  let lines = v;
+  if (typeof lines === 'string') { try { lines = JSON.parse(lines); } catch (e) { return []; } }
+  return Array.isArray(lines) ? lines.filter(function(l) { return l && plKop(l.area) > 0; }) : [];
 }
-function planMul(rate, area) { const a = Math.round(Number(rate) * 100), b = Math.round(Number(area) * 100); return Math.floor((a * b + 50) / 100); }   // ставка × площадь в копейках, как mulMoney
+function planLinesArea(lines) {
+  return lines.reduce(function(sum, l) { return sum + plKop(l.area); }, 0) / 100;
+}
+// Дробные копейки сохраняются до начисления за фактические дни месяца.
+function planMul(rate, area) { return (plKop(rate) || 0) * (plKop(area) || 0) / 100; }
+function planLineAmount(lines, field) {
+  const selected = lines.filter(function(l) { return plKop(l[field]) !== null; });
+  return selected.length ? selected.reduce(function(sum, l) { return sum + planMul(l[field], l.area); }, 0) : null;
+}
 // Сумма за конечный период превращается в дневную долю, затем в месячный эквивалент ставки.
 function planPeriodMonthlyValue(p, value, iso) {
   const from = plDate(p.date_from), to = plDate(p.date_to), day = plDate(iso);
@@ -34,19 +41,40 @@ function planPeriodMonthlyValue(p, value, iso) {
   const days = (utc(to) - utc(from)) / 86400000 + 1;
   return Number(value) * new Date(day.getFullYear(), day.getMonth() + 1, 0).getDate() / days;
 }
-// месячная цена договора r (тип typ) на день iso: { rent, util } в копейках и признак «по периоду»
-function planPrice(r, typ, per, iso) {
+// Месячная цена договора на день, в том числе дробные копейки и признак «по периоду»
+function planPrice(r, per, iso) {
   const ps = per.filter(function(p) { return plIso(p.date_from) <= iso && iso <= plIso(p.date_to) && (p.unit || 'month') === 'month'; }).sort(function(a, b) { return plIso(a.date_from).localeCompare(plIso(b.date_from)) || (a.id - b.id); });
   const last = function(f) { const l = ps.filter(f); return l.length ? l[l.length - 1] : null; };
   const rp = last(function(p) { return p.rent_on === true || (p.rent_on !== false && p.amount !== null && p.amount !== undefined); });
   const up = last(function(p) { return !!p.utility_on; });
-  const area = (rp && planLinesArea(rp.rent_lines)) || planLinesArea(r.area_lines) || Number(r.base_area_sqm != null ? r.base_area_sqm : r.area_sqm) || 0;
-  const val = function(p, basis, v) { if (basis === 'period') return (plKop(v) || 0) * planPeriodMonthlyValue(p, 1, iso); return basis === 'per_sqm' ? (area > 0 ? planMul(v, area) : 0) : plKop(v) || 0; };
-  // без периодов — текущая цена договора (как в реестре); с периодами вне периода — основная (base_*)
-  const base = function(b, cur) { const k = typ === 'active' && per.length ? plKop(r[b]) : null; return k !== null ? k : plKop(r[cur]) || 0; };
+  const rentLines = planLines(rp && rp.rent_lines), baseLines = planLines(r.area_lines);
+  const baseArea = planLinesArea(baseLines) || Number(r.base_area_sqm != null ? r.base_area_sqm : r.area_sqm) || 0;
+  const periodArea = planLinesArea(rentLines);
+  const area = periodArea || baseArea;
+  const val = function(p, basis, v) {
+    if (basis === 'period') return (plKop(v) || 0) * planPeriodMonthlyValue(p, 1, iso);
+    return basis === 'per_sqm' ? planMul(v, area) : plKop(v) || 0;
+  };
+  // Сумма, заданная вручную, имеет приоритет над восстановленной ставкой за метр.
+  const baseField = function(key) {
+    return per.length && plKop(r['base_' + key + '_amount']) !== null ? 'base_' + key : key;
+  };
+  const base = function(key) {
+    const field = baseField(key);
+    const amount = plKop(r[field + '_amount']);
+    const rate = r[field + '_per_sqm'];
+    const perSqm = planMul(rate, baseArea);
+    if (plKop(rate) !== null && area > 0 && (periodArea || amount === Math.round(perSqm))) return planMul(rate, area);
+    return amount !== null ? amount : plKop(r[key + '_amount']) || 0;
+  };
+  const pricedLines = rp ? rentLines : baseLines;
+  const rentByLines = planLineAmount(pricedLines, 'rate');
+  const roundedLines = pricedLines.reduce(function(sum, l) { return sum + Math.round(planMul(l.rate, l.area)); }, 0);
+  const storedRent = plKop(rp ? rp.amount : r[baseField('rent') + '_amount']);
+  const utilityByLines = planLineAmount(up ? planLines(up.rent_lines) : baseLines, 'utility_rate');
   return {
-    rent: rp ? val(rp, rp.basis || 'per_sqm', rp.amount) : base('base_rent_amount', 'rent_amount'),
-    util: up ? val(up, up.utility_basis || 'per_sqm', up.utility_value) : base('base_utility_amount', 'utility_amount'),
+    rent: rentByLines !== null && storedRent === roundedLines ? rentByLines : rp ? val(rp, rp.basis || 'per_sqm', rp.amount) : base('rent'),
+    util: utilityByLines !== null ? utilityByLines : up ? val(up, up.utility_basis || 'per_sqm', up.utility_value) : base('utility'),
     byPeriod: !!(rp || up)
   };
 }
@@ -60,12 +88,13 @@ function planContractMonth(r, typ, per, M) {
   for (let d = 1; d <= M.dim; d++) {
     const iso = M.iso(d);
     if (iso < from || iso > to) continue;
-    const p = planPrice(r, typ, per, iso);
+    const p = planPrice(r, per, iso);
     rent += p.rent; util += p.util; days++; byPeriod = byPeriod || p.byPeriod;
     if (!first) first = iso; lastD = iso;
   }
   if (!days) return null;
-  rent = Math.round(rent / M.dim); util = Math.round(util / M.dim);
+  const rounded = function(sum) { const cents = sum / M.dim; return Math.round(cents + Math.abs(cents) * Number.EPSILON * M.dim); };
+  rent = rounded(rent); util = rounded(util);
   const note = [];
   if (days < M.dim) note.push(plIso(first) === M.iso(1) ? 'по ' + plDateTxt(plDate(lastD)) : lastD === M.iso(M.dim) ? 'с ' + plDateTxt(plDate(first)) : plDateTxt(plDate(first)) + '–' + plDateTxt(plDate(lastD)));
   if (byPeriod) note.push('доп. расчёт');

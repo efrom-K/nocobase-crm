@@ -10,7 +10,8 @@ let m=planContractMonth(r,'active',[],oct); assert.strictEqual(m.rent,Math.round
 // полный месяц
 m=planContractMonth(r,'active',[],nov); assert.strictEqual(m.total,10000000); assert.strictEqual(m.note,'');
 // расторжение 15.10 (архив)
-m=planContractMonth({date_act:'2026-02-01',termination_date:'2026-10-15',rent_amount:53760,utility_amount:6720},'completed',[],oct); assert.strictEqual(m.days,15); assert.strictEqual(m.total,Math.round(5376000*15/31)+Math.round(672000*15/31));
+assert.strictEqual(planContractMonth({date_act:'2026-02-01',termination_date:'2026-10-15',rent_amount:53760,utility_amount:6720},'completed',[],oct),null);
+assert.strictEqual(planContractMonth({date_act:'2026-02-01',rent_amount:53760},'completed',[],oct),null);
 // доп. расчёт: с 11.11 цена 200 000 (fixed), до этого основная 100 000
 const per=[{date_from:'2026-11-11',date_to:'2099-12-31',basis:'fixed',amount:200000,rent_on:true,unit:'month'}];
 m=planContractMonth({date_act:'2025-01-01',base_rent_amount:100000,rent_amount:200000},'active',per,nov);

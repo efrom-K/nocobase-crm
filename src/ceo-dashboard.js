@@ -96,7 +96,7 @@ async function ceoLoad() {
     cList('crm_employees'), cList('crm_vacations'), cList('crm_safety'), cList('crm_vacancies'), cList('crm_candidates', { fields: ['id', 'stage', 'interview_on', 'full_name'] }),
     cList('crm_hr_events'), cList('crm_aho_expenses'), cList('crm_aho_subs'), cList('crm_aho_routines'), cList('crm_aho_poa'), cList('crm_aho_fire'),
     cList('crm_aho_mail'), cList('crm_aho_fines'), cList('crm_skud_cards'), cList('crm_skud_events', { filter: { day: today }, fields: ['card'] }),
-    cList('contract_price_periods', { filter: { contract_type: { $in: ['active', 'completed'] } }, sort: ['date_from', 'id'] })
+    cList('contract_price_periods', { filter: { contract_type: 'active' }, sort: ['date_from', 'id'] })
   ]);
   const d = {};
   k.forEach(function(x, i) { d[x] = v[i]; });
@@ -134,7 +134,7 @@ function ceoCalc(d) {
   const c = { d: d };
   // договоры
   c.rentKop = 0; c.utilKop = 0; c.status = {}; c.ending = []; c.noPrice = 0;
-  c.planM = planMonths()[2]; c.plan = planMonthTotal(d.active, d.completed, d.periods, c.planM);   // доход на следующий месяц — как в «Планировании»
+  c.planM = planMonths()[2]; c.plan = planMonthTotal(d.active, d.periods, c.planM);   // доход на следующий месяц — как в «Планировании»
   d.active.forEach(function(r) {
     const a = cKop(r.rent_amount), u = cKop(r.utility_amount);
     if (a !== null) c.rentKop += a; if (u !== null) c.utilKop += u;

@@ -8,7 +8,7 @@ function plToday() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
 // Начисление посуточно: каждый день, когда договор действует (с даты акта приёма-передачи, без неё — с даты заключения,
 // по дату расторжения включительно), даёт 1/(дней в месяце) месячной цены, действующей в этот день. Заехал 15-го в 31-дневном месяце — 17/31.
 // Цена на день — как в карточке и apply_price_schedule.py: период «Дополнительных расчётов аренды» (для аренды и эксплуатационного сбора
-// отдельно; пересекаются — берётся начавшийся позже), иначе основная цена (base_*); у архивных договоров основной цены нет — их последняя цена.
+// отдельно; пересекаются — берётся начавшийся позже), иначе основная цена (base_*); начисления считаются только по действующим договорам.
 // Обеспечительный платёж не доход — не входит. Договоры в оформлении не входят (нет даты начала).
 function planMonths() {
   const t = plToday(), out = [];
@@ -53,6 +53,7 @@ function planPrice(r, typ, per, iso) {
 function plIso(v) { return String(v || '').slice(0, 10); }
 // начисление по договору за месяц M: копейки аренды и сбора, дней, пометка
 function planContractMonth(r, typ, per, M) {
+  if (typ !== 'active') return null;
   const from = plIso(r.date_act || r.date_signed), to = plIso(r.termination_date) || '9999-12-31';
   if (!from) return null;
   let rent = 0, util = 0, days = 0, byPeriod = false, first = '', lastD = '';
@@ -70,12 +71,15 @@ function planContractMonth(r, typ, per, M) {
   if (byPeriod) note.push('доп. расчёт');
   return { rent: rent, util: util, total: rent + util, days: days, note: note.join(', ') };
 }
-// итог за месяц M по действующим и архивным договорам: { rent, util } в копейках; periods — contract_price_periods (active + completed)
-function planMonthTotal(active, completed, periods, M) {
-  const per = { active: {}, completed: {} }, out = { rent: 0, util: 0 };
-  (periods || []).forEach(function(p) { const g = per[p.contract_type]; if (g) (g[p.contract_ref_id] = g[p.contract_ref_id] || []).push(p); });
-  [['active', active], ['completed', completed]].forEach(function(x) {
-    (x[1] || []).forEach(function(r) { const m = planContractMonth(r, x[0], per[x[0]][r.id] || [], M); if (m) { out.rent += m.rent; out.util += m.util; } });
+// Итог за месяц по действующим договорам, в копейках.
+function planMonthTotal(active, periods, M) {
+  const per = {}, out = { rent: 0, util: 0 };
+  (periods || []).forEach(function(p) {
+    if (p.contract_type === 'active') (per[p.contract_ref_id] = per[p.contract_ref_id] || []).push(p);
+  });
+  (active || []).forEach(function(r) {
+    const m = planContractMonth(r, 'active', per[r.id] || [], M);
+    if (m) { out.rent += m.rent; out.util += m.util; }
   });
   return out;
 }

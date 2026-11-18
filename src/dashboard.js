@@ -211,7 +211,7 @@ async function loadDashData() {
     dashList('rental_contracts', { appends: ['contract_members'] }),
     dashList('forming_contracts'),
     dashList('completed_contracts'),
-    dashList('contract_price_periods', { filter: { contract_type: { $in: ['active', 'completed'] } }, sort: ['date_from', 'id'] }).catch(function() { return []; }),   // completed — для «Планирования» (прошлый месяц)
+    dashList('contract_price_periods', { filter: { contract_type: 'active' }, sort: ['date_from', 'id'] }).catch(function() { return []; }),
     dashList('contract_objects').catch(function() { return []; })
   ]);
   return { active: all[0], forming: all[1], completed: all[2], periods: all[3], objects: all[4] };
@@ -670,15 +670,19 @@ function planExtraTxt(per) {
   }).join('\n');
 }
 function planData() {
-  const d = dv(), months = planMonths(), per = { active: {}, completed: {} };
-  (dashState.data.periods || []).forEach(function(p) { const g = per[p.contract_type]; if (g) (g[p.contract_ref_id] = g[p.contract_ref_id] || []).push(p); });
+  const d = dv(), months = planMonths(), per = {};
+  (dashState.data.periods || []).forEach(function(p) {
+    if (p.contract_type === 'active') (per[p.contract_ref_id] = per[p.contract_ref_id] || []).push(p);
+  });
   const t = plToday(), now = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'), live = function(l) { return l.filter(function(p) { return !p.date_to || plIso(p.date_to) >= now; }); };   // закончившиеся периоды — без пометки
   const rows = [];
-  [['active', d.active], ['completed', d.completed]].forEach(function(x) {
-    x[1].forEach(function(r) {
-      const ms = months.map(function(M) { return planContractMonth(r, x[0], per[x[0]][r.id] || [], M); });
-      if (ms.some(Boolean)) rows.push({ r: r, typ: x[0], ms: ms, extra: live(per[x[0]][r.id] || []).length > 0, per: live(per[x[0]][r.id] || []) });
-    });
+  d.active.forEach(function(r) {
+    const periods = per[r.id] || [];
+    const ms = months.map(function(M) { return planContractMonth(r, 'active', periods, M); });
+    if (ms.some(Boolean)) {
+      const current = live(periods);
+      rows.push({ r: r, ms: ms, extra: current.length > 0, per: current });
+    }
   });
   const objs = {};
   rows.forEach(function(x) {
@@ -699,7 +703,7 @@ function renderPlan() {
     return '<tr data-act="planobj" data-obj="' + dEsc(o.name) + '" style="cursor:pointer;"><td style="font-weight:600;">' + (open ? '▾ ' : '▸ ') + dEsc(o.name) + ' <span style="color:#5b6478;font-weight:400;">· ' + dContracts(o.rows.length) + '</span>' + (ex ? ' ' + extraChip(ex) : '') + '</td>'
       + o.sum.map(function(k) { return '<td class="num" style="font-weight:600;">' + dMoney(k) + '</td>'; }).join('') + '</tr>'
       + (open ? o.rows.map(function(x) {
-          return '<tr data-open="' + (x.typ === 'completed' ? 'completed' : 'active') + ':' + x.r.id + '" style="cursor:pointer;"><td style="padding-left:28px;">' + dEsc(x.r.contract_number || '#' + x.r.id) + ' · ' + dEsc(x.r.tenant_name || '') + (x.typ === 'completed' ? ' <span class="dash-chip" style="color:#5b6478;border-color:#5b647840;">архив</span>' : '') + (x.extra ? ' ' + extraChip() : '') + '</td>'
+          return '<tr data-open="active:' + x.r.id + '" style="cursor:pointer;"><td style="padding-left:28px;">' + dEsc(x.r.contract_number || '#' + x.r.id) + ' · ' + dEsc(x.r.tenant_name || '') + (x.extra ? ' ' + extraChip() : '') + '</td>'
             + x.ms.map(function(m) { return '<td class="num" style="white-space:normal;">' + cell(m) + '</td>'; }).join('') + '</tr>';
         }).join('') : '');
   }).join('');
@@ -722,13 +726,13 @@ function planExportXlsx() {
       cols: [{ h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Доп. расчёты и комментарий', t: 'long', w: 60, total: false }, { h: 'Договор' }, { h: 'Начало (акт)', t: 'date' }, { h: 'Расторжение', t: 'date' }].concat(mcols),
       rows: o.rows.map(function(x) {
         return [x.extra ? { v: x.r.contract_number || '', paint: 'orange' } : x.r.contract_number || '', x.r.tenant_name || '', x.extra ? { v: planExtraTxt(x.per), paint: 'orange' } : '',
-          x.typ === 'completed' ? 'архив' : 'действующий', x.r.date_act || x.r.date_signed || null, x.r.termination_date || null]
+          'действующий', x.r.date_act || x.r.date_signed || null, x.r.termination_date || null]
           .concat([].concat.apply([], x.ms.map(function(m) { return m ? [rub(m.rent), rub(m.util), rub(m.total), m.days] : [null, null, null, null]; })));
       }) };
   };
   crmXlsx('Планирование — ' + M[0].name + ' – ' + M[2].name, {
     title: 'Планирование: начисления по объектам', filters: [['Вид объектов', kindLbl], ['Месяцы', M.map(function(m) { return m.name + ' (' + m.rel + ')'; }).join(', ')]],
-    notes: [['Расчёт', 'Посуточно: месячная цена × дней действия договора в месяце / дней в месяце; цена на день — с «Дополнительными расчётами аренды»'],
+    notes: [['Расчёт', 'Только действующие договоры. Посуточно: месячная цена × дней действия договора в месяце / дней в месяце; цена на день — с «Дополнительными расчётами аренды»'],
       ['Начало', 'Дата акта приёма-передачи (без неё — дата заключения); конец — дата расторжения включительно'], ['Доп. расчёты', 'Оранжевым — договоры, у которых заполнен раздел «Дополнительные расчёты аренды»']],
     sheets: [{ name: 'Общая', title: 'Начисления по объектам', total: true, freezeCols: 1,
       cols: [{ h: 'Объект' }, { h: 'Договоров', t: 'int' }, { h: 'С доп. расчётами', t: 'int' }].concat(M.map(function(m) { return { h: m.name, t: 'money' }; })),

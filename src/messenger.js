@@ -117,6 +117,23 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function msgrLinkedText(value) {
+  const text = String(value);
+  const links = /\bhttps?:\/\/[^\s<>"'`]+/gi;
+  let result = '', end = 0;
+  for (const match of text.matchAll(links)) {
+    let url = match[0].replace(/[.,;:!?]+$/, '');
+    for (const [left, right] of [['(', ')'], ['[', ']']]) {
+      while (url.endsWith(right) && url.split(right).length > url.split(left).length) url = url.slice(0, -1);
+    }
+    result += esc(text.slice(end, match.index))
+      + '<a class="msgr-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(url) + '</a>'
+      + esc(match[0].slice(url.length));
+    end = match.index + match[0].length;
+  }
+  return result + esc(text.slice(end));
+}
+
 function initials(name) {
   if (!name) return '?';
   const parts = String(name).trim().split(/\s+/);
@@ -348,6 +365,8 @@ function injectStyle() {
     .msgr-bubble { max-width:72%; padding:9px 13px; border-radius:16px; font-size:13.5px; line-height:1.42; word-wrap:break-word; white-space:pre-wrap; position:relative; box-shadow:0 1px 2px rgba(20,30,60,.06); }
     .msgr-msg-row.own .msgr-bubble { background:#1c2d58; color:#fff; border-bottom-right-radius:5px; }
     .msgr-msg-row:not(.own) .msgr-bubble { background:#fff; color:#1f2433; border-bottom-left-radius:5px; }
+    .msgr-bubble .msgr-link { color:#1c2d58; text-decoration:underline; overflow-wrap:anywhere; }
+    .msgr-msg-row.own .msgr-bubble .msgr-link { color:#fff; }
     .msgr-bubble .msgr-author { font-size:11px; font-weight:700; color:#1c2d58; display:block; margin-bottom:2px; }
     .msgr-bubble .msgr-time { font-size:10px; opacity:.65; margin-left:10px; float:right; margin-top:5px; }
     .msgr-ticks { display:inline-flex; vertical-align:-2px; margin-left:3px; }
@@ -908,7 +927,7 @@ async function loadAndRenderMessages(win, convId, isPoll) {
       '<div class="msgr-bubble">' +
         (showAuthor && !own ? '<span class="msgr-author">' + esc(userLabel(m.author)) + '</span>' : '') +
         attHtml +
-        (m.message ? '<div' + (att ? ' style="margin-top:5px"' : '') + '>' + esc(m.message) + '</div>' : '') +
+        (m.message ? '<div' + (att ? ' style="margin-top:5px"' : '') + '>' + msgrLinkedText(m.message) + '</div>' : '') +
         timeHtml(m, own) +
       '</div>' +
     '</div>';

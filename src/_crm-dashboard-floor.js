@@ -30,34 +30,62 @@ function crmMountFloor(mount) {
     const style = document.createElement('style');
     style.id = 'crm-dashboard-floor-style';
     style.textContent = `
-      .crm-dfloor { margin:12px 0; padding:12px 14px; border:1px solid #dfe3ec; border-radius:8px; background:#fff; }
-      .crm-dfloor { border:0; padding:0; margin:0; }
-      .crm-dfloor h3 { margin:0 0 8px; font-size:15px; }
-      .crm-dfloor-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:12px; }
-      .crm-dfloor .crm-dfloor-tile,.crm-dfloor-panel { display:block; text-align:left; background:#fff; border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; }
-      .crm-dfloor-tile b { display:block; color:#1f2433; font-size:23px; margin:4px 0; }
-      .crm-dfloor-tile small { display:block; }
+      .crm-dfloor { color:#1f2433; font-variant-numeric:tabular-nums; }
+      .crm-dfloor-title { font:650 20px/1.25 var(--kn-tilda,"Tilda Sans",system-ui,sans-serif); color:#1c2d58; margin:0 0 14px; }
+      .crm-dfloor h3 { margin:0; font-size:15px; font-weight:650; }
+      .crm-dfloor button,.crm-dfloor select { font:inherit; }
+      .crm-dfloor button { cursor:pointer; }
+      .crm-dfloor :is(button,select,summary,a):focus-visible { outline:2px solid #2f4a8a; outline-offset:2px; }
+      .crm-dfloor-tiles { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+      .crm-dfloor .crm-dfloor-tile,.crm-dfloor-panel { background:#fff; border:1px solid #dfe3ec; border-radius:8px; min-width:0; }
+      .crm-dfloor .crm-dfloor-tile { display:grid; align-content:start; gap:4px; padding:12px 14px; text-align:left; color:inherit; }
+      .crm-dfloor .crm-dfloor-tile:hover { background:#f8f9fc; border-color:#a6b6d4; }
+      .crm-dfloor-tile span { font-size:13px; font-weight:650; }
+      .crm-dfloor-tile b { font-size:24px; line-height:1.25; }
+      .crm-dfloor-tile[data-tone=alert] b { color:#ad3434; }
+      .crm-dfloor small { color:#5b6478; font-size:12px; }
+      .crm-dfloor-panel { padding:12px 14px; }
       .crm-dfloor-attention { margin-bottom:12px; }
-      .crm-dfloor-attention ul { margin:0; padding-left:18px; }
-      .crm-dfloor-attention li::marker { color:#c23b3b; }
-      .crm-dfloor-attention a { color:#1c2d58; font-weight:550; }
-      .crm-dfloor-work { margin-top:12px; scroll-margin-top:75px; }
+      .crm-dfloor-attention h3 { margin-bottom:6px; }
+      .crm-dfloor-attention ul,.crm-dfloor-side ul { list-style:none; margin:0; padding:0; }
+      .crm-dfloor-attention li + li,.crm-dfloor-side li + li { border-top:1px solid #e9edf5; }
+      .crm-dfloor .crm-dfloor-alert { width:100%; display:grid; grid-template-columns:8px minmax(0,1fr) auto; gap:10px; align-items:center;
+        border:0; border-radius:5px; padding:8px 4px; background:transparent; text-align:left; color:inherit; }
+      .crm-dfloor-alert:hover { background:#f3f5f9; }
+      .crm-dfloor-alert i { width:7px; height:7px; border-radius:50%; background:#a86613; }
+      .crm-dfloor-alert[data-urgent] i { background:#c23b3b; }
+      .crm-dfloor-alert strong { display:block; font-size:13px; font-weight:600; }
+      .crm-dfloor-alert em { font-size:12px; font-style:normal; color:#784900; background:#f6eedb; padding:2px 8px; border-radius:5px; }
+      .crm-dfloor-alert[data-urgent] em { color:#9c2829; background:#f9e6e6; }
       .crm-dfloor summary { color:#1c2d58; font-weight:650; cursor:pointer; }
-      .crm-dfloor-bar { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; margin:12px 0; }
-      .crm-dfloor select,.crm-dfloor button { font:inherit; border:1px solid #c3cad8; border-radius:6px; padding:4px 8px; background:#fff; color:#1c2d58; }
-      .crm-dfloor button { cursor:pointer; } .crm-dfloor button[aria-pressed=true] { background:#dde5f3; }
-      .crm-dfloor-grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(230px,1fr); gap:12px; }
-      .crm-dfloor svg { width:100%; max-height:540px; background:#f8f9fc; border:1px solid #dfe3ec; border-radius:6px; }
-      .crm-dfloor svg [role=button] { cursor:pointer; } .crm-dfloor svg [role=button]:focus polygon { stroke:#2f4a8a; stroke-width:3; }
-      .crm-dfloor-side { min-width:0; overflow-wrap:anywhere; } .crm-dfloor-side ul { padding-left:20px; }
-      .crm-dfloor-side li { margin:6px 0; } .crm-dfloor small { color:#5b6478; }
-      .crm-dfloor-table { overflow:auto; } .crm-dfloor table { width:100%; border-collapse:collapse; text-align:left; }
-      .crm-dfloor th,.crm-dfloor td { padding:5px 8px; border-bottom:1px solid #dfe3ec; }
-      @media(max-width:750px) { .crm-dfloor-grid { grid-template-columns:1fr; } }
+      .crm-dfloor-work { margin-top:12px; scroll-margin-top:75px; }
+      .crm-dfloor-bar { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:flex-end; margin:12px 0 8px; }
+      .crm-dfloor-bar label { display:grid; gap:3px; min-width:0; color:#5b6478; font-size:12px; }
+      .crm-dfloor select { max-width:min(330px,100%); min-height:32px; padding:4px 8px; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; background:#fff; font-size:13px; }
+      .crm-dfloor-layers { display:inline-flex; gap:2px; padding:2px; background:#eef2f9; border:1px solid #dfe3ec; border-radius:7px; }
+      .crm-dfloor-layers button { border:0; border-radius:5px; padding:4px 9px; background:transparent; color:#3a4256; font-size:13px; }
+      .crm-dfloor-layers button[aria-pressed=true] { color:#1c2d58; background:#fff; box-shadow:0 1px 2px #1c2d5820; font-weight:650; }
+      .crm-dfloor-grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(245px,1fr); gap:14px; align-items:start; }
+      .crm-dfloor svg { display:block; width:100%; height:clamp(270px,44vh,475px); background:#f8f9fc; border:1px solid #dfe3ec; border-radius:6px; }
+      .crm-dfloor svg [role=button] { cursor:pointer; }
+      .crm-dfloor svg [role=button]:focus polygon { stroke:#2f4a8a; stroke-width:3; }
+      .crm-dfloor-side { min-width:0; overflow-wrap:anywhere; border-left:1px solid #e9edf5; padding-left:14px; }
+      .crm-dfloor-side li { padding:7px 0; }
+      .crm-dfloor-side section { margin-top:12px; }
+      .crm-dfloor-side button,.crm-dfloor-table button,.crm-dfloor-grid details button { padding:0; border:0; background:transparent; color:#1c2d58; text-align:left; font-weight:600; }
+      .crm-dfloor-side button:hover,.crm-dfloor-table button:hover,.crm-dfloor-grid details button:hover { text-decoration:underline; }
+      .crm-dfloor-side button[aria-pressed=true] { background:#eef2f9; }
+      .crm-dfloor-table { overflow:auto; margin-top:10px; }
+      .crm-dfloor table { width:100%; border-collapse:collapse; text-align:left; }
+      .crm-dfloor th,.crm-dfloor td { padding:6px 9px; border-bottom:1px solid #e9edf5; }
+      .crm-dfloor th { background:#eef2f9; color:#1c2d58; font-size:12px; white-space:nowrap; }
+      .crm-dfloor tbody tr:hover { background:#f8f9fc; }
+      @media(max-width:900px) { .crm-dfloor-tiles { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+      @media(max-width:750px) { .crm-dfloor-grid { grid-template-columns:1fr; } .crm-dfloor-side { border-left:0; border-top:1px solid #e9edf5; padding:12px 0 0; } }
     `;
     document.head.appendChild(style);
   }
-  mount.innerHTML = '<h2 style="font:650 20px var(--kn-tilda,system-ui);color:#1c2d58;margin:12px 0;">Управляющие</h2><div class="crm-dfloor" data-floor-body></div>';
+  mount.innerHTML = '<h2 class="crm-dfloor-title">Дашборд управляющих</h2><div class="crm-dfloor" data-floor-body></div>';
   const body = mount.querySelector('[data-floor-body]');
   let data, objectId, planId, selected, requestId, mode = 'rent', expanded = false;
   const list = async function(name, extra) {
@@ -180,18 +208,22 @@ function crmMountFloor(mount) {
     const urgent = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done'; }).length;
     const attention = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done' || isLate(r); })
       .sort(function(a,b) { return Number(b.urgency === 'emergency') - Number(a.urgency === 'emergency') || String(a.due_date || '~').localeCompare(String(b.due_date || '~')); });
-    const tile = function(label,value,action,hint) {
-      return '<button type="button" class="crm-dfloor-tile" data-floor-jump="' + action + '">' + label + '<b>' + value + '</b><small>' + hint + '</small></button>';
+    const tile = function(label,value,action,hint,alert) {
+      return '<button type="button" class="crm-dfloor-tile" data-floor-jump="' + action + '"' + (alert ? ' data-tone="alert"' : '') + '><span>' + label + '</span><b>' + value + '</b><small>' + hint + '</small></button>';
     };
     const cards = '<div class="crm-dfloor-tiles">' + tile('Объекты',data.objects.length,'objects','Обзор объектов →') +
-      tile('Заявки в работе',data.requestsAvailable ? data.requests.length : '—','requests','Открыть Helpdesk по объекту →') +
-      tile('Требует внимания',data.requestsAvailable ? allLate : '—','attention',data.requestsAvailable ? 'Просрочено · аварий ' + urgent : 'Заявки недоступны') +
+      tile('Заявки в работе',data.requestsAvailable ? data.requests.length : '—','requests','Заявки по объекту →') +
+      tile('Требует внимания',data.requestsAvailable ? allLate : '—','attention',data.requestsAvailable ? 'Просрочено · аварий ' + urgent : 'Заявки недоступны', allLate || urgent) +
       tile('Планы и помещения',data.plansAvailable ? data.plans.length : '—','plan','Этажи, арендаторы и свободные площади →') + '</div>';
     const attentionPanel = '<section class="crm-dfloor-panel crm-dfloor-attention" data-floor-anchor="attention"><h3>Требует внимания</h3>' +
       (attention.length ? '<ul>' + attention.slice(0,5).map(function(r) {
         const obj = data.objects.find(function(o) { return o.name === r.object_name; });
-        return '<li><button type="button" data-floor-object="' + Number(obj.id) + '" data-floor-highlight="' + Number(r.id) + '">' + esc(r.title || ('Заявка №' + r.id)) +
-          '</button> <small>' + esc([r.object_name,r.urgency === 'emergency' ? 'Авария' : 'Просрочено',r.due_date && String(r.due_date).slice(0,10)].filter(Boolean).join(' · ')) + '</small></li>';
+        if (!obj) return '';
+        const urgent = r.urgency === 'emergency';
+        return '<li><button class="crm-dfloor-alert" type="button" data-floor-object="' + Number(obj.id) + '" data-floor-highlight="' + Number(r.id) + '"' +
+          (urgent ? ' data-urgent' : '') + '><i aria-hidden="true"></i><span><strong>' + esc(r.title || ('Заявка №' + r.id)) + '</strong><small>' +
+          esc([r.object_name,r.due_date && ('срок ' + String(r.due_date).slice(0,10).split('-').reverse().join('.'))].filter(Boolean).join(' · ')) +
+          '</small></span><em>' + (urgent ? 'Авария' : 'Просрочено') + '</em></button></li>';
       }).join('') + '</ul>' : '<small>' + (data.requestsAvailable ? 'Аварий и просроченных заявок нет.' : 'Заявки недоступны с текущими правами.') + '</small>') + '</section>';
     body.innerHTML = cards + attentionPanel + (overview ? '<details class="crm-dfloor-panel" data-floor-overview' + (expanded ? ' open' : '') +
       '><summary>Сводка по объектам</summary>' + overview + '</details>' : '') +
@@ -199,8 +231,8 @@ function crmMountFloor(mount) {
       opts(data.objects,objectId) + '</select></label>' : '<strong>' + esc(object.name) + '</strong>') +
       (plan ? '<label>План <select data-floor-select="plan">' + opts(plans,planId) + '</select></label>' : '') +
       (roomOptions.length ? '<label>Помещение / арендатор <select data-floor-select="room"><option value="">Выбрать</option>' + opts(roomOptions,selected) + '</select></label>' : '') +
-      [['rent','Аренда'],['requests','Заявки'],['bti','БТИ']].map(function(m) { return '<button type="button" data-floor-mode="' + m[0] + '" aria-pressed="' + (mode === m[0] || mode === 'late' && m[0] === 'requests') + '">' + m[1] + '</button>'; }).join('') +
-      '</div><p>' + (allRooms.length ? 'Свободно по нанесённым помещениям: <b>' + areaText + ' м²</b> · ' : '') +
+      '<div class="crm-dfloor-layers" role="group" aria-label="Режим плана">' + [['rent','Аренда'],['requests','Заявки'],['bti','БТИ']].map(function(m) { return '<button type="button" data-floor-mode="' + m[0] + '" aria-pressed="' + (mode === m[0] || mode === 'late' && m[0] === 'requests') + '">' + m[1] + '</button>'; }).join('') +
+      '</div></div><p>' + (allRooms.length ? 'Свободно по нанесённым помещениям: <b>' + areaText + ' м²</b> · ' : '') +
       (data.requestsAvailable ? 'Открытых заявок: <b>' + requests.length + '</b>' : 'Заявки недоступны') + '</p>' +
       (data.incomplete ? '<p><small>Часть данных недоступна с текущими правами.</small></p>' : '') +
       '<div class="crm-dfloor-grid"><div>' + (plan ? (plan.schematic ? '<small>Условная схема</small>' : '') + draw(plan,rooms,marks) + pickRooms : '<p>' + (data.plansAvailable ? 'Для объекта нет доступного плана.' : 'Планы недоступны.') + '</p>') +

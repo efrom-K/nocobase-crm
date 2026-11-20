@@ -36,16 +36,14 @@ function crmMountFloor(mount) {
       .crm-dfloor button,.crm-dfloor select { font:inherit; }
       .crm-dfloor button { cursor:pointer; }
       .crm-dfloor :is(button,select,summary,a):focus-visible { outline:2px solid #2f4a8a; outline-offset:2px; }
-      .crm-dfloor-tiles { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
-      .crm-dfloor .crm-dfloor-tile,.crm-dfloor-panel { background:#fff; border:1px solid #dfe3ec; border-radius:8px; min-width:0; }
-      .crm-dfloor .crm-dfloor-tile { display:grid; align-content:start; gap:4px; padding:12px 14px; text-align:left; color:inherit; }
-      .crm-dfloor .crm-dfloor-tile:hover { background:#f8f9fc; border-color:#a6b6d4; }
-      .crm-dfloor-tile span { font-size:13px; font-weight:650; }
-      .crm-dfloor-tile b { font-size:24px; line-height:1.25; }
-      .crm-dfloor-tile[data-tone=alert] b { color:#ad3434; }
+      .crm-dfloor-panel { background:#fff; border:1px solid #dfe3ec; border-radius:8px; min-width:0; }
+      .crm-dfloor-topline { display:flex; flex-wrap:wrap; align-items:center; gap:7px 16px; margin-bottom:12px; color:#5b6478; font-size:13px; }
+      .crm-dfloor-topline b { color:#1f2433; font-weight:650; }
+      .crm-dfloor-topline button { padding:4px 9px; border:1px solid #c3cad8; border-radius:6px; background:#fff; color:#1c2d58; font-size:13px; }
+      .crm-dfloor-topline button:hover { border-color:#2f4a8a; background:#eef2f9; }
       .crm-dfloor small { color:#5b6478; font-size:12px; }
       .crm-dfloor-panel { padding:12px 14px; }
-      .crm-dfloor-main { display:grid; grid-template-columns:minmax(0,2fr) minmax(300px,1fr); align-items:start; gap:12px; margin-bottom:12px; }
+      .crm-dfloor-main { display:grid; grid-template-columns:minmax(0,1fr) minmax(290px,350px); align-items:start; gap:12px; margin-bottom:12px; }
       .crm-dfloor-attention { scroll-margin-top:75px; }
       .crm-dfloor-attention > details { border-top:1px solid #e9edf5; padding-top:10px; margin-top:10px; }
       .crm-dfloor-legend { display:flex; flex-wrap:wrap; gap:6px 12px; margin:8px 0; }
@@ -56,16 +54,16 @@ function crmMountFloor(mount) {
       .crm-dfloor-room-card dt { color:#5b6478; font-size:12px; } .crm-dfloor-room-card dd { margin:0; overflow-wrap:anywhere; }
       .crm-dfloor-room-card p { white-space:pre-wrap; margin:8px 0 0; }
       .crm-dfloor-attention h3 { margin-bottom:6px; }
-      .crm-dfloor-attention > ul { max-height:420px; overflow:auto; }
+      .crm-dfloor-attention > ul { max-height:460px; overflow:auto; scrollbar-width:thin; }
       .crm-dfloor-attention ul,.crm-dfloor-side ul { list-style:none; margin:0; padding:0; }
       .crm-dfloor-attention li + li,.crm-dfloor-side li + li { border-top:1px solid #e9edf5; }
-      .crm-dfloor .crm-dfloor-alert { width:100%; display:grid; grid-template-columns:8px minmax(0,1fr) auto; gap:10px; align-items:center;
-        border:0; border-radius:5px; padding:8px 4px; background:transparent; text-align:left; color:inherit; }
+      .crm-dfloor .crm-dfloor-alert { width:100%; display:grid; grid-template-columns:8px minmax(0,1fr); gap:3px 8px; align-items:baseline;
+        border:0; border-radius:5px; padding:9px 5px; background:transparent; text-align:left; color:inherit; }
       .crm-dfloor-alert:hover { background:#f3f5f9; }
       .crm-dfloor-alert i { width:7px; height:7px; border-radius:50%; background:#a86613; }
       .crm-dfloor-alert[data-urgent] i { background:#c23b3b; }
       .crm-dfloor-alert strong { display:block; font-size:13px; font-weight:600; }
-      .crm-dfloor-alert em { font-size:12px; font-style:normal; color:#784900; background:#f6eedb; padding:2px 8px; border-radius:5px; }
+      .crm-dfloor-alert em { grid-column:2; justify-self:start; font-size:12px; font-style:normal; color:#784900; background:#f6eedb; padding:2px 8px; border-radius:5px; }
       .crm-dfloor-alert[data-urgent] em { color:#9c2829; background:#f9e6e6; }
       .crm-dfloor summary { color:#1c2d58; font-weight:650; cursor:pointer; }
       .crm-dfloor-work { scroll-margin-top:75px; }
@@ -76,7 +74,14 @@ function crmMountFloor(mount) {
       .crm-dfloor select:hover { border-color:#2f4a8a; }
       .crm-dfloor-plan + .crm-dfloor-plan { margin-top:16px; }
       .crm-dfloor-plan-title { display:flex; align-items:baseline; gap:8px; margin:8px 0 5px; }
-      .crm-dfloor svg { display:block; width:100%; height:clamp(270px,44vh,475px); background:#f8f9fc; border:1px solid #dfe3ec; border-radius:6px; }
+      .crm-dfloor svg { display:block; width:100%; height:clamp(300px,54vh,560px); background-color:#f8f9fc;
+        background-image:radial-gradient(circle,#dce3ee 1px,transparent 1px); background-size:16px 16px; border:1px solid #dfe3ec; border-radius:6px; }
+      .crm-dfloor svg [data-floor-room]:hover polygon { stroke:#2f4a8a; stroke-width:2; }
+      .crm-dfloor-legend { padding-bottom:8px; border-bottom:1px solid #eef2f9; }
+      .crm-dfloor-context { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:8px 14px; margin:10px 0; }
+      .crm-dfloor-context .crm-dfloor-bar { margin:0; }
+      .crm-dfloor-context p { margin:0; font-size:12px; color:#5b6478; }
+      .crm-dfloor-plan-title strong { font-size:13px; }
       .crm-dfloor svg [role=button] { cursor:pointer; }
       .crm-dfloor svg [role=button]:focus polygon { stroke:#2f4a8a; stroke-width:3; }
       .crm-dfloor-side { min-width:0; overflow-wrap:anywhere; margin-top:8px; }
@@ -90,7 +95,6 @@ function crmMountFloor(mount) {
       .crm-dfloor th,.crm-dfloor td { padding:6px 9px; border-bottom:1px solid #e9edf5; }
       .crm-dfloor th { background:#eef2f9; color:#1c2d58; font-size:12px; white-space:nowrap; }
       .crm-dfloor tbody tr:hover { background:#f8f9fc; }
-      @media(max-width:900px) { .crm-dfloor-tiles { grid-template-columns:repeat(2,minmax(0,1fr)); } }
       @media(max-width:850px) { .crm-dfloor-main { grid-template-columns:1fr; } }
     `;
     document.head.appendChild(style);
@@ -146,7 +150,8 @@ function crmMountFloor(mount) {
   }
   function draw(plan, rooms, marks) {
     const w = Math.max(1, Number(plan.width_m) || 1), h = Math.max(1, Number(plan.height_m) || 1);
-    const size = Math.max(w,h) / 42;
+    const size = Math.max(w,h) / 33;
+    const pad = Math.max(w,h) * .04;
     const bg = typeof plan.bg_url === 'string' && /^\/(?:storage\/uploads|files)\/[a-z0-9_./%-]+$/i.test(plan.bg_url) && !plan.bg_url.includes('..') ? plan.bg_url : '';
     const rect = plan.drawing?.bg;
     const b = rect && [rect.x,rect.y,rect.w,rect.h].every(Number.isFinite) && rect.w > 0 && rect.h > 0
@@ -154,7 +159,7 @@ function crmMountFloor(mount) {
     const walls = (plan.drawing && Array.isArray(plan.drawing.items) ? plan.drawing.items : []).filter(function(i) {
       return i && i.k === 'wall' && [i.x1,i.y1,i.x2,i.y2].every(Number.isFinite);
     });
-    return '<svg viewBox="0 0 ' + w + ' ' + h + '" aria-label="Поэтажный план">' +
+    return '<svg viewBox="' + -pad + ' ' + -pad + ' ' + (w + 2 * pad) + ' ' + (h + 2 * pad) + '" aria-label="Поэтажный план">' +
       (bg ? '<image href="' + esc(bg) + '" x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h + '" preserveAspectRatio="none"/>' : '') +
       rooms.map(function(r) {
         const id = Number(r.id), pts = crmFloorPoints(r), state = crmFloorRoomState(r,data.contracts);
@@ -166,13 +171,13 @@ function crmMountFloor(mount) {
         const maxChars = Math.max(3,Math.floor(roomWidth / (size * .43)) - 1);
         const shortTenant = words.length > maxChars ? words.slice(0,maxChars - 1) + '…' : words;
         const label = esc([r.code || r.title || id,state,tenant,count ? 'Заявок: ' + count : ''].filter(Boolean).join(' · '));
-        const caption = shortTenant ? '<tspan x="' + cx + '" dy="1.2em" font-size=".78em">' + esc(shortTenant) + '</tspan>' : '';
+        const caption = shortTenant ? '<tspan x="' + cx + '" dy="1.28em" font-size=".80em" font-weight="400">' + esc(shortTenant) + '</tspan>' : '';
         const clip = 'crm-dfloor-clip-' + id;
         return '<g role="button" tabindex="0" aria-label="' + label + '" aria-pressed="' + (selected === id) + '" data-floor-room="' + id + '"><title>' + label + '</title><polygon points="' +
           pts.map(function(p) { return p.join(','); }).join(' ') + '" fill="' + color[state] + '" fill-opacity="' + (bg ? '.72' : '1') +
           '" stroke="' + (selected === id ? '#2f4a8a' : '#8a92a3') + '" vector-effect="non-scaling-stroke" stroke-width="' + (selected === id ? 3 : 1) + '"/>' +
           '<clipPath id="' + clip + '"><polygon points="' + pts.map(function(p) { return p.join(','); }).join(' ') + '"/></clipPath>' +
-          '<text clip-path="url(#' + clip + ')" x="' + cx + '" y="' + (caption ? cy - size * .48 : cy) + '" font-size="' + size + '" text-anchor="middle" dominant-baseline="middle" pointer-events="none" fill="#1c2d58">' + esc(r.code || '') + caption + '</text>' +
+          '<text clip-path="url(#' + clip + ')" x="' + cx + '" y="' + (caption ? cy - size * .48 : cy) + '" font-size="' + size + '" font-weight="600" text-anchor="middle" dominant-baseline="middle" pointer-events="none" fill="#1c2d58">' + esc(r.code || '') + caption + '</text>' +
           (count ? '<g pointer-events="none"><circle cx="' + (cx + Math.min(roomWidth * .34,size * 2.3)) + '" cy="' + (cy - size * 1.15) + '" r="' + (size * .58) + '" fill="#c23b3b"/>' +
             '<text x="' + (cx + Math.min(roomWidth * .34,size * 2.3)) + '" y="' + (cy - size * 1.15) + '" fill="#fff" font-size="' + (size * .67) + '" text-anchor="middle" dominant-baseline="middle">' + count + '</text></g>' : '') + '</g>';
       }).join('') +
@@ -220,13 +225,10 @@ function crmMountFloor(mount) {
     const urgent = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done'; }).length;
     const attention = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done' || isLate(r); })
       .sort(function(a,b) { return Number(b.urgency === 'emergency') - Number(a.urgency === 'emergency') || String(a.due_date || '~').localeCompare(String(b.due_date || '~')); });
-    const tile = function(label,value,action,hint,alert) {
-      return '<button type="button" class="crm-dfloor-tile" data-floor-jump="' + action + '"' + (alert ? ' data-tone="alert"' : '') + '><span>' + label + '</span><b>' + value + '</b><small>' + hint + '</small></button>';
-    };
-    const cards = '<div class="crm-dfloor-tiles">' + tile('Объекты',data.objects.length,'objects','Обзор объектов →') +
-      tile('Заявки в работе',data.requestsAvailable ? data.requests.length : '—','requests','Заявки по объекту →') +
-      tile('Требует внимания',data.requestsAvailable ? allLate : '—','attention',data.requestsAvailable ? 'Просрочено · аварий ' + urgent : 'Заявки недоступны', allLate || urgent) +
-      tile('Планы и помещения',data.plansAvailable ? data.plans.length : '—','plan','Этажи, арендаторы и свободные площади →') + '</div>';
+    const topline = '<div class="crm-dfloor-topline"><span>Объекты <b>' + data.objects.length + '</b></span>' +
+      (data.requestsAvailable ? '<span>Открыто <b>' + data.requests.length + '</b></span><span>Просрочено <b>' + allLate +
+      '</b></span><span>Аварии <b>' + urgent + '</b></span>' : '') +
+      (overview ? '<button type="button" data-floor-jump="objects">Сводка по объектам</button>' : '') + '</div>';
     const statusNames = { new:'Новая', in_work:'В работе', waiting:'Ждёт', dept:'В отделе', done:'На приёмке' };
     const attentionPanel = '<section class="crm-dfloor-panel crm-dfloor-attention" data-floor-anchor="attention"><h3>Требует внимания</h3>' +
       (attention.length ? '<ul>' + attention.map(function(r) {
@@ -261,11 +263,11 @@ function crmMountFloor(mount) {
       return '<section class="crm-dfloor-plan"><div class="crm-dfloor-plan-title"><strong>' + esc([plan.building,plan.title].filter(Boolean).join(' · ')) + '</strong>' +
         (plan.schematic ? '<small>Условная схема</small>' : '') + '</div>' + draw(plan,rooms,marks) + (roomPlan === plan ? roomCard : '') + '</section>';
     }).join('');
-    body.innerHTML = cards + '<div class="crm-dfloor-main">' +
-      '<section class="crm-dfloor-panel crm-dfloor-work" data-floor-anchor="work"><h3>Планы и работа по объекту</h3><div class="crm-dfloor-bar">' + (data.objects.length > 1 ? '<label>Объект <select data-floor-select="object">' +
+    body.innerHTML = topline + '<div class="crm-dfloor-main">' +
+      '<section class="crm-dfloor-panel crm-dfloor-work" data-floor-anchor="work"><h3>План объекта</h3><div class="crm-dfloor-context"><div class="crm-dfloor-bar">' + (data.objects.length > 1 ? '<label>Объект <select data-floor-select="object">' +
       opts(data.objects,objectId) + '</select></label>' : '<strong>' + esc(object.name) + '</strong>') +
       '</div><p>' + (allRooms.length ? 'Свободно по нанесённым помещениям: <b>' + areaText + ' м²</b> · ' : '') +
-      (data.requestsAvailable ? 'Открытых заявок: <b>' + requests.length + '</b>' : 'Заявки недоступны') + '</p>' +
+      (data.requestsAvailable ? 'Открытых заявок: <b>' + requests.length + '</b>' : 'Заявки недоступны') + '</p></div>' +
       (data.incomplete ? '<p><small>Часть данных недоступна с текущими правами.</small></p>' : '') +
       legend + (floorViews || '<p>' + (data.plansAvailable ? 'Для объекта нет доступного плана.' : 'Планы недоступны.') + '</p>') +
       '</section>' + attentionPanel + '</div>' +

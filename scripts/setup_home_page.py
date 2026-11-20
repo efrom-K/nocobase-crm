@@ -39,17 +39,7 @@ def route(uid):
 def upd(uid, values):
     print('update', uid, ok(call('desktopRoutes:update?filterByTk=%s' % route(uid)['id'], values)))
 
-page = route('dashpage01')
-upd('dashpage01', {'title': 'Главная', 'icon': 'HomeOutlined', 'enableTabs': True})
-upd('dashtabs01', {'title': 'Компания', 'hidden': False})
-TABS = [('ceotab01', 'Сводка', 'ceogrid01', 'ceoblock01', (), 0),
-        ('hometabhr01', 'Кадры', 'homegridhr1', 'crmblock007', ('hr',), 2), ('hometabaho1', 'АХО', 'homegridaho', 'crmblock008', ('aho',), 3)]
-for tab, title, grid_uid, block_uid, roles, sort in TABS:
-    if not route(tab):
-        print('tab', tab, ok(call('desktopRoutes:create', {'type': 'tabs', 'parentId': page['id'], 'schemaUid': tab, 'title': title, 'hidden': False, 'sort': sort})))
-    rid = [route(tab)['id']]
-    for role in ('admin',) + roles:
-        print('menu', role, tab, ok(call('roles/%s/desktopRoutes:add' % role, [page['id']] + rid)))
+def make_models(tab, grid_uid, block_uid):
     layout = {'rows': [{'id': grid_uid + 'r', 'cells': [{'id': grid_uid + 'r:cell:0', 'items': [block_uid]}], 'sizes': [24]}], 'version': 2}
     grid = {'use': 'BlockGridModel', 'parent': tab, 'parentId': tab, 'subKey': 'grid', 'subType': 'object', 'sortIndex': 0, 'flowRegistry': {},
             'props': {'rows': {grid_uid + 'r': [[block_uid]]}, 'sizes': {grid_uid + 'r': [24]}, 'colGap': 16, 'rowGap': 16, 'rowOrder': [grid_uid + 'r'], 'layout': layout},
@@ -67,6 +57,53 @@ insert into "flowModelTreePath"(ancestor,descendant,depth,async,type,sort) value
  on conflict do nothing;
 commit;""" % {'t': tab, 'g': grid_uid, 'b': block_uid, 'grid': json.dumps(grid, ensure_ascii=False), 'block': json.dumps(block, ensure_ascii=False)})
     print('models', tab, 'ok')
+
+if sys.argv[1:] in (['--prepare-managers'], ['--grant-managers']):
+    page = route('dashpage01')
+    if not page:
+        sys.exit('Home route is missing')
+    tab = 'hometabmgr1'
+    target = route(tab)
+    if sys.argv[1] == '--prepare-managers':
+        if not target:
+            result = call('desktopRoutes:create', {'type': 'tabs', 'parentId': page['id'], 'schemaUid': tab,
+                          'title': 'Управляющие', 'hidden': True, 'sort': 4})
+            if 'data' not in result:
+                sys.exit('Could not create manager dashboard route')
+        make_models(tab, 'homegridmgr', 'mgrdashblk1')
+    else:
+        if not target or str(target['parentId']) != str(page['id']):
+            sys.exit('Manager dashboard route is missing or has the wrong parent')
+        if psql("select coalesce(options::jsonb #>> '{stepParams,jsSettings,runJs,code}' like '%function crmMountFloor%', false) from \"flowModels\" where uid='mgrdashblk1';").strip() != 't':
+            sys.exit('Deploy the manager dashboard block before granting visibility')
+        roles = ('admin', 'requests_control', 'rental_dept', 'crm_test', 'accounting_dept', 'legal_dept')
+        for role in roles:
+            result = call('roles/%s/desktopRoutes:add' % role, [page['id'], target['id']])
+            if 'data' not in result:
+                sys.exit('Could not grant dashboard route to ' + role)
+        unwanted = psql('select "roleName" from "rolesDesktopRoutes" where "desktopRouteId"=%d' % int(target['id'])).splitlines()
+        for role in set(unwanted) - set(roles):
+            result = call('roles/%s/desktopRoutes:remove' % urllib.parse.quote(role, safe=''), [target['id']])
+            if 'data' not in result:
+                sys.exit('Could not restrict dashboard route for ' + role)
+        result = call('desktopRoutes:update?filterByTk=%s' % target['id'], {'hidden': False})
+        if 'data' not in result:
+            sys.exit('Could not show dashboard')
+        print('Manager dashboard published')
+    sys.exit(0)
+
+page = route('dashpage01')
+upd('dashpage01', {'title': 'Главная', 'icon': 'HomeOutlined', 'enableTabs': True})
+upd('dashtabs01', {'title': 'Компания', 'hidden': False})
+TABS = [('ceotab01', 'Сводка', 'ceogrid01', 'ceoblock01', (), 0),
+        ('hometabhr01', 'Кадры', 'homegridhr1', 'crmblock007', ('hr',), 2), ('hometabaho1', 'АХО', 'homegridaho', 'crmblock008', ('aho',), 3)]
+for tab, title, grid_uid, block_uid, roles, sort in TABS:
+    if not route(tab):
+        print('tab', tab, ok(call('desktopRoutes:create', {'type': 'tabs', 'parentId': page['id'], 'schemaUid': tab, 'title': title, 'hidden': False, 'sort': sort})))
+    rid = [route(tab)['id']]
+    for role in ('admin',) + roles:
+        print('menu', role, tab, ok(call('roles/%s/desktopRoutes:add' % role, [page['id']] + rid)))
+    make_models(tab, grid_uid, block_uid)
 # роли с «новые пункты меню доступны сразу» получают и новые вкладки — убрать (у них нет «Главной», вкладки не для них)
 tab_ids = [route(t[0])['id'] for t in TABS]
 for role in ('accounting_dept', 'legal_dept', 'member', 'rental_dept', 'crm_test', 'mail_service'):

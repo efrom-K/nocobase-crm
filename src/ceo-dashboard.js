@@ -8,7 +8,6 @@
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-plan.js
-// @include src/_crm-dashboard-floor.js
 if (!document.getElementById('ceo-style')) {
   const st = document.createElement('style');
   st.id = 'ceo-style';
@@ -320,8 +319,7 @@ function ceoRender() {
     people,
     aho
   ];
-  root.innerHTML = head + ceoAlerts(c) + '<div data-dashboard-floor></div><div class="c-grid">' + depts.join('') + evCard + loadCard + '</div>';
-  crmMountFloor(root.querySelector('[data-dashboard-floor]'), { overview:true });
+  root.innerHTML = head + ceoAlerts(c) + '<div class="c-grid">' + depts.join('') + evCard + loadCard + '</div>';
 }
 
 ctx.render('<div id="ceo"><div class="c-empty">Загрузка…</div></div>');

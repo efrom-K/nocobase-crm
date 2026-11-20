@@ -21,7 +21,7 @@ function crmFloorMatch(request, rooms) {
   if (!request.contract_id) return [];
   return rooms.filter(function(r) { return Number(r.contract_id) === Number(request.contract_id); });
 }
-function crmMountFloor(mount, options) {
+function crmMountFloor(mount) {
   if (!mount) return;
   const esc = crmFloorEscape;
   const open = ['new', 'in_work', 'waiting', 'dept', 'done'];
@@ -46,9 +46,9 @@ function crmMountFloor(mount, options) {
     `;
     document.head.appendChild(style);
   }
-  mount.innerHTML = '<details class="crm-dfloor"><summary>Планы, помещения и заявки</summary><div data-floor-body></div></details>';
-  const details = mount.querySelector('details'), body = mount.querySelector('[data-floor-body]');
-  let data, pending, objectId, planId, selected, requestId, mode = 'rent';
+  mount.innerHTML = '<h2 style="font:650 20px var(--kn-tilda,system-ui);color:#1c2d58;margin:12px 0;">Управляющие</h2><div class="crm-dfloor" data-floor-body></div>';
+  const body = mount.querySelector('[data-floor-body]');
+  let data, objectId, planId, selected, requestId, mode = 'rent';
   const list = async function(name, extra) {
     const response = await ctx.api.resource(name).list(Object.assign({ paginate:false }, extra));
     const rows = response && response.data && (response.data.data || response.data);
@@ -59,10 +59,10 @@ function crmMountFloor(mount, options) {
     const me = response && response.data && response.data.data;
     if (!me || !Number(me.id)) throw new Error('User unavailable');
     const all = (me.roles || []).some(function(r) { return ['admin','root','requests_control'].includes(r.name); });
-    const available = (options.objects || await list('contract_objects', { sort:['name'] })).filter(function(o) {
+    const available = (await list('contract_objects', { sort:['name'], filter:all ? {} : { $or:[{ manager_user_id:Number(me.id) },{ senior_user_id:Number(me.id) }] } })).filter(function(o) {
       return all || Number(o.manager_user_id) === Number(me.id) || Number(o.senior_user_id) === Number(me.id);
     });
-    const objects = available.filter(function(o) { return !options.name || o.name === options.name; });
+    const objects = available;
     if (!objects.length) { data = { objects:[] }; render(); return; }
     const ids = objects.map(function(o) { return o.id; }), names = objects.map(function(o) { return o.name; });
     const objectFilter = { object_id:{ $in:ids } }, nameFilter = { object_name:{ $in:names } };
@@ -71,13 +71,15 @@ function crmMountFloor(mount, options) {
       list('crm_rooms',{ filter:objectFilter, sort:['code'] }),
       list('rental_contracts',{ filter:nameFilter, fields:['id','tenant_name','contract_number','end_date'] }),
       list('object_requests',{ filter:nameFilter, sort:['-id'], fields:['id','object_name','title','status','urgency','due_date','contract_id','tenant_label','source','responsible_id','demo'] }),
-      all ? list('users',{ fields:['id','nickname','username'] }) : Promise.resolve([])
+      all ? list('users',{ fields:['id','nickname','username'] }) : Promise.resolve([]),
+      list('crm_tasks',{ filter:nameFilter, sort:['-id'], fields:['id','object_name','title','status','due_date','executor_name'] })
     ]);
     const rows = results.map(function(r) { return r.status === 'fulfilled' ? r.value : []; });
     data = { objects, plans:rows[0], rooms:rows[1], contracts:new Map(rows[2].map(function(c) { return [Number(c.id),c]; })),
       requests:rows[3].filter(function(r) { return !r.demo && open.includes(r.status); }),
       users:new Map(rows[4].map(function(u) { return [Number(u.id), u.nickname || u.username]; })),
-      incomplete:results.slice(0,4).some(function(r) { return r.status === 'rejected'; }), requestsAvailable:results[3].status === 'fulfilled', plansAvailable:results[0].status === 'fulfilled' };
+      tasks:rows[5], tasksAvailable:results[5].status === 'fulfilled',
+      incomplete:results.some(function(r) { return r.status === 'rejected'; }), requestsAvailable:results[3].status === 'fulfilled', plansAvailable:results[0].status === 'fulfilled' };
     render();
   }
   function localToday() {
@@ -142,7 +144,7 @@ function crmMountFloor(mount, options) {
     const pickRooms = mode === 'rent' && free.length ? '<details><summary>Свободные помещения на плане (' + free.length + ')</summary><ul>' + free.map(function(r) {
       return '<li><button type="button" data-floor-room="' + Number(r.id) + '">' + esc([r.code,r.title,r.area_sqm != null ? r.area_sqm + ' м²' : ''].filter(Boolean).join(' · ')) + '</button></li>';
     }).join('') + '</ul></details>' : '';
-    const overview = options.overview && data.objects.length > 1 && data.requestsAvailable ? '<div class="crm-dfloor-table"><table><thead><tr><th>Объект</th><th>Управляющий</th><th>Открыто</th><th>Просрочено</th><th>Аварии</th></tr></thead><tbody>' +
+    const overview = data.objects.length > 1 && data.requestsAvailable ? '<div class="crm-dfloor-table"><table><thead><tr><th>Объект</th><th>Управляющий</th><th>Открыто</th><th>Просрочено</th><th>Аварии</th></tr></thead><tbody>' +
       data.objects.map(function(o) {
         const own = data.requests.filter(function(r) { return r.object_name === o.name; });
         const late = own.filter(isLate).length;
@@ -151,12 +153,20 @@ function crmMountFloor(mount, options) {
         return '<tr><td><button type="button" data-floor-object="' + Number(x.object.id) + '">' + esc(x.object.name) + '</button></td><td>' + esc(data.users.get(Number(x.object.manager_user_id)) || x.object.manager_name || '—') + '</td><td>' + x.count +
           '</td><td><button type="button" data-floor-object="' + Number(x.object.id) + '" data-floor-late="1">' + x.late + '</button></td><td>' + x.urgent + '</td></tr>';
       }).join('') + '</tbody></table></div>' : '';
+    const tasks = data.tasks.filter(function(t) { return t.object_name === object.name; });
+    const currentTasks = tasks.filter(function(t) { return ['new','in_work','waiting','done'].includes(t.status); });
+    const taskPanel = data.tasksAvailable ? '<section><h3>Задачи объекта</h3><p>В работе и на приёмке: ' + currentTasks.length + '</p>' +
+      (currentTasks.length ? '<ul>' + currentTasks.map(function(t) {
+        return '<li><a href="/admin/tskpage01?open=task:' + Number(t.id) + '">' + esc(t.title || ('Задача №' + t.id)) + '</a> <small>' +
+          esc([t.executor_name,t.due_date && ('до ' + String(t.due_date).slice(0,10))].filter(Boolean).join(' · ')) + '</small></li>';
+      }).join('') + '</ul>' : '') + '</section>' : '<p>Задачи недоступны.</p>';
     const roomOptions = allRooms.filter(function(r) { return plans.some(function(p) { return Number(p.id) === Number(r.plan_id); }); }).map(function(r) {
       const tenant = data.contracts.get(Number(r.contract_id));
       const floor = plans.find(function(p) { return Number(p.id) === Number(r.plan_id); });
       return { id:r.id, name:[r.code || r.title, floor.title, tenant && tenant.tenant_name].filter(Boolean).join(' · ') };
     });
-    body.innerHTML = overview + '<div class="crm-dfloor-bar"><label>Объект <select data-floor-select="object">' + opts(data.objects,objectId) + '</select></label>' +
+    body.innerHTML = overview + '<div class="crm-dfloor-bar">' + (data.objects.length > 1 ? '<label>Объект <select data-floor-select="object">' +
+      opts(data.objects,objectId) + '</select></label>' : '<strong>' + esc(object.name) + '</strong>') +
       (plan ? '<label>План <select data-floor-select="plan">' + opts(plans,planId) + '</select></label>' : '') +
       (roomOptions.length ? '<label>Помещение / арендатор <select data-floor-select="room"><option value="">Выбрать</option>' + opts(roomOptions,selected) + '</select></label>' : '') +
       [['rent','Аренда'],['requests','Заявки'],['bti','БТИ']].map(function(m) { return '<button type="button" data-floor-mode="' + m[0] + '" aria-pressed="' + (mode === m[0] || mode === 'late' && m[0] === 'requests') + '">' + m[1] + '</button>'; }).join('') +
@@ -168,7 +178,7 @@ function crmMountFloor(mount, options) {
          esc([crmFloorRoomState(room,data.contracts),room.area_sqm != null ? room.area_sqm + ' м²' : '',contract && contract.tenant_name,contract && contract.contract_number,contract && contract.end_date && ('до ' + contract.end_date)].filter(Boolean).join(' · ')) +
          '</p>' + (data.requestsAvailable ? '<strong>Заявки по договору</strong>' + requestRows(related,allRooms) : '') : '') +
       (data.requestsAvailable ? '<strong>' + (mode === 'late' ? 'Просроченные заявки объекта' : 'Заявки объекта') + '</strong>' + requestRows(activeRequests,allRooms) : '') +
-      '</div></div>';
+      taskPanel + '</div></div>';
   }
   function chooseObject(id, late) {
     objectId = Number(id); planId = selected = requestId = null;
@@ -208,9 +218,6 @@ function crmMountFloor(mount, options) {
   body.addEventListener('keydown',function(e) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('g[data-floor-room]')) { e.preventDefault(); activate(e.target); }
   });
-  details.addEventListener('toggle',function() {
-    if (!details.open || data || pending) return;
-    body.textContent = 'Загрузка планов и заявок…';
-    pending = load().catch(function() { body.textContent = 'Не удалось загрузить планы. Закройте и откройте блок, чтобы повторить.'; }).finally(function() { pending = null; });
-  });
+  body.textContent = 'Загрузка объектов, планов и заявок…';
+  load().catch(function() { body.textContent = 'Не удалось загрузить дашборд. Обновите страницу.'; });
 }

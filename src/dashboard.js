@@ -9,7 +9,6 @@
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-plan.js
-// @include src/_crm-dashboard-floor.js
 // @include src/_crm-xlsx.js
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
@@ -528,7 +527,6 @@ function renderObject(name) {
       }).join('') + '</tbody></table></div>' : '<div class="dash-empty">Действующих договоров нет</div>';
 
   ensureDashPanel().innerHTML = headHtml(name, { before: '<button class="dash-link" data-act="all">← Все объекты</button>', after: sel + '<button class="dash-link" data-act="contracts">Договоры в реестре →</button>' })
-    + '<div data-dashboard-floor></div>'
     + '<div class="dash-tiles">' + areaTile(s, 0, objRec ? objRec.id : null) + moneyTile(s) + contractsTile(active.length, forming.length, completedN) + depositTile(s) + '</div>'
     + '<div class="dash-grid">'
     + '<div class="dash-card"><div class="dash-card-title">Статусы договоров<span>' + dContracts(active.length) + '</span></div>' + statusBody + '</div>'
@@ -537,7 +535,6 @@ function renderObject(name) {
     + '<div class="dash-card"><div class="dash-card-title">Что не заполнено<span>клик — открыть договор</span></div>' + gapsBody + '</div>'
     + '</div>'
     + '<div class="dash-card" style="margin-top:12px;"><div class="dash-card-title">Договоры объекта<span>клик — открыть карточку</span></div>' + listBody + '</div>';
-  crmMountFloor(ensureDashPanel().querySelector('[data-dashboard-floor]'), { name:name, objects:dashState.data.objects });
 }
 
 function onDashClick(e) {

@@ -31,6 +31,17 @@ function crmMountFloor(mount) {
     style.id = 'crm-dashboard-floor-style';
     style.textContent = `
       .crm-dfloor { margin:12px 0; padding:12px 14px; border:1px solid #dfe3ec; border-radius:8px; background:#fff; }
+      .crm-dfloor { border:0; padding:0; margin:0; }
+      .crm-dfloor h3 { margin:0 0 8px; font-size:15px; }
+      .crm-dfloor-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:12px; }
+      .crm-dfloor .crm-dfloor-tile,.crm-dfloor-panel { display:block; text-align:left; background:#fff; border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; }
+      .crm-dfloor-tile b { display:block; color:#1f2433; font-size:23px; margin:4px 0; }
+      .crm-dfloor-tile small { display:block; }
+      .crm-dfloor-attention { margin-bottom:12px; }
+      .crm-dfloor-attention ul { margin:0; padding-left:18px; }
+      .crm-dfloor-attention li::marker { color:#c23b3b; }
+      .crm-dfloor-attention a { color:#1c2d58; font-weight:550; }
+      .crm-dfloor-work { margin-top:12px; scroll-margin-top:75px; }
       .crm-dfloor summary { color:#1c2d58; font-weight:650; cursor:pointer; }
       .crm-dfloor-bar { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; margin:12px 0; }
       .crm-dfloor select,.crm-dfloor button { font:inherit; border:1px solid #c3cad8; border-radius:6px; padding:4px 8px; background:#fff; color:#1c2d58; }
@@ -48,7 +59,7 @@ function crmMountFloor(mount) {
   }
   mount.innerHTML = '<h2 style="font:650 20px var(--kn-tilda,system-ui);color:#1c2d58;margin:12px 0;">Управляющие</h2><div class="crm-dfloor" data-floor-body></div>';
   const body = mount.querySelector('[data-floor-body]');
-  let data, objectId, planId, selected, requestId, mode = 'rent';
+  let data, objectId, planId, selected, requestId, mode = 'rent', expanded = false;
   const list = async function(name, extra) {
     const response = await ctx.api.resource(name).list(Object.assign({ paginate:false }, extra));
     const rows = response && response.data && (response.data.data || response.data);
@@ -165,7 +176,26 @@ function crmMountFloor(mount) {
       const floor = plans.find(function(p) { return Number(p.id) === Number(r.plan_id); });
       return { id:r.id, name:[r.code || r.title, floor.title, tenant && tenant.tenant_name].filter(Boolean).join(' · ') };
     });
-    body.innerHTML = overview + '<div class="crm-dfloor-bar">' + (data.objects.length > 1 ? '<label>Объект <select data-floor-select="object">' +
+    const allLate = data.requests.filter(isLate).length;
+    const urgent = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done'; }).length;
+    const attention = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done' || isLate(r); })
+      .sort(function(a,b) { return Number(b.urgency === 'emergency') - Number(a.urgency === 'emergency') || String(a.due_date || '~').localeCompare(String(b.due_date || '~')); });
+    const tile = function(label,value,action,hint) {
+      return '<button type="button" class="crm-dfloor-tile" data-floor-jump="' + action + '">' + label + '<b>' + value + '</b><small>' + hint + '</small></button>';
+    };
+    const cards = '<div class="crm-dfloor-tiles">' + tile('Объекты',data.objects.length,'objects','Обзор объектов →') +
+      tile('Заявки в работе',data.requestsAvailable ? data.requests.length : '—','requests','Открыть Helpdesk по объекту →') +
+      tile('Требует внимания',data.requestsAvailable ? allLate : '—','attention',data.requestsAvailable ? 'Просрочено · аварий ' + urgent : 'Заявки недоступны') +
+      tile('Планы и помещения',data.plansAvailable ? data.plans.length : '—','plan','Этажи, арендаторы и свободные площади →') + '</div>';
+    const attentionPanel = '<section class="crm-dfloor-panel crm-dfloor-attention" data-floor-anchor="attention"><h3>Требует внимания</h3>' +
+      (attention.length ? '<ul>' + attention.slice(0,5).map(function(r) {
+        const obj = data.objects.find(function(o) { return o.name === r.object_name; });
+        return '<li><button type="button" data-floor-object="' + Number(obj.id) + '" data-floor-highlight="' + Number(r.id) + '">' + esc(r.title || ('Заявка №' + r.id)) +
+          '</button> <small>' + esc([r.object_name,r.urgency === 'emergency' ? 'Авария' : 'Просрочено',r.due_date && String(r.due_date).slice(0,10)].filter(Boolean).join(' · ')) + '</small></li>';
+      }).join('') + '</ul>' : '<small>' + (data.requestsAvailable ? 'Аварий и просроченных заявок нет.' : 'Заявки недоступны с текущими правами.') + '</small>') + '</section>';
+    body.innerHTML = cards + attentionPanel + (overview ? '<details class="crm-dfloor-panel" data-floor-overview' + (expanded ? ' open' : '') +
+      '><summary>Сводка по объектам</summary>' + overview + '</details>' : '') +
+      '<section class="crm-dfloor-panel crm-dfloor-work" data-floor-anchor="work"><h3>Планы и работа по объекту</h3><div class="crm-dfloor-bar">' + (data.objects.length > 1 ? '<label>Объект <select data-floor-select="object">' +
       opts(data.objects,objectId) + '</select></label>' : '<strong>' + esc(object.name) + '</strong>') +
       (plan ? '<label>План <select data-floor-select="plan">' + opts(plans,planId) + '</select></label>' : '') +
       (roomOptions.length ? '<label>Помещение / арендатор <select data-floor-select="room"><option value="">Выбрать</option>' + opts(roomOptions,selected) + '</select></label>' : '') +
@@ -178,7 +208,7 @@ function crmMountFloor(mount) {
          esc([crmFloorRoomState(room,data.contracts),room.area_sqm != null ? room.area_sqm + ' м²' : '',contract && contract.tenant_name,contract && contract.contract_number,contract && contract.end_date && ('до ' + contract.end_date)].filter(Boolean).join(' · ')) +
          '</p>' + (data.requestsAvailable ? '<strong>Заявки по договору</strong>' + requestRows(related,allRooms) : '') : '') +
       (data.requestsAvailable ? '<strong>' + (mode === 'late' ? 'Просроченные заявки объекта' : 'Заявки объекта') + '</strong>' + requestRows(activeRequests,allRooms) : '') +
-      taskPanel + '</div></div>';
+      taskPanel + '</div></div></section>';
   }
   function chooseObject(id, late) {
     objectId = Number(id); planId = selected = requestId = null;
@@ -199,19 +229,40 @@ function crmMountFloor(mount) {
     const object = target.getAttribute('data-floor-object'), layer = target.getAttribute('data-floor-mode');
     if (room) { selected = Number(room); requestId = null; }
     if (layer) mode = layer;
-    if (object) chooseObject(object,target.hasAttribute('data-floor-late'));
-    if (request) {
-      requestId = Number(request); selected = null;
+    if (object) {
+      expanded = body.querySelector('[data-floor-overview]')?.open || false;
+      chooseObject(object,target.hasAttribute('data-floor-late'));
+    }
+    const highlight = target.getAttribute('data-floor-highlight');
+    if (request || highlight) {
+      requestId = Number(request || highlight);
+      if (highlight) mode = 'requests'; selected = null;
       const r = data.requests.find(function(x) { return Number(x.id) === requestId; });
       const matches = crmFloorMatch(r,data.rooms.filter(function(x) { return Number(x.object_id) === objectId; }));
       if (matches.length === 1) { planId = Number(matches[0].plan_id); selected = Number(matches[0].id); }
     }
     render();
+    if (object) {
+      body.querySelector('[data-floor-anchor="work"]').scrollIntoView({block:'start'});
+      body.querySelector('[data-floor-select="object"],[data-floor-mode]')?.focus();
+      return;
+    }
     const attr = room ? 'room' : request ? 'request' : object ? 'object' : 'mode';
     const value = room || request || object || layer;
     body.querySelector('[data-floor-' + attr + '="' + value + '"]')?.focus();
   }
   body.addEventListener('click',function(e) {
+    const shortcut = e.target.closest('[data-floor-jump]');
+    if (shortcut) {
+      const kind = shortcut.getAttribute('data-floor-jump');
+      if (kind === 'requests') { mode = 'requests'; render(); }
+      const summary = body.querySelector('[data-floor-overview]');
+      if (kind === 'objects' && summary) { summary.open = expanded = true; summary.querySelector('summary').focus(); return; }
+      const dest = body.querySelector('[data-floor-anchor="' + (kind === 'attention' ? 'attention' : 'work') + '"]');
+      dest.scrollIntoView({block:'start'});
+      dest.querySelector('button,select')?.focus();
+      return;
+    }
     const target = e.target.closest('[data-floor-room],[data-floor-mode],[data-floor-object],[data-floor-request]');
     if (target) activate(target);
   });

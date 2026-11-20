@@ -11,7 +11,7 @@ function nbSessionAlive() {
 }
 window.__cmEngine = ctx.model.flowEngine;
 
-ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list" style="display:flex;border-bottom:1px solid #dfe3ec;"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-closing-tab" role="button" tabindex="0" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Завершение документов · …</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab" style="cursor:pointer;padding:8px 4px;margin-right:24px;border-bottom:2px solid transparent;"><div class="ant-tabs-tab-btn">Черновики</div></div><div style="margin-left:auto;align-self:center;padding-bottom:4px;display:flex;gap:8px;"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
+ctx.render('<div class="ant-tabs ant-tabs-top" style="margin-bottom:8px;"><div class="ant-tabs-nav"><div class="ant-tabs-nav-wrap"><div id="registry-local-tabs" class="ant-tabs-nav-list"><div class="registry-local-tab ant-tabs-tab ant-tabs-tab-active" data-table="ozazmpm4o4v"><div class="ant-tabs-tab-btn">Активные</div></div><div class="registry-local-tab ant-tabs-tab" data-table="formtbl000001"><div class="ant-tabs-tab-btn">Формирующиеся</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-closing-tab" role="button" tabindex="0"><div class="ant-tabs-tab-btn">Завершение документов · …</div></div><div class="registry-local-tab ant-tabs-tab" data-table="ipb7gfluldk"><div class="ant-tabs-tab-btn">Архив</div></div><div class="registry-local-tab ant-tabs-tab" data-table="cm-drafts-tab"><div class="ant-tabs-tab-btn">Черновики</div></div><div class="cm-reg-tools"><button id="cm-extra-btn" type="button" title="Поднять наверх договоры с нестандартной ценой (есть дополнительные расчёты аренды)">Доп. расчёты сверху</button><button id="cm-cols-btn" type="button">⚙ Столбцы</button></div></div></div></div></div>');
 
 const TABLES = ["ozazmpm4o4v", "formtbl000001", "ipb7gfluldk"];
 const CLOSING_TAB = 'cm-closing-tab';
@@ -36,9 +36,6 @@ function paintActive(uid) {
   document.querySelectorAll('.registry-local-tab').forEach(function(t) {
     const isActive = t.getAttribute('data-table') === uid;
     t.classList.toggle('ant-tabs-tab-active', isActive);
-    t.style.borderBottomColor = isActive ? '#1c2d58' : 'transparent';
-    t.style.color = isActive ? '#1c2d58' : 'rgba(0,0,0,0.88)';
-    t.style.fontWeight = isActive ? '600' : '400';
   });
 }
 
@@ -437,10 +434,9 @@ if (!document.getElementById('cm-notif-style')) {
   const nst = document.createElement('style');
   nst.id = 'cm-notif-style';
   nst.textContent = `
-    @keyframes cm-notif-pulse { 0%, 100% { box-shadow: inset 4px 0 0 #8a5a00; } 50% { box-shadow: inset 4px 0 0 #e8d3a6; } }
     .ant-table-tbody > tr.cm-notif-row > td { background: #f6eedb !important; }
-    .main-registry-clickable-rows .ant-table-tbody > tr.cm-notif-row:hover > td { background: #e8d3a6 !important; }
-    .ant-table-tbody > tr.cm-notif-row > td:first-child { animation: cm-notif-pulse 2s ease-in-out infinite; }
+    .main-registry-clickable-rows .ant-table-tbody > tr.cm-notif-row:hover > td { background: #f1e4c7 !important; }
+    .ant-table-tbody > tr.cm-notif-row > td:first-child { box-shadow: inset 3px 0 #8a5a00; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag { border-radius: 6px; padding: 3px 12px; margin: 0; font-size: 12px; line-height: 18px; font-weight: 500; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-green { background: #e5f1ea; border-color: #b9d9c5; color: #2f7d4f; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-gold { background: #f6eedb; border-color: #e8d3a6; color: #8a5a00; }
@@ -454,10 +450,18 @@ if (!document.getElementById('cm-reg-look-style')) {
   const lst = document.createElement('style');
   lst.id = 'cm-reg-look-style';
   lst.textContent = `
-    /* реестр в стиле остальных таблиц CRM: тёмная шапка на голубом, строки через одну, тёмный текст */
-    [data-uid="ozazmpm4o4v"] .ant-table-thead > tr > th, [data-uid="formtbl000001"] .ant-table-thead > tr > th, [data-uid="ipb7gfluldk"] .ant-table-thead > tr > th { background:#e9edf5 !important; color:#1f2433 !important; font-weight:600 !important; font-size:12.5px; border-bottom:2px solid #c3cad8 !important; }
+    #registry-local-tabs { display:flex; flex-wrap:wrap; gap:4px 6px; align-items:center; width:100%; padding:5px 6px; background:#f3f5f9; border:1px solid #dfe3ec; border-radius:8px; }
+    #registry-local-tabs .registry-local-tab { cursor:pointer; margin:0; padding:6px 10px; border-radius:6px; color:#3a4256; white-space:nowrap; }
+    #registry-local-tabs .registry-local-tab:hover { background:#eef2f9; color:#1c2d58; }
+    #registry-local-tabs .registry-local-tab.ant-tabs-tab-active { background:#dde5f3; color:#1c2d58; font-weight:600; }
+    #registry-local-tabs .registry-local-tab.ant-tabs-tab-active .ant-tabs-tab-btn { color:inherit; text-shadow:none; }
+    #registry-local-tabs .cm-reg-tools { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
+    #registry-local-tabs .cm-reg-tools button { min-height:30px; }
+    #registry-local-tabs :focus-visible { outline:2px solid #2f4a8a; outline-offset:2px; }
+    @media (max-width:700px) { #registry-local-tabs .cm-reg-tools { margin-left:0; } }
+    [data-uid="ozazmpm4o4v"] .ant-table-thead > tr > th, [data-uid="formtbl000001"] .ant-table-thead > tr > th, [data-uid="ipb7gfluldk"] .ant-table-thead > tr > th { background:#e9edf5 !important; color:#1f2433 !important; font-weight:600 !important; font-size:12.5px; border-bottom:1px solid #c3cad8 !important; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row > td { color:#1f2433; font-size:13.5px; border-bottom-color:#dfe3ec !important; }
-    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td { background:#f3f5f9; }
+    [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row:nth-child(odd):not(.cm-notif-row) > td { background:#f8f9fc; }
     .main-registry-clickable-rows .ant-table-tbody > tr.ant-table-row:not(.cm-notif-row):hover > td { background:#eef2f9 !important; }
       /* телефон: в карточках реестра — только главное, остальное в карточке договора */
     @media (max-width: 700px) {

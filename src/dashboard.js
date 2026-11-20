@@ -40,7 +40,7 @@ if (!document.getElementById('cm-dash-style')) {
     #cm-dash-panel { padding: 4px 0 12px; color: #1f2433; }
     [aria-label="Открыть ИИ-чат"] { display:none !important; }
     #cm-dash-panel .dash-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
-    #cm-dash-panel .dash-title { font-size:18px; font-weight:700; margin-right:4px; }
+    #cm-dash-panel .dash-title { font-family:var(--kn-tilda,"Tilda Sans","Segoe UI",sans-serif); font-size:20px; font-weight:650; line-height:1.25; color:#1c2d58; margin-right:4px; }
     #cm-dash-panel .dash-sub { font-size:12px; color:#5b6478; }
     #cm-dash-panel .dash-link { border:1px solid #c3cad8; background:#fff; color:#1f2433; border-radius:6px; padding:3px 10px; font-size:12.5px; cursor:pointer; font-family:inherit; }
     #cm-dash-panel .dash-link:hover { border-color:#1c2d58; color:#1c2d58; }

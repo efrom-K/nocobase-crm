@@ -37,7 +37,7 @@ if (!document.getElementById('crm-objplan-style')) {
   st.textContent = `
     #crm-objplan { --ink:#1f2433; --muted:#5b6478; --line:#dfe3ec; --soft:#f3f5f9; --brand:#1c2d58; --brand2:#2f4a8a; --red:#c23b3b; color:var(--ink); font-size:13.5px; }
     #crm-objplan .op-wrap { display:grid; grid-template-columns:232px minmax(0,1fr) 340px; gap:16px; align-items:start; }
-    #crm-objplan .op-card { background:#fff; border:1px solid var(--line); border-radius:10px; }
+    #crm-objplan .op-card { background:#fff; border:1px solid var(--line); border-radius:8px; }
     #crm-objplan .op-cap { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#5b6478; }
     /* объекты */
     #crm-objplan .op-objs { padding:12px 8px 8px; position:sticky; top:8px; max-height:calc(100vh - 150px); overflow:auto; }
@@ -110,7 +110,7 @@ if (!document.getElementById('crm-objplan-style')) {
     @media(max-width:800px) { #crm-objplan .op-map-wrap { display:flex; flex-direction:column; gap:12px; height:auto; min-height:0; max-height:none; padding:0; border:0; overflow:visible; background:none; } #crm-objplan .op-map-list { height:260px; flex:none; } #crm-objplan .op-map-center { position:relative; height:460px; flex:none; order:2; } #crm-objplan .op-map-card { max-height:none; order:3; } #crm-objplan .op-map-canvas { border-radius:14px; } #crm-objplan .op-route { top:12px; left:12px; right:12px; } }
     /* шапка */
     #crm-objplan .op-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:10px; }
-    #crm-objplan .op-title { font-size:20px; font-weight:700; line-height:1.15; margin-right:4px; }
+    #crm-objplan .op-title { font-family:var(--kn-tilda,"Tilda Sans","Segoe UI",sans-serif); font-size:20px; font-weight:650; line-height:1.25; color:#1c2d58; margin-right:4px; }
     #crm-objplan .op-title small { display:block; font-size:12px; font-weight:500; color:var(--muted); margin-top:2px; }
     #crm-objplan .op-grow { flex:1; }
     #crm-objplan .op-seg { display:inline-flex; flex-wrap:wrap; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; }

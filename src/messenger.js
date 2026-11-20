@@ -284,7 +284,7 @@ function injectStyle() {
     .msgr-chat-main { flex:1; min-width:0; display:flex; flex-direction:column; }
     .msgr-chat-head { padding:13px 16px; border-bottom:1px solid #dfe3ec; display:flex; align-items:center; gap:11px; background:linear-gradient(180deg,#fff,#f3f5f9); cursor:pointer; }
     .msgr-chat-head-info { flex:1; min-width:0; }
-    .msgr-chat-title { font-weight:700; font-size:15px; color:#1f2433; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .msgr-chat-title { font-family:var(--kn-tilda,"Tilda Sans","Segoe UI",sans-serif); font-weight:650; font-size:16px; color:#1c2d58; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .msgr-chat-sub { font-size:11.5px; color:#8a92a3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .msgr-chat-close { margin-left:auto; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#8a92a3; font-size:18px; transition:background .12s; flex-shrink:0; }
     .msgr-chat-close:hover { background:#f3f5f9; color:#3a4256; }
@@ -360,7 +360,7 @@ function injectStyle() {
     .msgr-composer textarea { flex:1; resize:none; border:1px solid #dfe3ec; border-radius:14px; padding:9px 14px; font-size:13.5px; font-family:inherit; outline:none; height:38px; max-height:110px; background:#f3f5f9; transition:border-color .15s; }
     .msgr-composer textarea:focus { border-color:#1c2d58; background:#fff; }
     .msgr-send-btn { width:38px; height:38px; border-radius:50%; background:#1c2d58; border:none; color:#fff; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(28,45,88,.35); transition:transform .12s; }
-    .msgr-send-btn:hover { transform:scale(1.06); }
+    .msgr-send-btn:not(:disabled):hover { background:#2f4a8a; }
     .msgr-send-btn:disabled { opacity:.5; cursor:default; transform:none; }
 
     .msgr-modal-box { position:fixed; top:50%; left:50%; transform:translate(-50%,-46%) scale(.96); background:#fff; border-radius:14px; width:380px; max-width:92vw; max-height:80vh; z-index:3001; opacity:0; transition:all .2s; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 60px rgba(10,15,30,.28); }

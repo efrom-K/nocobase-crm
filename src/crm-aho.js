@@ -34,7 +34,7 @@ if (!document.getElementById('crm-aho-style')) {
     .hr { color:#1f2433; font-size:14px; }
     [aria-label="Открыть ИИ-чат"] { display:none !important; }
     .hr-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
-    .hr-title { font-size:20px; font-weight:700; }
+    .hr-title { font-family:var(--kn-tilda,"Tilda Sans","Segoe UI",sans-serif); font-size:20px; font-weight:650; line-height:1.25; color:#1c2d58; }
     .hr-tabs { display:flex; gap:2px; border-bottom:1px solid #dfe3ec; margin-bottom:14px; flex-wrap:wrap; }
     .hr-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#3a4256; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
     .hr-tab.on { color:#1c2d58; border-bottom-color:#1c2d58; font-weight:600; }
@@ -65,7 +65,7 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-tile-v.red { color:#c23b3b; }
     .hr-tile-n { font-size:12px; color:#5b6478; margin-top:2px; }
     .hr-cols { display:grid; grid-template-columns:minmax(0, 3fr) minmax(0, 2fr); gap:12px; align-items:start; }
-    .hr-card { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; margin-bottom:12px; }
+    .hr-card { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; margin-bottom:12px; }
     .hr-card-t { font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
     .hr-card-t .hr-btn { margin-left:auto; }
     .hr-card-t small { font-weight:400; color:#5b6478; }

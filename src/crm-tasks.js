@@ -33,8 +33,8 @@ if (!document.getElementById('crm-tk-style')) {
   st.textContent = `
     .tk { color:#1f2433; font-size:14px; }
     [aria-label="Открыть ИИ-чат"] { display:none !important; }
-    .tk-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:4px; }
-    .tk-title { font-size:20px; font-weight:700; }
+    .tk-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    .tk-title { font-family:var(--kn-tilda,"Tilda Sans","Segoe UI",sans-serif); font-size:20px; font-weight:650; line-height:1.25; color:#1c2d58; }
     .tk-sub { color:#5b6478; font-size:13px; margin-bottom:14px; }
     .tk-tabs { display:flex; gap:2px; border-bottom:1px solid #dfe3ec; margin-bottom:14px; flex-wrap:wrap; }
     .tk-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#3a4256; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
@@ -157,7 +157,7 @@ if (!document.getElementById('crm-tk-style')) {
     @media (max-width: 600px) { #crm-tasks .st-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
     #crm-tasks .st-hot { display:inline-block; color:#8a5a00; background:#f6eedb; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
     .tk-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(460px, 1fr)); gap:12px; }
-    .tk-card { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; }
+    .tk-card { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; }
     .tk-card-t { font-weight:600; margin-bottom:8px; }
     .tk table, .tk-modal table { width:100%; border-collapse:collapse; font-size:13px; }
     .tk th, .tk-modal th { text-align:left; font-weight:600; color:#3a4256; padding:6px 8px; border-bottom:1px solid #dfe3ec; white-space:nowrap; }

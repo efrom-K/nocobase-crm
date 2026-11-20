@@ -102,7 +102,7 @@ async function api(path, opts) {
     .ml-tbtn:disabled { color: #c3cad8; cursor: default; background: transparent; }
     .ml-tbtn svg { color: #5b6478; }
     .ml-tbtn.icon { width: 34px; padding: 0; justify-content: center; }
-    .ml-title { font-size: 17px; font-weight: 600; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 8px; padding: 4px 8px; }
+    .ml-title { font-family:var(--kn-tilda,"Tilda Sans","Segoe UI",sans-serif); font-size:18px; font-weight:650; color:#1c2d58; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 8px; padding: 4px 8px; }
     .ml-title:hover { background: #e9edf5; }
     .ml-title small { font-size: 13px; font-weight: 400; color: var(--ml-blue); }
     .ml-search { margin-left: auto; position: relative; width: min(340px, 36%); }
@@ -172,7 +172,7 @@ async function api(path, opts) {
     .ml-quick-reply { margin-top: 22px; border: 1px solid var(--ml-line); border-radius: 12px; padding: 14px 16px; color: var(--ml-gray); cursor: text; font-size: 14px; }
     .ml-quick-reply:hover { border-color: #c3cad8; }
     .ml-quick { display: flex; gap: 8px; margin-top: 12px; }
-    .ml-btn { height: 36px; padding: 0 16px; border-radius: 10px; border: 1px solid #c3cad8; background: #fff; color: var(--ml-text); font-size: 14px; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+    .ml-btn { height: 36px; padding: 0 16px; border-radius: 6px; border: 1px solid #c3cad8; background: #fff; color: var(--ml-text); font-size: 14px; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
     .ml-btn:hover { border-color: var(--ml-blue); color: var(--ml-blue); }
     .ml-btn-primary { background: var(--ml-blue); border-color: var(--ml-blue); color: #fff; font-weight: 600; }
     .ml-btn-primary:hover { background: var(--ml-blue-h); border-color: var(--ml-blue-h); color: #fff; }
@@ -273,8 +273,8 @@ async function api(path, opts) {
     .ml-sched-main span { color: var(--ml-gray); }
     .ml-sched-err { color: #c23b3b; font-size: 12.5px; }
     .ml-send-group { display: inline-flex; }
-    .ml-send-group .ml-btn-primary:first-child { border-radius: 10px 0 0 10px; }
-    .ml-send-group .ml-btn-primary + .ml-btn-primary { border-radius: 0 10px 10px 0; border-left: 1px solid rgba(255,255,255,.35); padding: 0 10px; }
+    .ml-send-group .ml-btn-primary:first-child { border-radius: 6px 0 0 6px; }
+    .ml-send-group .ml-btn-primary + .ml-btn-primary { border-radius: 0 6px 6px 0; border-left: 1px solid rgba(255,255,255,.35); padding: 0 10px; }
     .ml-when input { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #c3cad8; border-radius: 10px; padding: 0 12px; font-size: 14px; font-family: inherit; }
     @media (max-width: 900px) { .ml-side { width: 64px; flex-basis: 64px; } .ml-folder-name, .ml-folder-count, .ml-compose-btn span, .ml-side-foot span, .ml-folder-add span { display: none; } .ml-from { width: 120px; flex-basis: 120px; } .ml-snip { display: none; } }
     /* телефон: папки — полоска сверху, письмо — две строки (кто · дата / тема), «Написать» — круглая кнопка внизу, новое письмо — на весь экран над клавиатурой */

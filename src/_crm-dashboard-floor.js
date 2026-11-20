@@ -45,8 +45,18 @@ function crmMountFloor(mount) {
       .crm-dfloor-tile[data-tone=alert] b { color:#ad3434; }
       .crm-dfloor small { color:#5b6478; font-size:12px; }
       .crm-dfloor-panel { padding:12px 14px; }
-      .crm-dfloor-attention { margin-bottom:12px; }
+      .crm-dfloor-main { display:grid; grid-template-columns:minmax(0,2fr) minmax(300px,1fr); align-items:start; gap:12px; margin-bottom:12px; }
+      .crm-dfloor-attention { scroll-margin-top:75px; }
+      .crm-dfloor-attention > details { border-top:1px solid #e9edf5; padding-top:10px; margin-top:10px; }
+      .crm-dfloor-legend { display:flex; flex-wrap:wrap; gap:6px 12px; margin:8px 0; }
+      .crm-dfloor-legend span { display:inline-flex; align-items:center; gap:5px; }
+      .crm-dfloor-legend i { width:11px; height:11px; border:1px solid #8a92a3; border-radius:3px; }
+      .crm-dfloor-room-card { margin-top:12px; padding:12px 14px; border:1px solid #dfe3ec; border-radius:8px; background:#f8f9fc; }
+      .crm-dfloor-room-card dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px 16px; margin:10px 0 0; }
+      .crm-dfloor-room-card dt { color:#5b6478; font-size:12px; } .crm-dfloor-room-card dd { margin:0; overflow-wrap:anywhere; }
+      .crm-dfloor-room-card p { white-space:pre-wrap; margin:8px 0 0; }
       .crm-dfloor-attention h3 { margin-bottom:6px; }
+      .crm-dfloor-attention > ul { max-height:420px; overflow:auto; }
       .crm-dfloor-attention ul,.crm-dfloor-side ul { list-style:none; margin:0; padding:0; }
       .crm-dfloor-attention li + li,.crm-dfloor-side li + li { border-top:1px solid #e9edf5; }
       .crm-dfloor .crm-dfloor-alert { width:100%; display:grid; grid-template-columns:8px minmax(0,1fr) auto; gap:10px; align-items:center;
@@ -58,18 +68,17 @@ function crmMountFloor(mount) {
       .crm-dfloor-alert em { font-size:12px; font-style:normal; color:#784900; background:#f6eedb; padding:2px 8px; border-radius:5px; }
       .crm-dfloor-alert[data-urgent] em { color:#9c2829; background:#f9e6e6; }
       .crm-dfloor summary { color:#1c2d58; font-weight:650; cursor:pointer; }
-      .crm-dfloor-work { margin-top:12px; scroll-margin-top:75px; }
+      .crm-dfloor-work { scroll-margin-top:75px; }
       .crm-dfloor-bar { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:flex-end; margin:12px 0 8px; }
       .crm-dfloor-bar label { display:grid; gap:3px; min-width:0; color:#5b6478; font-size:12px; }
       .crm-dfloor select { max-width:min(330px,100%); min-height:32px; padding:4px 8px; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; background:#fff; font-size:13px; }
       .crm-dfloor-layers { display:inline-flex; gap:2px; padding:2px; background:#eef2f9; border:1px solid #dfe3ec; border-radius:7px; }
       .crm-dfloor-layers button { border:0; border-radius:5px; padding:4px 9px; background:transparent; color:#3a4256; font-size:13px; }
       .crm-dfloor-layers button[aria-pressed=true] { color:#1c2d58; background:#fff; box-shadow:0 1px 2px #1c2d5820; font-weight:650; }
-      .crm-dfloor-grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(245px,1fr); gap:14px; align-items:start; }
       .crm-dfloor svg { display:block; width:100%; height:clamp(270px,44vh,475px); background:#f8f9fc; border:1px solid #dfe3ec; border-radius:6px; }
       .crm-dfloor svg [role=button] { cursor:pointer; }
       .crm-dfloor svg [role=button]:focus polygon { stroke:#2f4a8a; stroke-width:3; }
-      .crm-dfloor-side { min-width:0; overflow-wrap:anywhere; border-left:1px solid #e9edf5; padding-left:14px; }
+      .crm-dfloor-side { min-width:0; overflow-wrap:anywhere; margin-top:8px; }
       .crm-dfloor-side li { padding:7px 0; }
       .crm-dfloor-side section { margin-top:12px; }
       .crm-dfloor-side button,.crm-dfloor-table button,.crm-dfloor-grid details button { padding:0; border:0; background:transparent; color:#1c2d58; text-align:left; font-weight:600; }
@@ -81,7 +90,7 @@ function crmMountFloor(mount) {
       .crm-dfloor th { background:#eef2f9; color:#1c2d58; font-size:12px; white-space:nowrap; }
       .crm-dfloor tbody tr:hover { background:#f8f9fc; }
       @media(max-width:900px) { .crm-dfloor-tiles { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-      @media(max-width:750px) { .crm-dfloor-grid { grid-template-columns:1fr; } .crm-dfloor-side { border-left:0; border-top:1px solid #e9edf5; padding:12px 0 0; } }
+      @media(max-width:850px) { .crm-dfloor-main { grid-template-columns:1fr; } }
     `;
     document.head.appendChild(style);
   }
@@ -147,11 +156,19 @@ function crmMountFloor(mount) {
         const id = Number(r.id), pts = crmFloorPoints(r), state = crmFloorRoomState(r,data.contracts);
         const cx = pts.reduce(function(s,p) { return s + p[0]; },0) / pts.length, cy = pts.reduce(function(s,p) { return s + p[1]; },0) / pts.length;
         const count = marks.get(id) || 0;
-        const label = esc((r.code || r.title || id) + ' · ' + state);
+        const tenant = data.contracts.get(Number(r.contract_id))?.tenant_name || '';
+        const words = String(tenant).replace(/^(ООО|ИП|АО|ПАО)\s+/i,'').replace(/[«»"]/g,'').trim();
+        const roomWidth = Math.max(...pts.map(function(p) { return p[0]; })) - Math.min(...pts.map(function(p) { return p[0]; }));
+        const maxChars = Math.max(3,Math.floor(roomWidth / (size * .43)) - 1);
+        const shortTenant = words.length > maxChars ? words.slice(0,maxChars - 1) + '…' : words;
+        const label = esc([r.code || r.title || id,state,tenant].filter(Boolean).join(' · '));
+        const caption = mode === 'rent' && shortTenant ? '<tspan x="' + cx + '" dy="1.2em" font-size=".78em">' + esc(shortTenant) + '</tspan>' : '';
+        const clip = 'crm-dfloor-clip-' + id;
         return '<g role="button" tabindex="0" aria-label="' + label + '" aria-pressed="' + (selected === id) + '" data-floor-room="' + id + '"><title>' + label + '</title><polygon points="' +
           pts.map(function(p) { return p.join(','); }).join(' ') + '" fill="' + (mode === 'bti' ? '#fff' : color[state]) + '" fill-opacity="' + (mode === 'bti' ? '.35' : '1') +
           '" stroke="' + (selected === id ? '#2f4a8a' : '#8a92a3') + '" vector-effect="non-scaling-stroke" stroke-width="' + (selected === id ? 3 : 1) + '"/>' +
-          '<text x="' + cx + '" y="' + cy + '" font-size="' + size + '" text-anchor="middle" dominant-baseline="middle" pointer-events="none" fill="' + ((mode === 'requests' || mode === 'late') && count ? '#a02729' : '#1c2d58') + '">' + esc(r.code || '') + ((mode === 'requests' || mode === 'late') && count ? ' · ' + count : '') + '</text></g>';
+          '<clipPath id="' + clip + '"><polygon points="' + pts.map(function(p) { return p.join(','); }).join(' ') + '"/></clipPath>' +
+          '<text clip-path="url(#' + clip + ')" x="' + cx + '" y="' + (caption ? cy - size * .48 : cy) + '" font-size="' + size + '" text-anchor="middle" dominant-baseline="middle" pointer-events="none" fill="' + ((mode === 'requests' || mode === 'late') && count ? '#a02729' : '#1c2d58') + '">' + esc(r.code || '') + ((mode === 'requests' || mode === 'late') && count ? ' · ' + count : '') + caption + '</text></g>';
       }).join('') +
       walls.map(function(i) { return '<line x1="' + i.x1 + '" y1="' + i.y1 + '" x2="' + i.x2 + '" y2="' + i.y2 + '" stroke="#1c2d58" vector-effect="non-scaling-stroke" pointer-events="none"/>'; }).join('') + '</svg>';
   }
@@ -215,18 +232,36 @@ function crmMountFloor(mount) {
       tile('Заявки в работе',data.requestsAvailable ? data.requests.length : '—','requests','Заявки по объекту →') +
       tile('Требует внимания',data.requestsAvailable ? allLate : '—','attention',data.requestsAvailable ? 'Просрочено · аварий ' + urgent : 'Заявки недоступны', allLate || urgent) +
       tile('Планы и помещения',data.plansAvailable ? data.plans.length : '—','plan','Этажи, арендаторы и свободные площади →') + '</div>';
+    const statusNames = { new:'Новая', in_work:'В работе', waiting:'Ждёт', dept:'В отделе', done:'На приёмке' };
     const attentionPanel = '<section class="crm-dfloor-panel crm-dfloor-attention" data-floor-anchor="attention"><h3>Требует внимания</h3>' +
-      (attention.length ? '<ul>' + attention.slice(0,5).map(function(r) {
+      (attention.length ? '<ul>' + attention.map(function(r) {
         const obj = data.objects.find(function(o) { return o.name === r.object_name; });
         if (!obj) return '';
         const urgent = r.urgency === 'emergency';
         return '<li><button class="crm-dfloor-alert" type="button" data-floor-object="' + Number(obj.id) + '" data-floor-highlight="' + Number(r.id) + '"' +
           (urgent ? ' data-urgent' : '') + '><i aria-hidden="true"></i><span><strong>' + esc(r.title || ('Заявка №' + r.id)) + '</strong><small>' +
-          esc([r.object_name,r.due_date && ('срок ' + String(r.due_date).slice(0,10).split('-').reverse().join('.'))].filter(Boolean).join(' · ')) +
+          esc([r.object_name,r.due_date && ('срок ' + String(r.due_date).slice(0,10).split('-').reverse().join('.')),statusNames[r.status]].filter(Boolean).join(' · ')) +
           '</small></span><em>' + (urgent ? 'Авария' : 'Просрочено') + '</em></button></li>';
-      }).join('') + '</ul>' : '<small>' + (data.requestsAvailable ? 'Аварий и просроченных заявок нет.' : 'Заявки недоступны с текущими правами.') + '</small>') + '</section>';
-    body.innerHTML = cards + attentionPanel + (overview ? '<details class="crm-dfloor-panel" data-floor-overview' + (expanded ? ' open' : '') +
-      '><summary>Сводка по объектам</summary>' + overview + '</details>' : '') +
+      }).join('') + '</ul>' : '<small>' + (data.requestsAvailable ? 'Аварий и просроченных заявок нет.' : 'Заявки недоступны с текущими правами.') + '</small>') +
+      (data.requestsAvailable ? '<details' + (mode === 'requests' || mode === 'late' ? ' open' : '') + '><summary>' +
+        (mode === 'late' ? 'Просроченные заявки объекта' : 'Заявки объекта') + ' · ' + activeRequests.length + '</summary><div class="crm-dfloor-side">' +
+        requestRows(activeRequests,allRooms) + '</div></details>' : '') +
+      '<details><summary>Задачи объекта' + (data.tasksAvailable ? ' · ' + currentTasks.length : '') + '</summary><div class="crm-dfloor-side">' + taskPanel + '</div></details></section>';
+    const roomFields = room ? [
+      ['Статус',crmFloorRoomState(room,data.contracts)],['Площадь по документам',room.area_sqm != null ? room.area_sqm + ' м²' : null],
+      ['Этаж / план',plan.title],['Назначение',room.purpose],['Отопление',room.heating],['Арендатор',contract?.tenant_name],
+      ['Договор',contract?.contract_number],['Окончание договора',contract?.end_date && String(contract.end_date).slice(0,10).split('-').reverse().join('.')],
+      ['Прежние номера',Array.isArray(room.old_codes) ? room.old_codes.join(', ') : null]
+    ] : [];
+    const roomCard = room ? '<section class="crm-dfloor-room-card"><h3>Помещение ' + esc([room.code,room.title].filter(Boolean).join(' · ')) + '</h3><dl>' +
+      roomFields.filter(function(x) { return x[1]; }).map(function(x) { return '<div><dt>' + x[0] + '</dt><dd>' + esc(x[1]) + '</dd></div>'; }).join('') +
+      '</dl>' + (room.note ? '<p>' + esc(room.note) + '</p>' : '') +
+      (contract ? '<p><a href="/admin/b5znz7yxpy3?open=active:' + Number(contract.id) + '">Открыть договор →</a></p>' : '') +
+      (related.length ? '<details class="crm-dfloor-side"><summary>Заявки по договору · ' + related.length + '</summary>' + requestRows(related,allRooms) + '</details>' : '') + '</section>' : '';
+    const legend = mode !== 'bti' && rooms.length ? '<div class="crm-dfloor-legend" aria-label="Статусы помещений">' + Object.keys(color).map(function(state) {
+      return '<span><i aria-hidden="true" style="background:' + color[state] + '"></i><small>' + state + '</small></span>';
+    }).join('') + '</div>' : '';
+    body.innerHTML = cards + '<div class="crm-dfloor-main">' +
       '<section class="crm-dfloor-panel crm-dfloor-work" data-floor-anchor="work"><h3>Планы и работа по объекту</h3><div class="crm-dfloor-bar">' + (data.objects.length > 1 ? '<label>Объект <select data-floor-select="object">' +
       opts(data.objects,objectId) + '</select></label>' : '<strong>' + esc(object.name) + '</strong>') +
       (plan ? '<label>План <select data-floor-select="plan">' + opts(plans,planId) + '</select></label>' : '') +
@@ -235,12 +270,12 @@ function crmMountFloor(mount) {
       '</div></div><p>' + (allRooms.length ? 'Свободно по нанесённым помещениям: <b>' + areaText + ' м²</b> · ' : '') +
       (data.requestsAvailable ? 'Открытых заявок: <b>' + requests.length + '</b>' : 'Заявки недоступны') + '</p>' +
       (data.incomplete ? '<p><small>Часть данных недоступна с текущими правами.</small></p>' : '') +
-      '<div class="crm-dfloor-grid"><div>' + (plan ? (plan.schematic ? '<small>Условная схема</small>' : '') + draw(plan,rooms,marks) + pickRooms : '<p>' + (data.plansAvailable ? 'Для объекта нет доступного плана.' : 'Планы недоступны.') + '</p>') +
-      '</div><div class="crm-dfloor-side">' + (room ? '<strong>' + esc(room.code || room.title) + '</strong><p>' +
-         esc([crmFloorRoomState(room,data.contracts),room.area_sqm != null ? room.area_sqm + ' м²' : '',contract && contract.tenant_name,contract && contract.contract_number,contract && contract.end_date && ('до ' + contract.end_date)].filter(Boolean).join(' · ')) +
-         '</p>' + (data.requestsAvailable ? '<strong>Заявки по договору</strong>' + requestRows(related,allRooms) : '') : '') +
-      (data.requestsAvailable ? '<strong>' + (mode === 'late' ? 'Просроченные заявки объекта' : 'Заявки объекта') + '</strong>' + requestRows(activeRequests,allRooms) : '') +
-      taskPanel + '</div></div></section>';
+      (plan ? (plan.schematic ? '<small>Условная схема</small>' : '') + draw(plan,rooms,marks) + legend + roomCard + pickRooms :
+        '<p>' + (data.plansAvailable ? 'Для объекта нет доступного плана.' : 'Планы недоступны.') + '</p>') +
+      '</section>' + attentionPanel + '</div>' +
+      (overview ? '<details class="crm-dfloor-panel" data-floor-overview' + (expanded ? ' open' : '') +
+        '><summary>Сводка по объектам</summary>' + overview + '</details>' : '');
+
   }
   function chooseObject(id, late) {
     objectId = Number(id); planId = selected = requestId = null;
@@ -289,8 +324,8 @@ function crmMountFloor(mount) {
       const kind = shortcut.getAttribute('data-floor-jump');
       if (kind === 'requests') { mode = 'requests'; render(); }
       const summary = body.querySelector('[data-floor-overview]');
-      if (kind === 'objects' && summary) { summary.open = expanded = true; summary.querySelector('summary').focus(); return; }
-      const dest = body.querySelector('[data-floor-anchor="' + (kind === 'attention' ? 'attention' : 'work') + '"]');
+      if (kind === 'objects' && summary) { summary.open = expanded = true; summary.scrollIntoView({block:'nearest'}); summary.querySelector('summary').focus(); return; }
+      const dest = body.querySelector('[data-floor-anchor="' + (kind === 'attention' || kind === 'requests' ? 'attention' : 'work') + '"]');
       dest.scrollIntoView({block:'start'});
       dest.querySelector('button,select')?.focus();
       return;

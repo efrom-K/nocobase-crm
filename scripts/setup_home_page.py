@@ -79,15 +79,15 @@ if sys.argv[1:] in (['--prepare-managers'], ['--grant-managers']):
         roles = ('admin', 'requests_control', 'rental_dept', 'crm_test', 'accounting_dept', 'legal_dept')
         for role in roles:
             result = call('roles/%s/desktopRoutes:add' % role, [page['id'], target['id']])
-            if 'data' not in result:
+            if 'error' in result:
                 sys.exit('Could not grant dashboard route to ' + role)
         unwanted = psql('select "roleName" from "rolesDesktopRoutes" where "desktopRouteId"=%d' % int(target['id'])).splitlines()
         for role in set(unwanted) - set(roles):
             result = call('roles/%s/desktopRoutes:remove' % urllib.parse.quote(role, safe=''), [target['id']])
-            if 'data' not in result:
+            if 'error' in result:
                 sys.exit('Could not restrict dashboard route for ' + role)
         result = call('desktopRoutes:update?filterByTk=%s' % target['id'], {'hidden': False})
-        if 'data' not in result:
+        if 'error' in result:
             sys.exit('Could not show dashboard')
         print('Manager dashboard published')
     sys.exit(0)

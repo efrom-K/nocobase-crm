@@ -71,10 +71,11 @@ function crmMountFloor(mount) {
       .crm-dfloor-work { scroll-margin-top:75px; }
       .crm-dfloor-bar { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:flex-end; margin:12px 0 8px; }
       .crm-dfloor-bar label { display:grid; gap:3px; min-width:0; color:#5b6478; font-size:12px; }
-      .crm-dfloor select { max-width:min(330px,100%); min-height:32px; padding:4px 8px; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; background:#fff; font-size:13px; }
-      .crm-dfloor-layers { display:inline-flex; gap:2px; padding:2px; background:#eef2f9; border:1px solid #dfe3ec; border-radius:7px; }
-      .crm-dfloor-layers button { border:0; border-radius:5px; padding:4px 9px; background:transparent; color:#3a4256; font-size:13px; }
-      .crm-dfloor-layers button[aria-pressed=true] { color:#1c2d58; background:#fff; box-shadow:0 1px 2px #1c2d5820; font-weight:650; }
+      .crm-dfloor select { appearance:none; width:min(300px,75vw); max-width:100%; min-height:32px; padding:5px 30px 5px 9px;
+        border:1px solid #c3cad8; border-radius:6px; color:#1f2433; background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%235b6478' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center; font-size:13px; }
+      .crm-dfloor select:hover { border-color:#2f4a8a; }
+      .crm-dfloor-plan + .crm-dfloor-plan { margin-top:16px; }
+      .crm-dfloor-plan-title { display:flex; align-items:baseline; gap:8px; margin:8px 0 5px; }
       .crm-dfloor svg { display:block; width:100%; height:clamp(270px,44vh,475px); background:#f8f9fc; border:1px solid #dfe3ec; border-radius:6px; }
       .crm-dfloor svg [role=button] { cursor:pointer; }
       .crm-dfloor svg [role=button]:focus polygon { stroke:#2f4a8a; stroke-width:3; }
@@ -96,7 +97,7 @@ function crmMountFloor(mount) {
   }
   mount.innerHTML = '<h2 class="crm-dfloor-title">Дашборд управляющих</h2><div class="crm-dfloor" data-floor-body></div>';
   const body = mount.querySelector('[data-floor-body]');
-  let data, objectId, planId, selected, requestId, mode = 'rent', expanded = false;
+  let data, objectId, selected, requestId, lateOnly = false, showRequests = false, expanded = false;
   const list = async function(name, extra) {
     const response = await ctx.api.resource(name).list(Object.assign({ paginate:false }, extra));
     const rows = response && response.data && (response.data.data || response.data);
@@ -147,11 +148,14 @@ function crmMountFloor(mount) {
     const w = Math.max(1, Number(plan.width_m) || 1), h = Math.max(1, Number(plan.height_m) || 1);
     const size = Math.max(w,h) / 42;
     const bg = typeof plan.bg_url === 'string' && /^\/(?:storage\/uploads|files)\/[a-z0-9_./%-]+$/i.test(plan.bg_url) && !plan.bg_url.includes('..') ? plan.bg_url : '';
+    const rect = plan.drawing?.bg;
+    const b = rect && [rect.x,rect.y,rect.w,rect.h].every(Number.isFinite) && rect.w > 0 && rect.h > 0
+      ? rect : {x:0,y:0,w,h};
     const walls = (plan.drawing && Array.isArray(plan.drawing.items) ? plan.drawing.items : []).filter(function(i) {
       return i && i.k === 'wall' && [i.x1,i.y1,i.x2,i.y2].every(Number.isFinite);
     });
     return '<svg viewBox="0 0 ' + w + ' ' + h + '" aria-label="Поэтажный план">' +
-      (mode === 'bti' && bg ? '<image href="' + esc(bg) + '" width="' + w + '" height="' + h + '" preserveAspectRatio="none"/>' : '') +
+      (bg ? '<image href="' + esc(bg) + '" x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h + '" preserveAspectRatio="none"/>' : '') +
       rooms.map(function(r) {
         const id = Number(r.id), pts = crmFloorPoints(r), state = crmFloorRoomState(r,data.contracts);
         const cx = pts.reduce(function(s,p) { return s + p[0]; },0) / pts.length, cy = pts.reduce(function(s,p) { return s + p[1]; },0) / pts.length;
@@ -161,14 +165,16 @@ function crmMountFloor(mount) {
         const roomWidth = Math.max(...pts.map(function(p) { return p[0]; })) - Math.min(...pts.map(function(p) { return p[0]; }));
         const maxChars = Math.max(3,Math.floor(roomWidth / (size * .43)) - 1);
         const shortTenant = words.length > maxChars ? words.slice(0,maxChars - 1) + '…' : words;
-        const label = esc([r.code || r.title || id,state,tenant].filter(Boolean).join(' · '));
-        const caption = mode === 'rent' && shortTenant ? '<tspan x="' + cx + '" dy="1.2em" font-size=".78em">' + esc(shortTenant) + '</tspan>' : '';
+        const label = esc([r.code || r.title || id,state,tenant,count ? 'Заявок: ' + count : ''].filter(Boolean).join(' · '));
+        const caption = shortTenant ? '<tspan x="' + cx + '" dy="1.2em" font-size=".78em">' + esc(shortTenant) + '</tspan>' : '';
         const clip = 'crm-dfloor-clip-' + id;
         return '<g role="button" tabindex="0" aria-label="' + label + '" aria-pressed="' + (selected === id) + '" data-floor-room="' + id + '"><title>' + label + '</title><polygon points="' +
-          pts.map(function(p) { return p.join(','); }).join(' ') + '" fill="' + (mode === 'bti' ? '#fff' : color[state]) + '" fill-opacity="' + (mode === 'bti' ? '.35' : '1') +
+          pts.map(function(p) { return p.join(','); }).join(' ') + '" fill="' + color[state] + '" fill-opacity="' + (bg ? '.72' : '1') +
           '" stroke="' + (selected === id ? '#2f4a8a' : '#8a92a3') + '" vector-effect="non-scaling-stroke" stroke-width="' + (selected === id ? 3 : 1) + '"/>' +
           '<clipPath id="' + clip + '"><polygon points="' + pts.map(function(p) { return p.join(','); }).join(' ') + '"/></clipPath>' +
-          '<text clip-path="url(#' + clip + ')" x="' + cx + '" y="' + (caption ? cy - size * .48 : cy) + '" font-size="' + size + '" text-anchor="middle" dominant-baseline="middle" pointer-events="none" fill="' + ((mode === 'requests' || mode === 'late') && count ? '#a02729' : '#1c2d58') + '">' + esc(r.code || '') + ((mode === 'requests' || mode === 'late') && count ? ' · ' + count : '') + caption + '</text></g>';
+          '<text clip-path="url(#' + clip + ')" x="' + cx + '" y="' + (caption ? cy - size * .48 : cy) + '" font-size="' + size + '" text-anchor="middle" dominant-baseline="middle" pointer-events="none" fill="#1c2d58">' + esc(r.code || '') + caption + '</text>' +
+          (count ? '<g pointer-events="none"><circle cx="' + (cx + Math.min(roomWidth * .34,size * 2.3)) + '" cy="' + (cy - size * 1.15) + '" r="' + (size * .58) + '" fill="#c23b3b"/>' +
+            '<text x="' + (cx + Math.min(roomWidth * .34,size * 2.3)) + '" y="' + (cy - size * 1.15) + '" fill="#fff" font-size="' + (size * .67) + '" text-anchor="middle" dominant-baseline="middle">' + count + '</text></g>' : '') + '</g>';
       }).join('') +
       walls.map(function(i) { return '<line x1="' + i.x1 + '" y1="' + i.y1 + '" x2="' + i.x2 + '" y2="' + i.y2 + '" stroke="#1c2d58" vector-effect="non-scaling-stroke" pointer-events="none"/>'; }).join('') + '</svg>';
   }
@@ -177,17 +183,15 @@ function crmMountFloor(mount) {
     const object = data.objects.find(function(o) { return Number(o.id) === objectId; }) || data.objects[0];
     objectId = Number(object.id);
     const plans = data.plans.filter(function(p) { return Number(p.object_id) === objectId; });
-    const plan = plans.find(function(p) { return Number(p.id) === planId; }) || plans[0];
-    planId = plan ? Number(plan.id) : null;
     const allRooms = data.rooms.filter(function(r) { return Number(r.object_id) === objectId; });
-    const rooms = allRooms.filter(function(r) { return Number(r.plan_id) === planId; });
-    const room = rooms.find(function(r) { return Number(r.id) === selected; });
+    const room = allRooms.find(function(r) { return Number(r.id) === selected; });
+    const roomPlan = room && plans.find(function(p) { return Number(p.id) === Number(room.plan_id); });
     const requests = data.requests.filter(function(r) { return r.object_name === object.name; });
     const today = localToday();
     const isLate = function(r) { return r.status !== 'done' && r.due_date && String(r.due_date).slice(0,10) < today; };
-    const activeRequests = mode === 'late' ? requests.filter(isLate) : requests;
+    const activeRequests = lateOnly ? requests.filter(isLate) : requests;
     const marks = new Map();
-    activeRequests.forEach(function(r) {
+    requests.forEach(function(r) {
       const match = crmFloorMatch(r,allRooms);
       if (match.length === 1) marks.set(Number(match[0].id),(marks.get(Number(match[0].id)) || 0) + 1);
     });
@@ -196,10 +200,6 @@ function crmMountFloor(mount) {
     const contract = room && data.contracts.get(Number(room.contract_id));
     const related = room ? requests.filter(function(r) { return crmFloorMatch(r,allRooms).includes(room); }) : [];
     const areaText = new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(area);
-    const free = rooms.filter(function(r) { return crmFloorRoomState(r,data.contracts) === 'Свободно'; });
-    const pickRooms = mode === 'rent' && free.length ? '<details><summary>Свободные помещения на плане (' + free.length + ')</summary><ul>' + free.map(function(r) {
-      return '<li><button type="button" data-floor-room="' + Number(r.id) + '">' + esc([r.code,r.title,r.area_sqm != null ? r.area_sqm + ' м²' : ''].filter(Boolean).join(' · ')) + '</button></li>';
-    }).join('') + '</ul></details>' : '';
     const overview = data.objects.length > 1 && data.requestsAvailable ? '<div class="crm-dfloor-table"><table><thead><tr><th>Объект</th><th>Управляющий</th><th>Открыто</th><th>Просрочено</th><th>Аварии</th></tr></thead><tbody>' +
       data.objects.map(function(o) {
         const own = data.requests.filter(function(r) { return r.object_name === o.name; });
@@ -216,11 +216,6 @@ function crmMountFloor(mount) {
         return '<li><a href="/admin/tskpage01?open=task:' + Number(t.id) + '">' + esc(t.title || ('Задача №' + t.id)) + '</a> <small>' +
           esc([t.executor_name,t.due_date && ('до ' + String(t.due_date).slice(0,10))].filter(Boolean).join(' · ')) + '</small></li>';
       }).join('') + '</ul>' : '') + '</section>' : '<p>Задачи недоступны.</p>';
-    const roomOptions = allRooms.filter(function(r) { return plans.some(function(p) { return Number(p.id) === Number(r.plan_id); }); }).map(function(r) {
-      const tenant = data.contracts.get(Number(r.contract_id));
-      const floor = plans.find(function(p) { return Number(p.id) === Number(r.plan_id); });
-      return { id:r.id, name:[r.code || r.title, floor.title, tenant && tenant.tenant_name].filter(Boolean).join(' · ') };
-    });
     const allLate = data.requests.filter(isLate).length;
     const urgent = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done'; }).length;
     const attention = data.requests.filter(function(r) { return r.urgency === 'emergency' && r.status !== 'done' || isLate(r); })
@@ -243,13 +238,13 @@ function crmMountFloor(mount) {
           esc([r.object_name,r.due_date && ('срок ' + String(r.due_date).slice(0,10).split('-').reverse().join('.')),statusNames[r.status]].filter(Boolean).join(' · ')) +
           '</small></span><em>' + (urgent ? 'Авария' : 'Просрочено') + '</em></button></li>';
       }).join('') + '</ul>' : '<small>' + (data.requestsAvailable ? 'Аварий и просроченных заявок нет.' : 'Заявки недоступны с текущими правами.') + '</small>') +
-      (data.requestsAvailable ? '<details' + (mode === 'requests' || mode === 'late' ? ' open' : '') + '><summary>' +
-        (mode === 'late' ? 'Просроченные заявки объекта' : 'Заявки объекта') + ' · ' + activeRequests.length + '</summary><div class="crm-dfloor-side">' +
+      (data.requestsAvailable ? '<details' + (showRequests ? ' open' : '') + '><summary>' +
+        (lateOnly ? 'Просроченные заявки объекта' : 'Заявки объекта') + ' · ' + activeRequests.length + '</summary><div class="crm-dfloor-side">' +
         requestRows(activeRequests,allRooms) + '</div></details>' : '') +
       '<details><summary>Задачи объекта' + (data.tasksAvailable ? ' · ' + currentTasks.length : '') + '</summary><div class="crm-dfloor-side">' + taskPanel + '</div></details></section>';
     const roomFields = room ? [
       ['Статус',crmFloorRoomState(room,data.contracts)],['Площадь по документам',room.area_sqm != null ? room.area_sqm + ' м²' : null],
-      ['Этаж / план',plan.title],['Назначение',room.purpose],['Отопление',room.heating],['Арендатор',contract?.tenant_name],
+      ['Этаж / план',roomPlan?.title],['Назначение',room.purpose],['Отопление',room.heating],['Арендатор',contract?.tenant_name],
       ['Договор',contract?.contract_number],['Окончание договора',contract?.end_date && String(contract.end_date).slice(0,10).split('-').reverse().join('.')],
       ['Прежние номера',Array.isArray(room.old_codes) ? room.old_codes.join(', ') : null]
     ] : [];
@@ -258,71 +253,70 @@ function crmMountFloor(mount) {
       '</dl>' + (room.note ? '<p>' + esc(room.note) + '</p>' : '') +
       (contract ? '<p><a href="/admin/b5znz7yxpy3?open=active:' + Number(contract.id) + '">Открыть договор →</a></p>' : '') +
       (related.length ? '<details class="crm-dfloor-side"><summary>Заявки по договору · ' + related.length + '</summary>' + requestRows(related,allRooms) + '</details>' : '') + '</section>' : '';
-    const legend = mode !== 'bti' && rooms.length ? '<div class="crm-dfloor-legend" aria-label="Статусы помещений">' + Object.keys(color).map(function(state) {
+    const legend = allRooms.length ? '<div class="crm-dfloor-legend" aria-label="Статусы помещений">' + Object.keys(color).map(function(state) {
       return '<span><i aria-hidden="true" style="background:' + color[state] + '"></i><small>' + state + '</small></span>';
-    }).join('') + '</div>' : '';
+    }).join('') + '<span><i aria-hidden="true" style="background:#c23b3b;border-color:#c23b3b;border-radius:50%"></i><small>Есть заявки</small></span></div>' : '';
+    const floorViews = plans.map(function(plan) {
+      const rooms = allRooms.filter(function(r) { return Number(r.plan_id) === Number(plan.id); });
+      return '<section class="crm-dfloor-plan"><div class="crm-dfloor-plan-title"><strong>' + esc([plan.building,plan.title].filter(Boolean).join(' · ')) + '</strong>' +
+        (plan.schematic ? '<small>Условная схема</small>' : '') + '</div>' + draw(plan,rooms,marks) + (roomPlan === plan ? roomCard : '') + '</section>';
+    }).join('');
     body.innerHTML = cards + '<div class="crm-dfloor-main">' +
       '<section class="crm-dfloor-panel crm-dfloor-work" data-floor-anchor="work"><h3>Планы и работа по объекту</h3><div class="crm-dfloor-bar">' + (data.objects.length > 1 ? '<label>Объект <select data-floor-select="object">' +
       opts(data.objects,objectId) + '</select></label>' : '<strong>' + esc(object.name) + '</strong>') +
-      (plan ? '<label>План <select data-floor-select="plan">' + opts(plans,planId) + '</select></label>' : '') +
-      (roomOptions.length ? '<label>Помещение / арендатор <select data-floor-select="room"><option value="">Выбрать</option>' + opts(roomOptions,selected) + '</select></label>' : '') +
-      '<div class="crm-dfloor-layers" role="group" aria-label="Режим плана">' + [['rent','Аренда'],['requests','Заявки'],['bti','БТИ']].map(function(m) { return '<button type="button" data-floor-mode="' + m[0] + '" aria-pressed="' + (mode === m[0] || mode === 'late' && m[0] === 'requests') + '">' + m[1] + '</button>'; }).join('') +
-      '</div></div><p>' + (allRooms.length ? 'Свободно по нанесённым помещениям: <b>' + areaText + ' м²</b> · ' : '') +
+      '</div><p>' + (allRooms.length ? 'Свободно по нанесённым помещениям: <b>' + areaText + ' м²</b> · ' : '') +
       (data.requestsAvailable ? 'Открытых заявок: <b>' + requests.length + '</b>' : 'Заявки недоступны') + '</p>' +
       (data.incomplete ? '<p><small>Часть данных недоступна с текущими правами.</small></p>' : '') +
-      (plan ? (plan.schematic ? '<small>Условная схема</small>' : '') + draw(plan,rooms,marks) + legend + roomCard + pickRooms :
-        '<p>' + (data.plansAvailable ? 'Для объекта нет доступного плана.' : 'Планы недоступны.') + '</p>') +
+      legend + (floorViews || '<p>' + (data.plansAvailable ? 'Для объекта нет доступного плана.' : 'Планы недоступны.') + '</p>') +
       '</section>' + attentionPanel + '</div>' +
       (overview ? '<details class="crm-dfloor-panel" data-floor-overview' + (expanded ? ' open' : '') +
         '><summary>Сводка по объектам</summary>' + overview + '</details>' : '');
 
   }
   function chooseObject(id, late) {
-    objectId = Number(id); planId = selected = requestId = null;
-    mode = late ? 'late' : 'rent';
+    objectId = Number(id); selected = requestId = null;
+    lateOnly = showRequests = late;
   }
   body.addEventListener('change',function(e) {
     if (e.target.getAttribute('data-floor-select') === 'object') { chooseObject(e.target.value,false); render(); body.querySelector('[data-floor-select="object"]').focus(); }
-    if (e.target.getAttribute('data-floor-select') === 'room') {
-      selected = Number(e.target.value) || null; requestId = null;
-      const room = data.rooms.find(function(r) { return Number(r.id) === selected && Number(r.object_id) === objectId; });
-      if (room) planId = Number(room.plan_id);
-      render(); body.querySelector('[data-floor-select="room"]')?.focus();
-    }
-    if (e.target.getAttribute('data-floor-select') === 'plan') { planId = Number(e.target.value); selected = requestId = null; render(); body.querySelector('[data-floor-select="plan"]').focus(); }
+
   });
   function activate(target) {
+    expanded = body.querySelector('[data-floor-overview]')?.open || false;
     const room = target.getAttribute('data-floor-room'), request = target.getAttribute('data-floor-request');
-    const object = target.getAttribute('data-floor-object'), layer = target.getAttribute('data-floor-mode');
+    const object = target.getAttribute('data-floor-object');
     if (room) { selected = Number(room); requestId = null; }
-    if (layer) mode = layer;
     if (object) {
-      expanded = body.querySelector('[data-floor-overview]')?.open || false;
       chooseObject(object,target.hasAttribute('data-floor-late'));
     }
     const highlight = target.getAttribute('data-floor-highlight');
     if (request || highlight) {
       requestId = Number(request || highlight);
-      if (highlight) mode = 'requests'; selected = null;
+      if (highlight) showRequests = true;
+      selected = null;
       const r = data.requests.find(function(x) { return Number(x.id) === requestId; });
       const matches = crmFloorMatch(r,data.rooms.filter(function(x) { return Number(x.object_id) === objectId; }));
-      if (matches.length === 1) { planId = Number(matches[0].plan_id); selected = Number(matches[0].id); }
+      if (matches.length === 1) selected = Number(matches[0].id);
     }
     render();
     if (object) {
-      body.querySelector('[data-floor-anchor="work"]').scrollIntoView({block:'start'});
-      body.querySelector('[data-floor-select="object"],[data-floor-mode]')?.focus();
+      (body.querySelector('.crm-dfloor-room-card') || body.querySelector('[data-floor-anchor="work"]')).scrollIntoView({block:'nearest'});
+      body.querySelector(selected ? '[data-floor-room="' + selected + '"]' : '[data-floor-select="object"]')?.focus({preventScroll:true});
       return;
     }
-    const attr = room ? 'room' : request ? 'request' : object ? 'object' : 'mode';
-    const value = room || request || object || layer;
-    body.querySelector('[data-floor-' + attr + '="' + value + '"]')?.focus();
+    if (room) {
+      body.querySelector('[data-floor-room="' + room + '"]')?.focus({preventScroll:true});
+      body.querySelector('.crm-dfloor-room-card')?.scrollIntoView({block:'nearest'});
+    } else if (request) {
+      body.querySelector('[data-floor-request="' + request + '"]')?.focus({preventScroll:true});
+      body.querySelector('.crm-dfloor-room-card')?.scrollIntoView({block:'nearest'});
+    }
   }
   body.addEventListener('click',function(e) {
     const shortcut = e.target.closest('[data-floor-jump]');
     if (shortcut) {
       const kind = shortcut.getAttribute('data-floor-jump');
-      if (kind === 'requests') { mode = 'requests'; render(); }
+      if (kind === 'requests') { showRequests = true; lateOnly = false; render(); }
       const summary = body.querySelector('[data-floor-overview]');
       if (kind === 'objects' && summary) { summary.open = expanded = true; summary.scrollIntoView({block:'nearest'}); summary.querySelector('summary').focus(); return; }
       const dest = body.querySelector('[data-floor-anchor="' + (kind === 'attention' || kind === 'requests' ? 'attention' : 'work') + '"]');
@@ -330,7 +324,7 @@ function crmMountFloor(mount) {
       dest.querySelector('button,select')?.focus();
       return;
     }
-    const target = e.target.closest('[data-floor-room],[data-floor-mode],[data-floor-object],[data-floor-request]');
+    const target = e.target.closest('[data-floor-room],[data-floor-object],[data-floor-request]');
     if (target) activate(target);
   });
   body.addEventListener('keydown',function(e) {

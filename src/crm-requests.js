@@ -1,3 +1,4 @@
+// @include src/_crm-request-row.js
 // «Тестовая страница» (/admin/j3a32zo1jzo, блок crmblock001): заявки по объектам — ремонт, эксплуатация, вопросы
 // арендаторов, расторжения, платежи, проверки. Тестовый контур CRM; коллекции — scripts/setup_crm_requests.py.
 // Процесс (решения владельца 28.09, переделка под KPI управляющих 21.10): Новая → В работе → Ждёт / В отделе → Решена (на приёмке)
@@ -50,16 +51,7 @@ if (!document.getElementById('crm-req-style')) {
       border:1px solid #c3cad8; border-radius:6px; padding:6px 10px; font:inherit; font-size:13.5px; background:#fff; color:#1f2433; box-sizing:border-box; }
     #crm-req .rq-filters select, #crm-req .rq-filters input { min-width:150px; }
     #crm-req .rq-list { display:flex; flex-direction:column; gap:8px; }
-    #crm-req .rq-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:center; border:1px solid #dfe3ec; border-left:4px solid var(--c); border-radius:8px; padding:10px 14px; background:#fff; cursor:pointer; }
-    #crm-req .rq-row:hover { border-color:#dde5f3; border-left-color:var(--c); }
-    #crm-req .rq-row-title { font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #crm-req .rq-row-sub { font-size:12.5px; color:#5b6478; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #crm-req .rq-row-side { text-align:right; font-size:12.5px; white-space:nowrap; }
-    .rq-from { display:inline-block; padding:1px 7px; border-radius:4px; font-size:12px; font-weight:600; margin-right:6px; white-space:nowrap; }
-    .rq-from.t { color:#2f4a8a; background:#eef2f9; border:1px solid #9cc7f0; }
-    .rq-from.c { color:#8a5a00; background:#f6eedb; border:1px solid #e8d3a6; }
-    .rq-pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; border:1px solid; white-space:nowrap; }
-    .rq-late { color:#c23b3b; font-weight:600; }
+    ${CRM_REQUEST_ROW_CSS.split('\n').map(function(line) { return line.includes('.rq-row') ? line.replace(/^(\s*)/, '$1#crm-req ') : line; }).join('\n')}
     #crm-req .rq-empty { color:#8a92a3; padding:24px 0; text-align:center; }
     /* статистика */
     #crm-req .st { display:flex; flex-direction:column; gap:16px; }
@@ -398,13 +390,7 @@ function rqRenderList() {
     : '<div class="rq-empty">' + (rq.data.reqs.length ? 'Под фильтр ничего не попало' : 'Заявок пока нет — нажмите «+ Новая заявка»') + '</div>';
 }
 function rqRowHtml(r) {
-  const late = rqLate(r), open = RQ_OPEN.indexOf(r.status) !== -1, u = RQ_URG[r.urgency] || RQ_URG.normal;
-  const due = r.due_date ? (late ? '<span class="rq-late">просрочено на ' + rqDays(String(r.due_date).slice(0, 10), rqToday()) + ' дн. (срок ' + rqDate(r.due_date) + ')</span>' : 'срок ' + rqDate(r.due_date)) : '';
-  return '<div class="rq-row" data-open="' + r.id + '" style="--c:' + (r.urgency === 'emergency' && open ? '#c23b3b' : (RQ_ST[r.status] || {}).c || '#c3cad8') + ';">'
-    + '<div style="min-width:0;"><div class="rq-row-title">' + ((r.urgency === 'urgent' || r.urgency === 'emergency') && open ? '<span style="color:' + u.c + ';">' + (r.urgency === 'emergency' ? '⚠ ' : '') + rqEsc(u.l) + ' · </span>' : '') + rqEsc(r.title || 'Без названия') + '</div>'
-    + '<div class="rq-row-sub">' + rqFromTag(r) + (r.demo ? '<span class="rq-pill" style="color:#5b6478;border-color:#c3cad8;margin-right:6px;">демо</span>' : '') + '№' + r.id + ' · ' + rqEsc([r.object_name, r.tenant_label, r.kind].filter(Boolean).join(' · ')) + '</div></div>'
-    + '<div class="rq-row-side">' + rqPill(r.status) + (r.status === 'waiting' && r.wait_reason ? ' <span style="color:#5b6478;">ждём ' + rqEsc(r.wait_reason) + '</span>' : '')
-    + '<div style="margin-top:3px;color:#3a4256;">' + rqEsc(rqUser(r.responsible_id)) + (open && due ? ' · ' + due : '') + '</div></div></div>';
+  return crmRequestRowHtml(r, { rqLate, RQ_OPEN, RQ_URG, rqDays, rqToday, rqDate, RQ_ST, rqEsc, rqFromTag, rqPill, rqUser });
 }
 
 function rqOnChange(e) {

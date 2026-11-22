@@ -1,4 +1,5 @@
 // @include src/_crm-config.js
+// @include src/_crm-department-links.js
 // @include src/_crm-room-card.js
 // @include src/_crm-request-row.js
 // @include src/_crm-dashboard-floor.js

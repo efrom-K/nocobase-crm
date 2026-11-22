@@ -58,6 +58,8 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-tile { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; }
     .hr-tile[data-go], .hr-sect { cursor:pointer; }
     .hr-sect { display:flex; flex-direction:column; }
+    .hr-sect { text-align:left; font:inherit; color:inherit; cursor:pointer; }
+    .hr-att-jump { display:inline-block; margin:0 0 10px; color:#1c2d58; font-size:13px; font-weight:600; }
     .hr-sect:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(28,45,88,.08); }
     .hr-tile-go { margin-top:auto; padding-top:6px; font-size:12.5px; color:#1c2d58; }
     .hr-sect .hr-tile-l { color:#1f2433; font-weight:600; font-size:13.5px; }
@@ -1035,8 +1037,8 @@ function hRender() {
     hr.staffView = hr.tab === 'org' ? 'org' : 'list';
   } else {                     // дашборд HR: без вкладок, раздел открывается с главного экрана
     head = hr.tab === 'home'
-      ? '<div class="hr-head"><div class="hr-title">Дашборд HR</div>' + crmSettingsGear('HR') + (hCan() ? '<button class="hr-btn" data-act="hrxlsx">⬇ Выгрузить в Excel</button><button class="hr-btn" data-act="hrxlsxle">⬇ Excel по юрлицам</button>' : '') + '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
-      : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд HR</button><div class="hr-title">' + HR_SECTIONS[hr.tab] + '</div>'
+      ? '<div class="hr-head"><div class="hr-title">Кадры</div>' + crmSettingsGear('HR') + (hCan() ? '<button class="hr-btn" data-act="hrxlsx">⬇ Выгрузить в Excel</button><button class="hr-btn" data-act="hrxlsxle">⬇ Excel по юрлицам</button>' : '') + '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button></div>'
+      : '<div class="hr-head"><button class="hr-btn" data-tab="home" aria-label="Назад к разделу Кадры">← Кадры</button><div class="hr-title">' + HR_SECTIONS[hr.tab] + '</div>'
         + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button>' : '') + '</div>';
   }
   hRoot().innerHTML = head + '<div data-hr-body></div>';
@@ -1544,6 +1546,7 @@ function hXlsSpec(o, leIds) {
 function hOnClick(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
   if (c('a[href^="tel:"], a[href^="mailto:"], a[target], a[data-hrfile], a.hr-cb')) return;
+  if (c('[data-att-jump]')) { e.preventDefault(); const target = hRoot().querySelector('#hr-attention'); if (target) target.scrollIntoView(); return; }
   const vacView = c('[data-vac-view]');
   if (vacView && hCan()) { hr.vacView = vacView.getAttribute('data-vac-view'); hRenderVac(); return; }
   const tab = c('[data-tab]');
@@ -1622,8 +1625,8 @@ function hRenderHome() {
   // плитка = раздел: название, главная цифра, пояснение, сколько там пунктов «требует внимания»
   const tile = function(sec, v, n) {
     const a = al.filter(function(x) { return x.sec === sec && x.lvl < 2; }), red = a.some(function(x) { return x.lvl === 0; });
-    return '<div class="hr-tile hr-sect" data-tab="' + sec + '"><div class="hr-tile-l">' + HR_SECTIONS[sec] + (a.length ? ' <span class="hr-chip ' + (red ? 'red' : 'orange') + '">' + a.length + '</span>' : '') + '</div>'
-      + '<div class="hr-tile-v">' + v + '</div><div class="hr-tile-n">' + n + '</div><div class="hr-tile-go">открыть →</div></div>';
+    return '<button type="button" class="hr-tile hr-sect" data-tab="' + sec + '"><span class="hr-tile-l">' + HR_SECTIONS[sec] + (a.length ? ' <span class="hr-chip ' + (red ? 'red' : 'orange') + '">' + a.length + '</span>' : '') + '</span>'
+      + '<span class="hr-tile-v">' + v + '</span><span class="hr-tile-n">' + n + '</span><span class="hr-tile-go">Открыть →</span></button>';
   };
   const lvlC = ['#c23b3b', '#8a5a00', '#1c2d58'];
   const leRows = d.les.map(function(l) { return [l.id, l.name]; }).concat([['', 'Юрлицо не указано']]).map(function(x) {
@@ -1632,7 +1635,7 @@ function hRenderHome() {
     const n = function(k) { return l.filter(function(e) { return (e.employment_type || 'staff') === k; }).length; };
     return '<tr data-go="' + hEsc(JSON.stringify({ tab: 'staff', le: x[0] === '' ? '-' : String(x[0]), type: '' })) + '" style="cursor:pointer;"><td>' + hEsc(x[1]) + '</td><td class="n">' + n('staff') + '</td><td class="n">' + n('external') + '</td><td class="n">' + n('self') + '</td><td class="n"><b>' + l.length + '</b></td></tr>';
   }).join('');
-  hBody().innerHTML = '<div class="hr-tiles hr-tiles-home" style="--tiles:7;">'
+  hBody().innerHTML = '<a class="hr-att-jump" href="#hr-attention" data-att-jump>К требованиям внимания (' + al.length + ') ↓</a><div class="hr-tiles hr-tiles-home" style="--tiles:7;">'
     + tile('staff', act.length, 'штат ' + byType('staff') + ' · внештатные ' + byType('external') + ' · самозанятые ' + byType('self'))
     + tile('hire', d.vacancies.filter(function(v) { return v.status === 'open'; }).length + ' <small style="font-size:13px;font-weight:400;">вакансий</small>',
         'кандидатов в работе ' + d.cands.filter(function(c) { return ['new', 'interview', 'offer'].indexOf(c.stage) !== -1; }).length
@@ -1648,7 +1651,7 @@ function hRenderHome() {
         return tile('own', withOwn + ' <small style="font-size:13px;font-weight:400;">из ' + d.les.length + ' юрлиц</small>', 'учредители указаны · учредителей ' + Object.keys(owners).length);
       })()
     + '</div><div class="hr-cols"><div>'
-    + '<div class="hr-card"><div class="hr-card-t">Требует внимания <small>' + al.length + '</small></div>'
+    + '<div class="hr-card" id="hr-attention"><div class="hr-card-t">Требует внимания <small>' + al.length + '</small></div>'
     + (al.length ? al.map(function(x) {
         return '<div class="hr-al" data-go="' + hEsc(JSON.stringify(x.go)) + '"><span class="hr-dot" style="background:' + lvlC[x.lvl] + ';"></span><div class="hr-al-t">' + hEsc(x.text) + (x.sub ? '<div class="hr-al-s">' + hEsc(x.sub) + '</div>' : '') + '</div></div>';
       }).join('') : '<div class="hr-hint">Всё в порядке</div>') + '</div></div><div>'

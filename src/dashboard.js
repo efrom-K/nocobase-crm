@@ -4,6 +4,7 @@
 // правило владельца «ни одного примерного числа». Шкала — только там, где есть доля от целого (сдано из общей площади).
 // Доступ к странице — через права ролей на пункт меню (сейчас только admin).
 // @include src/_crm-config.js
+// @include src/_crm-department-links.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
 // @include src/_crm-profile.js
@@ -217,7 +218,19 @@ async function loadDashData() {
   return { active: all[0], forming: all[1], completed: all[2], periods: all[3], objects: all[4] };
 }
 
-ctx.render('<div id="cm-dash-panel"><div class="dash-empty">Загрузка…</div></div>');
+ctx.render('<div data-department-links></div><div id="cm-dash-panel"><div class="dash-empty">Загрузка…</div></div>');
+async function showCompanyLinks() {
+  const activeRole = ctx.api.auth && ctx.api.auth.role;
+  let roles = [];
+  if (!activeRole || activeRole === '__union__') {
+    try {
+      const response = await ctx.api.request({ url:'auth:check' });
+      roles = response.data.data.roles.map(function(role) { return role.name; });
+    } catch (e) { return; }
+  }
+  crmShowDepartmentLinks(ctx.element.querySelector('[data-department-links]'), activeRole, roles, ['legal_dept','accounting_dept']);
+}
+showCompanyLinks();
 function ensureDashPanel() {
   return (ctx.element && ctx.element.querySelector('#cm-dash-panel')) || document.getElementById('cm-dash-panel');
 }

@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const context = vm.createContext({});
+vm.runInContext(fs.readFileSync('src/_crm-department-links.js', 'utf8'), context);
+const roles = ['rental_dept', 'legal_dept', 'accounting_dept'];
+const sections = (active, assigned) => context.crmDepartmentLinks(active, assigned, roles);
+assert.equal(sections('hr', roles), '');
+assert.doesNotMatch(sections('legal_dept', roles), /#drafts|stage=3/);
+assert.match(sections('legal_dept', roles), /stage=2/);
+assert.match(sections('rental_dept', roles), /#drafts/);
+assert.match(sections('__union__', ['accounting_dept']), /stage=3/);
+assert.equal(sections('', []), '');

@@ -5425,24 +5425,53 @@ function injectCreateContractButton() {
   search.style.minWidth = '0';
   search.style.maxWidth = '420px';
 
+  const createOptions = document.createElement('details');
+  createOptions.className = 'cm-create-options';
+  const summary = document.createElement('summary');
+  summary.className = 'cm-create-summary';
+  summary.innerHTML = '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Создать договор';
+  createOptions.appendChild(summary);
+  const menu = document.createElement('div');
+  menu.className = 'cm-create-menu';
+  menu.setAttribute('role', 'group');
+  menu.setAttribute('aria-label', 'Способ оформления');
+  createOptions.appendChild(menu);
+
   const btn = document.createElement('button');
   btn.id = 'cm-create-btn';
-  btn.innerHTML = '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Создать договор';
-  btn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:none;background:#1c2d58;color:#fff;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
+  btn.className = 'cm-create-choice';
+  btn.title = 'Стандартное поэтапное оформление договора';
+  btn.innerHTML = '<span>По этапам</span><small>Стандартное оформление договора</small>';
   btn.addEventListener('click', async function() {
+    createOptions.open = false;
+    summary.focus();
     await openDraftModal(null, false);
   });
-  parent.appendChild(btn);
+  menu.appendChild(btn);
 
   const quickBtn = document.createElement('button');
   quickBtn.id = 'cm-create-quick-btn';
-  quickBtn.innerHTML = '<svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Срочный договор';
-  quickBtn.title = 'Экстренное оформление: все данные одной формой, без этапов';
-  quickBtn.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid #e8d3a6;background:#f6eedb;color:#8a5a00;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.10);';
+  quickBtn.className = 'cm-create-choice';
+  quickBtn.innerHTML = '<span>Срочный договор</span><small>Все данные одной формой, без этапов</small>';
+  quickBtn.title = 'Срочный сценарий: все данные одной формой, без этапов оформления';
   quickBtn.addEventListener('click', async function() {
+    createOptions.open = false;
+    summary.focus();
     await openDraftModal(null, true);
   });
-  parent.appendChild(quickBtn);
+  menu.appendChild(quickBtn);
+  parent.appendChild(createOptions);
+
+  createOptions.addEventListener('focusout', function(e) {
+    if (!createOptions.contains(e.relatedTarget)) createOptions.open = false;
+  });
+  createOptions.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && createOptions.open) {
+      createOptions.open = false;
+      summary.focus();
+      e.preventDefault();
+    }
+  });
 }
 injectCreateContractButton();
 

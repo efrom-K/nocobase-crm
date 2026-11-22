@@ -47,6 +47,16 @@ if (!document.getElementById('crm-req-style')) {
     #crm-req .rq-chip.on { border-color:#1c2d58; background:#eef2f9; color:#121d3a; font-weight:600; }
     #crm-req .rq-chip.bad b { color:#c23b3b; }
     #crm-req .rq-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    #crm-req .rq-controls { display:grid; grid-template-columns:minmax(220px, 1fr) auto auto; align-items:start; gap:10px; margin-bottom:12px; }
+    #crm-req .rq-search { width:100%; min-width:0; }
+    #crm-req .rq-more-filters { border:1px solid #dfe3ec; border-radius:8px; padding:6px 10px; background:#fff; }
+    #crm-req .rq-more-filters summary { cursor:pointer; color:#3a4256; font-size:13px; font-weight:600; }
+    #crm-req .rq-more-filters summary span { color:#1c2d58; }
+    #crm-req .rq-more-filters[open] { grid-column:1 / -1; }
+    #crm-req .rq-more-filters .rq-filters { margin:10px 0 2px; }
+    #crm-req .rq-controls .rq-view { display:flex; gap:4px; background:transparent; padding:0; margin:0; }
+    #crm-req .rq-controls .rq-view button { border:1px solid #c3cad8; background:#fff; color:#3a4256; border-radius:6px; padding:6px 10px; font:inherit; font-size:13px; cursor:pointer; }
+    #crm-req .rq-controls .rq-view button.on { background:#eef2f9; border-color:#1c2d58; color:#121d3a; font-weight:600; box-shadow:none; }
     #crm-req select, #crm-req input[type=text], #crm-req input[type=date], #crm-req textarea, .rq-modal select, .rq-modal input[type=text], .rq-modal input[type=date], .rq-modal textarea {
       border:1px solid #c3cad8; border-radius:6px; padding:6px 10px; font:inherit; font-size:13.5px; background:#fff; color:#1f2433; box-sizing:border-box; }
     #crm-req .rq-filters select, #crm-req .rq-filters input { min-width:150px; }
@@ -184,6 +194,9 @@ if (!document.getElementById('crm-req-style')) {
     @media (max-width: 700px) { .kb { grid-template-columns:repeat(var(--n, 5), 260px); overflow-x:auto; } .kb-col-b { max-height:70vh; } }
     @media (max-width: 700px) {
       #crm-req .rq-new { margin-left:0; width:100%; padding:11px; font-size:15px; }
+      #crm-req .rq-controls { grid-template-columns:1fr; }
+      #crm-req .rq-controls .rq-view { grid-row:2; }
+      #crm-req .rq-more-filters[open] { grid-column:auto; }
       #crm-req .rq-filters select, #crm-req .rq-filters input { flex:1 1 45%; min-width:0; }
       #crm-req .rq-row { grid-template-columns:1fr; }
       #crm-req .rq-row-side { text-align:left; }
@@ -349,18 +362,22 @@ const RQ_QUICK = [
   ['closed', 'Закрытые', function(r) { return r.status === 'closed' || r.status === 'cancelled'; }],
   ['all', 'Все', function() { return true; }]
 ];
+function rqFilterLabel() {
+  const count = [rq.obj, rq.kind, rq.from, rq.resp].filter(Boolean).length;
+  return count ? 'Фильтры · ' + count : 'Фильтры';
+}
 function rqRenderListShell() {
   const d = rq.data;
   const objs = d.objects.map(function(o) { return o.name; });
   const people = Object.keys(d.users).map(Number).filter(function(id) { return d.reqs.some(function(r) { return Number(r.responsible_id) === id; }); });
-  document.getElementById('rq-body').innerHTML = '<div class="rq-chips" id="rq-chips"></div><div class="rq-filters">'
-    + '<select data-f="obj"><option value="">Все объекты</option>' + objs.map(function(o) { return '<option' + (rq.obj === o ? ' selected' : '') + '>' + rqEsc(o) + '</option>'; }).join('') + '</select>'
-    + '<select data-f="kind"><option value="">Все типы</option>' + RQ_KINDS.map(function(k) { return '<option' + (rq.kind === k ? ' selected' : '') + '>' + rqEsc(k) + '</option>'; }).join('') + '</select>'
-    + '<select data-f="from"><option value="">От всех</option>' + [['tenant', 'От арендаторов'], ['company', 'От компании']].map(function(x) { return '<option value="' + x[0] + '"' + (rq.from === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>'
-    + '<select data-f="resp"><option value="">Все ответственные</option>' + people.map(function(id) { return '<option value="' + id + '"' + (String(rq.resp) === String(id) ? ' selected' : '') + '>' + rqEsc(rqUser(id)) + '</option>'; }).join('') + '</select>'
-    + '<input type="text" data-f="q" placeholder="Поиск: суть, арендатор, номер" value="' + rqEsc(rq.q) + '">'
-    + '<div class="rq-view">' + [['list', 'Список'], ['board', 'Доска']].map(function(v) { return '<button data-view="' + v[0] + '"' + (rq.view === v[0] ? ' class="on"' : '') + '>' + v[1] + '</button>'; }).join('') + '</div>'
-    + '</div><div class="rq-list" id="rq-list"></div>';
+  document.getElementById('rq-body').innerHTML = '<div class="rq-controls"><input class="rq-search" type="text" data-f="q" aria-label="Поиск заявок" placeholder="Поиск по заявке, арендатору или номеру" value="' + rqEsc(rq.q) + '">'
+    + '<div class="rq-view" aria-label="Вид заявок">' + [['list', 'Список'], ['board', 'Доска']].map(function(v) { return '<button data-view="' + v[0] + '"' + (rq.view === v[0] ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + v[1] + '</button>'; }).join('') + '</div>'
+    + '<details class="rq-more-filters"><summary>' + rqFilterLabel() + '</summary><div class="rq-filters">'
+    + '<select data-f="obj" aria-label="Объект"><option value="">Все объекты</option>' + objs.map(function(o) { return '<option' + (rq.obj === o ? ' selected' : '') + '>' + rqEsc(o) + '</option>'; }).join('') + '</select>'
+    + '<select data-f="kind" aria-label="Тип заявки"><option value="">Все типы</option>' + RQ_KINDS.map(function(k) { return '<option' + (rq.kind === k ? ' selected' : '') + '>' + rqEsc(k) + '</option>'; }).join('') + '</select>'
+    + '<select data-f="from" aria-label="Источник заявки"><option value="">От всех</option>' + [['tenant', 'От арендаторов'], ['company', 'От компании']].map(function(x) { return '<option value="' + x[0] + '"' + (rq.from === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>'
+    + '<select data-f="resp" aria-label="Ответственный"><option value="">Все ответственные</option>' + people.map(function(id) { return '<option value="' + id + '"' + (String(rq.resp) === String(id) ? ' selected' : '') + '>' + rqEsc(rqUser(id)) + '</option>'; }).join('') + '</select>'
+    + '</div></details></div><div class="rq-chips" id="rq-chips"></div><div class="rq-list" id="rq-list"></div>';
   rqRenderList();
 }
 function rqFiltered(skipQuick) {
@@ -395,7 +412,11 @@ function rqRowHtml(r) {
 
 function rqOnChange(e) {
   const f = e.target.getAttribute('data-f');
-  if (f === 'obj' || f === 'kind' || f === 'resp' || f === 'from') { rq[f] = e.target.value; rqRenderList(); }
+  if (f === 'obj' || f === 'kind' || f === 'resp' || f === 'from') {
+    rq[f] = e.target.value;
+    rqRenderList();
+    e.target.closest('details').querySelector('summary').textContent = rqFilterLabel();
+  }
   const om = e.target.getAttribute('data-objset');
   if (om) rqSaveObjectPerson(e.target, om);
 }

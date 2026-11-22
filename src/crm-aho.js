@@ -56,6 +56,8 @@ if (!document.getElementById('crm-aho-style')) {
     .hr-tile { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; }
     .hr-tile[data-go], .hr-sect { cursor:pointer; }
     .hr-sect { display:flex; flex-direction:column; }
+    .hr-sect { text-align:left; font:inherit; color:inherit; cursor:pointer; }
+    .hr-att-jump { display:inline-block; margin:0 0 10px; color:#1c2d58; font-size:13px; font-weight:600; }
     .hr-sect:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(28,45,88,.08); }
     .hr-tile-go { margin-top:auto; padding-top:6px; font-size:12.5px; color:#1c2d58; }
     .hr-sect .hr-tile-l { color:#1f2433; font-weight:600; font-size:13.5px; }
@@ -611,8 +613,8 @@ let aLive = function() {};   // crmLive: отметить своё измене�
 async function aReload() { await aLoad(); aRender(); aLive(); }
 function aRender() {
   const head = ah.tab === 'home'
-    ? '<div class="hr-head"><div class="hr-title">Дашборд АХО</div>' + crmSettingsGear('АХО') + '<button class="hr-btn" data-act="ahoxlsx">⬇ Выгрузить в Excel</button>' + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
-    : '<div class="hr-head"><button class="hr-btn" data-tab="home">← Дашборд АХО</button><div class="hr-title">' + A_SECTIONS[ah.tab] + '</div></div>';
+    ? '<div class="hr-head"><div class="hr-title">Административно-хозяйственный отдел</div>' + crmSettingsGear('АХО') + '<button class="hr-btn" data-act="ahoxlsx">⬇ Выгрузить в Excel</button>' + '<button class="hr-new" data-act="newexp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Счёт</button></div>'
+    : '<div class="hr-head"><button class="hr-btn" data-tab="home" aria-label="Назад к разделу АХО">← АХО</button><div class="hr-title">' + A_SECTIONS[ah.tab] + '</div></div>';
   aRoot().innerHTML = head + '<div data-hr-body></div>';
   ({ home: aRenderHome, routines: aRenderRoutines, money: aRenderMoney, poa: aRenderPoa, fire: aRenderFire, mail: aRenderMail, cars: aRenderCars, mailing: aRenderMailing, att: aRenderAtt })[ah.tab]();
 }
@@ -633,8 +635,8 @@ function aRenderHome() {
   const d = ah.d, t = hToday(), al = aAlerts();
   const tile = function(sec, v, n) {
     const a = al.filter(function(x) { return x.sec === sec && x.lvl < 2; }), red = a.some(function(x) { return x.lvl === 0; });
-    return '<div class="hr-tile hr-sect" data-tab="' + sec + '"><div class="hr-tile-l">' + A_SECTIONS[sec] + (a.length ? ' <span class="hr-chip ' + (red ? 'red' : 'orange') + '">' + a.length + '</span>' : '') + '</div>'
-      + '<div class="hr-tile-v">' + v + '</div><div class="hr-tile-n">' + n + '</div><div class="hr-tile-go">открыть →</div></div>';
+    return '<button type="button" class="hr-tile hr-sect" data-tab="' + sec + '"><span class="hr-tile-l">' + A_SECTIONS[sec] + (a.length ? ' <span class="hr-chip ' + (red ? 'red' : 'orange') + '">' + a.length + '</span>' : '') + '</span>'
+      + '<span class="hr-tile-v">' + v + '</span><span class="hr-tile-n">' + n + '</span><span class="hr-tile-go">Открыть →</span></button>';
   };
   const sm = function(s) { return ' <small style="font-size:13px;font-weight:400;">' + s + '</small>'; };
   const act = d.routines.filter(function(r) { return r.active !== false; });
@@ -648,6 +650,7 @@ function aRenderHome() {
   const lvlC = ['#c23b3b', '#8a5a00', '#1c2d58'];
   const week = act.filter(function(r) { return r.next_on && hD(r.next_on) > t && hDays(t, r.next_on) <= 7; }).sort(function(a, b) { return hD(a.next_on).localeCompare(hD(b.next_on)); });
   aBody().innerHTML = (aIsApprover() ? '<div class="hr-only">Вы согласуете счета АХО — счета на согласовании выделены в ленте ниже.</div>' : '')
+    + '<a class="hr-att-jump" href="#aho-attention" data-att-jump>К требованиям внимания (' + al.length + ') ↓</a>'
     + '<div class="hr-tiles hr-tiles-home" style="--tiles:4;">'
     + tile('routines', todayR.length ? todayR.length + sm('на сегодня') : '✓', act.length + ' ' + hNoun(act.length, 'дело', 'дела', 'дел') + ' по регламенту')
     + tile('money', openExp.length + sm(hNoun(openExp.length, 'счёт', 'счёта', 'счетов') + ' в работе'), 'на согласовании ' + d.exps.filter(function(x) { return x.status === 'approval'; }).length + ' · оплачено в этом месяце ' + hMoney(paidMonth))
@@ -659,7 +662,7 @@ function aRenderHome() {
         (function() { const s = aAttDay(hToday(), ah.d.evToday); return 'опозданий ' + s.late + ' · данные СКУД ' + aSkudAge(); })())
     + tile('mailing', '✉', 'адреса арендаторов по объектам')
     + '</div><div class="hr-cols"><div>'
-    + '<div class="hr-card"><div class="hr-card-t">Требует внимания <small>' + al.length + '</small></div>'
+    + '<div class="hr-card" id="aho-attention"><div class="hr-card-t">Требует внимания <small>' + al.length + '</small></div>'
     + (al.length ? al.map(function(x) {
         return '<div class="hr-al" data-go="' + hEsc(JSON.stringify(x.go)) + '"><span class="hr-dot" style="background:' + lvlC[x.lvl] + ';"></span><div class="hr-al-t">' + hEsc(x.text) + (x.sub ? '<div class="hr-al-s">' + hEsc(x.sub) + '</div>' : '') + '</div></div>';
       }).join('') : '<div class="hr-hint">Всё в порядке</div>') + '</div></div><div>'
@@ -1439,6 +1442,7 @@ aRoot().addEventListener('focusout', function(e) { if (e.target.getAttribute && 
 // ---------- события ----------
 aRoot().addEventListener('click', function(e) {
   const c = function(s) { return e.target.closest ? e.target.closest(s) : null; };
+  if (c('[data-att-jump]')) { e.preventDefault(); const target = aRoot().querySelector('#aho-attention'); if (target) target.scrollIntoView(); return; }
   if (c('a[href], a[data-ahfile]') && !c('[data-act]')) return;
   const tab = c('[data-tab]');
   if (tab) { ah.tab = tab.getAttribute('data-tab'); aRender(); try { window.scrollTo(0, 0); } catch (err) { /* песочница */ } return; }

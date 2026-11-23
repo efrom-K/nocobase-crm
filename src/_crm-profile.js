@@ -320,7 +320,12 @@
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-labelledby',titleId);
     const close = m.close;
-    m.close = () => { close(); trigger?.focus(); };
+    m.close = () => {
+      close();
+      if (!trigger) return;
+      if (!trigger.matches('button,a[href],input,select,textarea,[tabindex]')) trigger.setAttribute('tabindex','-1');
+      setTimeout(() => trigger.focus(),0);
+    };
     const closeButton=m.querySelector('.kb-close');
     closeButton.onclick = () => m.close();
     m.addEventListener('keydown', ev => {

@@ -54,6 +54,7 @@
       "rules.js",
       "routes.js",
       "pyrus-payments.js",
+      "tasks.js",
       "portal.html",
       "knowledge.js",
       "object-map.html",

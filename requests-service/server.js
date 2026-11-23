@@ -54,6 +54,7 @@ async function nb(method, pathName, body) {   // запрос служебной
 }
 const q = (o) => encodeURIComponent(JSON.stringify(o));
 const list = (coll, params) => nb('GET', coll + ':list?paginate=false' + (params || ''));
+const taskAction = require('./tasks').createTaskActions({nb, list, q, ApiError});
 
 // кто пришёл: сессия NocoBase пользователя
 const tokenCache = new Map();
@@ -534,6 +535,7 @@ http.createServer(async (req, res) => {
       });
       return send(res, 200, route, origin);
     }
+    if (p === '/task-action' && req.method === 'POST') return send(res, 200, await taskAction(user, await readJson(req)), origin);
     if (p === '/acts' && req.method === 'GET') return send(res, 200, await acts(user), origin);
     if (p === '/create' && req.method === 'POST') return send(res, 200, await create(user, await readJson(req)), origin);
     if (p === '/act' && req.method === 'POST') return send(res, 200, await act(user, await readJson(req)), origin);

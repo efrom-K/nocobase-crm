@@ -72,6 +72,8 @@
   const st = document.createElement('style');
   st.id = 'crm-profile-style';
   st.textContent = `
+    .crmp-task-count { position:absolute; top:5px; right:2px; min-width:16px; height:16px; line-height:16px; padding:0 4px; border-radius:8px;
+      background:#c23b3b; color:#fff; font-size:10.5px; font-weight:600; text-align:center; box-sizing:border-box; pointer-events:none; }
     .crmp-ava { position:relative; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; flex:none; color:#fff; font-weight:600;
       background-size:cover !important; background-position:center !important; letter-spacing:.02em; }
     .crmp-badge { position:absolute; right:-2px; bottom:-2px; width:44%; height:44%; min-width:16px; min-height:16px; border-radius:50%; background:#fff;
@@ -827,9 +829,51 @@
       badge.style.top = '23px';
     }
   }
+  let taskCount = 0, taskBadge = null, taskCountRequest = 0;
+  function paintTaskCount() {
+    if (!taskCount) {
+      if (taskBadge) taskBadge.remove();
+      taskBadge = null;
+      return;
+    }
+    if (!taskBadge || !taskBadge.isConnected) {
+      const item = Array.from(document.querySelectorAll('.ant-menu-item')).find(function (node) {
+        return node.querySelector('a[href="/admin/tskpage01"]') || (node.innerText || '').trim() === 'Задачи';
+      });
+      if (!item) return;
+      taskBadge = document.createElement('span');
+      taskBadge.className = 'crmp-task-count';
+      item.style.position = 'relative';
+      item.appendChild(taskBadge);
+    }
+    const label = 'Новых задач: ' + taskCount;
+    taskBadge.title = label;
+    taskBadge.setAttribute('aria-label', label);
+    taskBadge.textContent = taskCount > 99 ? '99+' : String(taskCount);
+  }
+  async function refreshTaskCount() {
+    if (!P.me || document.hidden || !location.pathname.startsWith('/admin')) return;
+    const request = ++taskCountRequest;
+    try {
+      const res = await api.request({ url: 'crm_tasks:list', params: {
+        pageSize: 1, fields: ['id'], filter: { status: 'new', executor_id: P.me.id }
+      } });
+      const count = res.data && res.data.meta && res.data.meta.count;
+      if (request !== taskCountRequest || !Number.isInteger(count) || count < 0) return;
+      taskCount = count;
+      paintTaskCount();
+    } catch (error) {
+      if (request === taskCountRequest && [401, 403].includes(error.response?.status)) {
+        taskCount = 0;
+        paintTaskCount();
+      }
+    }
+  }
+  window.crmRefreshTaskCount = refreshTaskCount;
   function decorate(force) {
     const btn = document.querySelector('[data-testid=user-center-button]');
     paintMayDay(btn);
+    if (taskCount && (!taskBadge || !taskBadge.isConnected)) paintTaskCount();
     const me = P.me && (P.byId[P.me.id] || P.me);
     if (!me) return;
     const s = active(me);
@@ -894,12 +938,15 @@
   }
   load().then(function () {
     decorate(true);
+    refreshTaskCount();
     const deepLink = location.search.match(/[?&]knowledge=(open|[1-9]\d*)(?:&|$)/);
     if (deepLink) openKnowledge(Number(deepLink[1]) || undefined);
     if (/[?&]payment=open(?:&|$)/.test(location.search)) openPayment();
   });
   setInterval(decorate, 600);
   setInterval(load, 60000);
+  setInterval(refreshTaskCount, 20000);
+  document.addEventListener('visibilitychange', refreshTaskCount);
   document.addEventListener('click', function (ev) {
     const link = ev.target.closest && ev.target.closest('a[href="/rqsvc/payment-request"]');
     if (!link || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;

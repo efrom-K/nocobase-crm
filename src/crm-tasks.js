@@ -876,6 +876,7 @@ function tkOpenNew(preset) {
         author_id: tk.me.id, author_name: tkWho(tk.me.id), object_name: q('object_name').value || null,
         contract_id: Number(q('contract_id').value) || null, employee_id: q('kind').value === 'Кадры' ? (Number(q('employee_id').value) || null) : null, source: 'crm', observers: [...observers.keys()] };
       const rec = tkRows(await ctx.api.resource('crm_tasks').create({ values: vals }))[0];
+      if (window.crmRefreshTaskCount) window.crmRefreshTaskCount();
       await tkEvent(rec.id, 'create', 'Поставил задачу' + (fileId ? ', приложил файл' : ''), fileId);
       tkNotify(vals.executor_id, 'Новая задача №' + rec.id, (urg === 'asap' ? 'Горит! ' : urg === 'urgent' ? 'Срочно: ' : '') + title + (due ? ' (срок ' + tkDate(due) + ')' : ''), rec.id);
       if (ctl !== vals.executor_id) tkNotify(ctl, 'Задача №' + rec.id, 'Вы проверяете: ' + title, rec.id);
@@ -1055,6 +1056,7 @@ async function tkDo(t, a, v, v2, v3, v4) {
     if (Number(t.author_id) !== Number(tk.me.id)) return { err: 'Изменить участников может только постановщик' };
     if (!v.length) return { err: 'Выберите сотрудника', field: 1 };
     await tkParticipantAction(t, a, a === 'assign' ? { person: v } : { users: v });
+    if (a === 'assign' && window.crmRefreshTaskCount) window.crmRefreshTaskCount();
     return null;
   }
   if (a === 'edit') {
@@ -1069,6 +1071,7 @@ async function tkDo(t, a, v, v2, v3, v4) {
   }
   if (!upd) return { skip: true };
   await ctx.api.resource('crm_tasks').update({ filterByTk: t.id, values: upd });
+  if (t.status === 'new' && upd.status && window.crmRefreshTaskCount) window.crmRefreshTaskCount();
   await tkEvent(t.id, kind, ev);
   notify.forEach(function(n) { tkNotify(n[0], title, n[1], t.id); });
   Object.assign(t, upd);

@@ -244,11 +244,366 @@
     m.className = 'crmp-mask';
     m.innerHTML = '<div class="crmp-dlg ' + (cls || '') + '">' + html + '</div>';
     const close = function () { m.remove(); document.removeEventListener('keydown', onKey, true); };
-    const onKey = function (ev) { if (ev.key === 'Escape') close(); };
+    const onKey = function (ev) {
+      if (ev.key !== 'Escape') return;
+      if (m.matches('.crmp-mask:not(:has(~ .crmp-mask))')) m.close();
+    };
     document.addEventListener('keydown', onKey, true);
     m.close = close;
     document.body.appendChild(m);
     return m;
+  }
+
+  function workDialog(title, key, cls, html, trigger) {
+    if (!document.getElementById('crm-knowledge-style')) {
+      const style = document.createElement('style');
+      style.id = 'crm-knowledge-style';
+      style.textContent = `
+    .crmp-mask.crm-work-mask { background:rgba(0,0,0,.45); backdrop-filter:none; }
+    .crmp-dlg.crm-work-dialog { background:#fff; border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.12); max-height:92dvh; }
+    .crmp-dlg.kb-dialog { width:1160px; height:min(780px, 92dvh); display:flex; flex-direction:column; overflow:hidden; }
+    .crm-work-dialog * { box-sizing:border-box; }
+    .kb-heading { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; gap:12px; border-bottom:1px solid #dfe3ec; flex-shrink:0; }
+    .kb-heading h2 { color:inherit; font-size:16px; font-weight:600; margin:0; }
+    .kb-layout { display:grid; grid-template-columns:minmax(230px, 290px) minmax(0,1fr); flex:1; min-height:0; }
+    .kb-sidebar { padding:18px; background:#f3f5f9; border-right:1px solid #dfe3ec; overflow:auto; }
+    .kb-article { padding:28px clamp(20px,4vw,54px); overflow:auto; min-width:0; }
+    .kb-article h2 { color:#1c2d58; font-size:22px; line-height:1.25; margin:5px 0 14px; overflow-wrap:anywhere; }
+    .kb-article p, .kb-article li { font-size:14px; line-height:1.65; overflow-wrap:anywhere; }
+    .crm-work-dialog input, .crm-work-dialog textarea, .crm-work-dialog select { width:100%; padding:7px 10px; border:1px solid #c3cad8; border-radius:6px; font:inherit; color:inherit; background:#fff; }
+    .crm-work-dialog input:focus, .crm-work-dialog textarea:focus, .crm-work-dialog select:focus { outline:2px solid #315996; outline-offset:1px; }
+    .crm-work-dialog label { display:block; margin:0 0 10px; font-size:13px; }
+    .crm-work-dialog label > input,.crm-work-dialog label > textarea,.crm-work-dialog label > select { margin-top:4px; }
+    .crm-work-dialog button { cursor:pointer; border:1px solid #c3cad8; border-radius:6px; background:#fff; padding:6px 11px; color:#1c2d58; font:inherit; }
+    .crm-work-dialog button:hover { border-color:#315996; }
+    .crm-work-dialog .kb-primary { color:white; background:#1c2d58; border-color:#1c2d58; }
+    .crm-work-dialog button:disabled { opacity:.6; cursor:wait; }
+    .kb-heading .kb-close { border-color:transparent; color:#5b6478; font-size:21px; line-height:1; padding:5px 8px; }
+    .kb-sidebar h3 { margin:18px 6px 5px; color:#5b6478; font-weight:600; font-size:12px; }
+    .kb-sidebar nav button { display:block; width:100%; text-align:left; padding:5px 8px; margin:1px 0; overflow-wrap:anywhere; border-color:transparent; background:transparent; }
+    .kb-sidebar nav button:hover,.kb-sidebar nav button[aria-current=true] { background:#e6ebf5; border-color:#d6deed; }
+    .kb-sidebar nav button[aria-current=true] { font-weight:600; }
+    .kb-content { max-width:720px; margin-top:16px; }
+    .kb-content h3,.kb-content h4,.kb-content h5 { color:#1c2d58; margin:22px 0 6px; }
+    .kb-content ul { padding-left:22px; }
+    .kb-dialog .kb-meta { color:#5b6478; font-size:12.5px; }
+    .kb-tools,.kb-fields { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
+    .kb-fields > * { flex:1 1 175px; }
+    .kb-status { color:#46536b; min-width:0; overflow-wrap:anywhere; padding:8px 24px; border-bottom:1px solid #dfe3ec; }
+    .kb-status:empty,.crm-work-dialog [hidden] { display:none; }
+    .kb-article details { border-bottom:1px solid #dfe3ec; padding:10px 0; }
+    @media(max-width:660px) {
+      .crmp-dlg.kb-dialog { max-width:calc(100vw - 12px); height:calc(100dvh - 16px); max-height:none; }
+      .kb-heading { padding:12px 16px; }
+      .kb-layout { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(105px,32%) minmax(0,1fr); }
+      .kb-sidebar { padding:12px 16px; border-right:0; border-bottom:1px solid #dfe3ec; }
+      .kb-article { padding:18px 16px; }
+    }
+    .crmp-dlg.kp-dialog { width:650px; }
+    .kp-dialog form { padding:20px 24px; }
+    .kp-dialog .kb-fields { margin:0; }
+    .kp-dialog .kb-tools { justify-content:flex-end; margin:14px 0 0; }
+    .kp-dialog .kb-status { border:0; }
+    .kp-dialog form:not([hidden]) + .kb-status { padding-top:0; padding-bottom:16px; }
+    .kp-dialog input[type=file] { padding:6px; }
+    .kp-dialog small { color:#5b6478; font-weight:400; }
+
+`;
+      document.head.appendChild(style);
+    }
+    const titleId = 'crm-'+key+'-title';
+    const m = modal('<header class="kb-heading"><h2 id="'+titleId+'">'+title+'</h2>'
+      + '<button type="button" class="kb-close" aria-label="Закрыть">×</button></header>'+html, 'crm-work-dialog '+cls);
+    m.classList.add('crm-work-mask');
+    const dialog = m.querySelector('.crm-work-dialog');
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+    dialog.setAttribute('aria-labelledby',titleId);
+    const close = m.close;
+    m.close = () => { close(); trigger?.focus(); };
+    const closeButton=m.querySelector('.kb-close');
+    closeButton.onclick = () => m.close();
+    m.addEventListener('keydown', ev => {
+      if (ev.key !== 'Tab') return;
+      const fields = [...dialog.querySelectorAll('button,input,textarea,select,a[href],summary')].filter(x=>!x.disabled && x.offsetParent);
+      const first = fields[0], last = fields[fields.length-1];
+      if (ev.shiftKey && first?.matches(':focus')) { ev.preventDefault(); last.focus(); }
+      else if (!ev.shiftKey && last?.matches(':focus')) { ev.preventDefault(); first.focus(); }
+    });
+    closeButton.focus();
+    return m;
+  }
+
+  function openKnowledge(id) {
+    if (document.querySelector('.kb-dialog')) return;
+    const m = workDialog('База знаний','kb','kb-dialog',
+      '<div class="kb-status" role="status" data-kb="status"></div>'
+      + '<div class="kb-layout"><aside class="kb-sidebar"><label>Поиск по статьям<input data-kb="search" type="search" maxlength="200"></label>'
+      + '<button type="button" class="kb-primary" data-kb="new" hidden>Создать статью</button>'
+      + '<nav data-kb="topics" aria-label="Темы и статьи"></nav></aside>'
+      + '<article class="kb-article" data-kb="article"><p>Загрузка…</p></article></div>',
+      document.querySelector('[data-testid=user-center-button]'));
+    const close=m.close;
+    m.close=()=>{clearTimeout(searchTimer);close();};
+    const el = id => m.querySelector('[data-kb='+id+']');
+    const status = el('status'), panel = el('article'), nav = el('topics'), search = el('search');
+    const labels = {all:'Все сотрудники',managers:'Управляющие',accounting_dept:'Бухгалтерия',legal_dept:'Юристы',
+      rental_dept:'Аренда',hr:'Кадры',aho:'АХО',draft:'Черновик',published:'Опубликована',archived:'Архив'};
+    let model, searchTimer, articleId = 0, browseSequence = 0, articleSequence = 0;
+    function node(tag,text,parent) {
+      const element = document.createElement(tag);
+      if (text != null) element.textContent = text;
+      if (parent) parent.appendChild(element);
+      return element;
+    }
+    function btn(parent,label,action) {
+      const element = node('button',label,parent);
+      element.type = 'button';
+      element.onclick = action;
+      return element;
+    }
+    async function api(query='', values) {
+      const res = await fetch('/rqsvc/knowledge/api' + query, {
+        method: values ? 'POST' : 'GET',
+        headers: {Authorization:'Bearer '+(localStorage.getItem('NOCOBASE_TOKEN') || ''),'Content-Type':'application/json'},
+        body: values && JSON.stringify(values)
+      });
+      if (res.status === 401) throw Error('Войдите в CRM, затем снова откройте базу знаний');
+      const result = await res.json();
+      if (!res.ok) throw Error(result.error || 'Запрос не выполнен');
+      return result;
+    }
+    function report(error) { status.textContent = error.message; }
+    async function browse() {
+      const sequence = ++browseSequence;
+      const next = await api('?q='+encodeURIComponent(search.value));
+      if (sequence !== browseSequence) return;
+      model = next;
+      el('new').hidden = !model.canEdit;
+      nav.textContent='';
+      for (const topic of new Set([...model.topics,...model.articles.map(a=>a.topic)])) {
+        const articles = model.articles.filter(a=>a.topic===topic);
+        if (!articles.length) continue;
+        node('h3',topic,nav);
+        for (const a of articles) {
+          const link = btn(nav,a.title + (a.state==='published' ? '' : ' · '+labels[a.state]),()=>open(a.id).catch(report));
+          link.dataset.id = String(a.id);
+          if (a.id === articleId) link.setAttribute('aria-current','true');
+        }
+      }
+      if (!nav.children.length) node('p',search.value.trim() ? 'Ничего не найдено' : 'Статей пока нет',nav).className='kb-meta';
+    }
+    function inline(text,target) {
+      let cursor = 0;
+      for (const match of text.matchAll(/\[([^\]\n]+)\]\(([^\s)]+)\)|\*\*([^*]+)\*\*/g)) {
+        node('span',text.slice(cursor,match.index),target);
+        if (match[3]) node('strong',match[3],target);
+        else if (/^(https:\/\/|\/(?![\/\\]))/i.test(match[2])) {
+          const a = node('a',match[1],target);
+          a.href = match[2];
+          a.rel = 'noreferrer';
+        } else node('span',match[0],target);
+        cursor = match.index + match[0].length;
+      }
+      node('span',text.slice(cursor),target);
+    }
+    function body(text,target) {
+      let list = null;
+      for (const line of text.split('\n')) {
+        const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+        const item = /^[-*]\s+(.*)$/.exec(line);
+        if (item) { list ||= node('ul',null,target); inline(item[1],node('li',null,list)); continue; }
+        list = null;
+        if (heading) inline(heading[2],node('h'+(heading[1].length+2),null,target));
+        else if (line.trim()) inline(line,node('p',null,target));
+      }
+    }
+    function show(article) {
+      panel.textContent='';
+      node('p',article.topic,panel).className='kb-meta';
+      node('h2',article.title,panel);
+      node('p',[article.owner && 'Ответственный: '+article.owner,article.review && 'Пересмотр: '+article.review,
+        model.canEdit && labels[article.state]].filter(Boolean).join(' · '),panel).className='kb-meta';
+      const content=node('div',null,panel); content.className='kb-content';
+      body(article.body,content);
+      const tools=node('div',null,panel); tools.className='kb-tools';
+      btn(tools,'Скопировать ссылку', async () => {
+        const path='/rqsvc/knowledge?id='+article.id;
+        try { await navigator.clipboard.writeText(location.origin+path); status.textContent='Ссылка скопирована'; }
+        catch (error) {
+          const link=node('input',null,tools);
+          link.readOnly=true;
+          link.value=location.origin+path;
+          link.setAttribute('aria-label','Ссылка на статью');
+          link.focus();
+          link.select();
+        }
+      });
+      if (model.canEdit) {
+        btn(tools,'Редактировать',()=>edit(article));
+        btn(tools,'История версий',async()=>{
+          try {
+            const revisions=await api('?id='+article.id+'&history=1');
+            if (articleId!==article.id) return;
+            panel.textContent='';
+            node('h2','История · '+article.title,panel);
+            btn(panel,'К статье',()=>show(article));
+            for (const r of revisions) {
+              const details=node('details',null,panel);
+              node('summary','Версия '+r.version+' · '+new Date(r.updated).toLocaleString('ru')+' · '+r.editor,details);
+              body(r.body,details);
+              if (r.version!==article.version) btn(details,'Взять за основу',()=>edit({...r,version:article.version,state:'draft'}));
+            }
+          } catch (error) { report(error); }
+        });
+      }
+    }
+    async function open(id) {
+      const sequence=++articleSequence;
+      status.textContent='';
+      articleId=id;
+      const result=await api('?id='+id);
+      if (sequence!==articleSequence) return;
+      show(result);
+      nav.querySelectorAll('[aria-current]').forEach(x=>x.removeAttribute('aria-current'));
+      nav.querySelector('[data-id="'+id+'"]')?.setAttribute('aria-current','true');
+    }
+    function edit(article={}) {
+      ++articleSequence;
+      status.textContent='';
+      panel.textContent='';
+      node('h2',article.id ? 'Редактирование статьи' : 'Новая статья',panel);
+      const form=node('form',null,panel), controls={};
+      function field(parent,key,label,type,options) {
+        const group=node('label',label,parent);
+        const input=node(options ? 'select' : type==='textarea' ? 'textarea' : 'input',null,group);
+        if (options) for (const value of options) node('option',labels[value] || value,input).value=value;
+        else if (type==='textarea') { input.rows=16; input.maxLength=70000; }
+        else { input.type=type; if (key==='title') input.maxLength=180; if (key==='owner') input.maxLength=120; }
+        input.value=article[key] ?? options?.[0] ?? '';
+        controls[key]=input;
+        return input;
+      }
+      field(form,'title','Заголовок','text').required=true;
+      const fields=node('div',null,form); fields.className='kb-fields';
+      const topic=field(fields,'topic','Тема','text');
+      topic.value=article.topic || model.topics[0];
+      topic.required=true;
+      topic.maxLength=100;
+      const suggestions=node('datalist',null,form);
+      suggestions.id='topic-suggestions';
+      for (const name of new Set([...model.topics,...model.articles.map(a=>a.topic)])) node('option',name,suggestions).value=name;
+      topic.setAttribute('list',suggestions.id);
+      field(fields,'audience','Кому доступна',null,model.audiences);
+      field(fields,'state','Статус',null,['draft','published','archived']);
+      field(fields,'owner','Ответственный','text');
+      field(fields,'review','Дата пересмотра','date');
+      field(form,'body','Текст · поддерживаются Markdown-заголовки, списки и ссылки','textarea').required=true;
+      const tools=node('div',null,form); tools.className='kb-tools';
+      const save=node('button','Сохранить',tools); save.className='kb-primary';
+      btn(tools,'Отмена',()=>article.id ? show(article) : showIntro());
+      form.onsubmit=async event=>{
+        event.preventDefault(); save.disabled=true; status.textContent='';
+        try {
+          const values=Object.fromEntries(Object.entries(controls).map(([key,input])=>[key,input.value]));
+          if (article.id) Object.assign(values,{id:article.id,version:article.version});
+          const saved=await api('',values);
+          await open(saved.id);
+          await browse();
+        } catch (error) { report(error); }
+        finally { save.disabled=false; }
+      };
+    }
+    el('new').onclick=()=>edit();
+    search.oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>browse().catch(report),220);};
+    function showIntro() {
+      const intro=model.articles.find(a=>a.title==='С чего начать в CRM');
+      if (intro) { open(intro.id).catch(report); return; }
+      panel.textContent='';
+      node('h2','Инструкции',panel);
+      node('p','Выберите статью в списке или воспользуйтесь поиском.',panel);
+    }
+    browse().then(() => id ? open(id) : showIntro()).catch(report);
+    search.focus();
+  }
+
+  function openPayment(trigger) {
+    if (document.querySelector('.kp-dialog')) return;
+    const m = workDialog('Заявка на оплату','kp','kp-dialog',
+      '<form hidden><label>Объект<select name="object" required><option value="">Выберите объект</option></select></label>'
+      + '<label>Цель расхода<textarea name="purpose" rows="3" maxlength="1000" required></textarea></label>'
+      + '<div class="kb-fields"><label>Сумма, ₽<input name="amount" inputmode="decimal" pattern="[0-9]{1,10}([.,][0-9]{1,2})?" required></label>'
+      + '<label>Оплатить до<input type="date" name="due" required></label></div>'
+      + '<label>Комментарий<textarea name="comment" rows="2" maxlength="2000"></textarea></label>'
+      + '<label>Счёт<input name="bill" type="file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="crm-kp-file" required>'
+      + '<small id="crm-kp-file">PDF, JPEG или PNG до 5 МБ</small></label>'
+      + '<div class="kb-tools"><button type="submit" class="kb-primary">Отправить на согласование</button></div></form>'
+      + '<p class="kb-status" role="status" data-kp-status>Загрузка формы…</p>',trigger);
+    const form = m.querySelector('form');
+      const status = m.querySelector('[data-kp-status]');
+      const close = m.close;
+      m.close = () => { if (!button.disabled) close(); };
+      const field = name => form.querySelector('[name='+name+']');
+      const button = form.querySelector('button');
+      async function api(input) {
+        const token = localStorage.getItem('NOCOBASE_TOKEN');
+        const response = await fetch('/rqsvc/payment-request/api', {
+          method: input ? 'POST' : 'GET',
+          headers: { Authorization: 'Bearer ' + (token || ''), 'Content-Type': 'application/json' },
+          body: input && JSON.stringify(input)
+        });
+        if (response.status === 401) throw new Error('Войдите в CRM, затем снова откройте форму');
+        if (response.status === 413) throw new Error('Файл слишком большой');
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Не удалось связаться с Pyrus');
+        return result;
+      }
+      api().then(result => {
+        for (const object of result.objects) {
+          const option = document.createElement('option');
+          option.textContent = object.name;
+          option.value = object.id;
+          field('object').appendChild(option);
+        }
+        form.hidden = false;
+        status.textContent = '';
+      }).catch(error => { status.textContent = error.message; });
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (button.disabled) return;
+        const bill = field('bill').files[0];
+        if (!bill || bill.size > 5 * 1024 * 1024) {
+          status.textContent = 'Приложите счёт размером до 5 МБ';
+          return;
+        }
+        button.disabled = true;
+        m.querySelector('.kb-close').disabled = true;
+        status.textContent = 'Отправляем заявку…';
+        let sending = false;
+        try {
+          const data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(bill);
+          });
+          sending = true;
+          const result = await api({
+            object: Number(field('object').value), purpose: field('purpose').value,
+            amount: field('amount').value, due: field('due').value,
+            comment: field('comment').value, file: { name: bill.name, data }
+          });
+            form.hidden = true;
+          status.textContent = 'Заявка № ' + result.id + ' отправлена на согласование.';
+        } catch (error) {
+          status.textContent = error instanceof TypeError && sending
+            ? 'Связь прервалась. Уточните в АХО, появилась ли заявка, прежде чем отправлять её повторно'
+            : error.message || 'Не удалось прочитать счёт';
+        } finally {
+          button.disabled = false;
+          m.querySelector('.kb-close').disabled = false;
+        }
+      });
   }
 
   // фото: квадрат до 512 px по центру (как в Telegram), JPEG; загрузка тем же способом, что вложения мессенджера
@@ -506,6 +861,12 @@
         const knowledge = document.createElement('li');
         knowledge.className = 'ant-dropdown-menu-item crmp-li-knowledge';
         knowledge.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/rqsvc/knowledge">База знаний</a>';
+        knowledge.querySelector('a').onclick = function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          li.closest('.ant-dropdown')?.classList.add('ant-dropdown-hidden');
+          openKnowledge();
+        };
         const payment = li.parentNode.querySelector('.crmp-li-payment');
         li.parentNode.insertBefore(knowledge, payment.nextSibling);
       }
@@ -522,9 +883,23 @@
       });
     }
   }
-  load().then(function () { decorate(true); });
+  load().then(function () {
+    decorate(true);
+    const deepLink = location.search.match(/[?&]knowledge=(open|[1-9]\d*)(?:&|$)/);
+    if (deepLink) openKnowledge(Number(deepLink[1]) || undefined);
+    if (/[?&]payment=open(?:&|$)/.test(location.search)) openPayment();
+  });
   setInterval(decorate, 600);
   setInterval(load, 60000);
+  document.addEventListener('click', function (ev) {
+    const link = ev.target.closest && ev.target.closest('a[href="/rqsvc/payment-request"]');
+    if (!link || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const menu = link.closest('.ant-dropdown');
+    if (menu) menu.classList.add('ant-dropdown-hidden');
+    openPayment(menu ? document.querySelector('[data-testid=user-center-button]') : link);
+  }, true);
   // аватар с data-crmp-card (crmAvatar(id, size, label, true)) открывает карточку человека
   document.addEventListener('click', function (ev) {
     const a = ev.target.closest && ev.target.closest('[data-crmp-card]');

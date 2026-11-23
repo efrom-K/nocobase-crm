@@ -259,14 +259,16 @@
       const style = document.createElement('style');
       style.id = 'crm-knowledge-style';
       style.textContent = `
-    .crmp-dlg.kb-dialog { width:1120px; height:min(770px, 90dvh); max-height:90dvh; display:flex; flex-direction:column; overflow:hidden; border-radius:14px; }
+    .crmp-mask.crm-work-mask { background:rgba(0,0,0,.45); backdrop-filter:none; }
+    .crmp-dlg.crm-work-dialog { background:#fff; border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.12); max-height:92dvh; }
+    .crmp-dlg.kb-dialog { width:1160px; height:min(780px, 92dvh); display:flex; flex-direction:column; overflow:hidden; }
     .crm-work-dialog * { box-sizing:border-box; }
-    .kb-heading { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; gap:12px; border-bottom:1px solid #dfe3ec; }
-    .kb-heading h2 { color:#1c2d58; font-size:19px; font-weight:650; margin:0; }
+    .kb-heading { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; gap:12px; border-bottom:1px solid #dfe3ec; flex-shrink:0; }
+    .kb-heading h2 { color:inherit; font-size:16px; font-weight:600; margin:0; }
     .kb-layout { display:grid; grid-template-columns:minmax(230px, 290px) minmax(0,1fr); flex:1; min-height:0; }
     .kb-sidebar { padding:18px; background:#f3f5f9; border-right:1px solid #dfe3ec; overflow:auto; }
     .kb-article { padding:28px clamp(20px,4vw,54px); overflow:auto; min-width:0; }
-    .kb-article h2 { color:#1c2d58; font-size:25px; line-height:1.25; margin:5px 0 14px; overflow-wrap:anywhere; }
+    .kb-article h2 { color:#1c2d58; font-size:22px; line-height:1.25; margin:5px 0 14px; overflow-wrap:anywhere; }
     .kb-article p, .kb-article li { font-size:14px; line-height:1.65; overflow-wrap:anywhere; }
     .crm-work-dialog input, .crm-work-dialog textarea, .crm-work-dialog select { width:100%; padding:7px 10px; border:1px solid #c3cad8; border-radius:6px; font:inherit; color:inherit; background:#fff; }
     .crm-work-dialog input:focus, .crm-work-dialog textarea:focus, .crm-work-dialog select:focus { outline:2px solid #315996; outline-offset:1px; }
@@ -277,11 +279,10 @@
     .crm-work-dialog .kb-primary { color:white; background:#1c2d58; border-color:#1c2d58; }
     .crm-work-dialog button:disabled { opacity:.6; cursor:wait; }
     .kb-heading .kb-close { border-color:transparent; color:#5b6478; font-size:21px; line-height:1; padding:5px 8px; }
-    .kb-sidebar h3 { margin:18px 0 5px; color:#46536b; font-weight:650; font-size:12px; }
-    .kb-sidebar nav button,.kb-article .kb-start { display:block; width:100%; text-align:left; margin:3px 0; overflow-wrap:anywhere; }
-    .kb-sidebar nav button { border-color:transparent; background:transparent; }
+    .kb-sidebar h3 { margin:18px 6px 5px; color:#5b6478; font-weight:600; font-size:12px; }
+    .kb-sidebar nav button { display:block; width:100%; text-align:left; padding:5px 8px; margin:1px 0; overflow-wrap:anywhere; border-color:transparent; background:transparent; }
     .kb-sidebar nav button:hover,.kb-sidebar nav button[aria-current=true] { background:#e6ebf5; border-color:#d6deed; }
-    .kb-article .kb-start { max-width:420px; margin:8px 0; }
+    .kb-sidebar nav button[aria-current=true] { font-weight:600; }
     .kb-content { max-width:720px; margin-top:16px; }
     .kb-content h3,.kb-content h4,.kb-content h5 { color:#1c2d58; margin:22px 0 6px; }
     .kb-content ul { padding-left:22px; }
@@ -298,7 +299,7 @@
       .kb-sidebar { padding:12px 16px; border-right:0; border-bottom:1px solid #dfe3ec; }
       .kb-article { padding:18px 16px; }
     }
-    .crmp-dlg.kp-dialog { width:650px; max-height:90dvh; border-radius:14px; }
+    .crmp-dlg.kp-dialog { width:650px; }
     .kp-dialog form { padding:20px 24px; }
     .kp-dialog .kb-fields { margin:0; }
     .kp-dialog .kb-tools { justify-content:flex-end; margin:14px 0 0; }
@@ -313,6 +314,7 @@
     const titleId = 'crm-'+key+'-title';
     const m = modal('<header class="kb-heading"><h2 id="'+titleId+'">'+title+'</h2>'
       + '<button type="button" class="kb-close" aria-label="Закрыть">×</button></header>'+html, 'crm-work-dialog '+cls);
+    m.classList.add('crm-work-mask');
     const dialog = m.querySelector('.crm-work-dialog');
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
@@ -515,13 +517,11 @@
     el('new').onclick=()=>edit();
     search.oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>browse().catch(report),220);};
     function showIntro() {
+      const intro=model.articles.find(a=>a.title==='С чего начать в CRM');
+      if (intro) { open(intro.id).catch(report); return; }
       panel.textContent='';
-      node('h2','С чего начать',panel);
-      node('p','Выберите инструкцию по вашей работе. Поиск находит статьи по заголовкам и тексту.',panel);
-      for (const title of ['С чего начать в CRM','Главная управляющего','Как подать заявку на оплату']) {
-        const article=model.articles.find(a=>a.title===title);
-        if (article) btn(panel,title,()=>open(article.id).catch(report)).className='kb-start';
-      }
+      node('h2','Инструкции',panel);
+      node('p','Выберите статью в списке или воспользуйтесь поиском.',panel);
     }
     browse().then(() => id ? open(id) : showIntro()).catch(report);
     search.focus();

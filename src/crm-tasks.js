@@ -176,7 +176,14 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-form { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; }
     .tk-form .full { grid-column:1 / -1; }
     .tk-f label { display:block; font-size:12.5px; color:#3a4256; margin-bottom:4px; }
-    [data-person-picker] { display:grid; gap:4px; }
+    .tk-person { position:relative; }
+    .tk-person input { width:100%; background:#fff; }
+    .tk-person-list { position:absolute; z-index:5; top:calc(100% + 4px); left:0; right:0; max-height:230px; overflow:auto; overscroll-behavior:contain; border:1px solid #dfe3ec; border-radius:10px; padding:4px; background:#fff; box-shadow:0 8px 20px rgba(28,45,88,.15); }
+    .tk-person-option { padding:8px 10px; border-radius:6px; cursor:pointer; overflow-wrap:anywhere; }
+    .tk-person-option:hover, .tk-person-option[aria-selected="true"] { background:#eef2f9; color:#1c2d58; }
+    .tk-person-option small, .tk-person-empty { color:#5b6478; font-size:12px; }
+    .tk-person-option small { display:block; }
+    .tk-person-empty { padding:8px 10px; }
     [data-observer-list]:not(:empty) { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
     [data-observer-add] { margin-top:6px; }
     .tk-f label i { color:#c23b3b; font-style:normal; }
@@ -380,7 +387,7 @@ function tkModal(html) {
   return m;
 }
 // люди для выбора: работающие сотрудники, value — "u<id учётки>" (без учётки — "e<id сотрудника>")
-function tkPeopleOptions(selKey, accountOnly) {
+function tkPeopleOptions(accountOnly) {
   const seen = {}, out = [];
   tk.data.emps.filter(function(e) { return e.status !== 'fired' && (!accountOnly || e.user_id); }).forEach(function(e) {
     if (e.user_id) seen[e.user_id] = 1;
@@ -390,24 +397,87 @@ function tkPeopleOptions(selKey, accountOnly) {
     const u = tk.data.users[id];
     if (!seen[id] && u.username !== 'mail-service' && u.username !== 'nocobase' && !/^test_/.test(u.username)) out.push(['u' + id, tkWho(Number(id)), '']);
   });
-  return out.sort(function(a, b) { return a[1].localeCompare(b[1], 'ru'); })
-    .map(function(x) { return '<option value="' + x[0] + '"' + (x[0] === selKey ? ' selected' : '') + '>' + tkEsc(x[1] + (x[2] ? ' — ' + x[2] : '')) + '</option>'; }).join('');
+  return out.sort(function(a, b) { return a[1].localeCompare(b[1], 'ru'); });
 }
-function tkPersonPicker(id, label, selected, empty, accountOnly) {
-  return '<div data-person-picker><input type="search" aria-label="Поиск: ' + tkEsc(label) + '" placeholder="Поиск по фамилии">'
-    + '<select aria-label="' + tkEsc(label) + '" ' + id + '><option value="">' + tkEsc(empty) + '</option>'
-    + tkPeopleOptions(selected, accountOnly) + '</select></div>';
+let tkPickerCount = 0;
+function tkPersonPicker(attr, label, selected, empty, accountOnly) {
+  const people = tkPeopleOptions(accountOnly), id = 'tk-people-' + (++tkPickerCount);
+  const current = people.find(function(person) { return person[0] === selected; });
+  return '<div class="tk-person" data-person-picker><input type="text" ' + attr + ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + id
+    + '" aria-label="' + tkEsc(label) + '" placeholder="' + tkEsc(empty) + '" autocomplete="off" data-person-key="' + (current ? current[0] : '') + '" value="' + tkEsc(current ? current[1] : '') + '">'
+    + '<div class="tk-person-list" hidden><div role="listbox" id="' + id + '" aria-label="' + tkEsc(label) + '">'
+    + people.map(function(person, i) {
+      return '<div class="tk-person-option" role="option" aria-selected="false" id="' + id + '-' + i + '" data-key="' + person[0] + '"><span>' + tkEsc(person[1]) + '</span>'
+        + (person[2] ? '<small>' + tkEsc(person[2]) + '</small>' : '') + '</div>';
+    }).join('') + '</div><div class="tk-person-empty" role="status" hidden>Сотрудники не найдены</div></div></div>';
 }
+function tkPersonKey(input) { return input.getAttribute('data-person-key') || ''; }
 function tkBindPeople(root) {
   root.querySelectorAll('[data-person-picker]').forEach(function(picker) {
-    const search = picker.querySelector('input'), select = picker.querySelector('select');
-    const options = Array.from(select.options);
-    search.addEventListener('input', function() {
-      const selected = select.value, query = search.value.trim().toLocaleLowerCase('ru').replace(/ё/g, 'е');
-      select.replaceChildren(...options.filter(function(option) {
-        return !option.value || option.value === selected || option.text.toLocaleLowerCase('ru').replace(/ё/g, 'е').includes(query);
-      }));
-      select.value = selected;
+    const input = picker.querySelector('input'), menu = picker.querySelector('.tk-person-list');
+    const empty = menu.querySelector('[role="status"]'), options = Array.from(menu.querySelectorAll('[data-key]'));
+    const names = options.map(function(option) { return option.querySelector('span').textContent; });
+    const normalize = function(value) { return value.toLocaleLowerCase('ru').replace(/ё/g, 'е'); };
+    const searchable = names.map(normalize);
+    let visible = [], active = -1;
+    function highlight(index) {
+      if (visible[active]) visible[active].setAttribute('aria-selected', 'false');
+      active = index;
+      const option = visible[active];
+      if (!option) { input.removeAttribute('aria-activedescendant'); return; }
+      option.setAttribute('aria-selected', 'true');
+      input.setAttribute('aria-activedescendant', option.id);
+      option.scrollIntoView({block: 'nearest'});
+    }
+    function show() {
+      highlight(-1);
+      const words = tkPersonKey(input) ? [] : normalize(input.value.trim()).split(/\s+/);
+      visible = options.filter(function(option, i) {
+        option.hidden = !words.every(function(word) { return searchable[i].includes(word); });
+        return !option.hidden;
+      });
+      empty.hidden = !!visible.length;
+      input.setAttribute('aria-expanded', 'true');
+      menu.hidden = false;
+    }
+    function close() {
+      highlight(-1);
+      input.setAttribute('aria-expanded', 'false');
+      menu.hidden = true;
+    }
+    function choose(option) {
+      input.value = names[options.indexOf(option)];
+      input.setAttribute('data-person-key', option.getAttribute('data-key'));
+      close();
+    }
+    input.addEventListener('focus', show);
+    input.addEventListener('click', show);
+    input.addEventListener('blur', close);
+    input.addEventListener('input', function() {
+      input.setAttribute('data-person-key', '');
+      show();
+    });
+    menu.addEventListener('mousedown', function(e) {
+      if (e.target.closest('[data-key]')) e.preventDefault();
+    });
+    menu.addEventListener('click', function(e) {
+      const option = e.target.closest('[data-key]');
+      if (option) choose(option);
+    });
+    input.addEventListener('keydown', function(e) {
+      if (e.isComposing) return;
+      if (e.key === 'Escape' && !menu.hidden) {
+        e.preventDefault();
+        e.stopPropagation();
+        close();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (menu.hidden) show();
+        if (visible.length) highlight(e.key === 'ArrowDown' ? Math.min(active + 1, visible.length - 1) : active <= 0 ? visible.length - 1 : active - 1);
+      } else if (e.key === 'Enter' && !menu.hidden && (visible[active] || visible.length === 1)) {
+        e.preventDefault();
+        choose(visible[active] || visible[0]);
+      }
     });
   });
 }
@@ -418,7 +488,7 @@ function tkObserverPicker() {
 function tkBindObservers(root) {
   const selected = new Map(), select = root.querySelector('[data-observer-person]'), list = root.querySelector('[data-observer-list]');
   root.querySelector('[data-observer-add]').addEventListener('click', function() {
-    const person = tkPersonFromKey(select.value);
+    const person = tkPersonFromKey(tkPersonKey(select));
     if (!person.id || selected.has(person.id)) { select.focus(); return; }
     const item = list.ownerDocument.createElement('button');
     item.type = 'button';
@@ -429,6 +499,7 @@ function tkBindObservers(root) {
     selected.set(person.id, person);
     list.appendChild(item);
     select.value = '';
+    select.setAttribute('data-person-key', '');
   });
   return selected;
 }
@@ -787,12 +858,16 @@ function tkOpenNew(preset) {
   });
   setTimeout(function() { q('title').focus(); }, 50);
   m.querySelector('[data-save]').addEventListener('click', async function(e) {
-    const title = q('title').value.trim(), ex = tkPersonFromKey(q('executor').value);
+    const title = q('title').value.trim(), ex = tkPersonFromKey(tkPersonKey(q('executor')));
     if (!title) { tkToast('Напишите, что нужно сделать'); q('title').focus(); return; }
     if (!ex.id && !ex.name) { tkToast('Выберите, кому поручить'); q('executor').focus(); return; }
     const due = q('due_date').value;
     if (due && !/^(19|20)\d{2}-\d{2}-\d{2}$/.test(due)) { tkToast('Проверьте срок'); q('due_date').focus(); return; }
-    const ctl = tkPersonFromKey(q('controller').value).id || tk.me.id;
+    const checker = q('controller'), checkerId = tkPersonKey(checker);
+    if (checker.value.trim() && !checkerId) { tkToast('Выберите проверяющего из подсказок'); checker.focus(); return; }
+    const observer = m.querySelector('[data-observer-person]');
+    if (observer.value.trim()) { tkToast('Добавьте выбранного наблюдателя или очистите поле'); observer.focus(); return; }
+    const ctl = tkPersonFromKey(checkerId).id || tk.me.id;
     e.target.disabled = true;
     try {
       const fileId = q('file').files[0] ? await tkUpload(q('file').files[0]) : null;
@@ -1006,7 +1081,13 @@ async function tkApply(m, t, a, btn, observers) {
   const val = function(x) { return x ? x.value.trim() : ''; };
   if (btn) btn.disabled = true;
   try {
-    const res = await tkDo(t, a, observers ? [...observers.keys()] : val(inp), val(inp2), val(inp3), val(inp4));
+    if (observers && box.querySelector('[data-observer-person]').value.trim()) {
+      tkToast('Добавьте выбранного наблюдателя или очистите поле');
+      box.querySelector('[data-observer-person]').focus();
+      btn.disabled = false;
+      return;
+    }
+    const res = await tkDo(t, a, observers ? [...observers.keys()] : a === 'assign' ? tkPersonKey(inp) : val(inp), val(inp2), val(inp3), val(inp4));
     if (res && res.err) { tkToast(res.err); const f = res.field === 2 ? inp2 : inp; if (f) f.focus(); if (btn) btn.disabled = false; return; }
     if (res && res.skip) { box.innerHTML = ''; return; }
     await tkReload();

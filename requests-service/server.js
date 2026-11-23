@@ -15,7 +15,6 @@ const R = require('./rules');
 const {objectRoute, RouteError} = require('./routes');
 const {createPyrusPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE} = require('./pyrus-payments');
 const {createKnowledge, KnowledgeError, topics, audiences} = require('./knowledge');
-const KNOWLEDGE_HTML = fs.readFileSync(path.join(__dirname, 'knowledge.html'));
 let knowledge;
 const PAYMENT_HTML = fs.readFileSync(path.join(__dirname, 'payment-request.html'));
 const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
@@ -443,10 +442,9 @@ http.createServer(async (req, res) => {
   try {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
     if (p === '/knowledge' && req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
-        'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'" });
-      return res.end(KNOWLEDGE_HTML);
+      const id = new URL(req.url, 'http://x').searchParams.get('id');
+      res.writeHead(302, {Location:'/admin/dashpage01?knowledge=' + (/^[1-9]\d*$/.test(id || '') ? id : 'open'), 'Cache-Control':'no-store'});
+      return res.end();
     }
     if (p === '/payment-request' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',

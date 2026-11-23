@@ -244,21 +244,23 @@
     m.className = 'crmp-mask';
     m.innerHTML = '<div class="crmp-dlg ' + (cls || '') + '">' + html + '</div>';
     const close = function () { m.remove(); document.removeEventListener('keydown', onKey, true); };
-    const onKey = function (ev) { if (ev.key === 'Escape') m.close(); };
+    const onKey = function (ev) {
+      if (ev.key !== 'Escape') return;
+      if (m.matches('.crmp-mask:not(:has(~ .crmp-mask))')) m.close();
+    };
     document.addEventListener('keydown', onKey, true);
     m.close = close;
     document.body.appendChild(m);
     return m;
   }
 
-  function openKnowledge(id) {
-    if (document.querySelector('.kb-dialog')) return;
+  function workDialog(title, key, cls, html, trigger) {
     if (!document.getElementById('crm-knowledge-style')) {
       const style = document.createElement('style');
       style.id = 'crm-knowledge-style';
       style.textContent = `
     .crmp-dlg.kb-dialog { width:1120px; height:min(770px, 90dvh); max-height:90dvh; display:flex; flex-direction:column; overflow:hidden; border-radius:14px; }
-    .kb-dialog * { box-sizing:border-box; }
+    .crm-work-dialog * { box-sizing:border-box; }
     .kb-heading { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; gap:12px; border-bottom:1px solid #dfe3ec; }
     .kb-heading h2 { color:#1c2d58; font-size:19px; font-weight:650; margin:0; }
     .kb-layout { display:grid; grid-template-columns:minmax(230px, 290px) minmax(0,1fr); flex:1; min-height:0; }
@@ -266,14 +268,14 @@
     .kb-article { padding:28px clamp(20px,4vw,54px); overflow:auto; min-width:0; }
     .kb-article h2 { color:#1c2d58; font-size:25px; line-height:1.25; margin:5px 0 14px; overflow-wrap:anywhere; }
     .kb-article p, .kb-article li { font-size:14px; line-height:1.65; overflow-wrap:anywhere; }
-    .kb-dialog input, .kb-dialog textarea, .kb-dialog select { width:100%; padding:7px 10px; border:1px solid #c3cad8; border-radius:6px; font:inherit; color:inherit; background:#fff; }
-    .kb-dialog input:focus, .kb-dialog textarea:focus, .kb-dialog select:focus { outline:2px solid #315996; outline-offset:1px; }
-    .kb-dialog label { display:block; margin:0 0 10px; font-size:13px; }
-    .kb-dialog label > input,.kb-dialog label > textarea,.kb-dialog label > select { margin-top:4px; }
-    .kb-dialog button { cursor:pointer; border:1px solid #c3cad8; border-radius:6px; background:#fff; padding:6px 11px; color:#1c2d58; font:inherit; }
-    .kb-dialog button:hover { border-color:#315996; }
-    .kb-dialog .kb-primary { color:white; background:#1c2d58; border-color:#1c2d58; }
-    .kb-dialog button:disabled { opacity:.6; cursor:wait; }
+    .crm-work-dialog input, .crm-work-dialog textarea, .crm-work-dialog select { width:100%; padding:7px 10px; border:1px solid #c3cad8; border-radius:6px; font:inherit; color:inherit; background:#fff; }
+    .crm-work-dialog input:focus, .crm-work-dialog textarea:focus, .crm-work-dialog select:focus { outline:2px solid #315996; outline-offset:1px; }
+    .crm-work-dialog label { display:block; margin:0 0 10px; font-size:13px; }
+    .crm-work-dialog label > input,.crm-work-dialog label > textarea,.crm-work-dialog label > select { margin-top:4px; }
+    .crm-work-dialog button { cursor:pointer; border:1px solid #c3cad8; border-radius:6px; background:#fff; padding:6px 11px; color:#1c2d58; font:inherit; }
+    .crm-work-dialog button:hover { border-color:#315996; }
+    .crm-work-dialog .kb-primary { color:white; background:#1c2d58; border-color:#1c2d58; }
+    .crm-work-dialog button:disabled { opacity:.6; cursor:wait; }
     .kb-heading .kb-close { border-color:transparent; color:#5b6478; font-size:21px; line-height:1; padding:5px 8px; }
     .kb-sidebar h3 { margin:18px 0 5px; color:#46536b; font-weight:650; font-size:12px; }
     .kb-sidebar nav button,.kb-article .kb-start { display:block; width:100%; text-align:left; margin:3px 0; overflow-wrap:anywhere; }
@@ -287,7 +289,7 @@
     .kb-tools,.kb-fields { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
     .kb-fields > * { flex:1 1 175px; }
     .kb-status { color:#46536b; min-width:0; overflow-wrap:anywhere; padding:8px 24px; border-bottom:1px solid #dfe3ec; }
-    .kb-status:empty,.kb-dialog [hidden] { display:none; }
+    .kb-status:empty,.crm-work-dialog [hidden] { display:none; }
     .kb-article details { border-bottom:1px solid #dfe3ec; padding:10px 0; }
     @media(max-width:660px) {
       .crmp-dlg.kb-dialog { max-width:calc(100vw - 12px); height:calc(100dvh - 16px); max-height:none; }
@@ -296,24 +298,29 @@
       .kb-sidebar { padding:12px 16px; border-right:0; border-bottom:1px solid #dfe3ec; }
       .kb-article { padding:18px 16px; }
     }
+    .crmp-dlg.kp-dialog { width:650px; max-height:90dvh; border-radius:14px; }
+    .kp-dialog form { padding:20px 24px; }
+    .kp-dialog .kb-fields { margin:0; }
+    .kp-dialog .kb-tools { justify-content:flex-end; margin:14px 0 0; }
+    .kp-dialog .kb-status { border:0; }
+    .kp-dialog form:not([hidden]) + .kb-status { padding-top:0; padding-bottom:16px; }
+    .kp-dialog input[type=file] { padding:6px; }
+    .kp-dialog small { color:#5b6478; font-weight:400; }
+
 `;
       document.head.appendChild(style);
     }
-    const trigger = document.querySelector('[data-testid=user-center-button]');
-    const m = modal('<header class="kb-heading"><h2 id="crm-kb-title">База знаний</h2>'
-      + '<button type="button" class="kb-close" aria-label="Закрыть">×</button></header>'
-      + '<div class="kb-status" role="status" data-kb="status"></div>'
-      + '<div class="kb-layout"><aside class="kb-sidebar"><label>Поиск по статьям<input data-kb="search" type="search" maxlength="200"></label>'
-      + '<button type="button" class="kb-primary" data-kb="new" hidden>Создать статью</button>'
-      + '<nav data-kb="topics" aria-label="Темы и статьи"></nav></aside>'
-      + '<article class="kb-article" data-kb="article"><p>Загрузка…</p></article></div>', 'kb-dialog');
-    const dialog = m.querySelector('.kb-dialog');
+    const titleId = 'crm-'+key+'-title';
+    const m = modal('<header class="kb-heading"><h2 id="'+titleId+'">'+title+'</h2>'
+      + '<button type="button" class="kb-close" aria-label="Закрыть">×</button></header>'+html, 'crm-work-dialog '+cls);
+    const dialog = m.querySelector('.crm-work-dialog');
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
-    dialog.setAttribute('aria-labelledby','crm-kb-title');
+    dialog.setAttribute('aria-labelledby',titleId);
     const close = m.close;
-    m.close = () => { clearTimeout(searchTimer); close(); trigger?.focus(); };
-    m.querySelector('.kb-close').onclick = m.close;
+    m.close = () => { close(); trigger?.focus(); };
+    const closeButton=m.querySelector('.kb-close');
+    closeButton.onclick = () => m.close();
     m.addEventListener('keydown', ev => {
       if (ev.key !== 'Tab') return;
       const fields = [...dialog.querySelectorAll('button,input,textarea,select,a[href],summary')].filter(x=>!x.disabled && x.offsetParent);
@@ -321,6 +328,21 @@
       if (ev.shiftKey && first?.matches(':focus')) { ev.preventDefault(); last.focus(); }
       else if (!ev.shiftKey && last?.matches(':focus')) { ev.preventDefault(); first.focus(); }
     });
+    closeButton.focus();
+    return m;
+  }
+
+  function openKnowledge(id) {
+    if (document.querySelector('.kb-dialog')) return;
+    const m = workDialog('База знаний','kb','kb-dialog',
+      '<div class="kb-status" role="status" data-kb="status"></div>'
+      + '<div class="kb-layout"><aside class="kb-sidebar"><label>Поиск по статьям<input data-kb="search" type="search" maxlength="200"></label>'
+      + '<button type="button" class="kb-primary" data-kb="new" hidden>Создать статью</button>'
+      + '<nav data-kb="topics" aria-label="Темы и статьи"></nav></aside>'
+      + '<article class="kb-article" data-kb="article"><p>Загрузка…</p></article></div>',
+      document.querySelector('[data-testid=user-center-button]'));
+    const close=m.close;
+    m.close=()=>{clearTimeout(searchTimer);close();};
     const el = id => m.querySelector('[data-kb='+id+']');
     const status = el('status'), panel = el('article'), nav = el('topics'), search = el('search');
     const labels = {all:'Все сотрудники',managers:'Управляющие',accounting_dept:'Бухгалтерия',legal_dept:'Юристы',
@@ -372,16 +394,16 @@
     function inline(text,target) {
       let cursor = 0;
       for (const match of text.matchAll(/\[([^\]\n]+)\]\(([^\s)]+)\)|\*\*([^*]+)\*\*/g)) {
-        target.appendChild(document.createTextNode(text.slice(cursor,match.index)));
+        node('span',text.slice(cursor,match.index),target);
         if (match[3]) node('strong',match[3],target);
         else if (/^(https:\/\/|\/(?![\/\\]))/i.test(match[2])) {
           const a = node('a',match[1],target);
           a.href = match[2];
           a.rel = 'noreferrer';
-        } else target.appendChild(document.createTextNode(match[0]));
+        } else node('span',match[0],target);
         cursor = match.index + match[0].length;
       }
-      target.appendChild(document.createTextNode(text.slice(cursor)));
+      node('span',text.slice(cursor),target);
     }
     function body(text,target) {
       let list = null;
@@ -503,6 +525,85 @@
     }
     browse().then(() => id ? open(id) : showIntro()).catch(report);
     search.focus();
+  }
+
+  function openPayment(trigger) {
+    if (document.querySelector('.kp-dialog')) return;
+    const m = workDialog('Заявка на оплату','kp','kp-dialog',
+      '<form hidden><label>Объект<select name="object" required><option value="">Выберите объект</option></select></label>'
+      + '<label>Цель расхода<textarea name="purpose" rows="3" maxlength="1000" required></textarea></label>'
+      + '<div class="kb-fields"><label>Сумма, ₽<input name="amount" inputmode="decimal" pattern="[0-9]{1,10}([.,][0-9]{1,2})?" required></label>'
+      + '<label>Оплатить до<input type="date" name="due" required></label></div>'
+      + '<label>Комментарий<textarea name="comment" rows="2" maxlength="2000"></textarea></label>'
+      + '<label>Счёт<input name="bill" type="file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="crm-kp-file" required>'
+      + '<small id="crm-kp-file">PDF, JPEG или PNG до 5 МБ</small></label>'
+      + '<div class="kb-tools"><button type="submit" class="kb-primary">Отправить на согласование</button></div></form>'
+      + '<p class="kb-status" role="status" data-kp-status>Загрузка формы…</p>',trigger);
+    const form = m.querySelector('form');
+      const status = m.querySelector('[data-kp-status]');
+      const close = m.close;
+      m.close = () => { if (!button.disabled) close(); };
+      const field = name => form.querySelector('[name='+name+']');
+      const button = form.querySelector('button');
+      async function api(input) {
+        const token = localStorage.getItem('NOCOBASE_TOKEN');
+        const response = await fetch('/rqsvc/payment-request/api', {
+          method: input ? 'POST' : 'GET',
+          headers: { Authorization: 'Bearer ' + (token || ''), 'Content-Type': 'application/json' },
+          body: input && JSON.stringify(input)
+        });
+        if (response.status === 401) throw new Error('Войдите в CRM, затем снова откройте форму');
+        if (response.status === 413) throw new Error('Файл слишком большой');
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Не удалось связаться с Pyrus');
+        return result;
+      }
+      api().then(result => {
+        for (const object of result.objects) {
+          const option = document.createElement('option');
+          option.textContent = object.name;
+          option.value = object.id;
+          field('object').appendChild(option);
+        }
+        form.hidden = false;
+        status.textContent = '';
+      }).catch(error => { status.textContent = error.message; });
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (button.disabled) return;
+        const bill = field('bill').files[0];
+        if (!bill || bill.size > 5 * 1024 * 1024) {
+          status.textContent = 'Приложите счёт размером до 5 МБ';
+          return;
+        }
+        button.disabled = true;
+        m.querySelector('.kb-close').disabled = true;
+        status.textContent = 'Отправляем заявку…';
+        let sending = false;
+        try {
+          const data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(bill);
+          });
+          sending = true;
+          const result = await api({
+            object: Number(field('object').value), purpose: field('purpose').value,
+            amount: field('amount').value, due: field('due').value,
+            comment: field('comment').value, file: { name: bill.name, data }
+          });
+            form.hidden = true;
+          status.textContent = 'Заявка № ' + result.id + ' отправлена на согласование.';
+        } catch (error) {
+          status.textContent = error instanceof TypeError && sending
+            ? 'Связь прервалась. Уточните в АХО, появилась ли заявка, прежде чем отправлять её повторно'
+            : error.message || 'Не удалось прочитать счёт';
+        } finally {
+          button.disabled = false;
+          m.querySelector('.kb-close').disabled = false;
+        }
+      });
   }
 
   // фото: квадрат до 512 px по центру (как в Telegram), JPEG; загрузка тем же способом, что вложения мессенджера
@@ -786,9 +887,19 @@
     decorate(true);
     const deepLink = location.search.match(/[?&]knowledge=(open|[1-9]\d*)(?:&|$)/);
     if (deepLink) openKnowledge(Number(deepLink[1]) || undefined);
+    if (/[?&]payment=open(?:&|$)/.test(location.search)) openPayment();
   });
   setInterval(decorate, 600);
   setInterval(load, 60000);
+  document.addEventListener('click', function (ev) {
+    const link = ev.target.closest && ev.target.closest('a[href="/rqsvc/payment-request"]');
+    if (!link || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const menu = link.closest('.ant-dropdown');
+    if (menu) menu.classList.add('ant-dropdown-hidden');
+    openPayment(menu ? document.querySelector('[data-testid=user-center-button]') : link);
+  }, true);
   // аватар с data-crmp-card (crmAvatar(id, size, label, true)) открывает карточку человека
   document.addEventListener('click', function (ev) {
     const a = ev.target.closest && ev.target.closest('[data-crmp-card]');

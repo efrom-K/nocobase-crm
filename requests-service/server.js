@@ -16,7 +16,6 @@ const {objectRoute, RouteError} = require('./routes');
 const {createPyrusPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE} = require('./pyrus-payments');
 const {createKnowledge, KnowledgeError, topics, audiences} = require('./knowledge');
 let knowledge;
-const PAYMENT_HTML = fs.readFileSync(path.join(__dirname, 'payment-request.html'));
 const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
 
 const env = process.env;
@@ -447,10 +446,8 @@ http.createServer(async (req, res) => {
       return res.end();
     }
     if (p === '/payment-request' && req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
-        'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'" });
-      return res.end(PAYMENT_HTML);
+      res.writeHead(302, {Location:'/admin/dashpage01?payment=open', 'Cache-Control':'no-store'});
+      return res.end();
     }
     // Generic isolated renderer: object data arrives from its authenticated CRM parent, never from this endpoint.
     if (p === '/object-map' && req.method === 'GET') {

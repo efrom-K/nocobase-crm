@@ -63,6 +63,8 @@ jobs:
         run: node tests/object_map.test.js
       - name: Object routing permissions and provider handling
         run: node requests-service/routes.test.js
+      - name: CRM task participant permissions
+        run: node --test requests-service/tasks.test.js
       - name: Pyrus payment register
         run: node requests-service/pyrus-payments.test.js
       - name: Object directory migration (isolated PostgreSQL schema)

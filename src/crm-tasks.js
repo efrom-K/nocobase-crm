@@ -176,6 +176,9 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-form { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; }
     .tk-form .full { grid-column:1 / -1; }
     .tk-f label { display:block; font-size:12.5px; color:#3a4256; margin-bottom:4px; }
+    [data-person-picker] { display:grid; gap:4px; }
+    [data-observer-list]:not(:empty) { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+    [data-observer-add] { margin-top:6px; }
     .tk-f label i { color:#c23b3b; font-style:normal; }
     .tk-f select, .tk-f input, .tk-f textarea { width:100%; }
     .tk-f textarea { min-height:70px; resize:vertical; }
@@ -325,24 +328,31 @@ async function tkMe() {
 }
 async function tkLoad() {
   const all = await Promise.all([
-    ctx.api.resource('crm_tasks').list({ paginate: false, sort: ['-id'] }),
-    ctx.api.resource('users').list({ paginate: false, fields: ['id', 'nickname', 'username'] }),
-    ctx.api.resource('contract_objects').list({ paginate: false, sort: ['name'], fields: ['id', 'name'] }),
+    ctx.api.resource('crm_tasks').list({ paginate: false, sort: ['-id'], appends: ['observers'] }),
+    ctx.api.resource('users').list({ paginate: false, fields: ['id', 'nickname', 'username'] }).catch(function() { return null; }),
+    ctx.api.resource('contract_objects').list({ paginate: false, sort: ['name'], fields: ['id', 'name'] }).catch(function() { return null; }),
     ctx.api.resource('rental_contracts').list({ paginate: false, fields: ['id', 'contract_number', 'tenant_name', 'object_name'] }).catch(function() { return null; }),
-    ctx.api.resource('crm_employees').list({ paginate: false, sort: ['last_name', 'first_name'] }),
-    ctx.api.resource('crm_departments').list({ paginate: false, sort: ['sort', 'name'] })
+    ctx.api.resource('crm_employees').list({ paginate: false, sort: ['last_name', 'first_name'] }).catch(function() { return null; }),
+    ctx.api.resource('crm_departments').list({ paginate: false, sort: ['sort', 'name'] }).catch(function() { return null; })
   ]);
   const users = {};
   tkRows(all[1]).forEach(function(u) { users[u.id] = u; });   // служебные учётки — только для отображения имени, в выбор не попадают
   tk.data = { tasks: tkRows(all[0]), users: users, objects: tkRows(all[2]), contracts: tkRows(all[3]), emps: tkRows(all[4]), depts: tkRows(all[5]) };
   tk.myEmp = tkEmpOfUser(tk.me.id);
 }
+async function tkParticipantAction(task, action, data) {
+  const res = await fetch('/rqsvc/task-action', { method: 'POST',
+    headers: { Authorization: 'Bearer ' + tkToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ id: task.id, action: action }, data)) });
+  if (!res.ok) throw new Error('Не удалось сохранить изменение');
+}
+function tkObservers(t) { return Array.isArray(t.observers) ? t.observers : []; }
 function tkNotify(userId, title, text, taskId) {
   if (!userId || (tk.me && Number(userId) === Number(tk.me.id))) return;
   ctx.api.resource('task_notifications').create({ values: { user_id: Number(userId), title: title, text: text, url: TK_PAGE + '?open=task:' + taskId } }).catch(function() { /* уведомление не должно ломать действие */ });
 }
 function tkEvent(taskId, kind, text, fileId) {
-  return ctx.api.resource('crm_task_events').create({ values: { task_id: taskId, author_id: tk.me.id, author_name: tkWho(tk.me.id), kind: kind, text: text || '', file_id: fileId || null } });
+  return tkParticipantAction({id: taskId}, 'event', {kind: kind, text: text || '', fileId: fileId || null});
 }
 async function tkUpload(file) {
   const boundary = '----tkBoundary' + Math.random().toString(16).slice(2);
@@ -370,9 +380,9 @@ function tkModal(html) {
   return m;
 }
 // люди для выбора: работающие сотрудники, value — "u<id учётки>" (без учётки — "e<id сотрудника>")
-function tkPeopleOptions(selKey) {
+function tkPeopleOptions(selKey, accountOnly) {
   const seen = {}, out = [];
-  tk.data.emps.filter(function(e) { return e.status !== 'fired'; }).forEach(function(e) {
+  tk.data.emps.filter(function(e) { return e.status !== 'fired' && (!accountOnly || e.user_id); }).forEach(function(e) {
     if (e.user_id) seen[e.user_id] = 1;
     out.push([e.user_id ? 'u' + e.user_id : 'e' + e.id, e.full_name || '', e.position || '']);
   });
@@ -382,6 +392,45 @@ function tkPeopleOptions(selKey) {
   });
   return out.sort(function(a, b) { return a[1].localeCompare(b[1], 'ru'); })
     .map(function(x) { return '<option value="' + x[0] + '"' + (x[0] === selKey ? ' selected' : '') + '>' + tkEsc(x[1] + (x[2] ? ' — ' + x[2] : '')) + '</option>'; }).join('');
+}
+function tkPersonPicker(id, label, selected, empty, accountOnly) {
+  return '<div data-person-picker><input type="search" aria-label="Поиск: ' + tkEsc(label) + '" placeholder="Поиск по фамилии">'
+    + '<select aria-label="' + tkEsc(label) + '" ' + id + '><option value="">' + tkEsc(empty) + '</option>'
+    + tkPeopleOptions(selected, accountOnly) + '</select></div>';
+}
+function tkBindPeople(root) {
+  root.querySelectorAll('[data-person-picker]').forEach(function(picker) {
+    const search = picker.querySelector('input'), select = picker.querySelector('select');
+    const options = Array.from(select.options);
+    search.addEventListener('input', function() {
+      const selected = select.value, query = search.value.trim().toLocaleLowerCase('ru').replace(/ё/g, 'е');
+      select.replaceChildren(...options.filter(function(option) {
+        return !option.value || option.value === selected || option.text.toLocaleLowerCase('ru').replace(/ё/g, 'е').includes(query);
+      }));
+      select.value = selected;
+    });
+  });
+}
+function tkObserverPicker() {
+  return tkPersonPicker('data-observer-person', 'Наблюдатель', '', 'Выберите сотрудника', true)
+    + '<button type="button" class="tk-btn" data-observer-add>Добавить</button><div data-observer-list aria-live="polite"></div>';
+}
+function tkBindObservers(root) {
+  const selected = new Map(), select = root.querySelector('[data-observer-person]'), list = root.querySelector('[data-observer-list]');
+  root.querySelector('[data-observer-add]').addEventListener('click', function() {
+    const person = tkPersonFromKey(select.value);
+    if (!person.id || selected.has(person.id)) { select.focus(); return; }
+    const item = list.ownerDocument.createElement('button');
+    item.type = 'button';
+    item.className = 'tk-btn';
+    item.textContent = person.name + ' ×';
+    item.setAttribute('aria-label', 'Убрать: ' + person.name);
+    item.addEventListener('click', function() { selected.delete(person.id); item.remove(); select.focus(); });
+    selected.set(person.id, person);
+    list.appendChild(item);
+    select.value = '';
+  });
+  return selected;
 }
 function tkPersonFromKey(k) {
   if (!k) return { id: null, name: null };
@@ -399,6 +448,7 @@ function tkKeyOf(id, name) {
 const TK_VIEWS = [
   ['mine', 'Мне поручено', function(l) { return l.filter(function(t) { return tkIsOpen(t) && Number(t.executor_id) === tk.me.id; }); }],
   ['given', 'Поручил я', function(l) { return l.filter(function(t) { return (tkIsOpen(t) || t.status === 'done') && Number(t.executor_id) !== tk.me.id && (Number(t.author_id) === tk.me.id || Number(t.controller_id) === tk.me.id); }); }],
+  ['observe', 'Наблюдаю', function(l) { return l.filter(function(t) { return tkObservers(t).some(function(u) { return Number(u.id) === Number(tk.me.id); }); }); }],
   ['check', 'Проверить', function(l) { return l.filter(function(t) { return t.status === 'done' && tkChecker(t) === tk.me.id; }); }],
   ['open', 'Все открытые', function(l) { return l.filter(tkIsOpen); }],
   ['late', 'Просроченные', function(l) { return l.filter(tkLate); }],
@@ -407,6 +457,7 @@ const TK_VIEWS = [
 const TK_EMPTY = {
   mine: ['Вам сейчас ничего не поручено', 'Когда кто-то поставит вам задачу, она появится здесь.'],
   given: ['Вы пока никому не поручали задач', 'Нажмите «+ Поставить задачу», выберите исполнителя и срок.'],
+  observe: ['Пока нет задач с вашим участием как наблюдателя', ''],
   check: ['Проверять нечего', 'Здесь появятся задачи, которые исполнители отметили выполненными.'],
   open: ['Открытых задач нет', ''], late: ['Просроченных задач нет', 'Все укладываются в сроки.'], closed: ['Закрытых задач пока нет', '']
 };
@@ -419,7 +470,7 @@ async function tkStart() {
   try {
     tk.me = await tkMe();
     await tkLoad();
-    tk.view = TK_VIEWS[0][2](tk.data.tasks).length ? 'mine' : TK_VIEWS[2][2](tk.data.tasks).length ? 'check' : 'open';
+    tk.view = TK_VIEWS[0][2](tk.data.tasks).length ? 'mine' : TK_VIEWS.find(function(v) { return v[0] === 'check'; })[2](tk.data.tasks).length ? 'check' : 'open';
     tkRender();
     tkLive = crmLive('tasks', ['crm_tasks'], tkReload, tkRoot);
     const m = location.search.match(/[?&]open=(task|emp):(\d+)/);
@@ -683,15 +734,16 @@ function tkOpenNew(preset) {
   const m = tkModal('<div class="tk-box-h"><div class="tk-box-t">' + (hr ? 'Кадровая задача' : 'Новая задача') + '</div><button class="tk-x">✕</button></div><div class="tk-box-b"><div class="tk-form">'
     + (hr ? '<div class="tk-f full"><label>Что оформляем</label><div class="tk-seg">' + TK_HR_TPL.map(function(x) { return '<button type="button" style="--c:#1c2d58;" data-hr="' + tkEsc(x) + '">' + tkEsc(x) + '</button>'; }).join('') + '</div></div>' : '')
     + '<div class="tk-f full"><label>Что сделать <i>*</i></label><input type="text" data-n="title" placeholder="Например: подготовить акт сверки с арендатором" value="' + tkEsc(preset.title || '') + '"></div>'
-    + '<div class="tk-f"><label>Кому <i>*</i></label><select data-n="executor"><option value="">Выберите сотрудника</option>' + tkPeopleOptions(preset.executor || '') + '</select></div>'
+    + '<div class="tk-f"><label>Кому <i>*</i></label>' + tkPersonPicker('data-n="executor"', 'Исполнитель', preset.executor || '', 'Выберите сотрудника') + '</div>'
     + '<div class="tk-f"><label>Срок</label><input type="date" data-n="due_date" min="2000-01-01" max="2099-12-31" value="' + tkAddWorkDays(TK_URG.normal.d) + '">'
     + '<div class="tk-quickdue"><button type="button" data-due="0">сегодня</button><button type="button" data-due="1">завтра</button><button type="button" data-due="7">через неделю</button><button type="button" data-due="">без срока</button></div></div>'
     + '<div class="tk-f full"><label>Подробности</label><textarea data-n="description" placeholder="Что именно нужно, где взять данные, что уже сделано"></textarea></div>'
     + '<div class="tk-f full"><label>Срочность</label><div class="tk-seg">' + Object.keys(TK_URG).map(function(k) { return '<button type="button" data-urg="' + k + '" style="--c:' + (k === 'normal' ? '#1c2d58' : TK_URG[k].c) + ';"' + (k === 'normal' ? ' class="on"' : '') + '>' + TK_URG[k].l + '</button>'; }).join('') + '</div></div>'
+    + '<div class="tk-f"><label>Кто проверяет и закрывает</label>' + tkPersonPicker('data-n="controller"', 'Проверяющий', '', 'Я (' + tkWho(tk.me.id) + ')', true) + '</div>'
+    + '<div class="tk-f"><label>Наблюдатели</label>' + tkObserverPicker() + '</div>'
     + '</div>'
-    + '<div class="tk-adv"><button type="button" class="tk-adv-t" data-adv>' + (hr ? '▾' : '▸') + ' Дополнительно: тип, объект, договор, кто проверяет, файл</button><div class="tk-form" data-adv-b style="margin-top:10px;' + (hr ? '' : 'display:none;') + '">'
+    + '<div class="tk-adv"><button type="button" class="tk-adv-t" data-adv>' + (hr ? '▾' : '▸') + ' Дополнительно: тип, объект, договор, файл</button><div class="tk-form" data-adv-b style="margin-top:10px;' + (hr ? '' : 'display:none;') + '">'
     + '<div class="tk-f"><label>Тип</label><select data-n="kind">' + TK_KINDS.map(function(k) { return '<option' + ((preset.kind || 'Общая') === k ? ' selected' : '') + '>' + tkEsc(k) + '</option>'; }).join('') + '</select></div>'
-    + '<div class="tk-f"><label>Кто проверяет и закрывает</label><select data-n="controller"><option value="">я (' + tkEsc(tkWho(tk.me.id)) + ')</option>' + tkPeopleOptions('') + '</select></div>'
     + '<div class="tk-f"><label>Объект</label><select data-n="object_name"><option value="">— не относится к объекту —</option>' + d.objects.map(function(o) { return '<option' + (preset.object_name === o.name ? ' selected' : '') + '>' + tkEsc(o.name) + '</option>'; }).join('') + '</select></div>'
     + '<div class="tk-f"><label>Договор / арендатор</label><select data-n="contract_id"><option value="">— не по договору —</option></select></div>'
     + '<div class="tk-f" data-emp-f><label>Сотрудник, по которому задача</label><select data-n="employee_id"><option value="">—</option>' + d.emps.filter(function(e) { return e.status !== 'fired' || e.id === preset.employee_id; }).map(function(e) { return '<option value="' + e.id + '"' + (e.id === preset.employee_id ? ' selected' : '') + '>' + tkEsc(e.full_name) + '</option>'; }).join('') + '</select></div>'
@@ -699,6 +751,8 @@ function tkOpenNew(preset) {
     + '</div></div>'
     + '<div class="tk-actions"><button class="tk-btn pri" data-save>Поставить задачу</button><button class="tk-btn link tk-x">Отмена</button></div></div>');
   const q = function(n) { return m.querySelector('[data-n="' + n + '"]'); };
+  tkBindPeople(m);
+  const observers = tkBindObservers(m);
   let urg = 'normal', dueTouched = false;
   q('due_date').addEventListener('change', function() { dueTouched = true; });
   m.querySelector('[data-adv]').addEventListener('click', function(e) {
@@ -745,11 +799,12 @@ function tkOpenNew(preset) {
       const vals = { title: title, description: q('description').value.trim(), kind: q('kind').value, urgency: urg, due_date: due || null, status: 'new', due_moved: 0,
         executor_id: ex.id, executor_name: ex.name, controller_id: ctl, controller_name: tkWho(ctl),
         author_id: tk.me.id, author_name: tkWho(tk.me.id), object_name: q('object_name').value || null,
-        contract_id: Number(q('contract_id').value) || null, employee_id: q('kind').value === 'Кадры' ? (Number(q('employee_id').value) || null) : null, source: 'crm' };
+        contract_id: Number(q('contract_id').value) || null, employee_id: q('kind').value === 'Кадры' ? (Number(q('employee_id').value) || null) : null, source: 'crm', observers: [...observers.keys()] };
       const rec = tkRows(await ctx.api.resource('crm_tasks').create({ values: vals }))[0];
       await tkEvent(rec.id, 'create', 'Поставил задачу' + (fileId ? ', приложил файл' : ''), fileId);
       tkNotify(vals.executor_id, 'Новая задача №' + rec.id, (urg === 'asap' ? 'Горит! ' : urg === 'urgent' ? 'Срочно: ' : '') + title + (due ? ' (срок ' + tkDate(due) + ')' : ''), rec.id);
       if (ctl !== vals.executor_id) tkNotify(ctl, 'Задача №' + rec.id, 'Вы проверяете: ' + title, rec.id);
+      vals.observers.filter(function(id) { return id !== ctl && id !== vals.executor_id; }).forEach(function(id) { tkNotify(id, 'Задача №' + rec.id, 'Вы наблюдаете: ' + title, rec.id); });
       m.remove();
       tkToast('Задача поставлена: ' + ex.name);
       tk.view = Number(vals.executor_id) === tk.me.id ? 'mine' : 'given';
@@ -762,7 +817,7 @@ function tkOpenNew(preset) {
 // ---------- карточка задачи ----------
 async function tkOpenCard(id) {
   let t = tk.data.tasks.find(function(x) { return x.id === id; });
-  if (!t) { try { t = tkRows(await ctx.api.resource('crm_tasks').get({ filterByTk: id }))[0]; } catch (e) { t = null; } }
+  if (!t) { try { t = tkRows(await ctx.api.resource('crm_tasks').get({ filterByTk: id, appends: ['observers'] }))[0]; } catch (e) { t = null; } }
   if (!t) { tkToast('Задача №' + id + ' не найдена'); return; }
   const m = tkModal('<div data-tk-card></div>');
   await tkRenderCard(m, t);
@@ -790,7 +845,10 @@ function tkNext(t) {
   } else if (t.status === 'closed') { title = 'Задача закрыта'; if (chk) main = [['reopen', 'Возобновить', '']]; }
   else if (t.status === 'cancelled') { title = 'Задача отменена'; if (chk) main = [['reopen', 'Возобновить', '']]; }
   const more = [];
-  if (tkIsOpen(t) && (ex || chk)) { more.push(['due', 'Перенести срок', '']); more.push(['assign', 'Передать другому', '']); }
+  if (tkIsOpen(t) && (ex || chk)) more.push(['due', 'Перенести срок', '']);
+  if ((tkIsOpen(t) || t.status === 'done') && Number(t.author_id) === Number(me)) {
+    more.push(['assign', 'Передать другому', ''], ['observe', 'Добавить наблюдателей', '']);
+  }
   if (chk) more.push(['edit', 'Тип, объект, срочность', '']);
   if (tkIsOpen(t) && chk) more.push(['cancel', 'Отменить задачу', 'warn']);
   return { title: title, text: text, main: main, more: more };
@@ -814,6 +872,7 @@ async function tkRenderCard(m, t) {
     + '<div class="tk-meta">'
     + '<div><div class="l">Исполнитель</div>' + tkEsc(tkWho(t.executor_id, t.executor_name)) + '</div>'
     + '<div><div class="l">Проверяет</div>' + tkEsc(tkWho(tkChecker(t), t.controller_name || t.author_name)) + '</div>'
+    + (tkObservers(t).length ? '<div><div class="l">Наблюдатели</div>' + tkObservers(t).map(function(u) { return tkEsc(tkWho(u.id, u.nickname)); }).join(', ') + '</div>' : '')
     + '<div><div class="l">Срок</div>' + tkDue(t) + (t.due_moved ? ' <span class="tk-hint">(переносили ' + t.due_moved + ' раз)</span>' : '') + '</div>'
     + '<div><div class="l">Поставил</div>' + tkEsc(tkWho(t.author_id, t.author_name)) + ' · ' + tkDateTime(t.createdAt) + '</div>'
     + (t.object_name ? '<div><div class="l">Объект</div>' + tkEsc(t.object_name) + '</div>' : '')
@@ -864,9 +923,7 @@ async function tkRenderCard(m, t) {
     e.target.disabled = true;
     try {
       const fid = fin.files[0] ? await tkUpload(fin.files[0]) : null;
-      await tkEvent(t.id, 'comment', txt || 'Файл', fid);
-      [t.executor_id, tkChecker(t), t.author_id].filter(function(v, i, a) { return v && a.indexOf(v) === i; })
-        .forEach(function(uid) { tkNotify(uid, 'Задача №' + t.id, tkWho(tk.me.id) + ': ' + (txt || 'приложил файл'), t.id); });
+      await tkParticipantAction(t, 'comment', { text: txt, fileId: fid });
       await tkRenderCard(m, t);
       if (m.isConnected) box.querySelector('[data-cmt]').focus({ preventScroll: true });
     } catch (err) { tkToast('Не удалось отправить'); e.target.disabled = false; }
@@ -883,7 +940,8 @@ function tkAction(m, t, a) {
     cancel: lbl('Почему отменяем') + '<textarea data-in style="width:100%;margin-top:4px;min-height:50px;"></textarea>',
     due: lbl('Новый срок') + '<input type="date" data-in min="2000-01-01" max="2099-12-31" value="' + tkEsc(String(t.due_date || '').slice(0, 10)) + '" style="width:100%;margin-top:4px;">'
       + lbl('Почему переносим') + '<input type="text" data-in2 style="width:100%;margin-top:4px;">',
-    assign: lbl('Кому передать') + '<select data-in style="width:100%;margin-top:4px;">' + tkPeopleOptions(tkKeyOf(t.executor_id, t.executor_name)) + '</select>',
+    assign: lbl('Кому передать') + tkPersonPicker('data-in', 'Новый исполнитель', tkKeyOf(t.executor_id, t.executor_name), 'Выберите сотрудника'),
+    observe: lbl('Наблюдатели') + tkObserverPicker(),
     edit: lbl('Тип') + '<select data-in style="width:100%;margin-top:4px;">' + TK_KINDS.map(function(k) { return '<option' + (t.kind === k ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '</select>'
       + lbl('Объект') + '<select data-in2 style="width:100%;margin-top:4px;"><option value="">— не относится к объекту —</option>' + tk.data.objects.map(function(o) { return '<option' + (t.object_name === o.name ? ' selected' : '') + '>' + tkEsc(o.name) + '</option>'; }).join('') + '</select>'
       + lbl('Срочность') + '<select data-in4 style="width:100%;margin-top:4px;">' + Object.keys(TK_URG).map(function(k) { return '<option value="' + k + '"' + ((t.urgency || 'normal') === k ? ' selected' : '') + '>' + TK_URG[k].l + '</option>'; }).join('') + '</select>'
@@ -892,8 +950,10 @@ function tkAction(m, t, a) {
   if (need) {
     box.innerHTML = '<div class="tk-actbox">' + need + '<div class="tk-actions" style="margin-top:10px;"><button class="tk-btn pri" data-go-a>Сохранить</button><button class="tk-btn link" data-no-a>Отмена</button></div></div>';
     box.querySelector('[data-no-a]').addEventListener('click', function() { box.innerHTML = ''; });
-    box.querySelector('[data-go-a]').addEventListener('click', function(e) { tkApply(m, t, a, e.target); });
-    const f = box.querySelector('[data-in]'); if (f) f.focus();
+    tkBindPeople(box);
+    const observers = a === 'observe' ? tkBindObservers(box) : null;
+    box.querySelector('[data-go-a]').addEventListener('click', function(e) { tkApply(m, t, a, e.target, observers); });
+    const f = box.querySelector('[data-person-picker] input, [data-in]'); if (f) f.focus();
   } else tkApply(m, t, a, null);
 }
 // действие по задаче без интерфейса — его зовут и кнопки карточки, и доска. Ошибка ввода → { err, field: 1|2 };
@@ -916,12 +976,11 @@ async function tkDo(t, a, v, v2, v3, v4) {
     ev = 'Перенёс срок с ' + (tkDate(t.due_date) || '«без срока»') + ' на ' + tkDate(v) + ': ' + reason; kind = 'due';
     notify = [[t.executor_id, 'Срок перенесён на ' + tkDate(v) + ': ' + reason], [chk, 'Срок перенесён на ' + tkDate(v) + ': ' + reason]];
   }
-  if (a === 'assign') {
-    const p = tkPersonFromKey(v);
-    if ((!p.id && !p.name) || tkKeyOf(p.id, p.name) === tkKeyOf(t.executor_id, t.executor_name)) return { skip: true };
-    upd = { executor_id: p.id, executor_name: p.name };
-    ev = 'Передал: ' + tkWho(t.executor_id, t.executor_name) + ' → ' + p.name; kind = 'assign';
-    notify = [[p.id, 'Вам передана задача: ' + t.title + (t.due_date ? ' (срок ' + tkDate(t.due_date) + ')' : '')]];
+  if (a === 'assign' || a === 'observe') {
+    if (Number(t.author_id) !== Number(tk.me.id)) return { err: 'Изменить участников может только постановщик' };
+    if (!v.length) return { err: 'Выберите сотрудника', field: 1 };
+    await tkParticipantAction(t, a, a === 'assign' ? { person: v } : { users: v });
+    return null;
   }
   if (a === 'edit') {
     upd = { kind: v, object_name: v2 || null, urgency: v4, employee_id: v === 'Кадры' ? (Number(v3) || null) : null };
@@ -941,13 +1000,13 @@ async function tkDo(t, a, v, v2, v3, v4) {
   return null;
 }
 const TK_DONE_MSG = { take: 'Задача в работе', done: 'Отправлено на проверку', close: 'Задача закрыта', reopen: 'Задача снова в работе', cancel: 'Задача отменена', due: 'Срок перенесён', assign: 'Задача передана', wait: 'Задача ждёт', resume: 'Задача снова в работе' };
-async function tkApply(m, t, a, btn) {
+async function tkApply(m, t, a, btn, observers) {
   const box = m.querySelector('[data-actbox]');
   const inp = box.querySelector('[data-in]'), inp2 = box.querySelector('[data-in2]'), inp3 = box.querySelector('[data-in3]'), inp4 = box.querySelector('[data-in4]');
   const val = function(x) { return x ? x.value.trim() : ''; };
   if (btn) btn.disabled = true;
   try {
-    const res = await tkDo(t, a, val(inp), val(inp2), val(inp3), val(inp4));
+    const res = await tkDo(t, a, observers ? [...observers.keys()] : val(inp), val(inp2), val(inp3), val(inp4));
     if (res && res.err) { tkToast(res.err); const f = res.field === 2 ? inp2 : inp; if (f) f.focus(); if (btn) btn.disabled = false; return; }
     if (res && res.skip) { box.innerHTML = ''; return; }
     await tkReload();

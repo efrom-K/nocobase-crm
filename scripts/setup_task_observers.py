@@ -81,6 +81,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prepare', action='store_true', help='install fields and service permissions only')
     args = parser.parse_args()
+    # NocoBase appends new fields to each explicit action list. Its field hook
+    # rejects legacy null lists, which otherwise mean all existing fields.
+    for collection in (TASK, EVENT):
+        resources = query('roles/crm_readonly/resources', {'name': collection})
+        if resources:
+            resource = api('roles/crm_readonly/resources:get?filterByTk=' + str(resources[0]['id']) + '&appends=actions')
+            actions = resource['actions']
+            if any(item['fields'] is None for item in actions):
+                fields = [f['name'] for f in query('collections/' + collection + '/fields')]
+                acl('crm_readonly', collection, [
+                    {**{k: item[k] for k in ('name', 'scopeId') if k in item}, 'fields': item['fields'] if item['fields'] is not None else fields}
+                    for item in actions
+                ])
+
     field(TASK, 'observers', type='belongsToMany', interface='m2m', target='users',
           through='crmTaskObservers', foreignKey='task_id', otherKey='user_id', sourceKey='id', targetKey='id',
           uiSchema={'title': 'Наблюдатели', 'x-component': 'AssociationField'})

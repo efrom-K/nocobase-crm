@@ -14,6 +14,9 @@ const path = require('path');
 const R = require('./rules');
 const {objectRoute, RouteError} = require('./routes');
 const {createPyrusPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE} = require('./pyrus-payments');
+const {createKnowledge, KnowledgeError, topics, audiences} = require('./knowledge');
+const KNOWLEDGE_HTML = fs.readFileSync(path.join(__dirname, 'knowledge.html'));
+let knowledge;
 const PAYMENT_HTML = fs.readFileSync(path.join(__dirname, 'payment-request.html'));
 const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
 
@@ -67,7 +70,7 @@ async function whoami(token) {
   } catch (e) { u = null; }
   if (!u || !u.id) { tokenCache.delete(token); return null; }
   const roles = (u.roles || []).map(x => x.name);
-  const v = { id: u.id, name: u.nickname || u.username || '#' + u.id, isAho: roles.includes('aho'), isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), readOnly: roles.includes('crm_readonly'), exp: Date.now() + 60000 };
+  const v = { id: u.id, name: u.nickname || u.username || '#' + u.id, knowledgeAudiences: roles, isAho: roles.includes('aho'), isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), readOnly: roles.includes('crm_readonly'), exp: Date.now() + 60000 };
   tokenCache.set(token, v);
   if (tokenCache.size > 500) for (const [k, x] of tokenCache) if (x.exp < Date.now()) tokenCache.delete(k);
   return v;
@@ -439,6 +442,12 @@ http.createServer(async (req, res) => {
   const p = new URL(req.url, 'http://x').pathname;
   try {
     if (p === '/health') return send(res, 200, { ok: true }, origin);
+    if (p === '/knowledge' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'" });
+      return res.end(KNOWLEDGE_HTML);
+    }
     if (p === '/payment-request' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
@@ -467,6 +476,30 @@ http.createServer(async (req, res) => {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || (cookie ? decodeURIComponent(cookie[1]) : '');
     const user = await whoami(token);
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
+    if (p === '/knowledge/api' && ['GET', 'POST'].includes(req.method)) {
+      const employees = user.isAdmin ? [] : await list('crm_employees',
+        '&fields=id,status,fired_on&filter=' + q({user_id:user.id}));
+      if (!user.isAdmin && !employees?.some(x => !x.fired_on && x.status !== 'fired')) {
+        throw new ApiError(403, 'База знаний доступна сотрудникам компании');
+      }
+      knowledge ||= createKnowledge(env.KNOWLEDGE_DB || '/app/knowledge/knowledge.sqlite');
+      const canEdit = user.isAdmin && !user.readOnly;
+      if (req.method === 'POST') {
+        if (!canEdit) throw new ApiError(403, 'Нужны права редактора');
+        return send(res, 200, knowledge.save(user, await readJson(req, 256 * 1024)), origin);
+      }
+      const assignments = user.isAdmin || user.isCtl ? [] : await list('contract_objects',
+        '&fields=id&filter=' + q({$or:[{manager_user_id:user.id},{senior_user_id:user.id}]}));
+      const reader = {...user, knowledgeAudiences: [...user.knowledgeAudiences,
+        ...(user.isCtl || assignments?.length ? ['managers'] : [])]};
+      const params = new URL(req.url, 'http://x').searchParams;
+      const id = Number(params.get('id'));
+      if (params.has('id')) {
+        if (!Number.isSafeInteger(id) || id < 1) throw new ApiError(404, 'Статья не найдена');
+        return send(res, 200, params.has('history') ? knowledge.history(reader,id) : knowledge.read(reader,id), origin);
+      }
+      return send(res, 200, {articles:knowledge.browse(reader,(params.get('q') || '').slice(0,200)), topics, audiences, canEdit}, origin);
+    }
     if (p === '/write-access-check' && req.method === 'GET') return send(res, user.readOnly ? 403 : 200, { ok: !user.readOnly }, origin);
     if (p === '/payment-request/api' && ['GET', 'POST'].includes(req.method)) {
       const employees = await list('crm_employees', '&fields=full_name,status,fired_on&filter=' + q({ user_id: user.id }));
@@ -513,7 +546,7 @@ http.createServer(async (req, res) => {
     if (p === '/object-person' && req.method === 'POST') return send(res, 200, await objectPerson(user, await readJson(req)), origin);
     throw new ApiError(404, 'Нет такого адреса');
   } catch (e) {
-    const expected = e instanceof ApiError || e instanceof RouteError || e instanceof PaymentError;
+    const expected = e instanceof ApiError || e instanceof RouteError || e instanceof PaymentError || e instanceof KnowledgeError;
     if (!expected) console.error(e);
     send(res, e.status || 500, { error: expected ? e.message : 'Ошибка сервиса заявок', field: e.field || null }, origin);
   }

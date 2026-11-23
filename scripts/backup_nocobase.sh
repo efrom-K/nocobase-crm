@@ -39,5 +39,27 @@ ln -sf "uploads_$T.tar.gz" "$DIR/uploads_latest.tar.gz"
 find "$DIR" -name 'db_20*.sql.gz' -mtime +30 -delete
 # ponytail: вложения 7 дней (полный архив 3×/день по ~100 МБ, при 30 днях svc забивался); база — 30
 find "$DIR" -name 'uploads_20*.tar.gz' -mtime +7 -delete
+# Снимок SQLite через VACUUM INTO включает согласованное состояние на момент запуска.
+if sudo -n docker exec nb_requests-requests-1 test -f /app/knowledge/knowledge.sqlite; then
+  (
+    umask 077
+    sudo -n docker exec nb_requests-requests-1 node -e '
+      const fs = require("node:fs"), { DatabaseSync } = require("node:sqlite");
+      const dir = fs.mkdtempSync("/tmp/kb-backup-");
+      try {
+        const db = new DatabaseSync("/app/knowledge/knowledge.sqlite", { readOnly: true });
+        db.exec("PRAGMA busy_timeout=5000");
+        const file = dir + "/knowledge.sqlite";
+        db.prepare("VACUUM INTO ?").run(file);
+        process.stdout.write(fs.readFileSync(file));
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    ' | gzip > "$DIR/knowledge_$T.sqlite.gz.tmp"
+    gzip -t "$DIR/knowledge_$T.sqlite.gz.tmp"
+    mv "$DIR/knowledge_$T.sqlite.gz.tmp" "$DIR/knowledge_$T.sqlite.gz"
+    find "$DIR" -name 'knowledge_20*.sqlite.gz' -mtime +30 -delete
+  )
+fi
 /home/ubuntu/nb_bik/encrypt_latest.sh || fail "не удалось зашифровать копию для DC"
 echo "$(date '+%F %T') ok $(du -h "$DIR/db_$T.sql.gz" | cut -f1) db, $(du -h "$DIR/uploads_$T.tar.gz" | cut -f1) uploads"

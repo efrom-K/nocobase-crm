@@ -502,6 +502,13 @@
         payment.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/rqsvc/payment-request">Подать заявку на оплату</a>';
         li.parentNode.insertBefore(payment, set.nextSibling);
       }
+      if (!li.parentNode.querySelector('.crmp-li-knowledge')) {
+        const knowledge = document.createElement('li');
+        knowledge.className = 'ant-dropdown-menu-item crmp-li-knowledge';
+        knowledge.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/rqsvc/knowledge">База знаний</a>';
+        const payment = li.parentNode.querySelector('.crmp-li-payment');
+        li.parentNode.insertBefore(knowledge, payment.nextSibling);
+      }
       // одна форма профиля: стандартный пункт «Редактировать профиль» открывает редактор выше (стандартная форма остаётся
       // служебной — по ней users:updateProfile решает, какие поля можно сохранять)
       li.parentNode.querySelectorAll('li').forEach(function (x) {

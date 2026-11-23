@@ -462,17 +462,6 @@ if (!document.getElementById('cm-reg-look-style')) {
     #registry-local-tabs .cm-reg-tools { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
     #registry-local-tabs .cm-reg-tools button { min-height:30px; }
     #registry-local-tabs :focus-visible { outline:2px solid #2f4a8a; outline-offset:2px; }
-    .cm-create-options { position:relative; z-index:20; flex-shrink:0; }
-    .cm-create-options > summary { list-style:none; cursor:pointer; border-radius:6px; padding:8px 14px; background:#1c2d58; color:#fff; font-size:13px; white-space:nowrap; }
-    .cm-create-options > summary::-webkit-details-marker { display:none; }
-    .cm-create-options > summary::after { content:'⌄'; margin-left:8px; }
-    .cm-create-options[open] > summary { border-radius:6px 6px 0 0; }
-    .cm-create-menu { position:absolute; top:100%; right:0; width:290px; padding:5px; box-sizing:border-box; background:#fff; border:1px solid #dfe3ec; border-radius:0 0 8px 8px; box-shadow:0 6px 16px rgba(16,24,40,.16); }
-    .cm-create-choice { display:block; width:100%; padding:9px 10px; border:0; border-radius:5px; text-align:left; color:#1f2433; background:#fff; cursor:pointer; }
-    .cm-create-choice:hover, .cm-create-choice:focus-visible { background:#eef2f9; }
-    .cm-create-choice span, .cm-create-choice small { display:block; }
-    .cm-create-choice span { font-size:13px; font-weight:600; }
-    .cm-create-choice small { margin-top:2px; color:#5b6478; font-size:11.5px; }
     @media (max-width:700px) { #registry-local-tabs .cm-reg-tools { margin-left:0; } }
     [data-uid="ozazmpm4o4v"] .ant-table-thead > tr > th, [data-uid="formtbl000001"] .ant-table-thead > tr > th, [data-uid="ipb7gfluldk"] .ant-table-thead > tr > th { background:#e9edf5 !important; color:#1f2433 !important; font-weight:600 !important; font-size:12.5px; border-bottom:1px solid #c3cad8 !important; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="formtbl000001"] .ant-table-tbody > tr.ant-table-row > td, [data-uid="ipb7gfluldk"] .ant-table-tbody > tr.ant-table-row > td { color:#1f2433; font-size:13.5px; border-bottom-color:#dfe3ec !important; }
@@ -483,9 +472,6 @@ if (!document.getElementById('cm-reg-look-style')) {
       .ant-table tbody > tr.ant-table-row.cm-notif-row { background:#f6eedb; }
       div:has(> #global-search-input) { flex-wrap:wrap !important; }
       #global-search-input { flex:1 1 100% !important; max-width:none !important; height:42px; }
-      .cm-create-options { flex:1 1 100% !important; box-sizing:border-box; }
-      .cm-create-options > summary { text-align:center; }
-      .cm-create-menu { position:static; width:100%; border-radius:0 0 8px 8px; box-shadow:0 3px 8px rgba(16,24,40,.12); }
       .ant-layout-content .ant-table tbody > tr > td[data-l="Электронная почта"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Фамилия, имя, отчество по договору"]:not(.crm-m-title), .ant-layout-content .ant-table tbody > tr > td[data-l="Дата подписания акта приёма-передачи"]:not(.crm-m-title) { display:none !important; }
     }
   `;

@@ -581,13 +581,17 @@
         status.textContent = 'Отправляем заявку…';
         let sending = false;
         try {
-          const data = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(bill);
-          });
-          sending = true;
+          const bytes = new Uint8Array(await bill.arrayBuffer());
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+        const encoded = [];
+        for (let i = 0; i < bytes.length; i += 3) {
+          const value = (bytes[i] << 16) | ((bytes[i + 1] || 0) << 8) | (bytes[i + 2] || 0);
+          encoded.push(alphabet[(value >> 18) & 63] + alphabet[(value >> 12) & 63]
+            + (i + 1 < bytes.length ? alphabet[(value >> 6) & 63] : '=')
+            + (i + 2 < bytes.length ? alphabet[value & 63] : '='));
+        }
+        const data = encoded.join('');
+        sending = true;
           const result = await api({
             object: Number(field('object').value), purpose: field('purpose').value,
             amount: field('amount').value, due: field('due').value,

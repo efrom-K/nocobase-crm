@@ -206,20 +206,25 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-actbox { margin-top:12px; padding:12px; border:1px solid #dde5f3; background:#fff; border-radius:8px; }
     .tk-more-menu { display:none; gap:6px; flex-wrap:wrap; margin-top:8px; }
     .tk-more-menu.on { display:flex; }
-    .tk-tl { margin-top:18px; border-top:1px solid #dfe3ec; padding-top:12px; }
-    .tk-tl-h { display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+    .tk-tl { margin-top:18px; border:1px solid #dfe3ec; border-radius:14px; overflow:hidden; background:#fff; }
+    .tk-tl-h { display:flex; align-items:center; gap:10px; padding:10px 14px; flex-wrap:wrap; }
     .tk-tl-h b { font-size:14.5px; }
-    .tk-msg { display:flex; gap:10px; padding:8px 0; font-size:13.5px; }
-    .tk-msg .tk-ava { width:30px; height:30px; font-size:11.5px; }
-    .tk-msg-b { min-width:0; flex:1; }
-    .tk-msg-h { font-size:12.5px; color:#5b6478; }
-    .tk-msg-h b { color:#3a4256; margin-right:6px; }
-    .tk-msg-t { white-space:pre-wrap; margin-top:1px; }
-    .tk-msg.sys { font-size:12.5px; color:#5b6478; padding:4px 0 4px 40px; }
-    .tk-msg.sys .tk-msg-t { display:inline; }
-    .tk-msg a { color:#1c2d58; cursor:pointer; }
-    .tk-comment { display:flex; gap:8px; margin-top:12px; align-items:flex-start; }
-    .tk-comment textarea { flex:1; min-height:40px; resize:vertical; }
+    .tk-thread { background:#f3f5f9; padding:14px; min-height:88px; max-height: min(360px, 45vh); overflow-y:auto; overscroll-behavior:contain; }
+    .tk-msg { display:flex; gap:8px; align-items:flex-end; margin:0 0 6px; }
+    .tk-msg.own { justify-content:flex-end; }
+    .tk-msg .tk-ava { width:28px; height:28px; font-size:11px; flex-shrink:0; }
+    .tk-msg-b { min-width:0; max-width:72%; padding:8px 12px; border-radius:16px 16px 16px 5px; background:#fff; color:#1f2433; font-size:13.5px; line-height:1.42; overflow-wrap:anywhere; box-shadow:0 1px 2px rgba(20,30,60,.06); }
+    .tk-msg.own .tk-msg-b { background:#1c2d58; color:#fff; border-radius:16px 16px 5px 16px; }
+    .tk-msg-author { display:block; color:#1c2d58; font-size:11px; margin-bottom:2px; }
+    .tk-msg-time { display:block; text-align:right; font-size:11px; opacity:.8; margin-top:2px; }
+    .tk-msg-t { white-space:pre-wrap; }
+    .tk-msg.sys { display:block; text-align:center; font-size:12px; color:#5b6478; padding:4px; overflow-wrap:anywhere; }
+    .tk-msg-file { display:block; background:transparent; border:0; padding:2px 0; color:inherit; font:inherit; text-align:left; text-decoration:underline; cursor:pointer; overflow-wrap:anywhere; }
+    .tk-comment { display:flex; gap:8px; padding:10px 12px; align-items:flex-end; border-top:1px solid #dfe3ec; }
+    .tk-comment textarea { flex:1; min-width:0; min-height:40px; max-height:110px; resize:vertical; background:#f3f5f9; border-radius:14px; }
+    .tk-comment textarea:focus { background:#fff; }
+    .tk-comment .tk-btn { flex:0 0 40px; width:40px; height:40px; padding:0; border-radius:50%; font-size:17px; }
+    .tk-comment-file:not(:empty) { padding:0 14px 8px; overflow-wrap:anywhere; }
     .tk-sec { font-weight:600; margin:18px 0 6px; display:flex; align-items:center; gap:10px; }
     @media (max-width: 700px) {
       .tk-new { margin-left:0; width:100%; padding:12px; font-size:15px; }
@@ -232,9 +237,8 @@ if (!document.getElementById('crm-tk-style')) {
       .tk-box { border-radius:0; min-height:100%; max-width:none; }
       .tk-form, .tk-meta { grid-template-columns:1fr; }
       .tk-btn { flex:1 1 45%; padding:10px; }
-      .tk-comment { flex-wrap:wrap; }
-      .tk-comment textarea { flex:1 1 100%; min-height:60px; }
-      .tk-comment .tk-btn { flex:1 1 auto; }
+      .tk-msg-b { max-width:84%; font-size:15px; }
+      .tk-thread { padding:10px; }
     }
   `;
   document.head.appendChild(st);
@@ -821,19 +825,27 @@ async function tkRenderCard(m, t) {
     + (t.result ? '<div class="tk-desc" style="background:#e5f1ea;"><b>Результат:</b> ' + tkEsc(t.result) + '</div>' : '')
     + '<div class="tk-tl"><div class="tk-tl-h"><b>Обсуждение</b><span class="tk-hint" style="margin:0;">' + nMsg + ' ' + tkNoun(nMsg, 'сообщение', 'сообщения', 'сообщений') + '</span>'
     + (nSys ? '<label class="tk-hint" style="margin:0 0 0 auto;cursor:pointer;"><input type="checkbox" data-show-sys> история изменений (' + nSys + ')</label>' : '') + '</div>'
-    + '<div data-evs>' + evs.map(function(x) {
+    + '<div class="tk-thread" data-evs tabindex="0" role="region" aria-label="Переписка по задаче">' + evs.map(function(x) {
         const who = tkWho(x.author_id, x.author_name), f = x.file;
-        const file = f ? ' <a data-file="' + tkEsc(f.url) + '">📎 ' + tkEsc((f.title || 'файл') + (f.extname || '')) + '</a>' : '';
-        if (isMsg(x)) return '<div class="tk-msg">' + tkAva(who) + '<div class="tk-msg-b"><div class="tk-msg-h"><b>' + tkEsc(who) + '</b>' + tkDateTime(x.createdAt) + '</div><div class="tk-msg-t">' + tkEsc(x.text) + file + '</div></div></div>';
+        const file = f ? '<button type="button" class="tk-msg-file" data-file="' + tkEsc(f.url) + '">📎 ' + tkEsc((f.title || 'файл') + (f.extname || '')) + '</button>' : '';
+        if (isMsg(x)) {
+          const own = Number(x.author_id) === Number(tk.me.id);
+          return '<div class="tk-msg' + (own ? ' own' : '') + '">' + (own ? '' : tkAva(who)) + '<div class="tk-msg-b">'
+            + (own ? '' : '<b class="tk-msg-author">' + tkEsc(who) + '</b>')
+            + '<div class="tk-msg-t">' + tkEsc(x.text) + '</div>' + file
+            + '<time class="tk-msg-time">' + tkDateTime(x.createdAt) + '</time></div></div>';
+        }
         return '<div class="tk-msg sys" data-sys style="display:none;">' + tkDateTime(x.createdAt) + ' · ' + tkEsc(who) + ': <span class="tk-msg-t">' + tkEsc(x.text) + '</span></div>';
       }).join('') + (nMsg ? '' : '<div class="tk-hint" style="padding:6px 0;">Сообщений пока нет — напишите первым.</div>') + '</div>'
-    + '<div class="tk-comment"><textarea placeholder="Написать сообщение… (Ctrl+Enter — отправить)" data-cmt></textarea><input type="file" data-cmt-file style="display:none;"><button class="tk-btn" data-cmt-attach title="Приложить файл">📎</button><button class="tk-btn pri" data-cmt-send>Отправить</button></div>'
-    + '<div data-cmt-fname class="tk-hint"></div></div></div>';
+    + '<div class="tk-comment"><textarea placeholder="Написать сообщение…" aria-label="Сообщение" data-cmt></textarea><input type="file" data-cmt-file style="display:none;"><button class="tk-btn" data-cmt-attach title="Приложить файл" aria-label="Приложить файл">📎</button><button class="tk-btn pri" data-cmt-send title="Отправить (Ctrl/⌘ + Enter)" aria-label="Отправить сообщение">➤</button></div>'
+    + '<div data-cmt-fname class="tk-hint tk-comment-file" aria-live="polite"></div></div></div>';
   box.querySelectorAll('[data-a]').forEach(function(b) { b.addEventListener('click', function() { tkAction(m, t, b.getAttribute('data-a')); }); });
   const mo = box.querySelector('[data-more]');
   if (mo) mo.addEventListener('click', function() { box.querySelector('[data-more-menu]').classList.toggle('on'); });
   const eo = box.querySelector('[data-emp-open]');
   if (eo) eo.addEventListener('click', function() { m.remove(); tkOpenEmp(Number(eo.getAttribute('data-emp-open'))); });
+  const thread = box.querySelector('[data-evs]');
+  thread.scrollTop = thread.scrollHeight;
   const ss = box.querySelector('[data-show-sys]');
   if (ss) ss.addEventListener('change', function() { box.querySelectorAll('[data-sys]').forEach(function(x) { x.style.display = ss.checked ? '' : 'none'; }); });
   box.querySelectorAll('[data-file]').forEach(function(a) {
@@ -856,6 +868,7 @@ async function tkRenderCard(m, t) {
       [t.executor_id, tkChecker(t), t.author_id].filter(function(v, i, a) { return v && a.indexOf(v) === i; })
         .forEach(function(uid) { tkNotify(uid, 'Задача №' + t.id, tkWho(tk.me.id) + ': ' + (txt || 'приложил файл'), t.id); });
       await tkRenderCard(m, t);
+      if (m.isConnected) box.querySelector('[data-cmt]').focus({ preventScroll: true });
     } catch (err) { tkToast('Не удалось отправить'); e.target.disabled = false; }
   });
 }

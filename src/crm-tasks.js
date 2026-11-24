@@ -235,6 +235,26 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-comment textarea:focus { background:#fff; }
     .tk-comment .tk-btn { flex:0 0 40px; width:40px; height:40px; padding:0; border-radius:50%; font-size:17px; }
     .tk-comment-file:not(:empty) { padding:0 14px 8px; overflow-wrap:anywhere; }
+    .tk-card-modal > .tk-box { max-width:1440px; overflow:hidden; }
+    .tk-card-modal .tk-box-h { padding:18px 24px; }
+    .tk-card-modal .tk-box-t { font-size:clamp(18px, 2vw, 24px); overflow-wrap:anywhere; }
+    .tk-card-body { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 3fr); grid-template-areas:"thread details"; height:calc(100dvh - 160px); min-height:420px; }
+    .tk-card-data { grid-area:details; min-width:0; overflow:auto; overscroll-behavior:contain; padding:20px 24px; }
+    .tk-card-section { margin-top:14px; padding:14px 16px; border:1px solid #dfe3ec; border-radius:10px; overflow-wrap:anywhere; }
+    .tk-card-section h3 { margin:0 0 10px; color:#1c2d58; font-size:15px; }
+    .tk-card-section .tk-desc { margin:0; }
+    .tk-card-body .tk-tl { grid-area:thread; display:flex; flex-direction:column; min-width:0; min-height:0; margin:0; border:0; border-right:1px solid #dfe3ec; border-radius:0; }
+    .tk-card-body .tk-thread { flex:1; max-height:none; }
+    .tk-card-body .tk-tl-h, .tk-card-body .tk-comment { flex-shrink:0; }
+    @media (max-width: 850px) {
+      .tk-card-body { display:flex; flex-direction:column; height:auto; min-height:0; }
+      .tk-card-data { overflow:visible; padding:14px; }
+      .tk-card-body .tk-tl { border-right:0; border-top:1px solid #dfe3ec; }
+      .tk-card-body .tk-thread { max-height:45vh; }
+    }
+    @media (min-width: 851px) and (max-width: 1100px) {
+      .tk-card-data .tk-meta { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    }
     .tk-sec { font-weight:600; margin:18px 0 6px; display:flex; align-items:center; gap:10px; }
     @media (max-width: 700px) {
       .tk-new { margin-left:0; width:100%; padding:12px; font-size:15px; }
@@ -895,8 +915,31 @@ async function tkOpenCard(id) {
   let t = tk.data.tasks.find(function(x) { return x.id === id; });
   if (!t) { try { t = tkRows(await ctx.api.resource('crm_tasks').get({ filterByTk: id, appends: ['observers'] }))[0]; } catch (e) { t = null; } }
   if (!t) { tkToast('Задача №' + id + ' не найдена'); return; }
-  const m = tkModal('<div data-tk-card></div>');
+  const previous = document.activeElement;
+  const m = tkModal('<div data-tk-card role="dialog" aria-modal="true" aria-label="Карточка задачи"></div>');
+  m.classList.add('tk-card-modal');
+  m.addEventListener('keydown', function(e) {
+    const close = m.querySelector('.tk-x');
+    if (!close || e.defaultPrevented) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close.click();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const controls = Array.from(m.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'))
+      .filter(function(el) { return el.getClientRects().length; });
+    const first = controls[0], last = controls[controls.length - 1];
+    if (first && ((e.shiftKey && e.target === first) || (!e.shiftKey && e.target === last))) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
+  });
+  m.addEventListener('click', function(e) {
+    if (e.target.closest && e.target.closest('.tk-x') && previous && previous.isConnected) previous.focus();
+  });
   await tkRenderCard(m, t);
+  if (m.isConnected) m.querySelector('.tk-x').focus();
 }
 // следующий шаг и доступные действия. Исполнитель ведёт задачу, проверяющий (ответственный или автор) закрывает,
 // администратор может всё; если у исполнителя нет учётки — задачу ведёт проверяющий
@@ -939,25 +982,28 @@ async function tkRenderCard(m, t) {
   const isMsg = function(x) { return x.kind === 'comment' || !!x.file; };
   const nMsg = evs.filter(isMsg).length, nSys = evs.length - nMsg;
   const btn = function(a) { return '<button class="tk-btn ' + a[2] + '" data-a="' + a[0] + '">' + a[1] + '</button>'; };
+  const restoreFocus = box.contains(document.activeElement);
   box.innerHTML = '<div class="tk-box-h"><div class="tk-box-t">' + tkEsc(t.title) + '<small>' + tkPill(t.status)
-    + (u && t.urgency !== 'normal' ? ' <span class="tk-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + tkEsc(u.l) + '</span>' : '') + ' &nbsp;№' + t.id + '</small></div><button class="tk-x">✕</button></div>'
-    + '<div class="tk-box-b">'
+    + (u && t.urgency !== 'normal' ? ' <span class="tk-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + tkEsc(u.l) + '</span>' : '') + ' &nbsp;№' + t.id + '</small></div><button class="tk-x" aria-label="Закрыть карточку задачи">✕</button></div>'
+    + '<div class="tk-card-body"><div class="tk-card-data">'
     + '<div class="tk-next"><div class="tk-next-t">' + tkEsc(nx.title) + '</div>' + (nx.text ? '<div class="tk-next-s">' + tkEsc(nx.text) + '</div>' : '')
     + ((nx.main.length || nx.more.length) ? '<div class="tk-actions">' + nx.main.map(btn).join('') + (nx.more.length ? '<button class="tk-btn link" data-more>Ещё ▾</button>' : '') + '</div>'
       + '<div class="tk-more-menu" data-more-menu>' + nx.more.map(btn).join('') + '</div>' : '') + '<div data-actbox></div></div>'
-    + '<div class="tk-meta">'
+    + '<section class="tk-card-section"><h3>Участники</h3><div class="tk-meta">'
     + '<div><div class="l">Исполнитель</div>' + tkEsc(tkWho(t.executor_id, t.executor_name)) + '</div>'
     + '<div><div class="l">Проверяет</div>' + tkEsc(tkWho(tkChecker(t), t.controller_name || t.author_name)) + '</div>'
     + (tkObservers(t).length ? '<div><div class="l">Наблюдатели</div>' + tkObservers(t).map(function(u) { return tkEsc(tkWho(u.id, u.nickname)); }).join(', ') + '</div>' : '')
-    + '<div><div class="l">Срок</div>' + tkDue(t) + (t.due_moved ? ' <span class="tk-hint">(переносили ' + t.due_moved + ' раз)</span>' : '') + '</div>'
     + '<div><div class="l">Поставил</div>' + tkEsc(tkWho(t.author_id, t.author_name)) + ' · ' + tkDateTime(t.createdAt) + '</div>'
+    + '</div></section><section class="tk-card-section"><h3>Сведения о задаче</h3><div class="tk-meta">'
+    + '<div><div class="l">Срок</div>' + tkDue(t) + (t.due_moved ? ' <span class="tk-hint">(переносили ' + t.due_moved + ' раз)</span>' : '') + '</div>'
     + (t.object_name ? '<div><div class="l">Объект</div>' + tkEsc(t.object_name) + '</div>' : '')
     + (t.contract_id ? '<div><div class="l">Договор</div><a class="tk-link" href="/admin/b5znz7yxpy3?open=active:' + t.contract_id + '">' + tkEsc(c ? [c.contract_number, c.tenant_name].filter(Boolean).join(' · ') : '#' + t.contract_id) + '</a></div>' : '')
     + (t.kind && t.kind !== 'Общая' ? '<div><div class="l">Тип</div>' + tkEsc(t.kind) + '</div>' : '')
     + (emp ? '<div><div class="l">Сотрудник</div><a class="tk-link" data-emp-open="' + emp.id + '" style="cursor:pointer;">' + tkEsc(emp.full_name) + '</a></div>' : '')
+    + '</div></section>'
+    + (t.description ? '<section class="tk-card-section"><h3>Описание</h3><div class="tk-desc">' + tkEsc(t.description) + '</div></section>' : '')
+    + (t.result ? '<section class="tk-card-section"><h3>Результат</h3><div class="tk-desc" style="background:#e5f1ea;">' + tkEsc(t.result) + '</div></section>' : '')
     + '</div>'
-    + (t.description ? '<div class="tk-desc">' + tkEsc(t.description) + '</div>' : '')
-    + (t.result ? '<div class="tk-desc" style="background:#e5f1ea;"><b>Результат:</b> ' + tkEsc(t.result) + '</div>' : '')
     + '<div class="tk-tl"><div class="tk-tl-h"><b>Обсуждение</b><span class="tk-hint" style="margin:0;">' + nMsg + ' ' + tkNoun(nMsg, 'сообщение', 'сообщения', 'сообщений') + '</span>'
     + (nSys ? '<label class="tk-hint" style="margin:0 0 0 auto;cursor:pointer;"><input type="checkbox" data-show-sys> история изменений (' + nSys + ')</label>' : '') + '</div>'
     + '<div class="tk-thread" data-evs tabindex="0" role="region" aria-label="Переписка по задаче">' + evs.map(function(x) {
@@ -974,6 +1020,7 @@ async function tkRenderCard(m, t) {
       }).join('') + (nMsg ? '' : '<div class="tk-hint" style="padding:6px 0;">Сообщений пока нет — напишите первым.</div>') + '</div>'
     + '<div class="tk-comment"><textarea placeholder="Написать сообщение…" aria-label="Сообщение" data-cmt></textarea><input type="file" data-cmt-file style="display:none;"><button class="tk-btn" data-cmt-attach title="Приложить файл" aria-label="Приложить файл">📎</button><button class="tk-btn pri" data-cmt-send title="Отправить (Ctrl/⌘ + Enter)" aria-label="Отправить сообщение">➤</button></div>'
     + '<div data-cmt-fname class="tk-hint tk-comment-file" aria-live="polite"></div></div></div>';
+  if (restoreFocus) box.querySelector('.tk-x').focus({ preventScroll: true });
   box.querySelectorAll('[data-a]').forEach(function(b) { b.addEventListener('click', function() { tkAction(m, t, b.getAttribute('data-a')); }); });
   const mo = box.querySelector('[data-more]');
   if (mo) mo.addEventListener('click', function() { box.querySelector('[data-more-menu]').classList.toggle('on'); });

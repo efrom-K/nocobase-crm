@@ -95,6 +95,8 @@ test('payment discussion retains documents and observer access without granting 
   assert.equal(record.status,2);
   assert.equal(record.history.length,3);
   const entry = record.history.at(-1);
+  assert.equal(entry.kind,'message');
+  assert.equal(entry.authorId,7);
   assert.equal(entry.text,'Документ');
   assert.deepEqual(Buffer.from(db.file(id,entry.fileId,user(7)).bytes),bytes);
   change(admin,'watch-remove',7);

@@ -18,5 +18,6 @@
   "vaultblock01": "src/vault.js",
   "objplanblk01": "src/objects-plans.js",
   "ceoblock01": "src/ceo-dashboard.js",
-  "mgrdashblk1": "src/manager-dashboard.js"
+  "mgrdashblk1": "src/manager-dashboard.js",
+  "payreqblk01": "src/crm-payments.js"
 }

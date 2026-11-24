@@ -118,10 +118,51 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
       return {id, status:r.status, pending:next, authorId:r.authorId};
     });
   }
+  const canManage = (r,user) => user.isAdmin && !user.readOnly && r.status >= 2 && r.status <= 5;
+  function manage(user,id,input,employees) {
+    return transaction(() => {
+      const r = get(id,user);
+      if (!canManage(r,user)) throw new PaymentError(403,'Управлять открытой заявкой может администратор');
+      if (!input || input.status !== r.status || input.revision !== r.history.length) {
+        throw new PaymentError(409,'Заявка уже изменилась. Обновите карточку');
+      }
+      const reason = text(input.comment ?? '',2000,true);
+      let event, recipients = [];
+      if (input.action === 'assign') {
+        const current = pending(r).find(([role]) => role === input.role);
+        const employee = employees.find(x => x.id === input.userId);
+        if (!current || !employee || employee.id === current[1]) throw new PaymentError(400,'Выберите действующего сотрудника и ожидающий этап');
+        r.route[input.role] = employee.id;
+        event = 'Передано: ' + employee.name;
+        recipients = [employee.id];
+      } else if (input.action === 'due') {
+        const due = input.due;
+        const date = typeof due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(due) ? new Date(due) : null;
+        if (!date || !Number.isFinite(+date) || date.toISOString().slice(0,10) !== due || due === r.due) {
+          throw new PaymentError(400,'Укажите новый срок оплаты');
+        }
+        event = 'Срок перенесён: ' + (r.due || '—') + ' → ' + due;
+        r.due = due;
+        recipients = [...pending(r).map(([,person]) => person), r.authorId];
+      } else if (input.action === 'return') {
+        if (!Number.isSafeInteger(input.stage) || input.stage < 2 || input.stage >= r.status || r.status >= 5) {
+          throw new PaymentError(400,'Возврат доступен на предыдущий этап согласования до подтверждения оплаты');
+        }
+        r.status = input.stage;
+        r.approved = [];
+        event = 'Возврат на этап: ' + STATUS[r.status];
+        recipients = pending(r).map(([,person]) => person);
+      } else throw new PaymentError(400,'Выберите действие');
+      r.localUpdated = true;
+      r.history.push({date:clock(), author:user.name, text:event + '. ' + reason});
+      db.prepare('UPDATE payments SET record=? WHERE id=?').run(JSON.stringify(r),id);
+      return {id,status:r.status,pending:recipients,message:event};
+    });
+  }
   function detail(id,user) {
     const r = get(id,user);
     return { ...summary(r,user), contact:r.contact, phone:r.phone, email:r.email, comment:r.comment,
-      history:r.history, awaiting:pending(r).map(([role, id]) => ({role,id})),
+      history:r.history, canManage:canManage(r,user), revision:r.history.length, awaiting:pending(r).map(([role, id]) => ({role,id})),
       files:db.prepare('SELECT id,kind,name FROM payment_files WHERE payment_id=? ORDER BY id').all(id) };
   }
   function file(id,fileId,user) {
@@ -156,7 +197,7 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
         files:db.prepare('SELECT count(*) AS n FROM payment_files').get().n, routes:routes.length };
     });
   }
-  return { objects, submit, act, detail, file, loadSnapshot,
+  return { objects, submit, act, manage, detail, file, loadSnapshot,
     browse(user) { return db.prepare('SELECT id,record FROM payments ORDER BY id DESC').all().map(unpack)
       .filter(r => canRead(r,user)).sort((a,b) => String(b.created || '').localeCompare(String(a.created || '')) || b.id - a.id)
       .map(r => summary(r,user)); } };

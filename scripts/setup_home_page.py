@@ -58,6 +58,46 @@ insert into "flowModelTreePath"(ancestor,descendant,depth,async,type,sort) value
 commit;""" % {'t': tab, 'g': grid_uid, 'b': block_uid, 'grid': json.dumps(grid, ensure_ascii=False), 'block': json.dumps(block, ensure_ascii=False)})
     print('models', tab, 'ok')
 
+if sys.argv[1:] in (['--prepare-payments'], ['--publish-payments']):
+    page_uid, tab_uid, block_uid = 'payreqpage1', 'payreqtabs1', 'payreqblk01'
+    target = route(page_uid)
+    if sys.argv[1] == '--prepare-payments':
+        if not target:
+            result = call('desktopRoutes:create', {'type': 'flowPage', 'title': 'Заявки на оплату',
+                          'icon': 'AccountBookOutlined', 'sort': 8, 'hidden': True,
+                          'schemaUid': page_uid, 'menuSchemaUid': 'payreqmenu1',
+                          'children': [{'type': 'tabs', 'schemaUid': tab_uid, 'hidden': True}]})
+            if 'data' not in result:
+                sys.exit('Could not create CRM payment page')
+        if not route(tab_uid):
+            sys.exit('Payment page tab is missing')
+        make_models(tab_uid, 'payreqgrid1', block_uid)
+    else:
+        child = route(tab_uid)
+        if not target or not child or str(child['parentId']) != str(target['id']):
+            sys.exit('Payment page or its tab is missing')
+        deployed = psql("""select coalesce(options::jsonb #>> '{stepParams,jsSettings,runJs,code}'
+                     like '%crm-payments-page%', false) from "flowModels" where uid='payreqblk01'""").strip()
+        if deployed != 't':
+            sys.exit('Deploy the payment block before publishing its route')
+        task_id = int(route('tskpage01')['id'])
+        roles = set(psql('select "roleName" from "rolesDesktopRoutes" where "desktopRouteId"=%d' % task_id).splitlines())
+        roles.discard('crm_readonly')
+        roles.update(('admin', 'aho', 'requests_control'))
+        route_ids = [int(target['id']), int(child['id'])]
+        inherited = set(psql('select distinct "roleName" from "rolesDesktopRoutes" where "desktopRouteId" in (%d,%d)' %
+                             tuple(route_ids)).splitlines())
+        for role in sorted(roles | inherited):
+            action = 'add' if role in roles else 'remove'
+            result = call('roles/%s/desktopRoutes:%s' % (urllib.parse.quote(role, safe=''), action), route_ids)
+            if 'error' in result:
+                sys.exit('Could not update payment route for ' + role)
+        result = call('desktopRoutes:update?filterByTk=%s' % route_ids[0], {'hidden': False})
+        if 'error' in result:
+            sys.exit('Could not show payment page')
+        print('Payment page published')
+    sys.exit(0)
+
 if sys.argv[1:] in (['--prepare-managers'], ['--grant-managers']):
     page = route('dashpage01')
     if not page:

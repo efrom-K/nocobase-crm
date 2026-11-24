@@ -33,7 +33,7 @@ async function paymentNotice(users, id, text, me) {
   for (const userId of new Set(users)) {
     if (!userId || userId === me) continue;
     await nb('POST', 'request_notifications:create', {user_id:userId, title:'Заявка на оплату № ' + id, text,
-      url:'/admin/dashpage01?payments=' + id}).catch(error => console.error('payment notice', error.message));
+      url:'/admin/payreqpage1?payments=' + id}).catch(error => console.error('payment notice', error.message));
   }
 }
 
@@ -538,6 +538,15 @@ http.createServer(async (req, res) => {
       }
     }
     if (!R.allowHttp(user, req.method, p)) throw new ApiError(403, 'Доступ только для просмотра');
+    async function paymentEmployees() {
+      const employees = await list('crm_employees', '&fields=user_id,full_name,status,fired_on');
+      const people = new Map();
+      for (const x of employees || []) {
+        const id = Number(x.user_id);
+        if (id > 0 && !x.fired_on && x.status !== 'fired' && x.full_name) people.set(id,{id,name:x.full_name});
+      }
+      return [...people.values()].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+    }
     const paymentPath = p.match(/^\/payments(?:\/([1-9]\d*)(?:\/files\/([1-9]\d*))?)?$/);
     if (paymentPath && ['GET', 'POST'].includes(req.method)) {
       if (user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам на оплату');
@@ -553,15 +562,17 @@ http.createServer(async (req, res) => {
           const record = paymentStore().detail(id,user);
           const rf = await refs();
           return send(res, 200, { record:{...record, awaiting:record.awaiting.map(x => ({...x,name:rf.names[x.id] || '—'}))},
-            statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES }, origin);
+            statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES, employees:record.canManage ? await paymentEmployees() : [] }, origin);
         }
         return send(res, 200, {rows:paymentStore().browse(user), statuses:PAYMENT_STATUS}, origin);
       }
       if (!id || fileId) throw new ApiError(404, 'Заявка не найдена');
       limit('payment-action:' + user.id, 30, 600000);
       const input = await readJson(req, 2 * Math.ceil(MAX_PAYMENT_FILE / 3) * 4 + 16384);
-      const result = paymentStore().act(user,id,input);
-      await paymentNotice(result.pending, id, PAYMENT_STATUS[result.status], user.id);
+      if (input?.action && !user.isAdmin) throw new ApiError(403,'Управлять заявкой может администратор');
+      const result = input?.action ? paymentStore().manage(user,id,input,input.action === 'assign' ? await paymentEmployees() : [])
+        : paymentStore().act(user,id,input);
+      await paymentNotice(result.pending, id, result.message || PAYMENT_STATUS[result.status], user.id);
       if (result.status === 6) await paymentNotice([result.authorId], id, PAYMENT_STATUS[6], user.id);
       return send(res, 200, {id,status:result.status}, origin);
     }

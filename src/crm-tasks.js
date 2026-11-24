@@ -251,11 +251,27 @@ if (!document.getElementById('crm-tk-style')) {
       .tk-card-modal > .tk-box { height:calc(100dvh - 16px); min-height:440px; }
       .tk-card-modal [data-tk-card] { display:grid; grid-template-rows:auto minmax(0, 1fr); height:100%; }
     }
+    .tk-card-switch { display:none; }
     @media (max-width: 850px) {
-      .tk-card-body { display:flex; flex-direction:column; }
-      .tk-card-data { overflow:visible; padding:14px; }
-      .tk-card-body .tk-tl { border-right:0; border-top:1px solid #dfe3ec; }
-      .tk-card-body .tk-thread { max-height:45vh; }
+      .tk-card-modal { padding:0; }
+      .tk-card-modal > .tk-box { height:100dvh; border-radius:0; }
+      .tk-card-modal [data-tk-card] { display:grid; grid-template-rows:auto auto minmax(0, 1fr); height:100%; }
+      .tk-card-modal .tk-box-h { padding:max(8px, env(safe-area-inset-top)) 12px 8px 16px; align-items:center; }
+      .tk-card-modal .tk-x { min-width:44px; min-height:44px; }
+      .tk-card-switch { display:flex; gap:4px; padding:4px 12px; background:#f3f5f9; border-bottom:1px solid #dfe3ec; }
+      .tk-card-switch button { min-width:0; flex:1; min-height:44px; border:0; border-radius:6px; background:transparent; color:#26354f; font:inherit; cursor:pointer; }
+      .tk-card-switch button[aria-pressed="true"] { background:#1c2d58; color:#fff; font-weight:600; }
+      .tk-card-body { display:grid; grid-template-columns:minmax(0, 1fr); grid-template-areas:"details"; }
+      .tk-card-data { padding:12px 12px max(12px, env(safe-area-inset-bottom)); }
+      .tk-card-data .tk-meta { grid-template-columns:repeat(2, minmax(0,1fr)); }
+      .tk-card-data .tk-btn { min-height:44px; }
+      .tk-card-modal [data-tk-card] :is(input[type=text], input[type=date], textarea, select) { font-size:16px; }
+      .tk-card-body .tk-tl { display:none; border:0; padding-bottom:env(safe-area-inset-bottom); }
+      .tk-card-body .tk-thread { min-height:0; }
+      .tk-card-body .tk-comment .tk-btn { flex-basis:44px; width:44px; height:44px; }
+      [data-tk-card][data-task-pane="chat"] .tk-card-body { grid-template-areas:"thread"; }
+      [data-tk-card][data-task-pane="chat"] .tk-card-data { display:none; }
+      [data-tk-card][data-task-pane="chat"] .tk-tl { display:flex; }
     }
     @media (min-width: 851px) and (max-width: 1100px) {
       .tk-card-data .tk-meta { grid-template-columns:repeat(2, minmax(0,1fr)); }
@@ -990,6 +1006,9 @@ async function tkRenderCard(m, t) {
   const restoreFocus = box.contains(document.activeElement);
   box.innerHTML = '<div class="tk-box-h"><div class="tk-box-t">' + tkEsc(t.title) + '<small>' + tkPill(t.status)
     + (u && t.urgency !== 'normal' ? ' <span class="tk-pill" style="color:' + u.c + ';border-color:' + u.c + '55;">' + tkEsc(u.l) + '</span>' : '') + ' &nbsp;№' + t.id + '</small></div><button class="tk-x" aria-label="Закрыть карточку задачи">✕</button></div>'
+    + '<div class="tk-card-switch" role="group" aria-label="Разделы задачи">'
+    + '<button type="button" data-pane="details" aria-pressed="true">Сведения</button>'
+    + '<button type="button" data-pane="chat" aria-pressed="false">Переписка' + (nMsg ? ' (' + nMsg + ')' : '') + '</button></div>'
     + '<div class="tk-card-body"><div class="tk-card-data">'
     + '<div class="tk-next"><div class="tk-next-t">' + tkEsc(nx.title) + '</div>' + (nx.text ? '<div class="tk-next-s">' + tkEsc(nx.text) + '</div>' : '')
     + ((nx.main.length || nx.more.length) ? '<div class="tk-actions">' + nx.main.map(btn).join('') + (nx.more.length ? '<button class="tk-btn link" data-more>Ещё ▾</button>' : '') + '</div>'
@@ -1032,7 +1051,14 @@ async function tkRenderCard(m, t) {
   const eo = box.querySelector('[data-emp-open]');
   if (eo) eo.addEventListener('click', function() { m.remove(); tkOpenEmp(Number(eo.getAttribute('data-emp-open'))); });
   const thread = box.querySelector('[data-evs]');
-  thread.scrollTop = thread.scrollHeight;
+  const panes = box.querySelectorAll('[data-pane]');
+  const selectPane = function(pane) {
+    box.setAttribute('data-task-pane', pane);
+    panes.forEach(function(button) { button.setAttribute('aria-pressed', String(button.getAttribute('data-pane') === pane)); });
+    thread.scrollTop = thread.scrollHeight;
+  };
+  panes.forEach(function(button) { button.addEventListener('click', function() { selectPane(button.getAttribute('data-pane')); }); });
+  selectPane(box.getAttribute('data-task-pane') || 'details');
   const ss = box.querySelector('[data-show-sys]');
   if (ss) ss.addEventListener('change', function() { box.querySelectorAll('[data-sys]').forEach(function(x) { x.style.display = ss.checked ? '' : 'none'; }); });
   box.querySelectorAll('[data-file]').forEach(function(a) {

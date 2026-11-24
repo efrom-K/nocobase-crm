@@ -6,27 +6,6 @@
 // ?new=<u id учётки | e id сотрудника> — новая задача этому человеку, ?new=hr:<id сотрудника> — кадровая задача (из карточки «Персонала»).
 // единый вид выпадающих списков и кнопок «Выберите файл» во всех блоках CRM — тот же фрагмент в каждом блоке, где они есть
 // (не в branding/global.css: его браузеры кэшируют на год, правка дошла бы только после Ctrl+F5)
-if (!document.getElementById('crm-controls-style')) {
-  const st = document.createElement('style');
-  st.id = 'crm-controls-style';
-  st.textContent = `
-    select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
-      background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
-      padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
-      background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
-    select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
-    select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
-    select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
-    select option { color:#1f2433; background:#fff; }
-    select option:disabled { color:#8a92a3; }
-    input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
-    input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
-      padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
-    input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
-  `;
-  document.head.appendChild(st);
-}
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
@@ -173,88 +152,11 @@ function tkPeopleOptions(accountOnly) {
   });
   return out.sort(function(a, b) { return a[1].localeCompare(b[1], 'ru'); });
 }
-let tkPickerCount = 0;
 function tkPersonPicker(attr, label, selected, empty, accountOnly) {
-  const people = tkPeopleOptions(accountOnly), id = 'tk-people-' + (++tkPickerCount);
-  const current = people.find(function(person) { return person[0] === selected; });
-  return '<div class="tk-person" data-person-picker><input type="text" ' + attr + ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + id
-    + '" aria-label="' + tkEsc(label) + '" placeholder="' + tkEsc(empty) + '" autocomplete="off" data-person-key="' + (current ? current[0] : '') + '" value="' + tkEsc(current ? current[1] : '') + '">'
-    + '<div class="tk-person-list" hidden><div role="listbox" id="' + id + '" aria-label="' + tkEsc(label) + '">'
-    + people.map(function(person, i) {
-      return '<div class="tk-person-option" role="option" aria-selected="false" id="' + id + '-' + i + '" data-key="' + person[0] + '"><span>' + tkEsc(person[1]) + '</span>'
-        + (person[2] ? '<small>' + tkEsc(person[2]) + '</small>' : '') + '</div>';
-    }).join('') + '</div><div class="tk-person-empty" role="status" hidden>Сотрудники не найдены</div></div></div>';
+  return window.crmTaskPersonPicker(tkPeopleOptions(accountOnly),attr,label,selected,empty);
 }
-function tkPersonKey(input) { return input.getAttribute('data-person-key') || ''; }
-function tkBindPeople(root) {
-  root.querySelectorAll('[data-person-picker]').forEach(function(picker) {
-    const input = picker.querySelector('input'), menu = picker.querySelector('.tk-person-list');
-    const empty = menu.querySelector('[role="status"]'), options = Array.from(menu.querySelectorAll('[data-key]'));
-    const names = options.map(function(option) { return option.querySelector('span').textContent; });
-    const normalize = function(value) { return value.toLocaleLowerCase('ru').replace(/ё/g, 'е'); };
-    const searchable = names.map(normalize);
-    let visible = [], active = -1;
-    function highlight(index) {
-      if (visible[active]) visible[active].setAttribute('aria-selected', 'false');
-      active = index;
-      const option = visible[active];
-      if (!option) { input.removeAttribute('aria-activedescendant'); return; }
-      option.setAttribute('aria-selected', 'true');
-      input.setAttribute('aria-activedescendant', option.id);
-      option.scrollIntoView({block: 'nearest'});
-    }
-    function show() {
-      highlight(-1);
-      const words = tkPersonKey(input) ? [] : normalize(input.value.trim()).split(/\s+/);
-      visible = options.filter(function(option, i) {
-        option.hidden = !words.every(function(word) { return searchable[i].includes(word); });
-        return !option.hidden;
-      });
-      empty.hidden = !!visible.length;
-      input.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-    }
-    function close() {
-      highlight(-1);
-      input.setAttribute('aria-expanded', 'false');
-      menu.hidden = true;
-    }
-    function choose(option) {
-      input.value = names[options.indexOf(option)];
-      input.setAttribute('data-person-key', option.getAttribute('data-key'));
-      close();
-    }
-    input.addEventListener('focus', show);
-    input.addEventListener('click', show);
-    input.addEventListener('blur', close);
-    input.addEventListener('input', function() {
-      input.setAttribute('data-person-key', '');
-      show();
-    });
-    menu.addEventListener('mousedown', function(e) {
-      if (e.target.closest('[data-key]')) e.preventDefault();
-    });
-    menu.addEventListener('click', function(e) {
-      const option = e.target.closest('[data-key]');
-      if (option) choose(option);
-    });
-    input.addEventListener('keydown', function(e) {
-      if (e.isComposing) return;
-      if (e.key === 'Escape' && !menu.hidden) {
-        e.preventDefault();
-        e.stopPropagation();
-        close();
-      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (menu.hidden) show();
-        if (visible.length) highlight(e.key === 'ArrowDown' ? Math.min(active + 1, visible.length - 1) : active <= 0 ? visible.length - 1 : active - 1);
-      } else if (e.key === 'Enter' && !menu.hidden && (visible[active] || visible.length === 1)) {
-        e.preventDefault();
-        choose(visible[active] || visible[0]);
-      }
-    });
-  });
-}
+const tkPersonKey = window.crmTaskPersonKey;
+const tkBindPeople = window.crmBindTaskPeople;
 function tkObserverPicker() {
   return tkPersonPicker('data-observer-person', 'Наблюдатель', '', 'Выберите сотрудника', true)
     + '<button type="button" class="tk-btn" data-observer-add>Добавить</button><div data-observer-list aria-live="polite"></div>';

@@ -312,6 +312,11 @@
     [data-payment-register] .kb-tools label { margin:0; }
     .crm-pay-table { width:100%; border-collapse:collapse; font-size:14px; }
     .crm-pay-table th,.crm-pay-table td { text-align:left; padding:9px 10px; border-bottom:1px solid #dfe3ec; }
+    .crm-pay-table tbody tr { cursor:pointer; }
+    .crm-pay-table tbody tr:hover td,.crm-pay-table tbody tr:focus-within td { background:#edf2fa; }
+    .crm-pay-table [data-pay-id] { color:#1c2d58; font-weight:650; white-space:nowrap; text-decoration:underline; }
+    .crm-pay-card { max-width:calc(100vw - 20px); }
+    .crm-pay-manage { margin-top:16px; }
     .crm-pay-values { display:grid; grid-template-columns:minmax(110px, 1fr) minmax(0, 2fr); gap:6px 12px; }
     .crm-pay-values dt { color:#5b6478; }
     .crm-pay-values dd { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
@@ -586,15 +591,21 @@
           + Object.entries(data.statuses).map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
           + '</select></label><button type="button" data-pay-refresh>Обновить</button></div>'
           + (rows.length ? '<div style="overflow:auto"><table class="crm-pay-table"><thead><tr><th>Номер</th><th>Статус</th><th>Объект</th><th>Цель расхода</th><th>Контрагент</th><th>Сумма</th><th>Оплатить до</th><th>Создана</th></tr></thead><tbody>'
-            + rows.map(x => '<tr><td><button type="button" data-pay-id="' + Number(x.id) + '">№ ' + Number(x.id) + '</button></td><td>'
+            + rows.map(x => '<tr data-pay-row><td><a data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
+              + Number(x.id) + '">Открыть № ' + Number(x.id) + '</a></td><td>'
               + e(data.statuses[x.status]) + (x.needsAction ? '<br><strong>Ждёт вашего действия</strong>' : '') + '</td><td>' + e(x.object || '—')
               + '</td><td>' + e(x.purpose || '—') + '</td><td>' + e(x.counterparty || '—') + '</td><td>' + e(paymentAmount(x.amount))
               + '</td><td>' + e(paymentDate(x.due)) + '</td><td>' + e(paymentDate(x.created)) + '</td></tr>').join('') + '</tbody></table></div>'
             : '<p>Заявок нет</p>');
         panel.querySelector('[data-pay-filter]').onchange = event => { filter = event.target.value; refresh(); };
         panel.querySelector('[data-pay-refresh]').onclick = refresh;
-        panel.querySelectorAll('[data-pay-id]').forEach(button => {
-          button.onclick = () => openPaymentCard(Number(button.getAttribute('data-pay-id')),button,refresh);
+        panel.querySelectorAll('[data-pay-row]').forEach(row => {
+          const link = row.querySelector('[data-pay-id]');
+          row.addEventListener('click', event => {
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            openPaymentCard(Number(link.getAttribute('data-pay-id')),link,refresh);
+          });
         });
       } catch (error) {
         panel.textContent = error.message;
@@ -608,7 +619,8 @@
     paymentRegister(m.querySelector('[data-pay-register]'));
   }
   function openPaymentCard(id, trigger, onChange) {
-    const m = workDialog('Заявка на оплату № ' + id,'payment-card','kp-dialog','<div class="kb-article" data-pay-card>Загрузка…</div>',trigger);
+    if (document.querySelector('[data-pay-card]')) return;
+    const m = workDialog('Заявка на оплату № ' + id,'payment-card','kp-dialog crm-pay-card','<div class="kb-article" data-pay-card>Загрузка…</div>',trigger);
     const body = m.querySelector('[data-pay-card]');
     async function render() {
       try {
@@ -619,14 +631,28 @@
           ['Контрагент',r.counterparty],['Контактное лицо',r.contact],['Телефон',r.phone],['Эл. почта',r.email],['Комментарий',r.comment],
           ['Ожидается действие',r.awaiting.map(x=>x.name).join(', ')],['Исходный номер',r.legacyId]];
         const fileInput = (label, key) => '<label>' + label + '<input type="file" name="' + key + '" accept=".pdf,.jpg,.jpeg,.png"></label>';
+        const roleLabels = {senior:'Старший управляющий',approver:'Главный согласующий',chief:'Главный бухгалтер',accountant:'Бухгалтер объекта'};
+        const returnStages = [2,3].filter(id => r.status < 5 && id < r.status);
+        const manage = r.canManage ? '<details class="crm-pay-manage"><summary>Управление заявкой</summary><form data-pay-manage>'
+          + '<label>Действие<select name="action"><option value="assign">Передать сотруднику</option><option value="due">Перенести срок оплаты</option>'
+          + (returnStages.length ? '<option value="return">Вернуть на этап согласования</option>' : '') + '</select></label>'
+          + '<div data-pay-adjust="assign"><label>Чью роль передать<select name="role">'
+          + r.awaiting.map(x=>'<option value="'+e(x.role)+'">'+e(roleLabels[x.role]+' · '+x.name)+'</option>').join('')
+          + '</select></label><label>Кому передать<select name="user"><option value="">Выберите сотрудника</option>'
+          + (data.employees || []).map(x=>'<option value="'+Number(x.id)+'">'+e(x.name)+'</option>').join('') + '</select></label></div>'
+          + '<div data-pay-adjust="due" hidden><label>Новый срок оплаты<input type="date" name="due" value="'+e(r.due)+'"></label></div>'
+          + '<div data-pay-adjust="return" hidden><label>Этап<select name="stage">'
+          + returnStages.map(id=>'<option value="'+id+'">'+e(data.statuses[id])+'</option>').join('') + '</select></label></div>'
+          + '<label>Причина<textarea name="comment" required maxlength="2000"></textarea></label>'
+          + '<button type="submit" class="kb-primary">Сохранить изменение</button></form></details>' : '';
         const action = r.status === 4 ? 'Подтвердить оплату' : r.status === 5 ? 'Подтвердить документы и закрыть' : 'Согласовать';
         body.innerHTML = '<dl class="crm-pay-values">' + values.filter(x=>x[1]).map(x=>'<dt>'+e(x[0])+'</dt><dd>'+e(x[1])+'</dd>').join('') + '</dl>'
           + (r.files.length ? '<h3>Документы</h3><ul>' + r.files.map(f=>'<li><button type="button" data-pay-file="'+Number(f.id)+'">'
             + e(data.fileLabels[f.kind] + ' · ' + f.name) + '</button></li>').join('') + '</ul>' : '')
-          + (r.needsAction ? '<form><label>Комментарий<textarea name="comment" maxlength="2000"></textarea></label>'
+          + (r.needsAction ? '<form data-pay-advance><label>Комментарий<textarea name="comment" maxlength="2000"></textarea></label>'
             + (r.status === 4 ? fileInput('Платёжное поручение','bill') : r.status === 5 ? fileInput('Акт / накладная / счёт-фактура','bill') + fileInput('Дополнения','extra') : '')
             + '<button type="submit" class="kb-primary">'+action+'</button></form>' : '')
-          + '<p role="status" data-pay-status></p><details><summary>История заявки</summary><ol>'
+          + manage + '<p role="status" data-pay-status></p><details><summary>История заявки</summary><ol>'
           + r.history.map(x=>'<li>'+e(paymentDate(x.date)+' · '+x.author+' · '+x.text)+'</li>').join('') + '</ol></details>';
         const status = body.querySelector('[data-pay-status]');
         body.querySelectorAll('[data-pay-file]').forEach(button => {
@@ -641,7 +667,28 @@
             } catch (error) { status.textContent = error.message; }
           };
         });
-        const form = body.querySelector('form');
+        const form = body.querySelector('[data-pay-advance]');
+        const adjust = body.querySelector('[data-pay-manage]');
+        if (adjust) {
+          const field = key => adjust.querySelector('[name='+key+']').value;
+          adjust.querySelector('[name=action]').addEventListener('change', () => {
+            adjust.querySelectorAll('[data-pay-adjust]').forEach(part => { part.hidden = part.getAttribute('data-pay-adjust') !== field('action'); });
+          });
+          adjust.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submit = adjust.querySelector('button');
+            if (submit.disabled) return;
+            submit.disabled = true;
+            try {
+              await paymentApi('payments/' + id, {action:field('action'), status:r.status, revision:r.revision, comment:field('comment'),
+                role:field('role'), userId:Number(field('user')), due:field('due'), stage:Number(field('stage'))});
+              if (onChange) onChange();
+              await render();
+              const feedback = body.querySelector('[data-pay-status]');
+              if (feedback) feedback.textContent = 'Изменение сохранено';
+            } catch (error) { status.textContent = error.message; submit.disabled = false; }
+          });
+        }
         if (form) form.onsubmit = async event => {
           event.preventDefault();
           const submit = form.querySelector('button');
@@ -1021,13 +1068,7 @@
       if (!li.parentNode.querySelector('.crmp-li-pay-register')) {
         const register = document.createElement('li');
         register.className = 'ant-dropdown-menu-item crmp-li-pay-register';
-        register.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/admin/dashpage01?payments=open">Заявки на оплату</a>';
-        register.querySelector('a').onclick = function (ev) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          li.closest('.ant-dropdown')?.classList.add('ant-dropdown-hidden');
-          openPaymentRegister(document.querySelector('[data-testid=user-center-button]'));
-        };
+        register.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/admin/payreqpage1">Заявки на оплату</a>';
         const payment = li.parentNode.querySelector('.crmp-li-payment');
         li.parentNode.insertBefore(register,payment.nextSibling);
       }

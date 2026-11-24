@@ -49,3 +49,31 @@ test('import retains IDs, attachments and an already approved parallel branch wi
   assert.throws(() => db.loadSnapshot([route],[{...legacy,legacyVersion:'3'}]),/changed in both systems/);
   assert.equal(db.detail(r.id,user(1)).status,4);
 });
+test('administrator can transfer, reschedule and return only open eligible stages, with audit', () => {
+  const db = createPayments(':memory:');
+  db.loadSnapshot([route],[]);
+  const admin={...user(10),isAdmin:true}, employees=[user(7)];
+  const {id}=db.submit(user(1),input);
+  const change=(operator,action) => {
+    const r=db.detail(id,operator);
+    return db.manage(operator,id,{status:r.status,revision:r.revision,comment:'Есть основание',...action},employees);
+  };
+  assert.throws(()=>change(user(2),{action:'assign',role:'senior',userId:7}),{status:403});
+  assert.throws(()=>change(admin,{action:'assign',role:'chief',userId:7}),{status:400});
+  assert.throws(()=>change(admin,{action:'assign',role:'senior',userId:99}),{status:400});
+  assert.deepEqual(change(admin,{action:'assign',role:'senior',userId:7}).pending,[7]);
+  assert.equal(db.detail(id,user(7)).needsAction,true);
+  assert.throws(()=>act(db,id,2,2),{status:404});
+  assert.throws(()=>change(admin,{action:'due',due:'2026-02-31'}),{status:400});
+  change(admin,{action:'due',due:'2026-12-02'});
+  assert.equal(db.detail(id,admin).due,'2026-12-02');
+  act(db,id,7,2);
+  act(db,id,4,3);
+  assert.equal(change(admin,{action:'return',stage:2}).status,2);
+  act(db,id,7,2);
+  act(db,id,3,3);
+  act(db,id,4,3);
+  act(db,id,5,4);
+  assert.throws(()=>change(admin,{action:'return',stage:3}),{status:400});
+  assert.ok(db.detail(id,admin).history.some(event=>event.text.includes('Передано')));
+});

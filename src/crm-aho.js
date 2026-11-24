@@ -707,17 +707,10 @@ async function aDone(id) {
 // ---------- счета и расходы ----------
 try { if (localStorage.getItem('crm-aho-exp-layout') === 'board') ah.expLayout = 'board'; } catch (e) { /* хранилище недоступно — таблица */ }
 function aExpChip(x) { return '<span class="hr-chip ' + (A_EXP_C[x.status] || '') + '">' + hEsc(A_EXP_ST[x.status] || 'Новый') + '</span>'; }
-function aRenderPayments(seg) {
-  const body = aBody();
-  body.innerHTML = '<div class="hr-bar">' + seg + '</div><div data-payment-register></div>';
-  window.crmPaymentRegister(body.querySelector('[data-payment-register]'));
-}
 function aRenderMoney() {
   const v = ah.moneyView;
   const views = [['exp', 'Счета'], ['subs', 'Регулярные платежи'], ['plan', 'План / факт']];
-  views.push(['payments', 'Заявки на оплату']);
   const seg = '<div class="hr-seg">' + views.map(function(x) { return '<button data-act="mv" data-v="' + x[0] + '"' + (v === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
-  if (v === 'payments') return aRenderPayments(seg);
   if (v === 'subs') return aRenderSubs(seg);
   if (v === 'plan') return aRenderPlan(seg);
   const groups = { open: ['new', 'approval', 'approved', 'paid', 'docs'], approval: ['approval'], topay: ['approved'], nodocs: ['paid'], rejected: ['rejected'], done: ['handed'], all: null };

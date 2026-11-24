@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const R = require('./rules');
+const { validContractPdf, contractPdf } = require('./contract-pdf');
 const {objectRoute, RouteError} = require('./routes');
 const {createPyrusPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE} = require('./pyrus-payments');
 const {createKnowledge, KnowledgeError, topics, audiences} = require('./knowledge');
@@ -472,6 +473,15 @@ http.createServer(async (req, res) => {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || (cookie ? decodeURIComponent(cookie[1]) : '');
     const user = await whoami(token);
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
+    if (p === '/contract-pdf' && req.method === 'POST') {
+      limit('contract-pdf:' + user.id, 15, 60000);
+      const input = await readJson(req, 96 * 1024);
+      if (!validContractPdf(input)) throw new ApiError(400, 'Неверные данные карточки договора');
+      const pdf = await contractPdf(input);
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment',
+        'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      return res.end(pdf);
+    }
     if (p === '/knowledge/api' && ['GET', 'POST'].includes(req.method)) {
       const employees = user.isAdmin ? [] : await list('crm_employees',
         '&fields=id,status,fired_on&filter=' + q({user_id:user.id}));

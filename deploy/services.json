@@ -41,7 +41,9 @@
       "kn-mark.svg",
       "kn-mark-white.svg",
       "kn-logo-white.svg",
-      "tilda-sans-vf.woff2"
+      "tilda-sans-vf.woff2",
+      "tilda-sans-regular.ttf",
+      "tilda-sans-semibold.ttf"
     ]
   },
   "requests-service": {
@@ -57,6 +59,7 @@
       "tasks.js",
       "portal.html",
       "knowledge.js",
+      "contract-pdf.js",
       "object-map.html",
       "package.json",
       "Dockerfile",

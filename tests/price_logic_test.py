@@ -31,6 +31,23 @@ assert.deepEqual(L.areaLinesUpdates({area_lines:lines},'rental_contracts'),{area
 assert.deepEqual(L.areaLinesUpdates({area_lines:lines},'draft_contracts'),{area_sqm:145,rent_amount:12250,rent_per_sqm:null,utility_amount:3450,utility_per_sqm:null});
 assert.equal('utility_amount' in L.areaLinesUpdates({area_lines:[{area:100,rate:10}]},'draft_contracts'),false);
 assert.equal(L.areaLinesUpdates({area_lines:[{area:100,rate:10,utility_rate:0}]},'draft_contracts').utility_amount,0);
+const base = {area_sqm: 10, base_area_sqm: 10, base_rent_amount: 1000, base_utility_amount: 200};
+const periods = [
+  {id: 1, date_from: '2026-11-01', date_to: '2099-12-31', amount: 90},
+  {id: 2, date_from: '2026-11-10', date_to: '2026-11-20', basis: 'fixed', amount: 750},
+  {id: 3, date_from: '2026-11-12', date_to: '2026-11-30', utility_on: true, utility_basis: 'fixed', utility_value: 120},
+  {id: 4, date_from: '2026-12-01', date_to: '2026-12-15', basis: 'period', amount: 1500}
+];
+const [current, standard, next, extras] = L.contractPdfBilling(base, 'active', periods, '2026-11-15');
+assert.match(current.title, /15.11.2026/);
+assert.match(Object.fromEntries(current.rows)['Итого в месяц'], /870,00/);
+assert.match(Object.fromEntries(standard.rows)['Арендная плата'], /1.000,00/);
+assert.match(Object.fromEntries(next.rows)['Арендная плата'], /21.11.2026: 900,00/);
+assert.match(extras.rows[0][0], /без даты окончания/);
+assert.match(extras.rows[0][1], /применяется другой период/);
+assert.match(extras.rows[2][1], /120,00.*действует/);
+assert.match(extras.rows[3][1], /за весь период/);
+assert.match(Object.fromEntries(L.contractPdfBilling(base, 'active', periods, '2026-12-10')[0].rows)['Арендная плата'], /3.100,00.*в пересчёте/);
 const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const out = cases.map(c => {
   const t = L.scheduleTarget(c.periods, c.rec, c.iso);

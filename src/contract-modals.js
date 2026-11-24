@@ -2821,18 +2821,21 @@ function contractPdfSections(r, collection, billing) {
   const published = collection === 'rental_contracts' || collection === 'completed_contracts';
   const blocks = published ? ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly || collection === 'rental_contracts'; })
     : r.is_quick ? QUICK_BLOCK_DEFS : STAGE_DEFS.slice(0, (r.current_stage || 0) + 1);
-  const used = new Set(blocks.flatMap(function(block) { return block.fields.map(function(f) { return f.name.replace(/^base_/, ''); }); }));
-  const extra = STAGE_DEFS.flatMap(function(block) { return block.fields; }).filter(function(f) { return !used.has(f.name); });
-  extra.push(
+  const details = [
     { name: 'end_date', label: 'Дата окончания договора', type: 'date' },
     { name: 'rooms_list', label: 'Помещения', type: 'text' },
     { name: 'payment_status', label: 'Статус оплаты', type: 'status' }
+  ];
+  if (published || r.is_quick) details.push(
+    { name: 'actual_start_date', label: 'Дата фактического начала аренды', type: 'date' },
+    { name: 'signing_method', label: 'Способ подписания', type: 'select' }
   );
   const cell = document.createElement('div');
-  return blocks.concat({ title: 'Дополнительные сведения', fields: extra }).flatMap(function(block) {
+  return blocks.flatMap(function(block, index) {
     const rows = [];
     const activePay = block.key === 'pay' && collection === 'rental_contracts';
-    const fields = activePay ? block.fields.filter(function(f) { return f.name === 'calc_comment'; }) : block.fields;
+    let fields = activePay ? block.fields.filter(function(f) { return f.name === 'calc_comment'; }) : block.fields;
+    if (block.key === 'data' || (!published && !r.is_quick && index === 0)) fields = fields.concat(details);
     partyFields(fields, r).forEach(function(f) {
       const raw = r[f.name];
       if (f.type === 'scan' || f.type === 'url') {
@@ -2961,7 +2964,7 @@ async function contractPdfRecord(collection, id) {
     const name = fileDisplayName(f) || 'Файл';
     const key = f.id || f.url;
     if (!files.has(key)) files.set(key, { name: name, url: f.url, size: f.size });
-    return text([name, fmtSize(f.size), f.mimetype]);
+    return name;
   };
 
   const orderedContacts = contacts.filter(function(c) { return c.position === MAIN_CONTACT; })

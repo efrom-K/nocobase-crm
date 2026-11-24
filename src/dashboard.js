@@ -369,7 +369,7 @@ function headHtml(title, extra) {
   const upd = dashState.loadedAt ? new Date(dashState.loadedAt) : null;
   return '<div class="dash-head">' + extra.before + '<div class="dash-title">' + dEsc(title) + '</div>' + crmSettingsGear('Договоры') + kindSelect() + extra.after
     + '<div class="dash-sub">обновлено ' + (upd ? ('0' + upd.getHours()).slice(-2) + ':' + ('0' + upd.getMinutes()).slice(-2) : '') + '</div>'
-    + '<a class="dash-link" href="/rqsvc/payment-request">Подать заявку на оплату</a><button class="dash-link" data-act="refresh">↻ Обновить</button></div>';
+    + '<button class="dash-link" data-act="refresh">↻ Обновить</button></div>';
 }
 
 // ---------- главный экран: общие цифры + карточки объектов ----------

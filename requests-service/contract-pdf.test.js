@@ -20,3 +20,21 @@ test('validates the input and embeds Cyrillic text across A4 pages', async () =>
   assert.match(pdf, /\/Count [2-9]/);
   assert.match(pdf, /\/ToUnicode/);
 });
+
+test('keeps the complete contents of same-named attachments and rejects a truncated upload', async () => {
+  const { parseContractPdf } = require('./contract-pdf');
+  const one = Buffer.from([0, 10, 255, 12]);
+  const two = Buffer.from('Синтетическое приложение');
+  const input = {
+    kind: 'Договор в архиве',
+    sections: [{ title: 'Файлы договора', rows: [['Файл', 'Приложение.txt']] }],
+    attachments: [one, two].map(file => ({name:'Приложение.txt',size:file.length}))
+  };
+  const body = Buffer.concat([Buffer.from(JSON.stringify(input) + '\n'), one, two]);
+  assert.equal(parseContractPdf(body.subarray(0, -1)), null);
+  const payload = parseContractPdf(body);
+  assert.deepEqual([...payload.files], [['Приложение.txt', one], ['Приложение (2).txt', two]]);
+  const pdf = (await contractPdf(payload.input, payload.files)).toString('latin1');
+  assert.match(pdf, /\/EmbeddedFiles/);
+  assert.equal((pdf.match(/\/Type \/EmbeddedFile\b/g) || []).length, 2);
+});

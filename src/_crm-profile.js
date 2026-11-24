@@ -256,7 +256,7 @@
     return m;
   }
 
-  function workDialog(title, key, cls, html, trigger) {
+  function workDialogStyles() {
     if (!document.getElementById('crm-knowledge-style')) {
       const style = document.createElement('style');
       style.id = 'crm-knowledge-style';
@@ -309,10 +309,20 @@
     .kp-dialog form:not([hidden]) + .kb-status { padding-top:0; padding-bottom:16px; }
     .kp-dialog input[type=file] { padding:6px; }
     .kp-dialog small { color:#5b6478; font-weight:400; }
+    [data-payment-register] .kb-tools label { margin:0; }
+    .crm-pay-table { width:100%; border-collapse:collapse; font-size:14px; }
+    .crm-pay-table th,.crm-pay-table td { text-align:left; padding:9px 10px; border-bottom:1px solid #dfe3ec; }
+    .crm-pay-values { display:grid; grid-template-columns:minmax(110px, 1fr) minmax(0, 2fr); gap:6px 12px; }
+    .crm-pay-values dt { color:#5b6478; }
+    .crm-pay-values dd { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+    [data-pay-card] form { padding:0; margin:16px 0; }
 
 `;
       document.head.appendChild(style);
     }
+  }
+  function workDialog(title, key, cls, html, trigger) {
+    workDialogStyles();
     const titleId = 'crm-'+key+'-title';
     const m = modal('<header class="kb-heading"><h2 id="'+titleId+'">'+title+'</h2>'
       + '<button type="button" class="kb-close" aria-label="Закрыть">×</button></header>'+html, 'crm-work-dialog '+cls);
@@ -534,6 +544,122 @@
     search.focus();
   }
 
+  async function paymentApi(path, input) {
+    const token = localStorage.getItem('NOCOBASE_TOKEN');
+    const response = await fetch('/rqsvc/' + path, {
+      method: input ? 'POST' : 'GET',
+      headers: {Authorization:'Bearer ' + (token || ''), 'Content-Type':'application/json'},
+      body: input && JSON.stringify(input)
+    });
+    if (response.status === 401) throw new Error('Войдите в CRM и повторите действие');
+    if (response.status === 413) throw new Error('Файл слишком большой');
+    if (response.ok && path.includes('/files/')) return response.blob();
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Сервис заявок недоступен');
+    return result;
+  }
+  async function paymentFile(file) {
+    if (!file) return undefined;
+    if (file.size > 5 * 1024 * 1024) throw new Error('Размер документа больше 5 МБ');
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const encoded = [];
+    for (let i = 0; i < bytes.length; i += 3) {
+      const n = (bytes[i] << 16) | ((bytes[i + 1] || 0) << 8) | (bytes[i + 2] || 0);
+      encoded.push(alphabet[n >> 18 & 63] + alphabet[n >> 12 & 63]
+        + (i + 1 < bytes.length ? alphabet[n >> 6 & 63] : '=') + (i + 2 < bytes.length ? alphabet[n & 63] : '='));
+    }
+    const data = encoded.join('');
+    return {name:file.name,data};
+  }
+  const paymentAmount = v => Number.isFinite(v) ? v.toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₽' : '—';
+  const paymentDate = v => v ? String(v).slice(0,10).split('-').reverse().join('.') : '—';
+  function paymentRegister(panel) {
+    workDialogStyles();
+    let filter = '';
+    async function refresh() {
+      panel.textContent = 'Загрузка заявок…';
+      try {
+        const data = await paymentApi('payments');
+        const rows = data.rows.filter(x => !filter || String(x.status) === filter);
+        panel.innerHTML = '<div class="kb-tools" style="align-items:center"><label>Статус <select data-pay-filter><option value="">Все статусы</option>'
+          + Object.entries(data.statuses).map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
+          + '</select></label><button type="button" data-pay-refresh>Обновить</button></div>'
+          + (rows.length ? '<div style="overflow:auto"><table class="crm-pay-table"><thead><tr><th>Номер</th><th>Статус</th><th>Объект</th><th>Цель расхода</th><th>Контрагент</th><th>Сумма</th><th>Оплатить до</th><th>Создана</th></tr></thead><tbody>'
+            + rows.map(x => '<tr><td><button type="button" data-pay-id="' + Number(x.id) + '">№ ' + Number(x.id) + '</button></td><td>'
+              + e(data.statuses[x.status]) + (x.needsAction ? '<br><strong>Ждёт вашего действия</strong>' : '') + '</td><td>' + e(x.object || '—')
+              + '</td><td>' + e(x.purpose || '—') + '</td><td>' + e(x.counterparty || '—') + '</td><td>' + e(paymentAmount(x.amount))
+              + '</td><td>' + e(paymentDate(x.due)) + '</td><td>' + e(paymentDate(x.created)) + '</td></tr>').join('') + '</tbody></table></div>'
+            : '<p>Заявок нет</p>');
+        panel.querySelector('[data-pay-filter]').onchange = event => { filter = event.target.value; refresh(); };
+        panel.querySelector('[data-pay-refresh]').onclick = refresh;
+        panel.querySelectorAll('[data-pay-id]').forEach(button => {
+          button.onclick = () => openPaymentCard(Number(button.getAttribute('data-pay-id')),button,refresh);
+        });
+      } catch (error) {
+        panel.textContent = error.message;
+      }
+    }
+    return refresh();
+  }
+  window.crmPaymentRegister = paymentRegister;
+  function openPaymentRegister(trigger) {
+    const m = workDialog('Заявки на оплату','payment-register','kb-dialog','<div class="kb-article" data-pay-register></div>',trigger);
+    paymentRegister(m.querySelector('[data-pay-register]'));
+  }
+  function openPaymentCard(id, trigger, onChange) {
+    const m = workDialog('Заявка на оплату № ' + id,'payment-card','kp-dialog','<div class="kb-article" data-pay-card>Загрузка…</div>',trigger);
+    const body = m.querySelector('[data-pay-card]');
+    async function render() {
+      try {
+        const data = await paymentApi('payments/' + id);
+        const r = data.record;
+        const values = [['Статус',data.statuses[r.status]],['Автор',r.author],['Дата создания',paymentDate(r.created)],
+          ['Объект',r.object],['Цель расхода',r.purpose],['Сумма',paymentAmount(r.amount)],['Оплатить до',paymentDate(r.due)],
+          ['Контрагент',r.counterparty],['Контактное лицо',r.contact],['Телефон',r.phone],['Эл. почта',r.email],['Комментарий',r.comment],
+          ['Ожидается действие',r.awaiting.map(x=>x.name).join(', ')],['Исходный номер',r.legacyId]];
+        const fileInput = (label, key) => '<label>' + label + '<input type="file" name="' + key + '" accept=".pdf,.jpg,.jpeg,.png"></label>';
+        const action = r.status === 4 ? 'Подтвердить оплату' : r.status === 5 ? 'Подтвердить документы и закрыть' : 'Согласовать';
+        body.innerHTML = '<dl class="crm-pay-values">' + values.filter(x=>x[1]).map(x=>'<dt>'+e(x[0])+'</dt><dd>'+e(x[1])+'</dd>').join('') + '</dl>'
+          + (r.files.length ? '<h3>Документы</h3><ul>' + r.files.map(f=>'<li><button type="button" data-pay-file="'+Number(f.id)+'">'
+            + e(data.fileLabels[f.kind] + ' · ' + f.name) + '</button></li>').join('') + '</ul>' : '')
+          + (r.needsAction ? '<form><label>Комментарий<textarea name="comment" maxlength="2000"></textarea></label>'
+            + (r.status === 4 ? fileInput('Платёжное поручение','bill') : r.status === 5 ? fileInput('Акт / накладная / счёт-фактура','bill') + fileInput('Дополнения','extra') : '')
+            + '<button type="submit" class="kb-primary">'+action+'</button></form>' : '')
+          + '<p role="status" data-pay-status></p><details><summary>История заявки</summary><ol>'
+          + r.history.map(x=>'<li>'+e(paymentDate(x.date)+' · '+x.author+' · '+x.text)+'</li>').join('') + '</ol></details>';
+        const status = body.querySelector('[data-pay-status]');
+        body.querySelectorAll('[data-pay-file]').forEach(button => {
+          button.onclick = async () => {
+            try {
+              const file = r.files.find(f => f.id === Number(button.getAttribute('data-pay-file')));
+              const blob = await paymentApi('payments/' + id + '/files/' + file.id);
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url; link.download = file.name; document.body.appendChild(link); link.click(); link.remove();
+              setTimeout(() => URL.revokeObjectURL(url),60000);
+            } catch (error) { status.textContent = error.message; }
+          };
+        });
+        const form = body.querySelector('form');
+        if (form) form.onsubmit = async event => {
+          event.preventDefault();
+          const submit = form.querySelector('button');
+          if (submit.disabled) return;
+          submit.disabled = true;
+          try {
+            await paymentApi('payments/' + id, {status:r.status, comment:form.querySelector('textarea').value,
+              file:await paymentFile(form.querySelector('[name=bill]')?.files[0]), extra:await paymentFile(form.querySelector('[name=extra]')?.files[0])});
+            if (onChange) onChange();
+            await render();
+            const feedback = body.querySelector('[data-pay-status]');
+            if (feedback) feedback.textContent = 'Сохранено';
+          } catch (error) { status.textContent = error.message; submit.disabled = false; }
+        };
+      } catch (error) { body.textContent = error.message; }
+    }
+    render();
+  }
   function openPayment(trigger) {
     if (document.querySelector('.kp-dialog')) return;
     const m = workDialog('Заявка на оплату','kp','kp-dialog',
@@ -541,6 +667,9 @@
       + '<label>Цель расхода<textarea name="purpose" rows="3" maxlength="1000" required></textarea></label>'
       + '<div class="kb-fields"><label>Сумма, ₽<input name="amount" inputmode="decimal" pattern="[0-9]{1,10}([.,][0-9]{1,2})?" required></label>'
       + '<label>Оплатить до<input type="date" name="due" required></label></div>'
+      + '<label>Контрагент<input name="counterparty" maxlength="300" required></label>'
+      + '<div class="kb-fields"><label>Контактное лицо<input name="contact" maxlength="300"></label>'
+      + '<label>Телефон<input name="phone" type="tel" maxlength="100"></label><label>Эл. почта<input name="email" type="email" maxlength="300"></label></div>'
       + '<label>Комментарий<textarea name="comment" rows="2" maxlength="2000"></textarea></label>'
       + '<label>Счёт<input name="bill" type="file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="crm-kp-file" required>'
       + '<small id="crm-kp-file">PDF, JPEG или PNG до 5 МБ</small></label>'
@@ -552,19 +681,7 @@
       m.close = () => { if (!button.disabled) close(); };
       const field = name => form.querySelector('[name='+name+']');
       const button = form.querySelector('button');
-      async function api(input) {
-        const token = localStorage.getItem('NOCOBASE_TOKEN');
-        const response = await fetch('/rqsvc/payment-request/api', {
-          method: input ? 'POST' : 'GET',
-          headers: { Authorization: 'Bearer ' + (token || ''), 'Content-Type': 'application/json' },
-          body: input && JSON.stringify(input)
-        });
-        if (response.status === 401) throw new Error('Войдите в CRM, затем снова откройте форму');
-        if (response.status === 413) throw new Error('Файл слишком большой');
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Не удалось связаться с Pyrus');
-        return result;
-      }
+      const api = input => paymentApi('payment-request/api',input);
       api().then(result => {
         for (const object of result.objects) {
           const option = document.createElement('option');
@@ -588,23 +705,14 @@
         status.textContent = 'Отправляем заявку…';
         let sending = false;
         try {
-          const bytes = new Uint8Array(await bill.arrayBuffer());
-        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-        const encoded = [];
-        for (let i = 0; i < bytes.length; i += 3) {
-          const value = (bytes[i] << 16) | ((bytes[i + 1] || 0) << 8) | (bytes[i + 2] || 0);
-          encoded.push(alphabet[(value >> 18) & 63] + alphabet[(value >> 12) & 63]
-            + (i + 1 < bytes.length ? alphabet[(value >> 6) & 63] : '=')
-            + (i + 2 < bytes.length ? alphabet[value & 63] : '='));
-        }
-        const data = encoded.join('');
-        sending = true;
+          const file = await paymentFile(bill);
+          sending = true;
           const result = await api({
-            object: Number(field('object').value), purpose: field('purpose').value,
-            amount: field('amount').value, due: field('due').value,
-            comment: field('comment').value, file: { name: bill.name, data }
+            object:Number(field('object').value), purpose:field('purpose').value, amount:field('amount').value, due:field('due').value,
+            counterparty:field('counterparty').value, contact:field('contact').value, phone:field('phone').value, email:field('email').value,
+            comment:field('comment').value, file
           });
-            form.hidden = true;
+          form.hidden = true;
           status.textContent = 'Заявка № ' + result.id + ' отправлена на согласование.';
         } catch (error) {
           status.textContent = error instanceof TypeError && sending
@@ -910,6 +1018,19 @@
         payment.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/rqsvc/payment-request">Подать заявку на оплату</a>';
         li.parentNode.insertBefore(payment, set.nextSibling);
       }
+      if (!li.parentNode.querySelector('.crmp-li-pay-register')) {
+        const register = document.createElement('li');
+        register.className = 'ant-dropdown-menu-item crmp-li-pay-register';
+        register.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/admin/dashpage01?payments=open">Заявки на оплату</a>';
+        register.querySelector('a').onclick = function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          li.closest('.ant-dropdown')?.classList.add('ant-dropdown-hidden');
+          openPaymentRegister(document.querySelector('[data-testid=user-center-button]'));
+        };
+        const payment = li.parentNode.querySelector('.crmp-li-payment');
+        li.parentNode.insertBefore(register,payment.nextSibling);
+      }
       if (!li.parentNode.querySelector('.crmp-li-knowledge')) {
         const knowledge = document.createElement('li');
         knowledge.className = 'ant-dropdown-menu-item crmp-li-knowledge';
@@ -942,6 +1063,11 @@
     const deepLink = location.search.match(/[?&]knowledge=(open|[1-9]\d*)(?:&|$)/);
     if (deepLink) openKnowledge(Number(deepLink[1]) || undefined);
     if (/[?&]payment=open(?:&|$)/.test(location.search)) openPayment();
+    const paymentLink = location.search.match(/[?&]payments=(open|[1-9]\d*)(?:&|$)/);
+    if (paymentLink) {
+      if (paymentLink[1] === 'open') openPaymentRegister();
+      else openPaymentCard(Number(paymentLink[1]));
+    }
   });
   setInterval(decorate, 600);
   setInterval(load, 60000);

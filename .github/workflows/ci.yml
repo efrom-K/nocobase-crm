@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -69,8 +69,8 @@ jobs:
         run: node requests-service/routes.test.js
       - name: CRM task participant permissions
         run: node --test requests-service/tasks.test.js
-      - name: Pyrus payment register
-        run: node requests-service/pyrus-payments.test.js
+      - name: Local payment workflow
+        run: node --test requests-service/payments.test.js
       - name: Object directory migration (isolated PostgreSQL schema)
         run: python3 tests/object_directory_test.py
         env:

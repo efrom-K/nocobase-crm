@@ -14,7 +14,7 @@ const path = require('path');
 const R = require('./rules');
 const { validContractPdf, contractPdf, parseContractPdf, MAX_CONTRACT_PDF_BYTES, MAX_CONTRACT_PDF_METADATA_BYTES } = require('./contract-pdf');
 const {objectRoute, RouteError} = require('./routes');
-const {createPyrusPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE} = require('./pyrus-payments');
+const {createPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE, STATUS: PAYMENT_STATUS, FILE_LABELS: PAYMENT_FILES} = require('./payments');
 const {createKnowledge, KnowledgeError, topics, audiences} = require('./knowledge');
 let knowledge;
 const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
@@ -27,8 +27,15 @@ const PAGE = '/admin/j3a32zo1jzo';
 const CTL_ROLE = 'requests_control';   // роль «Контроль заявок»: главный управляющий, операционный директор
 if (!NB_URL || !env.NB_SERVICE_USER || !env.NB_SERVICE_PASSWORD) { console.error('Нужны NB_URL, NB_SERVICE_USER, NB_SERVICE_PASSWORD'); process.exit(1); }
 
-const payments = env.PYRUS_PAYMENTS_LOGIN && env.PYRUS_PAYMENTS_KEY
-  ? createPyrusPayments(env.PYRUS_PAYMENTS_LOGIN, env.PYRUS_PAYMENTS_KEY) : null;
+let payments;
+function paymentStore() { return payments ||= createPayments(env.PAYMENTS_DB || '/app/knowledge/payments.sqlite'); }
+async function paymentNotice(users, id, text, me) {
+  for (const userId of new Set(users)) {
+    if (!userId || userId === me) continue;
+    await nb('POST', 'request_notifications:create', {user_id:userId, title:'Заявка на оплату № ' + id, text,
+      url:'/admin/dashpage01?payments=' + id}).catch(error => console.error('payment notice', error.message));
+  }
+}
 
 class ApiError extends Error { constructor(status, message, field) { super(message); this.status = status; this.field = field; } }
 
@@ -510,30 +517,53 @@ http.createServer(async (req, res) => {
     }
     if (p === '/write-access-check' && req.method === 'GET') return send(res, user.readOnly ? 403 : 200, { ok: !user.readOnly }, origin);
     if (p === '/payment-request/api' && ['GET', 'POST'].includes(req.method)) {
+      if (user.readOnly) throw new ApiError(403, 'Доступ только для просмотра');
       const employees = await list('crm_employees', '&fields=full_name,status,fired_on&filter=' + q({ user_id: user.id }));
       const employee = employees?.find(x => !x.fired_on && x.status !== 'fired');
       if (!user.isAdmin && !employee) throw new ApiError(403, 'Форма доступна сотрудникам компании');
-      if (!payments) throw new ApiError(503, 'Подключение к Pyrus не настроено');
       if (req.method === 'GET') {
         limit('payment-form:' + user.id, 20, 600000);
-        return send(res, 200, { objects: await payments.objects() }, origin);
+        return send(res, 200, { objects: paymentStore().objects() }, origin);
       }
       limit('payment-submit:' + user.id, 6, 600000);
       if (paymentInFlight.has(user.id)) throw new ApiError(409, 'Предыдущая заявка ещё отправляется');
       paymentInFlight.add(user.id);
       try {
         const input = await readJson(req, Math.ceil(MAX_PAYMENT_FILE / 3) * 4 + 16384);
-        return send(res, 201, await payments.submit(input, (employee?.full_name || user.name) + ' (ID ' + user.id + ')'), origin);
+        const result = paymentStore().submit({...user, name:employee?.full_name || user.name}, input);
+        await paymentNotice(result.pending, result.id, 'Заявка ждёт согласования', user.id);
+        return send(res, 201, {id:result.id}, origin);
       } finally {
         paymentInFlight.delete(user.id);
       }
     }
     if (!R.allowHttp(user, req.method, p)) throw new ApiError(403, 'Доступ только для просмотра');
-    if (p === '/pyrus-payments' && req.method === 'GET') {
-      if ((!user.isAdmin && !user.isAho) || user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам Pyrus');
-      if (!payments) throw new ApiError(503, 'Подключение к Pyrus не настроено');
-      const rows = await payments.readPayments().catch(() => { throw new ApiError(502, 'Не удалось загрузить заявки из Pyrus'); });
-      return send(res, 200, { rows }, origin);
+    const paymentPath = p.match(/^\/payments(?:\/([1-9]\d*)(?:\/files\/([1-9]\d*))?)?$/);
+    if (paymentPath && ['GET', 'POST'].includes(req.method)) {
+      if (user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам на оплату');
+      const id = Number(paymentPath[1]), fileId = Number(paymentPath[2]);
+      if (req.method === 'GET') {
+        if (fileId) {
+          const file = paymentStore().file(id,fileId,user);
+          res.writeHead(200, {'Content-Type':'application/octet-stream', 'X-Content-Type-Options':'nosniff',
+            'Content-Disposition':"attachment; filename*=UTF-8''" + encodeURIComponent(file.name), 'Cache-Control':'no-store'});
+          return res.end(file.bytes);
+        }
+        if (id) {
+          const record = paymentStore().detail(id,user);
+          const rf = await refs();
+          return send(res, 200, { record:{...record, awaiting:record.awaiting.map(x => ({...x,name:rf.names[x.id] || '—'}))},
+            statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES }, origin);
+        }
+        return send(res, 200, {rows:paymentStore().browse(user), statuses:PAYMENT_STATUS}, origin);
+      }
+      if (!id || fileId) throw new ApiError(404, 'Заявка не найдена');
+      limit('payment-action:' + user.id, 30, 600000);
+      const input = await readJson(req, 2 * Math.ceil(MAX_PAYMENT_FILE / 3) * 4 + 16384);
+      const result = paymentStore().act(user,id,input);
+      await paymentNotice(result.pending, id, PAYMENT_STATUS[result.status], user.id);
+      if (result.status === 6) await paymentNotice([result.authorId], id, PAYMENT_STATUS[6], user.id);
+      return send(res, 200, {id,status:result.status}, origin);
     }
     if (p === '/object-route' && req.method === 'POST') {
       const route = await objectRoute(user, await readJson(req), async ids => {

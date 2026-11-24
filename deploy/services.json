@@ -55,7 +55,7 @@
       "server.js",
       "rules.js",
       "routes.js",
-      "pyrus-payments.js",
+      "payments.js",
       "tasks.js",
       "portal.html",
       "knowledge.js",

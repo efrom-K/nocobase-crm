@@ -559,16 +559,23 @@ http.createServer(async (req, res) => {
           return res.end(file.bytes);
         }
         if (id) {
-          const record = paymentStore().detail(id,user);
+          const {observerExclusions, ...record} = paymentStore().detail(id,user);
           const rf = await refs();
-          return send(res, 200, { record:{...record, awaiting:record.awaiting.map(x => ({...x,name:rf.names[x.id] || '—'}))},
-            statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES, employees:record.canManage ? await paymentEmployees() : [] }, origin);
+          return send(res, 200, { record:{...record, awaiting:record.awaiting.map(x => ({...x,name:rf.names[x.id] || '—'})),
+            subscribers:record.subscribers.map(id => ({id,name:rf.names[id] || 'Сотрудник № ' + id}))},
+            statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES, employees:record.canWatch ? await paymentEmployees() : [], observerExclusions }, origin);
         }
         return send(res, 200, {rows:paymentStore().browse(user), statuses:PAYMENT_STATUS}, origin);
       }
       if (!id || fileId) throw new ApiError(404, 'Заявка не найдена');
       limit('payment-action:' + user.id, 30, 600000);
       const input = await readJson(req, 2 * Math.ceil(MAX_PAYMENT_FILE / 3) * 4 + 16384);
+      if (['message','watch-add','watch-remove'].includes(input?.action)) {
+        if (input.action !== 'message' && !user.isAdmin) throw new ApiError(403,'Наблюдающих меняет администратор');
+        const result = paymentStore().discuss(user,id,input,input.action.startsWith('watch-') ? await paymentEmployees() : []);
+        await paymentNotice(result.pending,id,result.message,user.id);
+        return send(res,200,{id,status:result.status},origin);
+      }
       if (input?.action && !user.isAdmin) throw new ApiError(403,'Управлять заявкой может администратор');
       const result = input?.action ? paymentStore().manage(user,id,input,input.action === 'assign' ? await paymentEmployees() : [])
         : paymentStore().act(user,id,input);

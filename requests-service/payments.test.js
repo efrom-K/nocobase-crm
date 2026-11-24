@@ -77,3 +77,27 @@ test('administrator can transfer, reschedule and return only open eligible stage
   assert.throws(()=>change(admin,{action:'return',stage:3}),{status:400});
   assert.ok(db.detail(id,admin).history.some(event=>event.text.includes('Передано')));
 });
+test('payment discussion retains documents and observer access without granting approval', () => {
+  const db = createPayments(':memory:');
+  db.loadSnapshot([route],[]);
+  const admin = {...user(10),isAdmin:true};
+  const {id} = db.submit(user(1),input);
+  const change = (actor,action,userId) => db.discuss(actor,id,{action,userId},[user(7)]);
+  assert.throws(() => change(user(1),'watch-add',7),{status:403});
+  assert.throws(() => change(admin,'watch-add',99),{status:400});
+  assert.deepEqual(change(admin,'watch-add',7).pending,[7]);
+  assert.equal(db.detail(id,user(7)).needsAction,false);
+  assert.throws(() => act(db,id,7,2),{status:403});
+  assert.throws(() => db.discuss(user(7),id,{action:'message',comment:'   '}),{status:400});
+  assert.throws(() => db.discuss(user(7),id,{action:'message',file:{...file,data:'eA=='}}),{status:400});
+  assert.deepEqual(db.discuss(user(7),id,{action:'message',comment:'Документ',file}).pending,[1,7,2]);
+  const record = db.detail(id,user(1));
+  assert.equal(record.status,2);
+  assert.equal(record.history.length,3);
+  const entry = record.history.at(-1);
+  assert.equal(entry.text,'Документ');
+  assert.deepEqual(Buffer.from(db.file(id,entry.fileId,user(7)).bytes),bytes);
+  change(admin,'watch-remove',7);
+  assert.throws(() => db.file(id,entry.fileId,user(7)),{status:404});
+  assert.equal(db.detail(id,user(1)).files.length,2);
+});

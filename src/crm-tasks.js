@@ -1183,11 +1183,11 @@ function tkOpenEmp(id) { location.href = TK_HR_PAGE + '?open=emp:' + id; }
 
 // ---------- отчёты ----------
 // Отчёты — тот же вид, что статистика заявок: период, плитки, одна таблица «В разрезе» с переключателем, неделя за неделей.
-// «Открыто / просрочено / горит» — на сегодня; остальное — за выбранный период.
+// «Открыто / просрочено / горит» и «В срок» — на сегодня; остальное — за выбранный период.
 const TK_PERIODS = [[30, '30 дней'], [90, '3 месяца'], [365, 'год'], [0, 'всё время']];
 const TK_BY = [['exec', 'Исполнители', 'Исполнитель'], ['obj', 'Объекты', 'Объект'], ['kind', 'Типы задач', 'Тип']];
 const TK_SCOLS = [['open', 'Открыто', 'Сейчас в работе'], ['late', 'Просрочено', 'Сейчас, срок прошёл'], ['hot', 'Горит и срочно', 'Открытые «Горит» и «Срочно»'],
-  ['created', 'Поставлено', 'Поставлено за период'], ['closed', 'Закрыто', 'Выполнено или закрыто за период'], ['ontime', 'В срок', 'Доля закрытых за период не позже срока'],
+  ['created', 'Поставлено', 'Поставлено за период'], ['closed', 'Закрыто', 'Выполнено или закрыто за период'], ['ontime', 'В срок', 'Доля всех задач без просрочки на сегодня'],
   ['med', 'Медиана, дн.', 'Медиана дней от постановки до выполнения (за период)'], ['moved', 'Переносили срок', 'Задачи за период, срок которых переносили']];
 function tkStats() {
   const tasks = tk.data.tasks, days = tk.statsDays;
@@ -1196,13 +1196,25 @@ function tkStats() {
   const inP = function(v) { return !!v && String(v).slice(0, 10) >= from; };
   const finished = function(t) { return String(t.done_at || t.closed_at || '').slice(0, 10); };
   const isClosed = function(t) { return (t.status === 'closed' || t.status === 'done') && inP(finished(t)); };
-  const inTime = function(t) { return !t.due_date || finished(t) <= String(t.due_date).slice(0, 10); };
+  const today = tkToday();
+  const ended = function(t) {
+    if (t.status === 'cancelled') return String(t.closed_at || '').slice(0, 10);
+    return tkIsOpen(t) ? '' : finished(t);
+  };
+  function onTimePercent(list, asOf) {
+    if (!list.length) return null;
+    const onTime = list.filter(function(t) {
+      const end = ended(t);
+      return !t.due_date || (end && end < asOf ? end : asOf) <= String(t.due_date).slice(0, 10);
+    }).length;
+    return onTime === list.length ? 100 : Math.min(99, Math.round(100 * onTime / list.length));
+  }
   function metrics(l) {
     const o = l.filter(tkIsOpen), c = l.filter(isClosed);
     return { open: o.length, late: o.filter(tkLate).length, hot: o.filter(function(t) { return t.urgency && t.urgency !== 'normal'; }).length,
       asap: o.filter(function(t) { return t.urgency === 'asap'; }).length,
       created: l.filter(function(t) { return inP(t.createdAt); }).length, closed: c.length,
-      ontime: c.length ? Math.round(100 * c.filter(inTime).length / c.length) : null,
+      ontime: onTimePercent(l, today),
       med: tkMedian(c.map(function(t) { return tkDays(String(t.createdAt).slice(0, 10), finished(t)); })),
       moved: l.filter(function(t) { return inP(t.createdAt) && t.due_moved > 0; }).length,
       check: l.filter(function(t) { return t.status === 'done'; }).length };
@@ -1211,13 +1223,20 @@ function tkStats() {
     const g = {};
     tasks.forEach(function(t) { const k = keyFn(t); if (!k) return; (g[k] = g[k] || []).push(t); });
     return Object.keys(g).map(function(k) { return Object.assign({ k: k, label: labelFn(k) }, metrics(g[k])); })
-      .filter(function(x) { return x.open || x.created || x.closed; })
       .sort(function(a, b) { return b.late - a.late || b.open - a.open || b.closed - a.closed || a.label.localeCompare(b.label, 'ru'); });
   }
   const names = {};
   tasks.forEach(function(t) { const k = tkExecKey(t); if (k) names[k] = tkWho(t.executor_id, t.executor_name); });
   const weeks = [], mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
-  for (let i = 7; i >= 0; i--) { const s = new Date(mon); s.setDate(s.getDate() - 7 * i); const e = new Date(s); e.setDate(e.getDate() + 7); weeks.push([tkIso(s), tkIso(e)]); }
+  for (let i = 7; i >= 0; i--) {
+    const start = new Date(mon);
+    start.setDate(start.getDate() - 7 * i);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const last = tkIso(end);
+    end.setDate(end.getDate() + 1);
+    weeks.push([tkIso(start), tkIso(end), last]);
+  }
   const inW = function(v, w) { const x = String(v || '').slice(0, 10); return x >= w[0] && x < w[1]; };
   return {
     all: metrics(tasks),
@@ -1230,7 +1249,12 @@ function tkStats() {
         const cr = String(t.createdAt || '').slice(0, 10), f = finished(t), x = t.status === 'cancelled' ? String(t.closed_at || '').slice(0, 10) : '';
         return cr && cr < w[1] && !(f && f < w[1]) && !(x && x < w[1]);
       }).length;
-      return { from: w[0], created: tasks.filter(function(t) { return inW(t.createdAt, w); }).length, closed: c.length, ontime: c.filter(inTime).length, openEnd: openEnd };
+      const cutoff = w[2] < today ? w[2] : today;
+      const applicable = tasks.filter(function(t) {
+        const created = String(t.createdAt || '').slice(0, 10), end = ended(t);
+        return created && created <= cutoff && (!end || end >= w[0]);
+      });
+      return { from: w[0], created: tasks.filter(function(t) { return inW(t.createdAt, w); }).length, closed: c.length, ontime: onTimePercent(applicable, cutoff), openEnd: openEnd };
     })
   };
 }
@@ -1251,14 +1275,14 @@ function tkRenderStats() {
     ['Открыто сейчас', a.open, a.late ? '<span class="st-bad">просрочено ' + a.late + '</span>' : 'просрочек нет', { view: 'open' }],
     ['Горит и срочно', a.hot, '«горит»: ' + a.asap, { view: 'open' }],
     ['Поставлено', a.created, 'за ' + per, { view: 'open' }],
-    ['Закрыто', a.closed, a.ontime === null ? 'за ' + per : 'в срок <b>' + a.ontime + '%</b>', { view: 'closed' }],
+    ['Закрыто', a.closed, a.ontime === null ? 'за ' + per : 'в срок среди всех задач <b>' + a.ontime + '%</b>', { view: 'closed' }],
     ['На задачу уходит', a.med === null ? '—' : (Math.round(a.med * 10) / 10) + '<small> ' + tkNoun(Math.round(a.med), 'день', 'дня', 'дней') + '</small>', 'медиана за ' + per, { view: 'closed' }],
     ['Ждут проверки', a.check, a.moved ? 'переносили срок: ' + a.moved : 'выполнены, не закрыты', { view: 'check' }]
   ];
   const by = TK_BY.find(function(b) { return b[0] === tk.statsBy; }) || TK_BY[0];
   const rows = st[by[0]];
   const table = rows.length ? '<div class="st-scroll"><table class="st-t"><thead><tr><th class="st-name">' + by[2] + '</th>'
-      + TK_SCOLS.map(function(c, n) { return '<th class="n' + (n === 3 ? ' st-sep' : '') + (n < 3 ? ' st-now' : '') + '" title="' + c[2] + '">' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>'
+      + TK_SCOLS.map(function(c, n) { return '<th class="n' + (n === 3 ? ' st-sep' : '') + (n < 3 || c[0] === 'ontime' ? ' st-now' : '') + '" title="' + c[2] + '">' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>'
       + rows.map(function(x) {
           const go = { view: 'open' }; go[by[0]] = x.k;
           return '<tr data-go="' + tkEsc(JSON.stringify(go)) + '" class="st-link"><td class="st-name">' + tkEsc(x.label) + '</td>'
@@ -1272,7 +1296,7 @@ function tkRenderStats() {
     + wrow('Закрыто', function(w) { return w.closed || '<span class="st-mute">0</span>'; })
     + wrow('Очередь за неделю', function(w) { const dd = w.created - w.closed; return dd > 0 ? '<span class="st-badt">+' + dd + '</span>' : dd < 0 ? '<span class="st-ok">−' + (-dd) + '</span>' : '<span class="st-mute">0</span>'; }, 'Поставлено минус закрыто: плюс — задач копится больше, минус — разбираются')
     + wrow('Открыто на конец', function(w) { return '<b>' + w.openEnd + '</b>'; }, 'Сколько задач оставалось открытыми в конце недели')
-    + wrow('Закрыто в срок', function(w) { if (!w.closed) return '<span class="st-mute">—</span>'; const pc = Math.round(100 * w.ontime / w.closed); return '<span class="' + (pc >= 80 ? 'st-ok' : pc >= 50 ? 'st-warn' : 'st-badt') + '">' + pc + '%</span>'; })
+    + wrow('В срок', function(w) { return tkSCell(w, 'ontime'); }, 'Доля задач, которые были открыты или завершились на неделе, без просрочки к её концу. Для текущей недели — на сегодня.')
     + '</tbody></table></div>';
   const f = W[0].openEnd, l = W[W.length - 1].openEnd;
   const trend = l > f ? '<span class="st-badt">открытых задач стало больше: ' + f + ' → ' + l + '</span>' : l < f ? '<span class="st-ok">открытых задач стало меньше: ' + f + ' → ' + l + '</span>' : 'открытых задач столько же: ' + l;
@@ -1282,7 +1306,7 @@ function tkRenderStats() {
         return '<div class="st-tile" data-go="' + tkEsc(JSON.stringify(t[3])) + '"><div class="st-tl">' + t[0] + '</div><div class="st-tv">' + t[1] + '</div><div class="st-tn">' + t[2] + '</div></div>';
       }).join('') + '</div>'
     + '<div class="st-card"><div class="st-ch"><div class="st-ct">В разрезе</div>' + seg(TK_BY, 'data-by', by[0])
-    + '<span class="st-hint">открыто, просрочено, горит — на ' + tkDate(tkToday()) + '; остальное — за ' + per + '. Клик по строке — список этих задач</span></div>' + table + '</div>'
+    + '<span class="st-hint">открыто, просрочено, горит и в срок — на ' + tkDate(tkToday()) + '; остальное — за ' + per + '. Клик по строке — список этих задач</span></div>' + table + '</div>'
     + '<div class="st-card"><div class="st-ch"><div class="st-ct">Неделя за неделей</div><span class="st-hint">за 8 недель ' + trend + '</span></div>' + weeks + '</div>'
     + '</div>';
 }

@@ -247,7 +247,7 @@
     m.innerHTML = '<div class="crmp-dlg ' + (cls || '') + '">' + html + '</div>';
     const close = function () { m.remove(); document.removeEventListener('keydown', onKey, true); };
     const onKey = function (ev) {
-      if (ev.key !== 'Escape') return;
+      if (ev.key !== 'Escape' || ev.target.matches?.('[data-person-key][aria-expanded=true]')) return;
       if (m.matches('.crmp-mask:not(:has(~ .crmp-mask))')) m.close();
     };
     document.addEventListener('keydown', onKey, true);
@@ -256,7 +256,114 @@
     return m;
   }
 
+  let tkPickerCount = 0;
+  function taskPersonPicker(people, attr, label, selected, empty) {
+    const id = 'tk-people-' + (++tkPickerCount);
+    const current = people.find(function(person) { return person[0] === selected; });
+    return '<div class="tk-person" data-person-picker><input type="text" ' + attr + ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + id
+      + '" aria-label="' + e(label) + '" placeholder="' + e(empty) + '" autocomplete="off" data-person-key="' + e(current ? current[0] : '') + '" value="' + e(current ? current[1] : '') + '">'
+      + '<div class="tk-person-list" hidden><div role="listbox" id="' + id + '" aria-label="' + e(label) + '">'
+      + people.map(function(person, i) {
+        return '<div class="tk-person-option" role="option" aria-selected="false" id="' + id + '-' + i + '" data-key="' + e(person[0]) + '"><span>' + e(person[1]) + '</span>'
+          + (person[2] ? '<small>' + e(person[2]) + '</small>' : '') + '</div>';
+      }).join('') + '</div><div class="tk-person-empty" role="status" hidden>Сотрудники не найдены</div></div></div>';
+  }
+  function taskPersonKey(input) { return input.getAttribute('data-person-key') || ''; }
+  function bindTaskPeople(root) {
+    root.querySelectorAll('[data-person-picker]').forEach(function(picker) {
+      const input = picker.querySelector('input'), menu = picker.querySelector('.tk-person-list');
+      const empty = menu.querySelector('[role="status"]'), options = Array.from(menu.querySelectorAll('[data-key]'));
+      const names = options.map(function(option) { return option.querySelector('span').textContent; });
+      const normalize = function(value) { return value.toLocaleLowerCase('ru').replace(/ё/g, 'е'); };
+      const searchable = names.map(normalize);
+      let visible = [], active = -1;
+      function highlight(index) {
+        if (visible[active]) visible[active].setAttribute('aria-selected', 'false');
+        active = index;
+        const option = visible[active];
+        if (!option) { input.removeAttribute('aria-activedescendant'); return; }
+        option.setAttribute('aria-selected', 'true');
+        input.setAttribute('aria-activedescendant', option.id);
+        option.scrollIntoView({block: 'nearest'});
+      }
+      function show() {
+        highlight(-1);
+        const words = taskPersonKey(input) ? [] : normalize(input.value.trim()).split(/\s+/);
+        visible = options.filter(function(option, i) {
+          option.hidden = !words.every(function(word) { return searchable[i].includes(word); });
+          return !option.hidden;
+        });
+        empty.hidden = !!visible.length;
+        input.setAttribute('aria-expanded', 'true');
+        menu.hidden = false;
+      }
+      function close() {
+        highlight(-1);
+        input.setAttribute('aria-expanded', 'false');
+        menu.hidden = true;
+      }
+      function choose(option) {
+        input.value = names[options.indexOf(option)];
+        input.setAttribute('data-person-key', option.getAttribute('data-key'));
+        close();
+      }
+      input.addEventListener('focus', show);
+      input.addEventListener('click', show);
+      input.addEventListener('blur', close);
+      input.addEventListener('input', function() {
+        input.setAttribute('data-person-key', '');
+        show();
+      });
+      menu.addEventListener('mousedown', function(e) {
+        if (e.target.closest('[data-key]')) e.preventDefault();
+      });
+      menu.addEventListener('click', function(e) {
+        const option = e.target.closest('[data-key]');
+        if (option) choose(option);
+      });
+      input.addEventListener('keydown', function(e) {
+        if (e.isComposing) return;
+        if (e.key === 'Escape' && !menu.hidden) {
+          e.preventDefault();
+          e.stopPropagation();
+          close();
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (menu.hidden) show();
+          if (visible.length) highlight(e.key === 'ArrowDown' ? Math.min(active + 1, visible.length - 1) : active <= 0 ? visible.length - 1 : active - 1);
+        } else if (e.key === 'Enter' && !menu.hidden && (visible[active] || visible.length === 1)) {
+          e.preventDefault();
+          choose(visible[active] || visible[0]);
+        }
+      });
+    });
+  }
+  window.crmTaskPersonPicker = taskPersonPicker;
+  window.crmTaskPersonKey = taskPersonKey;
+  window.crmBindTaskPeople = bindTaskPeople;
+
   window.crmTaskStyles = function () {
+    if (!document.getElementById('crm-controls-style')) {
+      const st = document.createElement('style');
+      st.id = 'crm-controls-style';
+      st.textContent = `
+        select:not([multiple]):not([size]) { -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
+          background-color:#fff; border:1px solid #c3cad8; border-radius:6px; color:#1f2433; font-family:inherit; line-height:1.4;
+          padding-right:30px !important; text-overflow:ellipsis; transition:border-color .2s, box-shadow .2s;
+          background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+          background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:12px 12px !important; }
+        select:not([multiple]):not([size]):hover { border-color:#2f4a8a; }
+        select:not([multiple]):not([size]):focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
+        select:not([multiple]):not([size]):disabled { background-color:#f3f5f9 !important; color:#8a92a3; cursor:not-allowed; border-color:#c3cad8; }
+        select option { color:#1f2433; background:#fff; }
+        select option:disabled { color:#8a92a3; }
+        input[type=file] { font-family:inherit; font-size:13px; color:#3a4256; max-width:100%; }
+        input[type=file]::file-selector-button { font:inherit; font-size:13px; color:#1c2d58; background:#fff; border:1px solid #c3cad8; border-radius:6px;
+          padding:5px 12px; margin-right:10px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; }
+        input[type=file]::file-selector-button:hover { border-color:#1c2d58; background:#e9edf5; }
+      `;
+      document.head.appendChild(st);
+    }
   if (!document.getElementById('crm-tk-style')) {
     const st = document.createElement('style');
     st.id = 'crm-tk-style';
@@ -581,6 +688,8 @@
     .kp-dialog small { color:#5b6478; font-weight:400; }
     .crm-pay-register { min-width:0; }
     .crm-pay-register .kb-card { display:block; color:inherit; text-decoration:none; cursor:pointer; }
+    .crm-pay-register .kb-card[draggable=true] { cursor:grab; }
+    .crm-pay-register .kb-card[draggable=true]:active { cursor:grabbing; }
     .crm-pay-register .kb-col-h { overflow-wrap:anywhere; }
     .crm-pay-mask.tk-modal { align-items:flex-start; backdrop-filter:none; background:rgba(0,0,0,.45); }
     .crm-pay-card label { display:block; margin:0 0 8px; }
@@ -866,12 +975,13 @@
       const scroll = panel.querySelector('.kb')?.scrollLeft || 0;
       panel.innerHTML = '<div class="tk-filters"><select aria-label="Статус" data-pay-filter><option value="">Все статусы</option>'
         + stages.map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
-        + '</select><button type="button" class="tk-reset" data-pay-refresh>Обновить</button></div>'
+        + '</select><button type="button" class="tk-btn" data-pay-refresh>Обновить</button></div>'
         + '<div class="kb" style="--n:'+columns.length+'" tabindex="0" role="region" aria-label="Канбан заявок">'
         + columns.map(([status,name]) => {
           const items = rows.filter(x => String(x.status) === status);
-          return '<section class="kb-col"><div class="kb-col-h" style="--c:'+paymentColors[status]+'"><i></i>' + e(name) + '<b>' + items.length + '</b></div><div class="kb-col-b">'
-            + items.map(x => '<a class="kb-card" style="--c:'+paymentColors[status]+'" data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
+          return '<section class="kb-col" data-pay-stage="'+status+'"><div class="kb-col-h" style="--c:'+paymentColors[status]+'"><i></i>' + e(name) + '<b>' + items.length + '</b></div><div class="kb-col-b">'
+            + items.map(x => '<a class="kb-card" style="--c:'+paymentColors[status]+'" draggable="'
+              + String(!filter && x.nextStatus != null && x.nextStatus !== x.status) + '" data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
               + Number(x.id) + '"><div class="kb-t">' + e(x.purpose || 'Заявка на оплату') + '</div><div class="kb-s">№' + Number(x.id)
               + ' · ' + e(x.object || '—') + '</div><div class="kb-s">' + e(x.counterparty || '—') + '</div><div class="kb-s">'
               + e(paymentAmount(x.amount)) + ' · до ' + e(paymentDate(x.due)) + '</div>'
@@ -879,6 +989,44 @@
             + (items.length ? '' : '<div class="kb-empty">Пусто</div>') + '</div></section>';
         }).join('') + '</div>';
       const board = panel.querySelector('.kb');
+      let dragged;
+      function clearDrag() {
+        dragged = null;
+        board.querySelectorAll('.kb-card.drag, .kb-col').forEach(el => el.classList.remove('drag','ok','no','drop'));
+      }
+      board.ondragstart = event => {
+        const link = event.target.closest('.kb-card[draggable=true]');
+        if (!link) return;
+        dragged = rows.find(x => x.id === Number(link.dataset.payId));
+        link.classList.add('drag');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain',String(dragged.id));
+        board.querySelectorAll('[data-pay-stage]').forEach(column => {
+          const stage = Number(column.dataset.payStage);
+          if (stage !== dragged.status) column.classList.add(stage === dragged.nextStatus ? 'ok' : 'no');
+        });
+      };
+      board.ondragend = clearDrag;
+      board.ondragover = event => {
+        const column = event.target.closest('.kb-col.ok');
+        if (!dragged || !column) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        column.classList.add('drop');
+      };
+      board.ondragleave = event => {
+        const column = event.target.closest('.kb-col.drop');
+        if (column && !column.contains(event.relatedTarget)) column.classList.remove('drop');
+      };
+      board.ondrop = event => {
+        if (!dragged) return;
+        event.preventDefault();
+        const column = event.target.closest('.kb-col.ok');
+        const link = board.querySelector('.kb-card.drag');
+        const {id,status,nextStatus} = dragged;
+        clearDrag();
+        if (column && link) openPaymentCard(id,link,refresh,{status,nextStatus});
+      };
       board.scrollLeft = scroll;
       fitPaymentBoards();
       panel.querySelector('[data-pay-filter]').onchange = event => {
@@ -920,7 +1068,7 @@
     const m = workDialog('Заявки на оплату','payment-register','kb-dialog','<div class="kb-article" data-pay-register></div>',trigger);
     paymentRegister(m.querySelector('[data-pay-register]'));
   }
-  function openPaymentCard(id, trigger, onChange) {
+  function openPaymentCard(id, trigger, onChange, transition) {
     if (document.querySelector('[data-pay-card]')) return;
     window.crmTaskStyles();
     workDialogStyles();
@@ -937,7 +1085,6 @@
       close();
       updated?.focus();
     };
-    m.onclick = event => { if (event.target === m) m.close(); };
     const body = m.querySelector('[data-pay-card]');
     async function render() {
       try {
@@ -947,14 +1094,15 @@
           ['Контрагент',r.counterparty],['Контактное лицо',r.contact],['Телефон',r.phone],['Эл. почта',r.email],['Исходный номер',r.legacyId]];
         const fileInput = (label, key) => '<label>' + label + '<input type="file" name="' + key + '" accept=".pdf,.jpg,.jpeg,.png"></label>';
         const roleLabels = {senior:'Старший управляющий',approver:'Главный согласующий',chief:'Главный бухгалтер',accountant:'Бухгалтер объекта'};
+        const employees = (data.employees || []).map(person => [String(person.id), person.name]);
         const returnStages = [2,3].filter(id => r.status < 5 && id < r.status);
         const manage = r.canManage ? '<details><summary>Управление заявкой</summary><form class="tk-f" data-pay-manage>'
           + '<label>Действие<select name="action"><option value="assign">Передать сотруднику</option><option value="due">Перенести срок оплаты</option>'
           + (returnStages.length ? '<option value="return">Вернуть на этап согласования</option>' : '') + '</select></label>'
           + '<div data-pay-adjust="assign"><label>Чью роль передать<select name="role">'
           + r.awaiting.map(x=>'<option value="'+e(x.role)+'">'+e(roleLabels[x.role]+' · '+x.name)+'</option>').join('')
-          + '</select></label><label>Кому передать<select name="user"><option value="">Выберите сотрудника</option>'
-          + (data.employees || []).map(x=>'<option value="'+Number(x.id)+'">'+e(x.name)+'</option>').join('') + '</select></label></div>'
+          + '</select></label><label>Кому передать</label>'
+          + taskPersonPicker(employees,'name="user"','Кому передать','','Выберите сотрудника') + '</div>'
           + '<div data-pay-adjust="due" hidden><label>Новый срок оплаты<input type="date" name="due" value="'+e(r.due)+'"></label></div>'
           + '<div data-pay-adjust="return" hidden><label>Этап<select name="stage">'
           + returnStages.map(id=>'<option value="'+id+'">'+e(data.statuses[id])+'</option>').join('') + '</select></label></div>'
@@ -964,11 +1112,12 @@
         const fileButton = f => '<button type="button" class="tk-msg-file" data-pay-file="'+Number(f.id)+'">📎 ' + e(f.name) + '</button>';
         const observers = (r.subscribers || []).map(person => '<span class="tk-tag">' + e(person.name) + (r.canWatch
           ? ' <button type="button" class="tk-reset" data-pay-remove="' + Number(person.id) + '" aria-label="' + e('Удалить наблюдающего ' + person.name) + '">×</button>' : '') + '</span>').join(' ');
-        const watch = r.canWatch ? '<form class="tk-f" data-pay-watch><label>Добавить наблюдающего<select name="user" required><option value="">Выберите сотрудника</option>'
-          + data.employees.filter(x => !data.observerExclusions.includes(x.id))
-            .map(x => '<option value="'+Number(x.id)+'">'+e(x.name)+'</option>').join('')
-          + '</select></label><button type="submit" class="tk-btn">Добавить</button></form>' : '';
+        const watch = r.canWatch ? '<form class="tk-f" data-pay-watch><label>Добавить наблюдающего</label>'
+          + taskPersonPicker(employees.filter(([id]) => !data.observerExclusions.includes(Number(id))),
+            'name="user"','Добавить наблюдающего','','Выберите сотрудника')
+          + '<button type="submit" class="tk-btn" data-observer-add>Добавить</button></form>' : '';
         const awaiting = r.awaiting.map(x => x.name).join(', ');
+        const canConfirm = !transition || (r.status === transition.status && r.nextStatus === transition.nextStatus);
         const color = paymentColors[r.status];
         const isSystem = entry => entry.kind !== 'message' && !entry.fileId && /^(Подана заявка$|Согласовано(?: старшим управляющим)?(?::|$)|Оплата подтверждена(?::|$)|Закрывающие документы проверены(?::|$)|Передано:|Срок перенесён:|Возврат на этап:|(?:Добавлен|Удалён) наблюдающий:|Заявка закрыта$|Этап изменён$)/.test(entry.text);
         const systemCount = r.history.filter(isSystem).length;
@@ -983,7 +1132,8 @@
           + '<div class="tk-card-body"><aside class="tk-card-data" aria-label="Сведения о заявке">'
           + '<div class="tk-next"><div class="tk-next-t">' + (r.needsAction ? 'Заявка ждёт вашего действия' : e(data.statuses[r.status])) + '</div>'
           + (awaiting ? '<div class="tk-next-s">' + e(awaiting) + '</div>' : '')
-          + (r.needsAction ? '<form class="tk-f" data-pay-advance><label>Комментарий к решению<textarea name="comment" maxlength="2000"></textarea></label>'
+          + (transition ? '<div class="tk-next-s">' + e(canConfirm ? 'Перенос в «' + data.statuses[transition.nextStatus] + '» после подтверждения' : 'Этап изменился. Закройте карточку и обновите доску') + '</div>' : '')
+          + (r.needsAction && canConfirm ? '<form class="tk-f" data-pay-advance><label>Комментарий к решению<textarea name="comment" maxlength="2000"></textarea></label>'
             + (r.status === 4 ? fileInput('Платёжное поручение','bill') : r.status === 5 ? fileInput('Акт / накладная / счёт-фактура','bill') + fileInput('Дополнения','extra') : '')
             + '<div class="tk-actions"><button type="submit" class="tk-btn ok">'+action+'</button></div></form>' : '')
           + '</div><section class="tk-card-section"><h3>Участники</h3><div class="tk-meta"><div><div class="l">Подал заявку</div>'
@@ -1012,6 +1162,7 @@
           + '<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" hidden><button type="button" class="tk-btn" data-pay-attach title="Приложить файл" aria-label="Приложить файл">📎</button>'
           + '<button type="submit" class="tk-btn pri" title="Отправить (Ctrl/⌘ + Enter)" aria-label="Отправить сообщение">➤</button></form>'
           + '<div class="tk-hint tk-comment-file" data-pay-filename aria-live="polite"></div></section></div><p class="tk-hint" role="status" data-pay-status></p>';
+        bindTaskPeople(body);
         const thread = body.querySelector('.tk-thread');
         const panes = body.querySelectorAll('[data-pay-pane]');
         function selectPane(pane) {
@@ -1023,6 +1174,7 @@
         if (restoreFocus || !body.hasAttribute('data-task-pane')) body.querySelector('.tk-x').focus({preventScroll:true});
         panes.forEach(button => { button.onclick = () => selectPane(button.getAttribute('data-pay-pane')); });
         selectPane(body.getAttribute('data-task-pane') || 'details');
+        if (transition && canConfirm && !restoreFocus) body.querySelector('[data-pay-advance] textarea')?.focus();
         const show = body.querySelector('[data-pay-show-system]');
         if (show) show.onchange = () => {
           body.querySelectorAll('[data-pay-system]').forEach(event => { event.hidden = !show.checked; });
@@ -1069,7 +1221,9 @@
         const watchForm = body.querySelector('[data-pay-watch]');
         if (watchForm) watchForm.onsubmit = event => {
           event.preventDefault();
-          discuss(watchForm.querySelector('button'),() => ({action:'watch-add',userId:Number(watchForm.elements.user.value)}));
+          const userId = Number(taskPersonKey(watchForm.elements.user));
+          if (!userId) { watchForm.elements.user.focus(); return; }
+          discuss(watchForm.querySelector('button'),() => ({action:'watch-add',userId}));
         };
         body.querySelectorAll('[data-pay-remove]').forEach(button => {
           button.onclick = () => discuss(button,() => ({action:'watch-remove',userId:Number(button.getAttribute('data-pay-remove'))}));
@@ -1083,12 +1237,14 @@
           });
           adjust.addEventListener('submit', async event => {
             event.preventDefault();
+            const userId = Number(taskPersonKey(adjust.elements.user));
+            if (field('action') === 'assign' && !userId) { adjust.elements.user.focus(); return; }
             const submit = adjust.querySelector('button');
             if (submit.disabled) return;
             submit.disabled = true;
             try {
               await paymentApi('payments/' + id, {action:field('action'), status:r.status, revision:r.revision, comment:field('comment'),
-                role:field('role'), userId:Number(field('user')), due:field('due'), stage:Number(field('stage'))});
+                role:field('role'), userId, due:field('due'), stage:Number(field('stage'))});
               if (onChange) onChange();
               await render();
               const feedback = body.querySelector('[data-pay-status]');
@@ -1102,8 +1258,9 @@
           if (submit.disabled) return;
           submit.disabled = true;
           try {
-            await paymentApi('payments/' + id, {status:r.status, comment:form.querySelector('textarea').value,
+            await paymentApi('payments/' + id, {status:r.status, targetStatus:transition?.nextStatus, comment:form.querySelector('textarea').value,
               file:await paymentFile(form.querySelector('[name=bill]')?.files[0]), extra:await paymentFile(form.querySelector('[name=extra]')?.files[0])});
+            transition = undefined;
             if (onChange) onChange();
             await render();
             const feedback = body.querySelector('[data-pay-status]');
@@ -1118,6 +1275,7 @@
     render();
   }
   function openPayment(trigger) {
+    window.crmTaskStyles();
     if (document.querySelector('.kp-dialog')) return;
     const m = workDialog('Заявка на оплату','kp','kp-dialog',
       '<form hidden><label>Объект<select name="object" required><option value="">Выберите объект</option></select></label>'

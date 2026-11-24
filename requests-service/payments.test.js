@@ -103,3 +103,47 @@ test('payment discussion retains documents and observer access without granting 
   assert.throws(() => db.file(id,entry.fileId,user(7)),{status:404});
   assert.equal(db.detail(id,user(1)).files.length,2);
 });
+test('board targets and document types follow the current assignee, including parallel approval', () => {
+  const db = createPayments(':memory:');
+  db.loadSnapshot([route],[]);
+  const author = user(1), senior = user(2), chief = user(3), approver = user(4), accountant = user(5);
+  const aho = {...user(6),isAho:true}, observer = user(7), admin = {...user(8),isAdmin:true};
+  const outsider = user(9), readOnly = {...senior,readOnly:true};
+  assert.throws(() => db.submit(author,{...input,file:undefined}),{status:400});
+  const {id} = db.submit(author,input);
+  const advance = (actor,status,targetStatus,docs) => db.act(actor,id,{status,targetStatus,...docs});
+  db.discuss(admin,id,{action:'watch-add',userId:observer.id},[observer]);
+  for (const actor of [author,chief,approver,accountant,aho,observer,admin]) {
+    assert.equal(db.browse(actor)[0].nextStatus,null);
+    assert.throws(() => advance(actor,2,3,{file}),{status:403});
+  }
+  for (const actor of [outsider,readOnly]) {
+    assert.equal(db.browse(actor).length,0);
+    assert.throws(() => db.discuss(actor,id,{action:'message',file}),{status:404});
+    assert.throws(() => advance(actor,2,3,{file}),{status:404});
+  }
+  assert.equal(db.browse(senior)[0].nextStatus,3);
+  assert.throws(() => advance(senior,2,4),{status:409});
+  assert.throws(() => advance(senior,2,3,{file}),{status:400});
+  assert.deepEqual(advance(senior,2,3).pending,[4,3]);
+  assert.equal(db.browse(approver)[0].nextStatus,3);
+  assert.equal(db.browse(chief)[0].nextStatus,3);
+  assert.throws(() => advance(approver,3,4),{status:409});
+  assert.equal(advance(approver,3).status,3);
+  assert.equal(db.browse(approver)[0].nextStatus,null);
+  assert.equal(db.browse(chief)[0].nextStatus,4);
+  assert.deepEqual(advance(chief,3,4).pending,[5]);
+  assert.throws(() => advance(chief,4,5,{file}),{status:403});
+  assert.throws(() => advance(accountant,4,5,{file,extra:file}),{status:400});
+  assert.deepEqual(db.detail(id,author).files.map(f=>f.kind),[11]);
+  const receipt = db.discuss(observer,id,{action:'message',file});
+  assert.equal(receipt.status,4);
+  assert.deepEqual(db.detail(id,author).files.map(f=>f.kind),[11,23]);
+  assert.deepEqual(advance(accountant,4,5,{file}).pending,[5]);
+  assert.equal(advance(accountant,5,6,{file,extra:file}).status,6);
+  const record = db.detail(id,author);
+  assert.equal(record.nextStatus,null);
+  assert.deepEqual(record.files.map(f=>f.kind),[11,23,19,21,22]);
+  for (const f of record.files) assert.deepEqual(Buffer.from(db.file(id,f.id,observer).bytes),bytes);
+  assert.throws(() => db.file(id,record.files[0].id,outsider),{status:404});
+});

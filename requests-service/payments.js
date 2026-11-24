@@ -60,9 +60,16 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
     return [];
   }
   function allowed(r, user) { return pending(r).filter(([, id]) => id === user.id); }
+  function nextStatus(r, roles) {
+    if (!roles.length) return null;
+    if (r.status !== 3) return r.status + 1;
+    const approvals = [...r.approved, ...roles.map(([role]) => role)];
+    return approvals.includes('approver') && approvals.includes('chief') ? 4 : 3;
+  }
   function summary(r, user) {
+    const next = nextStatus(r,allowed(r,user));
     return { id:r.id, legacyId:r.legacyId, purpose:r.purpose, object:r.object, counterparty:r.counterparty, amount:r.amount,
-      due:r.due, status:r.status, created:r.created, author:r.author, needsAction:allowed(r,user).length > 0 };
+      due:r.due, status:r.status, created:r.created, author:r.author, needsAction:next !== null, nextStatus:next };
   }
   const objects = () => db.prepare('SELECT id,route FROM payment_routes ORDER BY id').all()
     .map(row => ({id:row.id, name:JSON.parse(row.route).name})).sort((a,b) => a.name.localeCompare(b.name, 'ru'));
@@ -93,6 +100,10 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
       if (input.status !== r.status) throw new PaymentError(409,'Заявка уже изменилась. Обновите карточку');
       const roles = allowed(r,user);
       if (!roles.length) throw new PaymentError(403,'Действие доступно текущему согласующему');
+      const nextStage = nextStatus(r,roles);
+      if (input.targetStatus !== undefined && (input.targetStatus !== nextStage || nextStage === r.status)) {
+        throw new PaymentError(409,'Переход изменился. Обновите доску');
+      }
       const note = text(input.comment ?? '',2000);
       const kind = r.status === 4 ? 19 : r.status === 5 ? 21 : 0;
       if (input.file) {
@@ -107,10 +118,8 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
       }
       const action = {2:'Согласовано старшим управляющим',3:'Согласовано',4:'Оплата подтверждена',5:'Закрывающие документы проверены'};
       const oldStatus = r.status;
-      if (oldStatus === 3) {
-        r.approved.push(...roles.map(([role]) => role));
-        if (r.approved.includes('approver') && r.approved.includes('chief')) r.status = 4;
-      } else r.status++;
+      if (oldStatus === 3) r.approved.push(...roles.map(([role]) => role));
+      r.status = nextStage;
       r.localUpdated = true;
       r.history.push({date:clock(), author:user.name, text:action[oldStatus] + (note ? ': ' + note : '')});
       db.prepare('UPDATE payments SET record=? WHERE id=?').run(JSON.stringify(r),id);

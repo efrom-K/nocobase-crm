@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const R = require('./rules');
-const { validContractPdf, contractPdf } = require('./contract-pdf');
+const { validContractPdf, contractPdf, parseContractPdf, MAX_CONTRACT_PDF_BYTES, MAX_CONTRACT_PDF_METADATA_BYTES } = require('./contract-pdf');
 const {objectRoute, RouteError} = require('./routes');
 const {createPyrusPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE} = require('./pyrus-payments');
 const {createKnowledge, KnowledgeError, topics, audiences} = require('./knowledge');
@@ -475,9 +475,11 @@ http.createServer(async (req, res) => {
     if (!user) throw new ApiError(401, 'Войдите в CRM заново');
     if (p === '/contract-pdf' && req.method === 'POST') {
       limit('contract-pdf:' + user.id, 15, 60000);
-      const input = await readJson(req, 96 * 1024);
-      if (!validContractPdf(input)) throw new ApiError(400, 'Неверные данные карточки договора');
-      const pdf = await contractPdf(input);
+      const binary = req.headers['content-type'] === 'application/octet-stream';
+      const payload = binary ? parseContractPdf(await readRaw(req, MAX_CONTRACT_PDF_BYTES))
+        : { input: await readJson(req, MAX_CONTRACT_PDF_METADATA_BYTES) };
+      if (!payload || !validContractPdf(payload.input)) throw new ApiError(400, 'Неверные данные карточки договора');
+      const pdf = await contractPdf(payload.input, payload.files);
       res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment',
         'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       return res.end(pdf);

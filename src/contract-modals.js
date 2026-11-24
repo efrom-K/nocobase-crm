@@ -2821,13 +2821,20 @@ function contractPdfSections(r, collection) {
   const published = collection === 'rental_contracts' || collection === 'completed_contracts';
   const blocks = published ? ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly || collection === 'rental_contracts'; })
     : r.is_quick ? QUICK_BLOCK_DEFS : STAGE_DEFS.slice(0, (r.current_stage || 0) + 1);
+  const used = new Set(blocks.flatMap(function(block) { return block.fields.map(function(f) { return f.name.replace(/^base_/, ''); }); }));
+  const extra = STAGE_DEFS.flatMap(function(block) { return block.fields; }).filter(function(f) { return !used.has(f.name); });
+  extra.push(
+    { name: 'end_date', label: 'Дата окончания договора', type: 'date' },
+    { name: 'rooms_list', label: 'Помещения', type: 'text' },
+    { name: 'payment_status', label: 'Статус оплаты', type: 'status' }
+  );
   const cell = document.createElement('div');
-  return blocks.map(function(block) {
+  return blocks.concat({ title: 'Дополнительные сведения', fields: extra }).map(function(block) {
     const rows = [];
     partyFields(block.fields, r).forEach(function(f) {
       const raw = r[f.name];
       if (f.type === 'scan' || f.type === 'url') {
-        if (raw) rows.push([f.label, f.type === 'scan' ? 'Прикреплён' : String(raw)]);
+        if (raw) rows.push([f.label, String(raw)]);
         return;
       }
       if (f.type !== 'arealines' && f.name !== 'total_amount' &&
@@ -2840,13 +2847,150 @@ function contractPdfSections(r, collection) {
           const parts = Array.from(tr.querySelectorAll('td')).map(function(td, i) { return headings[i] + ': ' + td.textContent; });
           rows.push(['Площадь ' + (index + 1), parts.join(' · ')]);
         });
+        const total = cell.querySelector('tfoot');
+        if (total) {
+          const cells = Array.from(total.querySelectorAll('td'));
+          rows.push([total.querySelector('th').textContent, [cells[0].textContent + ' ₽ аренда в месяц',
+            cells[2] ? cells[2].textContent + ' ₽ сбор в месяц' : ''].filter(Boolean).join(' · ')]);
+        }
       } else {
         const value = (f.type === 'textarea' ? String(raw) : cell.textContent).trim();
         if (value && value !== '—') rows.push([f.label, value]);
       }
     });
+    if (block.key === 'status' && r.contract_status && r.status_manual != null) {
+      rows.push(['Установка статуса', r.status_manual ? 'Вручную' : 'Автоматически']);
+    }
     return { title: block.title, rows: rows };
   }).filter(function(section) { return section.rows.length; });
+}
+
+async function contractPdfRecord(collection, id) {
+  const type = HIST_TYPE_BY_COLL[collection];
+  const appends = type === 'draft' ? ['contract_files'] : ['contract_files', 'contract_members'];
+  if (type === 'completed') appends.push('closing_files');
+  const r = histPayload(await ctx.api.resource(collection).get({ filterByTk: id, appends: appends }));
+  if (!r || !r.id) throw new Error('Договор недоступен');
+  const filter = { contract_type: type, contract_ref_id: id };
+  async function rows(name, sort, relations, scope) {
+    try {
+      const list = histPayload(await ctx.api.resource(name).list({ filter: scope || filter, sort: sort, appends: relations, paginate: false }));
+      if (!Array.isArray(list)) throw new Error('Некорректный ответ CRM');
+      return list;
+    } catch (error) {
+      if (error && error.response && error.response.status === 403) return [];
+      throw error;
+    }
+  }
+  const [contacts, prices, addendums, history, chat] = await Promise.all([
+    rows('contract_contacts', ['id']),
+    rows('contract_price_periods', ['date_from', 'id']),
+    rows('contract_addendums', ['created_at', 'id'], ['files']),
+    rows('contract_history', ['-created_at', '-id'], ['author']),
+    type === 'draft' ? [] : rows('contract_chat_messages', ['created_at', 'id'], ['author', 'attachment'], { owner_contract_id: id, source: type })
+  ]);
+
+  if (type === 'active') {
+    r.__kind = 'active';
+    const today = todayIsoLocal();
+    r.__schedActive = scheduleTarget(prices, r, today).active;
+    r.__schedNextField = {};
+    PRICE_COMPONENTS.forEach(function(c) {
+      [c.perField, c.amtField].filter(Boolean).forEach(function(f) {
+        r.__schedNextField[f] = nextFieldChange(prices, r, today, f);
+      });
+    });
+  }
+  const sections = contractPdfSections(r, collection);
+  const files = new Map();
+  const add = function(title, items) {
+    const present = items.filter(function(row) { return row[1] != null && row[1] !== ''; });
+    if (present.length) sections.push({ title: title, rows: present });
+  };
+  const text = function(values) { return values.filter(Boolean).join(' · '); };
+  const author = function(u, fallback) { return u && (u.nickname || u.username) || fallback; };
+  const attach = function(f) {
+    const name = fileDisplayName(f) || 'Файл';
+    const key = f.id || f.url;
+    if (!files.has(key)) files.set(key, { name: name, url: f.url, size: f.size });
+    return text([name, fmtSize(f.size), f.mimetype]);
+  };
+
+  if (type === 'active') {
+    add('Основные параметры расчёта', [['Площадь, м²', r.base_area_sqm == null ? '' : formatNum(r.base_area_sqm)]].concat(PRICE_COMPONENTS.flatMap(function(c) {
+      return [[c.title, r[c.baseAmt] == null ? '' : money(r[c.baseAmt])],
+        [c.title + ' за м²', c.basePer && r[c.basePer] != null ? money(r[c.basePer]) : '']];
+    })));
+  }
+  const orderedContacts = contacts.filter(function(c) { return c.position === MAIN_CONTACT; })
+    .concat(contacts.filter(function(c) { return c.position !== MAIN_CONTACT; }));
+  add('Контактные данные', orderedContacts.length ? orderedContacts.map(function(c) {
+    return ['Контакт', text([c.name, c.position, c.phone && formatPhoneDisplay(c.phone), c.email])];
+  }) : [['Контакт', text([r.tenant_fio || r.contact_person, r.phone && formatPhoneDisplay(r.phone), r.email])]]);
+  add('Дополнительные расчёты', prices.map(function(p) {
+    const parts = PRICE_COMPONENTS.filter(function(c) { return c.on(p); }).map(function(c) {
+      return c.title + ': ' + compLabel(c, p);
+    });
+    return [periodRange(p), parts.concat(p.note || []).join('\n')];
+  }));
+  add('Файлы договора', (r.contract_files || []).map(function(f) {
+    const name = fileDisplayName(f);
+    return ['Файл', text([attach(f), r.contract_scan_url === name ? 'Скан договора' : '', r.act_scan_url === name ? 'Скан акта' : ''])];
+  }));
+  add('Дополнительные соглашения', addendums.map(function(a, index) {
+    return ['Соглашение ' + (index + 1), [text([a.title || 'Дополнительное соглашение', a.date_signed && fmtDate(a.date_signed)]),
+      a.description].concat((a.files || []).map(attach)).filter(Boolean).join('\n')];
+  }));
+  if (type === 'completed') {
+    const amount = r.closure_deposit_amount == null && r.closure_state === 'pending' ? r.deposit_amount : r.closure_deposit_amount;
+    const action = CLOSING_DEPOSIT_ACTIONS.find(function(a) { return a[0] === r.closure_deposit_action; });
+    const settlement = closingSettlement(Object.assign({}, r, { closure_deposit_amount: amount }));
+    add('Завершение договора', [
+      ['Порядок завершения', histVal(r.closure_termination_mode, 'closure_termination_mode')],
+      ['Обеспечительный платёж', amount == null ? '' : money(amount)],
+      ['Решение по платежу', action && action[1]],
+      ['Возврат', settlement && money(closingAmount(settlement.refund))],
+      ['Удержано', settlement && money(closingAmount(settlement.retained))],
+      ['В счёт аренды', settlement && money(closingAmount(settlement.rent))]
+    ]);
+    add('Документы о завершении', (r.closing_files || []).map(function(f) {
+      const doc = (r.closure_documents || []).find(function(d) { return String(d.file_id) === String(f.id); });
+      const kind = CLOSING_DOC_KINDS.find(function(k) { return k[0] === (doc && doc.kind || 'other'); });
+      return [kind ? kind[1] : 'Документ', text([attach(f), doc && doc.signed_on && fmtDate(doc.signed_on)])];
+    }));
+  }
+  add('Сотрудники по договору', (r.contract_members || []).map(function(u) { return ['Участник', author(u, '#' + u.id)]; }));
+  add('История изменений', history.map(function(h) {
+    const change = h.action === 'field' ? fieldLabel(h.field) + ': ' + (h.old_value || 'пусто') + ' → ' + (h.new_value || 'пусто') : '';
+    return [text([nbFmtDateTimeLocal(h.created_at), author(h.author, 'Система')]).slice(0, 160),
+      [change, h.text || (!change ? h.action : '')].filter(Boolean).join('\n')];
+  }));
+  add('Переписка по договору', chat.map(function(m) {
+    return [text([nbFmtDateTimeLocal(m.created_at), author(m.author, 'Пользователь')]).slice(0, 160),
+      [m.message, m.attachment && attach(m.attachment)].filter(Boolean).join('\n')];
+  }));
+  return { r: r, sections: sections, files: Array.from(files.values()) };
+}
+
+const CONTRACT_PDF_MAX_BYTES = 25 * 1024 * 1024;
+async function contractPdfRequest(data, kind) {
+  const parts = [], attachments = [];
+  let size = 0;
+  for (const f of data.files) {
+    if (size + (Number(f.size) || 0) > CONTRACT_PDF_MAX_BYTES) throw new Error('Объём выгрузки превышает 25 МБ');
+    if (!f.url) throw new Error('Вложение недоступно: ' + f.name);
+    const response = await fetch(f.url, { credentials: 'include' });
+    if (!response.ok) throw new Error('Не удалось скачать вложение: ' + f.name);
+    const blob = await response.blob();
+    if (f.size != null && Number(f.size) !== blob.size) throw new Error('Не удалось прочитать вложение целиком: ' + f.name);
+    size += blob.size;
+    if (size > CONTRACT_PDF_MAX_BYTES) throw new Error('Объём выгрузки превышает 25 МБ');
+    attachments.push({ name: f.name, size: blob.size });
+    parts.push(blob);
+  }
+  const body = new Blob([JSON.stringify({ kind: kind, sections: data.sections, attachments: attachments }), '\n'].concat(parts));
+  if (body.size > CONTRACT_PDF_MAX_BYTES) throw new Error('Объём выгрузки превышает 25 МБ');
+  return body;
 }
 
 function wireContractPdf(root, collection, id, kind) {
@@ -2861,31 +3005,29 @@ function wireContractPdf(root, collection, id, kind) {
     button.disabled = true;
     button.textContent = 'Готовим PDF…';
     try {
-      const r = histPayload(await ctx.api.resource(collection).get({ filterByTk: id }));
-      if (!r || !r.id) throw new Error('Договор недоступен');
-      if (collection === 'rental_contracts') r.__kind = 'active';
-      const sections = contractPdfSections(r, collection);
-      if (!sections.length) {
+      const data = await contractPdfRecord(collection, id);
+      if (!data.sections.length) {
         cmToast('В сохранённой карточке пока нет данных');
         return;
       }
       const response = await fetch('/rqsvc/contract-pdf', {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: kind, sections: sections })
+        headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/octet-stream' },
+        body: await contractPdfRequest(data, kind)
       });
-      if (!response.ok) throw new Error('PDF');
+      if (response.status === 413) throw new Error('Объём выгрузки превышает лимит сервера');
+      if (!response.ok) throw new Error('Не удалось сформировать PDF');
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'Карточка договора ' + String(r.contract_number || id).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 120) + '.pdf';
+      link.download = 'Карточка договора ' + String(data.r.contract_number || id).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 120) + '.pdf';
       document.body.appendChild(link);
       try { link.click(); } finally {
         link.remove();
         setTimeout(function() { URL.revokeObjectURL(url); }, 3000);
       }
     } catch (e) {
-      cmToast('Не удалось выгрузить карточку договора');
+      cmToast(e && e.message ? e.message : 'Не удалось выгрузить карточку договора');
     } finally {
       button.disabled = false;
       button.textContent = 'Скачать PDF';

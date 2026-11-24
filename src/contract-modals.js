@@ -303,6 +303,7 @@ if (!document.getElementById('contract-modal-style')) {
     .cm-modal-toolbar { position: absolute; top: 12px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; }
 
     @media (max-width: 900px) {
+      #draft-modal-root .cm-modal-toolbar:has(.cm-contract-pdf) { position: static; justify-content: flex-end; flex-wrap: wrap; padding: 8px 12px 0; }
       .cm-body-flex { flex-direction: column; }
       .cm-chat-col { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #dfe3ec; max-height: 300px; }
       .cm-info-panel { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid #dfe3ec; max-height: 300px; }
@@ -2816,6 +2817,82 @@ function canArchiveContract(user) {
   return !!(user && !(user.roles || []).some(function(role) { return role.name === 'crm_readonly'; }) && (user.__isAdmin || hasRole(user, 'accounting_dept')));
 }
 
+function contractPdfSections(r, collection) {
+  const published = collection === 'rental_contracts' || collection === 'completed_contracts';
+  const blocks = published ? ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly || collection === 'rental_contracts'; })
+    : r.is_quick ? QUICK_BLOCK_DEFS : STAGE_DEFS.slice(0, (r.current_stage || 0) + 1);
+  const cell = document.createElement('div');
+  return blocks.map(function(block) {
+    const rows = [];
+    partyFields(block.fields, r).forEach(function(f) {
+      const raw = r[f.name];
+      if (f.type === 'scan' || f.type === 'url') {
+        if (raw) rows.push([f.label, f.type === 'scan' ? 'Прикреплён' : String(raw)]);
+        return;
+      }
+      if (f.type !== 'arealines' && f.name !== 'total_amount' &&
+          (raw === null || raw === undefined || raw === '') &&
+          (!COMPONENT_BY_FIELD[f.name] || r[f.name.replace(/^base_/, '')] == null)) return;
+      cell.innerHTML = readonlyFieldValue(f, r);
+      if (f.type === 'arealines') {
+        const headings = Array.from(cell.querySelectorAll('thead th')).map(function(el) { return el.textContent; });
+        cell.querySelectorAll('tbody tr').forEach(function(tr, index) {
+          const parts = Array.from(tr.querySelectorAll('td')).map(function(td, i) { return headings[i] + ': ' + td.textContent; });
+          rows.push(['Площадь ' + (index + 1), parts.join(' · ')]);
+        });
+      } else {
+        const value = (f.type === 'textarea' ? String(raw) : cell.textContent).trim();
+        if (value && value !== '—') rows.push([f.label, value]);
+      }
+    });
+    return { title: block.title, rows: rows };
+  }).filter(function(section) { return section.rows.length; });
+}
+
+function wireContractPdf(root, collection, id, kind) {
+  if (root.querySelector('.cm-contract-pdf')) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cm-btn-save cm-contract-pdf';
+  button.textContent = 'Скачать PDF';
+  const toolbar = root.querySelector('.cm-modal-toolbar');
+  toolbar.insertBefore(button, toolbar.querySelector('#cm-close-btn'));
+  button.addEventListener('click', async function() {
+    button.disabled = true;
+    button.textContent = 'Готовим PDF…';
+    try {
+      const r = histPayload(await ctx.api.resource(collection).get({ filterByTk: id }));
+      if (!r || !r.id) throw new Error('Договор недоступен');
+      if (collection === 'rental_contracts') r.__kind = 'active';
+      const sections = contractPdfSections(r, collection);
+      if (!sections.length) {
+        cmToast('В сохранённой карточке пока нет данных');
+        return;
+      }
+      const response = await fetch('/rqsvc/contract-pdf', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + authToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: kind, sections: sections })
+      });
+      if (!response.ok) throw new Error('PDF');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Карточка договора ' + String(r.contract_number || id).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 120) + '.pdf';
+      document.body.appendChild(link);
+      try { link.click(); } finally {
+        link.remove();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 3000);
+      }
+    } catch (e) {
+      cmToast('Не удалось выгрузить карточку договора');
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Скачать PDF';
+    }
+  });
+}
+
 async function openCompletedContractModal(id) {
   const overlay = document.createElement('div');
   overlay.id = 'contract-modal-root';
@@ -2933,6 +3010,7 @@ async function openCompletedContractModal(id) {
 
     body.style.color = '';
     body.innerHTML = html;
+    wireContractPdf(overlay, 'completed_contracts', id, pending ? 'Закрытие документов' : 'Договор в архиве');
     await wireClosingDocuments(overlay, id, r, currentUser, canCloseDocs);
     paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-completed', 'completed', id, currentUser);
@@ -3069,6 +3147,7 @@ async function openContractModal(id) {
 
     body.style.color = '';
     body.innerHTML = html;
+    wireContractPdf(overlay, 'rental_contracts', id, 'Активный договор');
     paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-active', 'active', id, currentUser);
     await wireContacts(overlay, 'cm-active', 'active', id, canEditActiveBlocks(currentUser));
@@ -4842,6 +4921,7 @@ async function openDraftModal(id, isQuickHint) {
     overlay.__cmContractId = realId;
     body.style.color = '';
     body.innerHTML = r.is_quick ? renderQuickFormingBody(r, currentUser) : renderFormingBody(r, currentUser);
+    wireContractPdf(overlay, 'draft_contracts', realId, 'Черновик договора');
     paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-forming', 'draft', realId, currentUser);
     await wireContacts(overlay, 'cm-forming', 'draft', realId, canEditActiveBlocks(currentUser));
@@ -5305,6 +5385,7 @@ async function openFormingContractModal(id) {
 
     body.style.color = '';
     body.innerHTML = r.is_quick ? renderQuickFormingBody(r, currentUser) : renderFormingBody(r, currentUser);
+    wireContractPdf(overlay, 'forming_contracts', id, 'Договор в оформлении');
     paintInnStatus(overlay, r);
     await wireAddendums(overlay, 'cm-forming', 'forming', id, currentUser);
     await wireContacts(overlay, 'cm-forming', 'forming', id, canEditActiveBlocks(currentUser));

@@ -2817,7 +2817,7 @@ function canArchiveContract(user) {
   return !!(user && !(user.roles || []).some(function(role) { return role.name === 'crm_readonly'; }) && (user.__isAdmin || hasRole(user, 'accounting_dept')));
 }
 
-function contractPdfSections(r, collection) {
+function contractPdfSections(r, collection, billing) {
   const published = collection === 'rental_contracts' || collection === 'completed_contracts';
   const blocks = published ? ACTIVE_BLOCK_DEFS.filter(function(b) { return !b.activeOnly || collection === 'rental_contracts'; })
     : r.is_quick ? QUICK_BLOCK_DEFS : STAGE_DEFS.slice(0, (r.current_stage || 0) + 1);
@@ -2829,9 +2829,11 @@ function contractPdfSections(r, collection) {
     { name: 'payment_status', label: 'Статус оплаты', type: 'status' }
   );
   const cell = document.createElement('div');
-  return blocks.concat({ title: 'Дополнительные сведения', fields: extra }).map(function(block) {
+  return blocks.concat({ title: 'Дополнительные сведения', fields: extra }).flatMap(function(block) {
     const rows = [];
-    partyFields(block.fields, r).forEach(function(f) {
+    const activePay = block.key === 'pay' && collection === 'rental_contracts';
+    const fields = activePay ? block.fields.filter(function(f) { return f.name === 'calc_comment'; }) : block.fields;
+    partyFields(fields, r).forEach(function(f) {
       const raw = r[f.name];
       if (f.type === 'scan' || f.type === 'url') {
         if (raw) rows.push([f.label, String(raw)]);
@@ -2861,8 +2863,61 @@ function contractPdfSections(r, collection) {
     if (block.key === 'status' && r.contract_status && r.status_manual != null) {
       rows.push(['Установка статуса', r.status_manual ? 'Вручную' : 'Автоматически']);
     }
-    return { title: block.title, rows: rows };
+    if (activePay) return billing.concat({ title: 'Комментарий к расчётам', rows: rows });
+    const section = { title: block.title, rows: rows };
+    return block.key === 'pay' || block.title === 'Оплата счетов' ? [section].concat(billing) : [section];
   }).filter(function(section) { return section.rows.length; });
+}
+
+function contractPdfBilling(r, type, prices, iso) {
+  const sections = [];
+  const active = type === 'active' ? scheduleTarget(prices, r, iso) : null;
+  if (active) {
+    const base = scheduleTarget([], r, iso).values;
+    const current = Object.assign({}, r, active.values);
+    function rows(values, periods) {
+      const present = function(v) { return v == null ? '' : money(v); };
+      const result = values.area_sqm == null ? [] : [['Площадь', formatNum(values.area_sqm) + ' м²']];
+      PRICE_COMPONENTS.forEach(function(c) {
+        const p = periods && periods[c.key];
+        const amount = present(values[c.amtField]);
+        const rate = c.perField && present(values[c.perField]);
+        const lines = [amount && amount + (c.perField ? ' в месяц' : '') + (p && c.basis(p) === 'period' ? ' (в пересчёте)' : ''),
+          rate && rate + '/м² в месяц',
+          periods && (p ? 'По периоду ' + periodRange(p) : 'Основные условия договора')].filter(Boolean);
+        if (amount || rate) result.push([c.title, lines.join('\n')]);
+      });
+      const total = calcTotal(values.rent_amount, values.utility_amount);
+      if (total !== null) result.push(['Итого в месяц', money(total)]);
+      return result;
+    }
+    sections.push({ title: 'Характеристики и расчёты · на ' + fmtDate(iso), rows: rows(current, active.active) },
+      { title: 'Основные условия договора', rows: rows(base) });
+    const next = PRICE_COMPONENTS.flatMap(function(c) {
+      const ch = nextFieldChange(prices, r, iso, c.amtField);
+      if (!ch) return [];
+      const amount = ch.value === null ? 'сумма не задана' : money(ch.value) + (c.perField ? ' в месяц' : '');
+      return [[c.title, 'С ' + fmtDate(ch.date) + ': ' + amount + '\n' +
+        (ch.period ? compLabel(c, ch.period) + ' · ' + periodRange(ch.period) : 'Основные условия договора')]];
+    });
+    if (next.length) sections.push({ title: 'Ближайшие изменения', rows: next });
+  }
+  const area = numOf(active && hasKey(active.values, 'area_sqm') ? active.values.area_sqm : r.area_sqm);
+  if (prices.length) sections.push({ title: 'Дополнительные расчёты аренды', rows: prices.map(function(p) {
+    const components = PRICE_COMPONENTS.filter(function(c) { return c.on(p); });
+    const appliesNow = active && p.date_from <= iso && (isOpenEnd(p.date_to) || iso <= p.date_to);
+    const values = components.map(function(c) {
+      const winner = appliesNow && active.active[c.key];
+      const status = winner ? (winner === p ? ' · действует' : ' · применяется другой период') : '';
+      const monthly = c.perField && c.basis(p) === 'per_sqm' && area > 0
+        ? ' · ' + money(mulMoney(c.value(p), area)) + ' в месяц при ' + formatNum(area) + ' м²' : '';
+      return c.title + ': ' + compLabel(c, p) + monthly + status;
+    });
+    const dates = periodRange(p);
+    const status = active ? (iso < p.date_from ? '\nПредстоящий' : !isOpenEnd(p.date_to) && p.date_to < iso ? '\nЗавершён' : '') : '';
+    return [dates + status, values.concat(p.note ? ['Комментарий: ' + p.note] : []).join('\n') || '—'];
+  }) });
+  return sections;
 }
 
 async function contractPdfRecord(collection, id) {
@@ -2882,26 +2937,19 @@ async function contractPdfRecord(collection, id) {
       throw error;
     }
   }
-  const [contacts, prices, addendums, history, chat] = await Promise.all([
+  const [contacts, prices, addendums, chat] = await Promise.all([
     rows('contract_contacts', ['id']),
     rows('contract_price_periods', ['date_from', 'id']),
     rows('contract_addendums', ['created_at', 'id'], ['files']),
-    rows('contract_history', ['-created_at', '-id'], ['author']),
     type === 'draft' ? [] : rows('contract_chat_messages', ['created_at', 'id'], ['author', 'attachment'], { owner_contract_id: id, source: type })
   ]);
 
-  if (type === 'active') {
-    r.__kind = 'active';
-    const today = todayIsoLocal();
-    r.__schedActive = scheduleTarget(prices, r, today).active;
-    r.__schedNextField = {};
-    PRICE_COMPONENTS.forEach(function(c) {
-      [c.perField, c.amtField].filter(Boolean).forEach(function(f) {
-        r.__schedNextField[f] = nextFieldChange(prices, r, today, f);
-      });
-    });
-  }
-  const sections = contractPdfSections(r, collection);
+  const billing = contractPdfBilling(r, type, prices, todayIsoLocal());
+  const sections = contractPdfSections(r, collection, billing);
+  // A draft in its early stages may have a price period before the payment section exists.
+  billing.forEach(function(section) {
+    if (section.rows.length && sections.indexOf(section) === -1) sections.push(section);
+  });
   const files = new Map();
   const add = function(title, items) {
     const present = items.filter(function(row) { return row[1] != null && row[1] !== ''; });
@@ -2916,23 +2964,11 @@ async function contractPdfRecord(collection, id) {
     return text([name, fmtSize(f.size), f.mimetype]);
   };
 
-  if (type === 'active') {
-    add('Основные параметры расчёта', [['Площадь, м²', r.base_area_sqm == null ? '' : formatNum(r.base_area_sqm)]].concat(PRICE_COMPONENTS.flatMap(function(c) {
-      return [[c.title, r[c.baseAmt] == null ? '' : money(r[c.baseAmt])],
-        [c.title + ' за м²', c.basePer && r[c.basePer] != null ? money(r[c.basePer]) : '']];
-    })));
-  }
   const orderedContacts = contacts.filter(function(c) { return c.position === MAIN_CONTACT; })
     .concat(contacts.filter(function(c) { return c.position !== MAIN_CONTACT; }));
   add('Контактные данные', orderedContacts.length ? orderedContacts.map(function(c) {
     return ['Контакт', text([c.name, c.position, c.phone && formatPhoneDisplay(c.phone), c.email])];
   }) : [['Контакт', text([r.tenant_fio || r.contact_person, r.phone && formatPhoneDisplay(r.phone), r.email])]]);
-  add('Дополнительные расчёты', prices.map(function(p) {
-    const parts = PRICE_COMPONENTS.filter(function(c) { return c.on(p); }).map(function(c) {
-      return c.title + ': ' + compLabel(c, p);
-    });
-    return [periodRange(p), parts.concat(p.note || []).join('\n')];
-  }));
   add('Файлы договора', (r.contract_files || []).map(function(f) {
     const name = fileDisplayName(f);
     return ['Файл', text([attach(f), r.contract_scan_url === name ? 'Скан договора' : '', r.act_scan_url === name ? 'Скан акта' : ''])];
@@ -2960,11 +2996,6 @@ async function contractPdfRecord(collection, id) {
     }));
   }
   add('Сотрудники по договору', (r.contract_members || []).map(function(u) { return ['Участник', author(u, '#' + u.id)]; }));
-  add('История изменений', history.map(function(h) {
-    const change = h.action === 'field' ? fieldLabel(h.field) + ': ' + (h.old_value || 'пусто') + ' → ' + (h.new_value || 'пусто') : '';
-    return [text([nbFmtDateTimeLocal(h.created_at), author(h.author, 'Система')]).slice(0, 160),
-      [change, h.text || (!change ? h.action : '')].filter(Boolean).join('\n')];
-  }));
   add('Переписка по договору', chat.map(function(m) {
     return [text([nbFmtDateTimeLocal(m.created_at), author(m.author, 'Пользователь')]).slice(0, 160),
       [m.message, m.attachment && attach(m.attachment)].filter(Boolean).join('\n')];

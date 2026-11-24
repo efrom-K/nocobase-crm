@@ -235,10 +235,10 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-comment textarea:focus { background:#fff; }
     .tk-comment .tk-btn { flex:0 0 40px; width:40px; height:40px; padding:0; border-radius:50%; font-size:17px; }
     .tk-comment-file:not(:empty) { padding:0 14px 8px; overflow-wrap:anywhere; }
-    .tk-card-modal > .tk-box { max-width:1440px; overflow:hidden; }
+    .tk-card-modal > .tk-box { max-width:none; overflow:hidden; }
     .tk-card-modal .tk-box-h { padding:18px 24px; }
     .tk-card-modal .tk-box-t { font-size:clamp(18px, 2vw, 24px); overflow-wrap:anywhere; }
-    .tk-card-body { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 3fr); grid-template-areas:"thread details"; height:calc(100dvh - 160px); min-height:420px; }
+    .tk-card-body { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 3fr); grid-template-areas:"thread details"; min-height:0; }
     .tk-card-data { grid-area:details; min-width:0; overflow:auto; overscroll-behavior:contain; padding:20px 24px; }
     .tk-card-section { margin-top:14px; padding:14px 16px; border:1px solid #dfe3ec; border-radius:10px; overflow-wrap:anywhere; }
     .tk-card-section h3 { margin:0 0 10px; color:#1c2d58; font-size:15px; }
@@ -246,8 +246,13 @@ if (!document.getElementById('crm-tk-style')) {
     .tk-card-body .tk-tl { grid-area:thread; display:flex; flex-direction:column; min-width:0; min-height:0; margin:0; border:0; border-right:1px solid #dfe3ec; border-radius:0; }
     .tk-card-body .tk-thread { flex:1; max-height:none; }
     .tk-card-body .tk-tl-h, .tk-card-body .tk-comment { flex-shrink:0; }
+    @media (min-width: 851px) {
+      .tk-card-modal { padding:8px; }
+      .tk-card-modal > .tk-box { height:calc(100dvh - 16px); min-height:440px; }
+      .tk-card-modal [data-tk-card] { display:grid; grid-template-rows:auto minmax(0, 1fr); height:100%; }
+    }
     @media (max-width: 850px) {
-      .tk-card-body { display:flex; flex-direction:column; height:auto; min-height:0; }
+      .tk-card-body { display:flex; flex-direction:column; }
       .tk-card-data { overflow:visible; padding:14px; }
       .tk-card-body .tk-tl { border-right:0; border-top:1px solid #dfe3ec; }
       .tk-card-body .tk-thread { max-height:45vh; }

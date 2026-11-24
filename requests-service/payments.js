@@ -10,7 +10,7 @@ const STATUS = {
   5: 'Закрывающие документы',
   6: 'Оплачено / Закрыто'
 };
-const FILE_LABELS = { 11: 'Счёт', 19: 'Платёжное поручение', 21: 'Акт / накладная / счёт-фактура', 22: 'Дополнения' };
+const FILE_LABELS = { 11: 'Счёт', 19: 'Платёжное поручение', 21: 'Акт / накладная / счёт-фактура', 22: 'Дополнения', 23: 'Вложение к сообщению' };
 class PaymentError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -159,10 +159,42 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
       return {id,status:r.status,pending:recipients,message:event};
     });
   }
+  function discuss(user,id,input,employees) {
+    return transaction(() => {
+      const r = get(id,user);
+      const subscribers = new Set(r.subscribers || []);
+      let event, recipients;
+      if (input.action === 'message') {
+        const message = text(input.comment ?? '',2000,!input.file);
+        const file = input.file && attachment(input.file,23);
+        const fileId = file && Number(insertFile.run(id,file.kind,file.name,file.bytes).lastInsertRowid);
+        event = {text:message, fileId};
+        recipients = [r.authorId, ...subscribers, ...pending(r).map(([,person]) => person)];
+      } else if (['watch-add','watch-remove'].includes(input.action)) {
+        if (!user.isAdmin) throw new PaymentError(403,'Наблюдающих меняет администратор');
+        const adding = input.action === 'watch-add';
+        const employee = employees.find(x => x.id === input.userId);
+        if (!Number.isSafeInteger(input.userId) || input.userId <= 0 || adding === subscribers.has(input.userId)
+            || (adding && (!employee || isParticipant(r,{id:input.userId})))) {
+          throw new PaymentError(400,'Выберите сотрудника для изменения списка наблюдающих');
+        }
+        if (adding) subscribers.add(input.userId);
+        else subscribers.delete(input.userId);
+        r.subscribers = [...subscribers];
+        event = {text:(adding ? 'Добавлен наблюдающий: ' : 'Удалён наблюдающий: ') + (employee?.name || '№ ' + input.userId)};
+        recipients = adding ? [input.userId] : [];
+      } else throw new PaymentError(400,'Выберите действие');
+      r.localUpdated = true;
+      r.history.push({date:clock(),author:user.name,...event});
+      db.prepare('UPDATE payments SET record=? WHERE id=?').run(JSON.stringify(r),id);
+      return {id,status:r.status,pending:recipients,message:input.action === 'message' ? 'Новое сообщение в заявке' : 'Вы добавлены наблюдающим'};
+    });
+  }
   function detail(id,user) {
     const r = get(id,user);
     return { ...summary(r,user), contact:r.contact, phone:r.phone, email:r.email, comment:r.comment,
-      history:r.history, canManage:canManage(r,user), revision:r.history.length, awaiting:pending(r).map(([role, id]) => ({role,id})),
+      history:r.history, subscribers:[...new Set(r.subscribers || [])], observerExclusions:user.isAdmin ? [r.authorId, ...Object.values(r.route), ...(r.subscribers || [])] : undefined,
+      canWatch:!!user.isAdmin, canManage:canManage(r,user), revision:r.history.length, awaiting:pending(r).map(([role, id]) => ({role,id})),
       files:db.prepare('SELECT id,kind,name FROM payment_files WHERE payment_id=? ORDER BY id').all(id) };
   }
   function file(id,fileId,user) {
@@ -197,7 +229,7 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
         files:db.prepare('SELECT count(*) AS n FROM payment_files').get().n, routes:routes.length };
     });
   }
-  return { objects, submit, act, manage, detail, file, loadSnapshot,
+  return { objects, submit, act, manage, discuss, detail, file, loadSnapshot,
     browse(user) { return db.prepare('SELECT id,record FROM payments ORDER BY id DESC').all().map(unpack)
       .filter(r => canRead(r,user)).sort((a,b) => String(b.created || '').localeCompare(String(a.created || '')) || b.id - a.id)
       .map(r => summary(r,user)); } };

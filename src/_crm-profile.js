@@ -310,12 +310,27 @@
     .kp-dialog input[type=file] { padding:6px; }
     .kp-dialog small { color:#5b6478; font-weight:400; }
     [data-payment-register] .kb-tools label { margin:0; }
-    .crm-pay-table { width:100%; border-collapse:collapse; font-size:14px; }
-    .crm-pay-table th,.crm-pay-table td { text-align:left; padding:9px 10px; border-bottom:1px solid #dfe3ec; }
-    .crm-pay-table tbody tr { cursor:pointer; }
-    .crm-pay-table tbody tr:hover td,.crm-pay-table tbody tr:focus-within td { background:#edf2fa; }
-    .crm-pay-table [data-pay-id] { color:#1c2d58; font-weight:650; white-space:nowrap; text-decoration:underline; }
-    .crm-pay-card { max-width:calc(100vw - 20px); }
+    .crm-pay-board { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(208px,1fr); gap:12px; overflow-x:auto; padding:2px 2px 12px; }
+    .crm-pay-column { background:#f3f5f9; border-radius:8px; padding:10px; }
+    .crm-pay-column h3 { margin:0 0 10px; font-size:14px; }
+    .crm-pay-column h3 span { color:#5b6478; margin-left:6px; }
+    .crm-pay-tile { display:grid; gap:5px; margin-bottom:8px; padding:10px; background:#fff; border:1px solid #dfe3ec; border-radius:8px; color:#1c2d58; text-decoration:none; overflow-wrap:anywhere; }
+    .crm-pay-tile:hover,.crm-pay-tile:focus-visible { border-color:#315996; color:#1c2d58; }
+    .crm-pay-tile small,.crm-pay-thread time { color:#5b6478; }
+    .crmp-dlg.crm-pay-card { width:calc(100vw - 16px); max-width:calc(100vw - 16px); height:calc(100dvh - 16px); max-height:none; display:flex; flex-direction:column; overflow:hidden; }
+    .crm-pay-card [data-pay-card] { padding:18px 24px; }
+    .crm-pay-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,36%); gap:24px; }
+    .crm-pay-layout h3 { margin:0 0 10px; }
+    .crm-pay-thread { list-style:none; margin:0; padding:0; }
+    .crm-pay-thread li { border-bottom:1px solid #dfe3ec; padding:10px 0; }
+    .crm-pay-thread p { margin:4px 0; white-space:pre-wrap; }
+    .crm-pay-layout aside { min-width:0; border-left:1px solid #dfe3ec; padding-left:18px; }
+    .crm-pay-observers button { margin-left:8px; }
+    @media(max-width:760px) {
+      .crm-pay-layout { display:flex; flex-direction:column-reverse; gap:14px; }
+      .crm-pay-layout aside { border-left:0; padding-left:0; }
+      .crm-pay-card [data-pay-card] { padding:14px; }
+    }
     .crm-pay-manage { margin-top:16px; }
     .crm-pay-values { display:grid; grid-template-columns:minmax(110px, 1fr) minmax(0, 2fr); gap:6px 12px; }
     .crm-pay-values dt { color:#5b6478; }
@@ -587,21 +602,24 @@
       try {
         const data = await paymentApi('payments');
         const rows = data.rows.filter(x => !filter || String(x.status) === filter);
+        const columns = Object.entries(data.statuses).filter(([id]) => (id !== '0' || data.rows.some(x => x.status === 0)) && (!filter || id === filter));
         panel.innerHTML = '<div class="kb-tools" style="align-items:center"><label>Статус <select data-pay-filter><option value="">Все статусы</option>'
-          + Object.entries(data.statuses).map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
+          + Object.entries(data.statuses).filter(([id]) => id !== '0' || data.rows.some(x => x.status === 0))
+            .map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
           + '</select></label><button type="button" data-pay-refresh>Обновить</button></div>'
-          + (rows.length ? '<div style="overflow:auto"><table class="crm-pay-table"><thead><tr><th>Номер</th><th>Статус</th><th>Объект</th><th>Цель расхода</th><th>Контрагент</th><th>Сумма</th><th>Оплатить до</th><th>Создана</th></tr></thead><tbody>'
-            + rows.map(x => '<tr data-pay-row><td><a data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
-              + Number(x.id) + '">Открыть № ' + Number(x.id) + '</a></td><td>'
-              + e(data.statuses[x.status]) + (x.needsAction ? '<br><strong>Ждёт вашего действия</strong>' : '') + '</td><td>' + e(x.object || '—')
-              + '</td><td>' + e(x.purpose || '—') + '</td><td>' + e(x.counterparty || '—') + '</td><td>' + e(paymentAmount(x.amount))
-              + '</td><td>' + e(paymentDate(x.due)) + '</td><td>' + e(paymentDate(x.created)) + '</td></tr>').join('') + '</tbody></table></div>'
-            : '<p>Заявок нет</p>');
+          + '<div class="crm-pay-board" tabindex="0" role="region" aria-label="Канбан заявок">' + columns.map(([status,name]) => {
+            const cards = rows.filter(x => String(x.status) === status);
+            return '<section class="crm-pay-column"><h3>' + e(name) + '<span>' + cards.length + '</span></h3>'
+              + cards.map(x => '<a class="crm-pay-tile" data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
+                + Number(x.id) + '"><small>№ ' + Number(x.id) + ' · ' + e(x.object || '—') + '</small><strong>' + e(x.purpose || 'Заявка на оплату')
+                + '</strong><span>' + e(x.counterparty || '—') + '</span><span>' + e(paymentAmount(x.amount))
+                + ' · до ' + e(paymentDate(x.due)) + '</span>' + (x.needsAction ? '<strong>Ждёт вашего действия</strong>' : '') + '</a>').join('')
+              + '</section>';
+          }).join('') + '</div>';
         panel.querySelector('[data-pay-filter]').onchange = event => { filter = event.target.value; refresh(); };
         panel.querySelector('[data-pay-refresh]').onclick = refresh;
-        panel.querySelectorAll('[data-pay-row]').forEach(row => {
-          const link = row.querySelector('[data-pay-id]');
-          row.addEventListener('click', event => {
+        panel.querySelectorAll('[data-pay-id]').forEach(link => {
+          link.addEventListener('click', event => {
             if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
             openPaymentCard(Number(link.getAttribute('data-pay-id')),link,refresh);
@@ -627,7 +645,7 @@
         const data = await paymentApi('payments/' + id);
         const r = data.record;
         const values = [['Статус',data.statuses[r.status]],['Автор',r.author],['Дата создания',paymentDate(r.created)],
-          ['Объект',r.object],['Цель расхода',r.purpose],['Сумма',paymentAmount(r.amount)],['Оплатить до',paymentDate(r.due)],
+          ['Объект',r.object],['Сумма',paymentAmount(r.amount)],['Оплатить до',paymentDate(r.due)],
           ['Контрагент',r.counterparty],['Контактное лицо',r.contact],['Телефон',r.phone],['Эл. почта',r.email],['Комментарий',r.comment],
           ['Ожидается действие',r.awaiting.map(x=>x.name).join(', ')],['Исходный номер',r.legacyId]];
         const fileInput = (label, key) => '<label>' + label + '<input type="file" name="' + key + '" accept=".pdf,.jpg,.jpeg,.png"></label>';
@@ -646,14 +664,28 @@
           + '<label>Причина<textarea name="comment" required maxlength="2000"></textarea></label>'
           + '<button type="submit" class="kb-primary">Сохранить изменение</button></form></details>' : '';
         const action = r.status === 4 ? 'Подтвердить оплату' : r.status === 5 ? 'Подтвердить документы и закрыть' : 'Согласовать';
-        body.innerHTML = '<dl class="crm-pay-values">' + values.filter(x=>x[1]).map(x=>'<dt>'+e(x[0])+'</dt><dd>'+e(x[1])+'</dd>').join('') + '</dl>'
-          + (r.files.length ? '<h3>Документы</h3><ul>' + r.files.map(f=>'<li><button type="button" data-pay-file="'+Number(f.id)+'">'
-            + e(data.fileLabels[f.kind] + ' · ' + f.name) + '</button></li>').join('') + '</ul>' : '')
-          + (r.needsAction ? '<form data-pay-advance><label>Комментарий<textarea name="comment" maxlength="2000"></textarea></label>'
+        const fileButton = f => '<button type="button" data-pay-file="'+Number(f.id)+'">' + e(f.name) + '</button>';
+        const observers = (r.subscribers || []).map(person => '<li>' + e(person.name) + (r.canWatch
+          ? '<button type="button" data-pay-remove="' + Number(person.id) + '" aria-label="' + e('Удалить наблюдающего ' + person.name) + '">Удалить</button>' : '') + '</li>').join('');
+        const watch = r.canWatch ? '<form data-pay-watch><label>Добавить наблюдающего<select name="user" required><option value="">Выберите сотрудника</option>'
+          + data.employees.filter(x => !data.observerExclusions.includes(x.id))
+            .map(x => '<option value="'+Number(x.id)+'">'+e(x.name)+'</option>').join('')
+          + '</select></label><button type="submit">Добавить</button></form>' : '';
+        body.innerHTML = '<p role="status" data-pay-status></p><div class="crm-pay-layout"><section aria-label="Переписка"><h3>Переписка</h3>'
+          + '<ol class="crm-pay-thread">' + r.history.map(entry => {
+            const file = r.files.find(x => x.id === entry.fileId);
+            return '<li><strong>'+e(entry.author)+'</strong> <time>'+e(paymentDate(entry.date) + (entry.date?.includes('T') ? ' · ' + new Date(entry.date).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : ''))+'</time>'
+              + (entry.text ? '<p>'+e(entry.text)+'</p>' : '') + (file ? fileButton(file) : '') + '</li>';
+          }).join('') + '</ol><form data-pay-message><label>Сообщение<textarea name="comment" maxlength="2000"></textarea></label>'
+          + fileInput('Прикрепить документ','file') + '<button type="submit" class="kb-primary">Отправить</button></form></section>'
+          + '<aside aria-label="Сведения о заявке"><h3>' + e(r.purpose || 'Сведения') + '</h3><dl class="crm-pay-values">'
+          + values.filter(x=>x[1]).map(x=>'<dt>'+e(x[0])+'</dt><dd>'+e(x[1])+'</dd>').join('') + '</dl>'
+          + (r.needsAction ? '<form data-pay-advance><label>Комментарий к решению<textarea name="comment" maxlength="2000"></textarea></label>'
             + (r.status === 4 ? fileInput('Платёжное поручение','bill') : r.status === 5 ? fileInput('Акт / накладная / счёт-фактура','bill') + fileInput('Дополнения','extra') : '')
             + '<button type="submit" class="kb-primary">'+action+'</button></form>' : '')
-          + manage + '<p role="status" data-pay-status></p><details><summary>История заявки</summary><ol>'
-          + r.history.map(x=>'<li>'+e(paymentDate(x.date)+' · '+x.author+' · '+x.text)+'</li>').join('') + '</ol></details>';
+          + (r.files.length ? '<h3>Документы</h3><ul>' + r.files.map(f=>'<li>' + e(data.fileLabels[f.kind] || 'Документ') + ' · ' + fileButton(f) + '</li>').join('') + '</ul>' : '')
+          + '<h3>Наблюдающие</h3>' + (observers ? '<ul class="crm-pay-observers">' + observers + '</ul>' : '<p>Нет наблюдающих</p>')
+          + watch + manage + '</aside></div>';
         const status = body.querySelector('[data-pay-status]');
         body.querySelectorAll('[data-pay-file]').forEach(button => {
           button.onclick = async () => {
@@ -666,6 +698,30 @@
               setTimeout(() => URL.revokeObjectURL(url),60000);
             } catch (error) { status.textContent = error.message; }
           };
+        });
+        async function discuss(button, input) {
+          if (button.disabled) return;
+          button.disabled = true;
+          try {
+            await paymentApi('payments/' + id,await input());
+            await render();
+            const feedback = body.querySelector('[data-pay-status]');
+            if (feedback) feedback.textContent = 'Сохранено';
+          } catch (error) { status.textContent = error.message; button.disabled = false; }
+        }
+        const message = body.querySelector('[data-pay-message]');
+        message.onsubmit = event => {
+          event.preventDefault();
+          discuss(message.querySelector('button'),async () => ({action:'message',comment:message.elements.comment.value,
+            file:await paymentFile(message.elements.file.files[0])}));
+        };
+        const watchForm = body.querySelector('[data-pay-watch]');
+        if (watchForm) watchForm.onsubmit = event => {
+          event.preventDefault();
+          discuss(watchForm.querySelector('button'),() => ({action:'watch-add',userId:Number(watchForm.elements.user.value)}));
+        };
+        body.querySelectorAll('[data-pay-remove]').forEach(button => {
+          button.onclick = () => discuss(button,() => ({action:'watch-remove',userId:Number(button.getAttribute('data-pay-remove'))}));
         });
         const form = body.querySelector('[data-pay-advance]');
         const adjust = body.querySelector('[data-pay-manage]');

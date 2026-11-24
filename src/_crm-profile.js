@@ -256,6 +256,276 @@
     return m;
   }
 
+  window.crmTaskStyles = function () {
+  if (!document.getElementById('crm-tk-style')) {
+    const st = document.createElement('style');
+    st.id = 'crm-tk-style';
+    st.textContent = `
+      .tk { color:#1f2433; font-size:14px; }
+      body:has(#crm-tasks) [aria-label="Открыть ИИ-чат"] { display:none !important; }
+      .tk-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+      .tk-title { font-family:var(--kn-tilda,"Tilda Sans","Segoe UI",sans-serif); font-size:20px; font-weight:650; line-height:1.25; color:#1c2d58; }
+      .tk-sub { color:#5b6478; font-size:13px; margin-bottom:14px; }
+      .tk-tabs { display:flex; gap:2px; border-bottom:1px solid #dfe3ec; margin-bottom:14px; flex-wrap:wrap; }
+      .tk-tab { border:none; background:none; padding:9px 14px; font:inherit; font-size:14px; color:#3a4256; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+      .tk-tab.on { color:#1c2d58; border-bottom-color:#1c2d58; font-weight:600; }
+      .tk-tab b { font-weight:600; color:#5b6478; margin-left:4px; font-size:12.5px; }
+      .tk-new { margin-left:auto; border:none; background:#1c2d58; color:#fff; border-radius:8px; padding:9px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+      .tk-new:hover { background:#2f4a8a; }
+      .tk-views { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+      .tk-view { border:1px solid #dfe3ec; background:#fff; border-radius:10px; padding:8px 14px; font:inherit; cursor:pointer; text-align:left; min-width:120px; }
+      .tk-view:hover { border-color:#dde5f3; }
+      .tk-view .n { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; display:block; line-height:1.2; }
+      .tk-view .l { font-size:12.5px; color:#3a4256; }
+      .tk-view.on { border-color:#1c2d58; background:#eef2f9; }
+      .tk-view.on .l { color:#121d3a; font-weight:600; }
+      .tk-view.bad .n { color:#c23b3b; }
+      .tk-layout { display:flex; gap:2px; background:#f3f5f9; border-radius:6px; padding:2px; }
+      .tk-layout button { border:none; background:transparent; padding:4px 12px; border-radius:5px; font:inherit; font-size:13px; cursor:pointer; color:#3a4256; }
+      .tk-layout button.on { background:#fff; color:#1f2433; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+      .kb { display:grid; grid-template-columns:repeat(var(--n, 5), minmax(0, 1fr)); gap:12px; min-height:380px; }
+      .kb-col { display:flex; flex-direction:column; min-height:0; min-width:0; background:#f3f5f9; border-radius:10px; border:2px solid transparent; transition:opacity .15s, border-color .15s, background .15s; }
+      .kb-col.no { opacity:.4; }
+      .kb-col.ok { border-color:#dde5f3; border-style:dashed; }
+      .kb-col.drop { border-color:#1c2d58; border-style:solid; background:#eef2f9; }
+      .kb-col-h { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; padding:10px 12px 8px; color:#1f2433; }
+      .kb-col-h i { width:8px; height:8px; border-radius:50%; background:var(--c); flex:none; }
+      .kb-col-h b { margin-left:auto; color:#5b6478; font-weight:600; font-variant-numeric:tabular-nums; background:#fff; border-radius:9px; padding:0 7px; font-size:12px; }
+      .kb-col-b { flex:1; overflow-y:auto; padding:0 8px 8px; min-height:0; }
+      .kb-card { background:#fff; border:1px solid #dfe3ec; border-left:3px solid var(--c); border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:12.5px; cursor:grab; user-select:none; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+      .kb-card:hover { border-color:#dde5f3; border-left-color:var(--c); box-shadow:0 2px 6px rgba(16,24,40,.08); }
+      .kb-card:active { cursor:grabbing; }
+      .kb-card.drag { opacity:.35; }
+      .kb-card.pending { cursor:default; border-color:#1c2d58; border-left-color:var(--c); box-shadow:0 4px 14px rgba(28,45,88,.18); user-select:auto; }
+      .kb-t { font-weight:600; font-size:13.5px; line-height:1.35; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+      .kb-s { color:#5b6478; line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .kb-note, .kb-empty { font-size:12px; color:#8a92a3; padding:6px 4px; text-align:center; }
+      .kb-form { margin-top:8px; padding-top:8px; border-top:1px dashed #c3cad8; }
+      .kb-form label { display:block; font-size:12px; color:#3a4256; margin-bottom:4px; }
+      .kb-form textarea, .kb-form select { width:100%; box-sizing:border-box; border:1px solid #c3cad8; border-radius:6px; padding:6px 8px; font:inherit; font-size:13px; resize:vertical; background:#fff; }
+      .kb-form textarea:focus, .kb-form select:focus { outline:none; border-color:#1c2d58; box-shadow:0 0 0 2px rgba(28,45,88,.12); }
+      .kb-form-b { display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap; }
+      .kb-form-b span { font-size:11px; color:#8a92a3; }
+      .kb-ok { border:none; background:#1c2d58; color:#fff; border-radius:6px; padding:5px 12px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+      .kb-no { border:1px solid #c3cad8; background:#fff; color:#3a4256; border-radius:6px; padding:4px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
+      .kb-ok:disabled, .kb-no:disabled { opacity:.5; }
+      @media (max-width: 700px) { .kb { grid-template-columns:repeat(var(--n, 5), 260px); overflow-x:auto; } .kb-col-b { max-height:70vh; } }
+      .tk-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
+      .tk select, .tk input[type=text], .tk input[type=date], .tk textarea, .tk-modal select, .tk-modal input[type=text], .tk-modal input[type=date], .tk-modal textarea {
+        border:1px solid #c3cad8; border-radius:6px; padding:7px 10px; font:inherit; font-size:13.5px; background:#fff; color:#1f2433; box-sizing:border-box; }
+      .tk-filters select { min-width:160px; }
+      .tk-filters input[type=text] { flex:1; min-width:200px; }
+      .tk-reset { border:none; background:none; color:#1c2d58; font:inherit; font-size:13px; cursor:pointer; padding:4px; }
+      .tk-list { display:flex; flex-direction:column; gap:6px; }
+      .tk-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:center; border:1px solid #dfe3ec; border-left:4px solid var(--c); border-radius:8px; padding:10px 14px; background:#fff; cursor:pointer; }
+      .tk-row:hover { border-color:#dde5f3; border-left-color:var(--c); background:#f3f5f9; }
+      .tk-row-title { font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .tk-row-meta { font-size:12.5px; color:#5b6478; display:flex; gap:12px; flex-wrap:wrap; margin-top:3px; }
+      .tk-row-meta span { white-space:nowrap; }
+      .tk-row-side { text-align:right; white-space:nowrap; }
+      .tk-pill { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; border:1px solid; white-space:nowrap; }
+      .tk-tag { display:inline-block; padding:0 7px; border-radius:4px; background:#f3f5f9; color:#3a4256; font-size:12px; }
+      .tk-urg { font-weight:600; }
+      .tk-late { color:#c23b3b; font-weight:600; }
+      .tk-empty { color:#5b6478; padding:36px 12px; text-align:center; background:#f3f5f9; border-radius:8px; }
+      .tk-empty b { display:block; color:#3a4256; font-size:15px; margin-bottom:4px; }
+      .tk-more { display:block; margin:10px auto 0; }
+      .tk-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
+      .tk-tile { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; }
+      .tk-tile-l { font-size:12.5px; color:#5b6478; }
+      .tk-tile-v { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
+      .tk-tile-n { font-size:12px; color:#5b6478; margin-top:2px; }
+      /* статистика */
+      #crm-tasks .st { display:flex; flex-direction:column; gap:16px; }
+      #crm-tasks .st-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+      #crm-tasks .st-lbl { font-size:13px; color:#3a4256; font-weight:600; }
+      #crm-tasks .st-bar .tk-layout { margin-left:0; }
+      #crm-tasks .st-hint { font-size:12.5px; color:#3a4256; }
+      #crm-tasks .st-tiles { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:10px; }
+      #crm-tasks .st-tile { border:1px solid #dfe3ec; border-radius:10px; padding:12px 14px; background:#fff; cursor:pointer; transition:border-color .15s, box-shadow .15s; min-width:0; }
+      #crm-tasks .st-tile:hover { border-color:#1c2d58; box-shadow:0 2px 8px rgba(16,24,40,.08); }
+      #crm-tasks .st-tl { font-size:12.5px; color:#3a4256; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      #crm-tasks .st-tv { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px; color:#1f2433; white-space:nowrap; }
+      #crm-tasks .st-tv small { font-size:13px; font-weight:600; color:#3a4256; }
+      #crm-tasks .st-tn { font-size:12.5px; color:#3a4256; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      #crm-tasks .st-card { border:1px solid #dfe3ec; border-radius:10px; background:#fff; padding:14px 16px 12px; min-width:0; }
+      #crm-tasks .st-ch { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+      #crm-tasks .st-ct { font-size:15px; font-weight:700; color:#1f2433; margin-right:4px; }
+      #crm-tasks .st-scroll { overflow-x:auto; }
+      #crm-tasks table.st-t { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13.5px; color:#1f2433; }
+      #crm-tasks .st-t th { font-weight:600; color:#1f2433; font-size:12.5px; padding:8px 12px; background:#e9edf5; border-bottom:2px solid #c3cad8; white-space:nowrap; text-align:left; }
+      #crm-tasks .st-t th.n { text-align:right; }
+      #crm-tasks .st-t th.st-now { background:#dde5f3; }
+      #crm-tasks .st-t td { padding:9px 12px; border-bottom:1px solid #dfe3ec; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500; }
+      #crm-tasks .st-t td.n { text-align:right; }
+      #crm-tasks .st-t tbody tr:nth-child(even) td { background:#f3f5f9; }
+      #crm-tasks .st-t th.st-name, #crm-tasks .st-t td.st-name { width:24%; }
+      #crm-tasks .st-t th.st-pr { width:18%; }
+      #crm-tasks .st-t td.st-name { white-space:normal; font-weight:600; color:#1f2433; }
+      #crm-tasks .st-t .st-sep { border-left:2px solid #dfe3ec; }
+      #crm-tasks .st-t tr.st-link { cursor:pointer; }
+      #crm-tasks .st-t tr.st-link:hover td { background:#eef2f9; }
+      #crm-tasks .st-t td.st-pr { white-space:normal; }
+      #crm-tasks .st-t thead th { white-space:normal; line-height:1.25; vertical-align:bottom; }
+      #crm-tasks .st-sub { font-size:12px; color:#3a4256; font-weight:400; margin-top:2px; line-height:1.35; }
+      #crm-tasks .st-tag { display:inline-block; background:#dfe3ec; color:#3a4256; border-radius:4px; padding:0 5px; margin-right:6px; font-size:11px; line-height:16px; }
+      #crm-tasks .st-mute { color:#8a92a3; font-weight:400; }
+      #crm-tasks .st-bad { display:inline-block; color:#fff; background:#c23b3b; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
+      #crm-tasks .st-badt { color:#c23b3b; font-weight:700; }
+      #crm-tasks .st-ok { color:#2f7d4f; font-weight:700; }
+      #crm-tasks .st-warn { color:#8a5a00; font-weight:700; }
+      #crm-tasks .st-chip { display:inline-block; background:#f6eedb; color:#8a5a00; border:1px solid #e8d3a6; border-radius:10px; padding:0 8px; font-size:12px; line-height:20px; margin:1px 0; font-weight:600; }
+      #crm-tasks .st-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:#3a4256; margin-top:8px; }
+      #crm-tasks .st-legend span { width:12px; height:12px; border-radius:3px; display:inline-block; margin-left:10px; }
+      #crm-tasks .st-legend span:first-child { margin-left:0; }
+      #crm-tasks .st-legend .st-now { background:#dde5f3; border:1px solid #c3cad8; }
+      #crm-tasks .st-legend .st-per { background:#e9edf5; border:1px solid #c3cad8; }
+      #crm-tasks .st-wk th:first-child { background:#e9edf5; width:16%; }
+      #crm-tasks .st-wk tbody th { background:#f3f5f9; border-bottom:1px solid #dfe3ec; font-weight:600; color:#1f2433; cursor:help; }
+      #crm-tasks .st-scroll table.st-t { min-width:900px; }
+      @media (max-width: 1100px) { #crm-tasks .st-tiles { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+      @media (max-width: 600px) { #crm-tasks .st-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+      #crm-tasks .st-hot { display:inline-block; color:#8a5a00; background:#f6eedb; border-radius:10px; padding:0 8px; font-weight:700; font-size:12.5px; line-height:20px; }
+      .tk-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(460px, 1fr)); gap:12px; }
+      .tk-card { border:1px solid #dfe3ec; border-radius:8px; padding:12px 14px; background:#fff; min-width:0; overflow-x:auto; }
+      .tk-card-t { font-weight:600; margin-bottom:8px; }
+      .tk table, .tk-modal table { width:100%; border-collapse:collapse; font-size:13px; }
+      .tk th, .tk-modal th { text-align:left; font-weight:600; color:#3a4256; padding:6px 8px; border-bottom:1px solid #dfe3ec; white-space:nowrap; }
+      .tk td, .tk-modal td { padding:6px 8px; border-bottom:1px solid #f3f5f9; font-variant-numeric:tabular-nums; }
+      .tk th.n, .tk td.n, .tk-modal td.n { text-align:right; }
+      .tk tr[data-go], .tk-modal tr[data-task] { cursor:pointer; }
+      .tk tr[data-go]:hover td, .tk-modal tr[data-task]:hover td { background:#eef2f9; }
+      /* окна */
+      .tk-modal { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.45); display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; }
+      .tk-box { background:#fff; border-radius:12px; width:100%; max-width:760px; box-shadow:0 6px 16px rgba(0,0,0,.12); font-size:14px; color:#1f2433; }
+      .tk-box-h { display:flex; align-items:flex-start; gap:10px; padding:16px 20px 12px; border-bottom:1px solid #dfe3ec; }
+      .tk-box-t { font-size:17px; font-weight:700; flex:1; min-width:0; }
+      .tk-box-t small { display:block; margin-top:6px; font-size:13px; font-weight:400; color:#3a4256; }
+      .tk-x { border:none; background:transparent; font-size:18px; color:#5b6478; cursor:pointer; padding:2px 6px; }
+      .tk-box-b { padding:16px 20px 20px; }
+      .tk-form { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; }
+      .tk-form .full { grid-column:1 / -1; }
+      .tk-f label { display:block; font-size:12.5px; color:#3a4256; margin-bottom:4px; }
+      .tk-person { position:relative; }
+      .tk-person input { width:100%; background:#fff; }
+      .tk-person-list { position:absolute; z-index:5; top:calc(100% + 4px); left:0; right:0; max-height:230px; overflow:auto; overscroll-behavior:contain; border:1px solid #dfe3ec; border-radius:10px; padding:4px; background:#fff; box-shadow:0 8px 20px rgba(28,45,88,.15); }
+      .tk-person-option { padding:8px 10px; border-radius:6px; cursor:pointer; overflow-wrap:anywhere; }
+      .tk-person-option:hover, .tk-person-option[aria-selected="true"] { background:#eef2f9; color:#1c2d58; }
+      .tk-person-option small, .tk-person-empty { color:#5b6478; font-size:12px; }
+      .tk-person-option small { display:block; }
+      .tk-person-empty { padding:8px 10px; }
+      [data-observer-list]:not(:empty) { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+      [data-observer-add] { margin-top:6px; }
+      .tk-f label i { color:#c23b3b; font-style:normal; }
+      .tk-f select, .tk-f input, .tk-f textarea { width:100%; }
+      .tk-f textarea { min-height:70px; resize:vertical; }
+      .tk-hint { font-size:12px; color:#5b6478; margin-top:3px; }
+      .tk-seg { display:flex; gap:6px; flex-wrap:wrap; }
+      .tk-seg button { flex:1; border:1px solid #c3cad8; background:#fff; border-radius:6px; padding:7px 8px; font:inherit; font-size:13px; cursor:pointer; white-space:nowrap; }
+      .tk-seg button.on { border-color:var(--c); background:var(--c); color:#fff; font-weight:600; }
+      .tk-quickdue { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+      .tk-quickdue button { border:1px solid #c3cad8; background:#f3f5f9; border-radius:12px; padding:2px 10px; font:inherit; font-size:12.5px; cursor:pointer; color:#3a4256; }
+      .tk-quickdue button:hover { border-color:#1c2d58; color:#1c2d58; }
+      .tk-adv { margin-top:14px; border-top:1px dashed #dfe3ec; padding-top:10px; }
+      .tk-adv-t { border:none; background:none; color:#1c2d58; font:inherit; font-size:13.5px; cursor:pointer; padding:0; }
+      .tk-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center; }
+      .tk-btn { border:1px solid #c3cad8; background:#fff; border-radius:6px; padding:7px 14px; font:inherit; font-size:13.5px; cursor:pointer; color:#1f2433; }
+      .tk-btn:hover { border-color:#1c2d58; color:#1c2d58; }
+      .tk-btn.pri { border-color:#1c2d58; background:#1c2d58; color:#fff; font-weight:600; }
+      .tk-btn.ok { border-color:#2f7d4f; background:#2f7d4f; color:#fff; font-weight:600; }
+      .tk-btn.warn { color:#c23b3b; border-color:#e7b9b9; }
+      .tk-btn.link { border-color:transparent; color:#3a4256; }
+      .tk-btn:disabled { opacity:.5; cursor:default; }
+      .tk-next { border:1px solid #dde5f3; background:#e9edf5; border-radius:10px; padding:12px 14px; margin-bottom:14px; }
+      .tk-next-t { font-weight:600; margin-bottom:2px; }
+      .tk-next-s { font-size:13px; color:#3a4256; }
+      .tk-next .tk-actions { margin-top:10px; }
+      .tk-meta { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px 16px; font-size:13.5px; }
+      .tk-meta .l { font-size:12px; color:#5b6478; margin-bottom:1px; }
+      .tk-desc { white-space:pre-wrap; background:#f3f5f9; border-radius:8px; padding:10px 12px; margin-top:12px; font-size:13.5px; }
+      .tk-actbox { margin-top:12px; padding:12px; border:1px solid #dde5f3; background:#fff; border-radius:8px; }
+      .tk-more-menu { display:none; gap:6px; flex-wrap:wrap; margin-top:8px; }
+      .tk-more-menu.on { display:flex; }
+      .tk-tl { margin-top:18px; border:1px solid #dfe3ec; border-radius:14px; overflow:hidden; background:#fff; }
+      .tk-tl-h { display:flex; align-items:center; gap:10px; padding:10px 14px; flex-wrap:wrap; }
+      .tk-tl-h b { font-size:14.5px; }
+      .tk-thread { background:#f3f5f9; padding:14px; min-height:88px; max-height: min(360px, 45vh); overflow-y:auto; overscroll-behavior:contain; }
+      .tk-msg { display:flex; gap:8px; align-items:flex-end; margin:0 0 6px; }
+      .tk-msg.own { justify-content:flex-end; }
+      .tk-msg .tk-ava { width:28px; height:28px; font-size:11px; flex-shrink:0; }
+      .tk-msg-b { min-width:0; max-width:72%; padding:8px 12px; border-radius:16px 16px 16px 5px; background:#fff; color:#1f2433; font-size:13.5px; line-height:1.42; overflow-wrap:anywhere; box-shadow:0 1px 2px rgba(20,30,60,.06); }
+      .tk-msg.own .tk-msg-b { background:#1c2d58; color:#fff; border-radius:16px 16px 5px 16px; }
+      .tk-msg-author { display:block; color:#1c2d58; font-size:11px; margin-bottom:2px; }
+      .tk-msg-time { display:block; text-align:right; font-size:11px; opacity:.8; margin-top:2px; }
+      .tk-msg-t { white-space:pre-wrap; }
+      .tk-msg.sys { display:block; text-align:center; font-size:12px; color:#5b6478; padding:4px; overflow-wrap:anywhere; }
+      .tk-msg-file { display:block; background:transparent; border:0; padding:2px 0; color:inherit; font:inherit; text-align:left; text-decoration:underline; cursor:pointer; overflow-wrap:anywhere; }
+      .tk-comment { display:flex; gap:8px; padding:10px 12px; align-items:flex-end; border-top:1px solid #dfe3ec; }
+      .tk-comment textarea { flex:1; min-width:0; min-height:40px; max-height:110px; resize:vertical; background:#f3f5f9; border-radius:14px; }
+      .tk-comment textarea:focus { background:#fff; }
+      .tk-comment .tk-btn { flex:0 0 40px; width:40px; height:40px; padding:0; border-radius:50%; font-size:17px; }
+      .tk-comment-file:not(:empty) { padding:0 14px 8px; overflow-wrap:anywhere; }
+      .tk-card-modal > .tk-box { max-width:none; overflow:hidden; }
+      .tk-card-modal .tk-box-h { padding:18px 24px; }
+      .tk-card-modal .tk-box-t { font-size:clamp(18px, 2vw, 24px); overflow-wrap:anywhere; }
+      .tk-card-body { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 3fr); grid-template-areas:"thread details"; min-height:0; }
+      .tk-card-data { grid-area:details; min-width:0; overflow:auto; overscroll-behavior:contain; padding:20px 24px; }
+      .tk-card-section { margin-top:14px; padding:14px 16px; border:1px solid #dfe3ec; border-radius:10px; overflow-wrap:anywhere; }
+      .tk-card-section h3 { margin:0 0 10px; color:#1c2d58; font-size:15px; }
+      .tk-card-section .tk-desc { margin:0; }
+      .tk-card-body .tk-tl { grid-area:thread; display:flex; flex-direction:column; min-width:0; min-height:0; margin:0; border:0; border-right:1px solid #dfe3ec; border-radius:0; }
+      .tk-card-body .tk-thread { flex:1; max-height:none; }
+      .tk-card-body .tk-tl-h, .tk-card-body .tk-comment { flex-shrink:0; }
+      @media (min-width: 851px) {
+        .tk-card-modal { padding:8px; }
+        .tk-card-modal > .tk-box { height:calc(100dvh - 16px); min-height:440px; }
+        .tk-card-modal [data-tk-card] { display:grid; grid-template-rows:auto minmax(0, 1fr); height:100%; }
+      }
+      .tk-card-switch { display:none; }
+      @media (max-width: 850px) {
+        .tk-card-modal { padding:0; }
+        .tk-card-modal > .tk-box { height:100dvh; border-radius:0; }
+        .tk-card-modal [data-tk-card] { display:grid; grid-template-rows:auto auto minmax(0, 1fr); height:100%; }
+        .tk-card-modal .tk-box-h { padding:max(8px, env(safe-area-inset-top)) 12px 8px 16px; align-items:center; }
+        .tk-card-modal .tk-x { min-width:44px; min-height:44px; }
+        .tk-card-switch { display:flex; gap:4px; padding:4px 12px; background:#f3f5f9; border-bottom:1px solid #dfe3ec; }
+        .tk-card-switch button { min-width:0; flex:1; min-height:44px; border:0; border-radius:6px; background:transparent; color:#26354f; font:inherit; cursor:pointer; }
+        .tk-card-switch button[aria-pressed="true"] { background:#1c2d58; color:#fff; font-weight:600; }
+        .tk-card-body { display:grid; grid-template-columns:minmax(0, 1fr); grid-template-areas:"details"; }
+        .tk-card-data { padding:12px 12px max(12px, env(safe-area-inset-bottom)); }
+        .tk-card-data .tk-meta { grid-template-columns:repeat(2, minmax(0,1fr)); }
+        .tk-card-data .tk-btn { min-height:44px; }
+        .tk-card-modal [data-tk-card] :is(input[type=text], input[type=date], textarea, select) { font-size:16px; }
+        .tk-card-body .tk-tl { display:none; border:0; padding-bottom:env(safe-area-inset-bottom); }
+        .tk-card-body .tk-thread { min-height:0; }
+        .tk-card-body .tk-comment .tk-btn { flex-basis:44px; width:44px; height:44px; }
+        [data-tk-card][data-task-pane="chat"] .tk-card-body { grid-template-areas:"thread"; }
+        [data-tk-card][data-task-pane="chat"] .tk-card-data { display:none; }
+        [data-tk-card][data-task-pane="chat"] .tk-tl { display:flex; }
+      }
+      @media (min-width: 851px) and (max-width: 1100px) {
+        .tk-card-data .tk-meta { grid-template-columns:repeat(2, minmax(0,1fr)); }
+      }
+      .tk-sec { font-weight:600; margin:18px 0 6px; display:flex; align-items:center; gap:10px; }
+      @media (max-width: 700px) {
+        .tk-new { margin-left:0; width:100%; padding:12px; font-size:15px; }
+        .tk-view { flex:1 1 30%; min-width:0; padding:6px 10px; }
+        .tk-filters select, .tk-filters input[type=text] { flex:1 1 100%; min-width:0; }
+        .tk-row { grid-template-columns:1fr; }
+        .tk-row-side { text-align:left; }
+        .tk-grid2 { grid-template-columns:1fr; }
+        .tk-modal { padding:0; }
+        .tk-box { border-radius:0; min-height:100%; max-width:none; }
+        .tk-form, .tk-meta { grid-template-columns:1fr; }
+        .tk-btn { flex:1 1 45%; padding:10px; }
+        .tk-msg-b { max-width:84%; font-size:15px; }
+        .tk-thread { padding:10px; }
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  };
+
   function workDialogStyles() {
     if (!document.getElementById('crm-knowledge-style')) {
       const style = document.createElement('style');
@@ -309,33 +579,23 @@
     .kp-dialog form:not([hidden]) + .kb-status { padding-top:0; padding-bottom:16px; }
     .kp-dialog input[type=file] { padding:6px; }
     .kp-dialog small { color:#5b6478; font-weight:400; }
-    [data-payment-register] .kb-tools label { margin:0; }
-    .crm-pay-board { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(208px,1fr); gap:12px; overflow-x:auto; padding:2px 2px 12px; }
-    .crm-pay-column { background:#f3f5f9; border-radius:8px; padding:10px; }
-    .crm-pay-column h3 { margin:0 0 10px; font-size:14px; }
-    .crm-pay-column h3 span { color:#5b6478; margin-left:6px; }
-    .crm-pay-tile { display:grid; gap:5px; margin-bottom:8px; padding:10px; background:#fff; border:1px solid #dfe3ec; border-radius:8px; color:#1c2d58; text-decoration:none; overflow-wrap:anywhere; }
-    .crm-pay-tile:hover,.crm-pay-tile:focus-visible { border-color:#315996; color:#1c2d58; }
-    .crm-pay-tile small,.crm-pay-thread time { color:#5b6478; }
-    .crmp-dlg.crm-pay-card { width:calc(100vw - 16px); max-width:calc(100vw - 16px); height:calc(100dvh - 16px); max-height:none; display:flex; flex-direction:column; overflow:hidden; }
-    .crm-pay-card [data-pay-card] { padding:18px 24px; }
-    .crm-pay-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,36%); gap:24px; }
-    .crm-pay-layout h3 { margin:0 0 10px; }
-    .crm-pay-thread { list-style:none; margin:0; padding:0; }
-    .crm-pay-thread li { border-bottom:1px solid #dfe3ec; padding:10px 0; }
-    .crm-pay-thread p { margin:4px 0; white-space:pre-wrap; }
-    .crm-pay-layout aside { min-width:0; border-left:1px solid #dfe3ec; padding-left:18px; }
-    .crm-pay-observers button { margin-left:8px; }
-    @media(max-width:760px) {
-      .crm-pay-layout { display:flex; flex-direction:column-reverse; gap:14px; }
-      .crm-pay-layout aside { border-left:0; padding-left:0; }
-      .crm-pay-card [data-pay-card] { padding:14px; }
-    }
-    .crm-pay-manage { margin-top:16px; }
-    .crm-pay-values { display:grid; grid-template-columns:minmax(110px, 1fr) minmax(0, 2fr); gap:6px 12px; }
-    .crm-pay-values dt { color:#5b6478; }
-    .crm-pay-values dd { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
-    [data-pay-card] form { padding:0; margin:16px 0; }
+    .crm-pay-register { min-width:0; }
+    .crm-pay-register .kb-card { display:block; color:inherit; text-decoration:none; cursor:pointer; }
+    .crm-pay-register .kb-col-h { overflow-wrap:anywhere; }
+    .crm-pay-mask.tk-modal { align-items:flex-start; backdrop-filter:none; background:rgba(0,0,0,.45); }
+    .crm-pay-card label { display:block; margin:0 0 8px; }
+    .crm-pay-card .tk-f :is(input, textarea, select) { display:block; margin-top:4px; }
+    .crm-pay-card .tk-f { margin-top:10px; }
+    .crm-pay-card .tk-box-t small { overflow-wrap:anywhere; }
+    .crm-pay-card .tk-pill { white-space:normal; }
+    .crm-pay-card .tk-meta { overflow-wrap:anywhere; }
+    .crm-pay-card .tk-meta dl,.crm-pay-card .tk-meta dd { margin:0; }
+    .crm-pay-card [data-pay-status] { position:absolute; bottom:0; right:0; margin:0; background:#fff; }
+    .crm-pay-card { position:relative; }
+    .crm-pay-card [data-pay-status]:not(:empty) { padding:4px 14px; }
+    .crm-pay-card .tk-msg[hidden] { display:none; }
+    .crm-pay-card .tk-tl-h label { margin:0 0 0 auto; }
+    .crm-pay-card [data-pay-files] { display:grid; gap:6px; }
 
 `;
       document.head.appendChild(style);
@@ -594,43 +854,67 @@
   }
   const paymentAmount = v => Number.isFinite(v) ? v.toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₽' : '—';
   const paymentDate = v => v ? String(v).slice(0,10).split('-').reverse().join('.') : '—';
+  const paymentColors = {0:'#5b6478',2:'#1c2d58',3:'#2f4a8a',4:'#8a5a00',5:'#5b6478',6:'#2f7d4f'};
   function paymentRegister(panel) {
+    window.crmTaskStyles();
     workDialogStyles();
-    let filter = '';
+    panel.classList.add('tk','crm-pay-register');
+    let filter = '', rows = [], statuses = {};
+    function render() {
+      const stages = Object.entries(statuses).filter(([id]) => id !== '0' || rows.some(x => x.status === 0));
+      const columns = stages.filter(([id]) => !filter || id === filter);
+      const scroll = panel.querySelector('.kb')?.scrollLeft || 0;
+      panel.innerHTML = '<div class="tk-filters"><select aria-label="Статус" data-pay-filter><option value="">Все статусы</option>'
+        + stages.map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
+        + '</select><button type="button" class="tk-reset" data-pay-refresh>Обновить</button></div>'
+        + '<div class="kb" style="--n:'+columns.length+'" tabindex="0" role="region" aria-label="Канбан заявок">'
+        + columns.map(([status,name]) => {
+          const items = rows.filter(x => String(x.status) === status);
+          return '<section class="kb-col"><div class="kb-col-h" style="--c:'+paymentColors[status]+'"><i></i>' + e(name) + '<b>' + items.length + '</b></div><div class="kb-col-b">'
+            + items.map(x => '<a class="kb-card" style="--c:'+paymentColors[status]+'" data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
+              + Number(x.id) + '"><div class="kb-t">' + e(x.purpose || 'Заявка на оплату') + '</div><div class="kb-s">№' + Number(x.id)
+              + ' · ' + e(x.object || '—') + '</div><div class="kb-s">' + e(x.counterparty || '—') + '</div><div class="kb-s">'
+              + e(paymentAmount(x.amount)) + ' · до ' + e(paymentDate(x.due)) + '</div>'
+              + (x.needsAction ? '<div class="kb-s tk-urg">Ждёт вашего действия</div>' : '') + '</a>').join('')
+            + (items.length ? '' : '<div class="kb-empty">Пусто</div>') + '</div></section>';
+        }).join('') + '</div>';
+      const board = panel.querySelector('.kb');
+      board.scrollLeft = scroll;
+      fitPaymentBoards();
+      panel.querySelector('[data-pay-filter]').onchange = event => {
+        filter = event.target.value;
+        render();
+        panel.querySelector('[data-pay-filter]').focus();
+      };
+      panel.querySelector('[data-pay-refresh]').onclick = refresh;
+      panel.querySelectorAll('[data-pay-id]').forEach(link => {
+        link.onclick = event => {
+          if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          openPaymentCard(Number(link.getAttribute('data-pay-id')),link,refresh);
+        };
+      });
+    }
     async function refresh() {
-      panel.textContent = 'Загрузка заявок…';
       try {
-        const data = await paymentApi('payments');
-        const rows = data.rows.filter(x => !filter || String(x.status) === filter);
-        const columns = Object.entries(data.statuses).filter(([id]) => (id !== '0' || data.rows.some(x => x.status === 0)) && (!filter || id === filter));
-        panel.innerHTML = '<div class="kb-tools" style="align-items:center"><label>Статус <select data-pay-filter><option value="">Все статусы</option>'
-          + Object.entries(data.statuses).filter(([id]) => id !== '0' || data.rows.some(x => x.status === 0))
-            .map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
-          + '</select></label><button type="button" data-pay-refresh>Обновить</button></div>'
-          + '<div class="crm-pay-board" tabindex="0" role="region" aria-label="Канбан заявок">' + columns.map(([status,name]) => {
-            const cards = rows.filter(x => String(x.status) === status);
-            return '<section class="crm-pay-column"><h3>' + e(name) + '<span>' + cards.length + '</span></h3>'
-              + cards.map(x => '<a class="crm-pay-tile" data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
-                + Number(x.id) + '"><small>№ ' + Number(x.id) + ' · ' + e(x.object || '—') + '</small><strong>' + e(x.purpose || 'Заявка на оплату')
-                + '</strong><span>' + e(x.counterparty || '—') + '</span><span>' + e(paymentAmount(x.amount))
-                + ' · до ' + e(paymentDate(x.due)) + '</span>' + (x.needsAction ? '<strong>Ждёт вашего действия</strong>' : '') + '</a>').join('')
-              + '</section>';
-          }).join('') + '</div>';
-        panel.querySelector('[data-pay-filter]').onchange = event => { filter = event.target.value; refresh(); };
-        panel.querySelector('[data-pay-refresh]').onclick = refresh;
-        panel.querySelectorAll('[data-pay-id]').forEach(link => {
-          link.addEventListener('click', event => {
-            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-            event.preventDefault();
-            openPaymentCard(Number(link.getAttribute('data-pay-id')),link,refresh);
-          });
-        });
+        ({rows,statuses} = await paymentApi('payments'));
+        if (filter === '0' && !rows.some(x => x.status === 0)) filter = '';
+        render();
       } catch (error) {
         panel.textContent = error.message;
       }
     }
+    panel.textContent = 'Загрузка заявок…';
     return refresh();
   }
+  function fitPaymentBoards() {
+    document.querySelectorAll('.crm-pay-register .kb').forEach(board => {
+      const frame = board.closest('.kb-dialog');
+      const bottom = frame ? frame.getBoundingClientRect().bottom : window.innerHeight;
+      board.style.height = window.innerWidth > 700 ? Math.max(380,bottom - board.getBoundingClientRect().top - 24) + 'px' : '';
+    });
+  }
+  window.addEventListener('resize',fitPaymentBoards);
   window.crmPaymentRegister = paymentRegister;
   function openPaymentRegister(trigger) {
     const m = workDialog('Заявки на оплату','payment-register','kb-dialog','<div class="kb-article" data-pay-register></div>',trigger);
@@ -638,20 +922,33 @@
   }
   function openPaymentCard(id, trigger, onChange) {
     if (document.querySelector('[data-pay-card]')) return;
-    const m = workDialog('Заявка на оплату № ' + id,'payment-card','kp-dialog crm-pay-card','<div class="kb-article" data-pay-card>Загрузка…</div>',trigger);
+    window.crmTaskStyles();
+    workDialogStyles();
+    const m = modal('<div data-tk-card data-pay-card>Загрузка…</div>','tk-box crm-pay-card');
+    m.classList.add('tk-modal','tk-card-modal','crm-pay-mask');
+    const dialog = m.querySelector('.tk-box');
+    dialog.classList.remove('crmp-dlg');
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+    dialog.setAttribute('aria-label','Заявка на оплату № ' + id);
+    const close = m.close;
+    m.close = () => {
+      const updated = trigger && (trigger.isConnected ? trigger : document.querySelector('[data-pay-id="'+id+'"]'));
+      close();
+      updated?.focus();
+    };
+    m.onclick = event => { if (event.target === m) m.close(); };
     const body = m.querySelector('[data-pay-card]');
     async function render() {
       try {
         const data = await paymentApi('payments/' + id);
         const r = data.record;
-        const values = [['Статус',data.statuses[r.status]],['Автор',r.author],['Дата создания',paymentDate(r.created)],
-          ['Объект',r.object],['Сумма',paymentAmount(r.amount)],['Оплатить до',paymentDate(r.due)],
-          ['Контрагент',r.counterparty],['Контактное лицо',r.contact],['Телефон',r.phone],['Эл. почта',r.email],['Комментарий',r.comment],
-          ['Ожидается действие',r.awaiting.map(x=>x.name).join(', ')],['Исходный номер',r.legacyId]];
+        const values = [['Объект',r.object],['Сумма',paymentAmount(r.amount)],['Оплатить до',paymentDate(r.due)],
+          ['Контрагент',r.counterparty],['Контактное лицо',r.contact],['Телефон',r.phone],['Эл. почта',r.email],['Исходный номер',r.legacyId]];
         const fileInput = (label, key) => '<label>' + label + '<input type="file" name="' + key + '" accept=".pdf,.jpg,.jpeg,.png"></label>';
         const roleLabels = {senior:'Старший управляющий',approver:'Главный согласующий',chief:'Главный бухгалтер',accountant:'Бухгалтер объекта'};
         const returnStages = [2,3].filter(id => r.status < 5 && id < r.status);
-        const manage = r.canManage ? '<details class="crm-pay-manage"><summary>Управление заявкой</summary><form data-pay-manage>'
+        const manage = r.canManage ? '<details><summary>Управление заявкой</summary><form class="tk-f" data-pay-manage>'
           + '<label>Действие<select name="action"><option value="assign">Передать сотруднику</option><option value="due">Перенести срок оплаты</option>'
           + (returnStages.length ? '<option value="return">Вернуть на этап согласования</option>' : '') + '</select></label>'
           + '<div data-pay-adjust="assign"><label>Чью роль передать<select name="role">'
@@ -662,30 +959,74 @@
           + '<div data-pay-adjust="return" hidden><label>Этап<select name="stage">'
           + returnStages.map(id=>'<option value="'+id+'">'+e(data.statuses[id])+'</option>').join('') + '</select></label></div>'
           + '<label>Причина<textarea name="comment" required maxlength="2000"></textarea></label>'
-          + '<button type="submit" class="kb-primary">Сохранить изменение</button></form></details>' : '';
+          + '<button type="submit" class="tk-btn pri">Сохранить изменение</button></form></details>' : '';
         const action = r.status === 4 ? 'Подтвердить оплату' : r.status === 5 ? 'Подтвердить документы и закрыть' : 'Согласовать';
-        const fileButton = f => '<button type="button" data-pay-file="'+Number(f.id)+'">' + e(f.name) + '</button>';
-        const observers = (r.subscribers || []).map(person => '<li>' + e(person.name) + (r.canWatch
-          ? '<button type="button" data-pay-remove="' + Number(person.id) + '" aria-label="' + e('Удалить наблюдающего ' + person.name) + '">Удалить</button>' : '') + '</li>').join('');
-        const watch = r.canWatch ? '<form data-pay-watch><label>Добавить наблюдающего<select name="user" required><option value="">Выберите сотрудника</option>'
+        const fileButton = f => '<button type="button" class="tk-msg-file" data-pay-file="'+Number(f.id)+'">📎 ' + e(f.name) + '</button>';
+        const observers = (r.subscribers || []).map(person => '<span class="tk-tag">' + e(person.name) + (r.canWatch
+          ? ' <button type="button" class="tk-reset" data-pay-remove="' + Number(person.id) + '" aria-label="' + e('Удалить наблюдающего ' + person.name) + '">×</button>' : '') + '</span>').join(' ');
+        const watch = r.canWatch ? '<form class="tk-f" data-pay-watch><label>Добавить наблюдающего<select name="user" required><option value="">Выберите сотрудника</option>'
           + data.employees.filter(x => !data.observerExclusions.includes(x.id))
             .map(x => '<option value="'+Number(x.id)+'">'+e(x.name)+'</option>').join('')
-          + '</select></label><button type="submit">Добавить</button></form>' : '';
-        body.innerHTML = '<p role="status" data-pay-status></p><div class="crm-pay-layout"><section aria-label="Переписка"><h3>Переписка</h3>'
-          + '<ol class="crm-pay-thread">' + r.history.map(entry => {
-            const file = r.files.find(x => x.id === entry.fileId);
-            return '<li><strong>'+e(entry.author)+'</strong> <time>'+e(paymentDate(entry.date) + (entry.date?.includes('T') ? ' · ' + new Date(entry.date).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : ''))+'</time>'
-              + (entry.text ? '<p>'+e(entry.text)+'</p>' : '') + (file ? fileButton(file) : '') + '</li>';
-          }).join('') + '</ol><form data-pay-message><label>Сообщение<textarea name="comment" maxlength="2000"></textarea></label>'
-          + fileInput('Прикрепить документ','file') + '<button type="submit" class="kb-primary">Отправить</button></form></section>'
-          + '<aside aria-label="Сведения о заявке"><h3>' + e(r.purpose || 'Сведения') + '</h3><dl class="crm-pay-values">'
-          + values.filter(x=>x[1]).map(x=>'<dt>'+e(x[0])+'</dt><dd>'+e(x[1])+'</dd>').join('') + '</dl>'
-          + (r.needsAction ? '<form data-pay-advance><label>Комментарий к решению<textarea name="comment" maxlength="2000"></textarea></label>'
+          + '</select></label><button type="submit" class="tk-btn">Добавить</button></form>' : '';
+        const awaiting = r.awaiting.map(x => x.name).join(', ');
+        const color = paymentColors[r.status];
+        const isSystem = entry => entry.kind !== 'message' && !entry.fileId && /^(Подана заявка$|Согласовано(?: старшим управляющим)?(?::|$)|Оплата подтверждена(?::|$)|Закрывающие документы проверены(?::|$)|Передано:|Срок перенесён:|Возврат на этап:|(?:Добавлен|Удалён) наблюдающий:|Заявка закрыта$|Этап изменён$)/.test(entry.text);
+        const systemCount = r.history.filter(isSystem).length;
+        const messageCount = r.history.length - systemCount;
+        const showSystem = body.querySelector('[data-pay-show-system]')?.checked || false;
+        const restoreFocus = body.contains(document.activeElement);
+        body.innerHTML = '<header class="tk-box-h"><div class="tk-box-t">' + e(r.purpose || 'Заявка на оплату')
+          + '<small><span class="tk-pill" style="color:'+color+';border-color:'+color+'55;background:'+color+'10">' + e(data.statuses[r.status])
+          + '</span> &nbsp;№' + id + '</small></div><button class="tk-x" type="button" aria-label="Закрыть карточку заявки">✕</button></header>'
+          + '<div class="tk-card-switch" role="group" aria-label="Разделы заявки"><button type="button" data-pay-pane="details">Сведения</button>'
+          + '<button type="button" data-pay-pane="chat">Переписка' + (messageCount ? ' (' + messageCount + ')' : '') + '</button></div>'
+          + '<div class="tk-card-body"><aside class="tk-card-data" aria-label="Сведения о заявке">'
+          + '<div class="tk-next"><div class="tk-next-t">' + (r.needsAction ? 'Заявка ждёт вашего действия' : e(data.statuses[r.status])) + '</div>'
+          + (awaiting ? '<div class="tk-next-s">' + e(awaiting) + '</div>' : '')
+          + (r.needsAction ? '<form class="tk-f" data-pay-advance><label>Комментарий к решению<textarea name="comment" maxlength="2000"></textarea></label>'
             + (r.status === 4 ? fileInput('Платёжное поручение','bill') : r.status === 5 ? fileInput('Акт / накладная / счёт-фактура','bill') + fileInput('Дополнения','extra') : '')
-            + '<button type="submit" class="kb-primary">'+action+'</button></form>' : '')
-          + (r.files.length ? '<h3>Документы</h3><ul>' + r.files.map(f=>'<li>' + e(data.fileLabels[f.kind] || 'Документ') + ' · ' + fileButton(f) + '</li>').join('') + '</ul>' : '')
-          + '<h3>Наблюдающие</h3>' + (observers ? '<ul class="crm-pay-observers">' + observers + '</ul>' : '<p>Нет наблюдающих</p>')
-          + watch + manage + '</aside></div>';
+            + '<div class="tk-actions"><button type="submit" class="tk-btn ok">'+action+'</button></div></form>' : '')
+          + '</div><section class="tk-card-section"><h3>Участники</h3><div class="tk-meta"><div><div class="l">Подал заявку</div>'
+          + e(r.author) + ' · ' + e(paymentDate(r.created)) + '</div>'
+          + (awaiting ? '<div><div class="l">Ожидается действие</div>' + e(awaiting) + '</div>' : '')
+          + '<div><div class="l">Наблюдающие</div>' + (observers || '—') + '</div></div>' + watch + '</section>'
+          + '<section class="tk-card-section"><h3>Сведения о заявке</h3><div class="tk-meta">'
+          + values.filter(x=>x[1]).map(([label,value]) => '<dl><dt class="l">'+e(label)+'</dt><dd>'+e(value)+'</dd></dl>').join('')
+          + '</div></section>' + (r.comment ? '<section class="tk-card-section"><h3>Комментарий при подаче</h3><div class="tk-desc">'+e(r.comment)+'</div></section>' : '')
+          + (r.files.length ? '<section class="tk-card-section"><h3>Документы</h3><div data-pay-files>' + r.files.map(f=>'<div><span class="tk-hint">'
+            + e(data.fileLabels[f.kind] || 'Документ') + '</span>' + fileButton(f) + '</div>').join('') + '</div></section>' : '')
+          + (manage ? '<section class="tk-card-section">' + manage + '</section>' : '') + '</aside>'
+          + '<section class="tk-tl" aria-label="Переписка"><div class="tk-tl-h"><b>Обсуждение</b>'
+          + (systemCount ? '<label class="tk-hint"><input type="checkbox" data-pay-show-system' + (showSystem ? ' checked' : '') + '> история изменений (' + systemCount + ')</label>' : '') + '</div>'
+          + '<div class="tk-thread" tabindex="0" role="region" aria-label="Переписка по заявке">' + r.history.map(entry => {
+            const file = r.files.find(x => x.id === entry.fileId);
+            const time = e(paymentDate(entry.date) + (entry.date?.includes('T') ? ' · ' + new Date(entry.date).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : ''));
+            if (isSystem(entry)) return '<div class="tk-msg sys" data-pay-system' + (showSystem ? '' : ' hidden') + '>'+time+' · '+e(entry.author)+': '+e(entry.text)+'</div>';
+            const own = entry.authorId && entry.authorId === P.me?.id;
+            return '<div class="tk-msg' + (own ? ' own' : '') + '">'
+              + (own ? '' : avaHtml(P.byId[entry.authorId] || {id:0},28,entry.author)) + '<div class="tk-msg-b">'
+              + (own ? '' : '<b class="tk-msg-author">'+e(entry.author)+'</b>') + '<div class="tk-msg-t">'+e(entry.text)+'</div>'
+              + (file ? fileButton(file) : '') + '<time class="tk-msg-time">'+time+'</time></div></div>';
+          }).join('') + (messageCount ? '' : '<div class="tk-hint">Сообщений пока нет.</div>') + '</div>'
+          + '<form class="tk-comment" data-pay-message><textarea name="comment" aria-label="Сообщение" placeholder="Написать сообщение…" maxlength="2000"></textarea>'
+          + '<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" hidden><button type="button" class="tk-btn" data-pay-attach title="Приложить файл" aria-label="Приложить файл">📎</button>'
+          + '<button type="submit" class="tk-btn pri" title="Отправить (Ctrl/⌘ + Enter)" aria-label="Отправить сообщение">➤</button></form>'
+          + '<div class="tk-hint tk-comment-file" data-pay-filename aria-live="polite"></div></section></div><p class="tk-hint" role="status" data-pay-status></p>';
+        const thread = body.querySelector('.tk-thread');
+        const panes = body.querySelectorAll('[data-pay-pane]');
+        function selectPane(pane) {
+          body.setAttribute('data-task-pane',pane);
+          panes.forEach(button => button.setAttribute('aria-pressed',String(button.getAttribute('data-pay-pane') === pane)));
+          thread.scrollTop = thread.scrollHeight;
+        }
+        body.querySelector('.tk-x').onclick = m.close;
+        if (restoreFocus || !body.hasAttribute('data-task-pane')) body.querySelector('.tk-x').focus({preventScroll:true});
+        panes.forEach(button => { button.onclick = () => selectPane(button.getAttribute('data-pay-pane')); });
+        selectPane(body.getAttribute('data-task-pane') || 'details');
+        const show = body.querySelector('[data-pay-show-system]');
+        if (show) show.onchange = () => {
+          body.querySelectorAll('[data-pay-system]').forEach(event => { event.hidden = !show.checked; });
+        };
         const status = body.querySelector('[data-pay-status]');
         body.querySelectorAll('[data-pay-file]').forEach(button => {
           button.onclick = async () => {
@@ -710,9 +1051,19 @@
           } catch (error) { status.textContent = error.message; button.disabled = false; }
         }
         const message = body.querySelector('[data-pay-message]');
+        message.querySelector('[data-pay-attach]').onclick = () => message.elements.file.click();
+        message.elements.file.onchange = () => {
+          body.querySelector('[data-pay-filename]').textContent = message.elements.file.files[0]?.name || '';
+        };
+        message.elements.comment.onkeydown = event => {
+          if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            message.requestSubmit();
+          }
+        };
         message.onsubmit = event => {
           event.preventDefault();
-          discuss(message.querySelector('button'),async () => ({action:'message',comment:message.elements.comment.value,
+          discuss(message.querySelector('[type=submit]'),async () => ({action:'message',comment:message.elements.comment.value,
             file:await paymentFile(message.elements.file.files[0])}));
         };
         const watchForm = body.querySelector('[data-pay-watch]');
@@ -759,7 +1110,10 @@
             if (feedback) feedback.textContent = 'Сохранено';
           } catch (error) { status.textContent = error.message; submit.disabled = false; }
         };
-      } catch (error) { body.textContent = error.message; }
+      } catch (error) {
+        body.innerHTML = '<header class="tk-box-h"><div class="tk-box-t">Заявка №' + id + '</div><button type="button" class="tk-x" aria-label="Закрыть">✕</button></header><div class="tk-box-b" role="alert">'+e(error.message)+'</div>';
+        body.querySelector('.tk-x').onclick = m.close;
+      }
     }
     render();
   }

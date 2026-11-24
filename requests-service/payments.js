@@ -168,7 +168,7 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
         const message = text(input.comment ?? '',2000,!input.file);
         const file = input.file && attachment(input.file,23);
         const fileId = file && Number(insertFile.run(id,file.kind,file.name,file.bytes).lastInsertRowid);
-        event = {text:message, fileId};
+        event = {kind:'message', authorId:user.id, text:message, fileId};
         recipients = [r.authorId, ...subscribers, ...pending(r).map(([,person]) => person)];
       } else if (['watch-add','watch-remove'].includes(input.action)) {
         if (!user.isAdmin) throw new PaymentError(403,'Наблюдающих меняет администратор');

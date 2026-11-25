@@ -267,7 +267,7 @@ function tkRenderListShell() {
     + '<select data-f="kind"><option value="">Любой тип</option>' + TK_KINDS.map(function(k) { return '<option' + (tk.kind === k ? ' selected' : '') + '>' + tkEsc(k) + '</option>'; }).join('') + '</select>'
     + '<select data-f="obj"><option value="">Любой объект</option><option value="-"' + (tk.obj === '-' ? ' selected' : '') + '>— без объекта —</option>' + d.objects.map(function(o) { return '<option' + (tk.obj === o.name ? ' selected' : '') + '>' + tkEsc(o.name) + '</option>'; }).join('') + '</select>'
     + '<button class="tk-reset" data-act="reset"' + (tkHasFilter() ? '' : ' style="display:none;"') + '>Сбросить фильтры</button>'
-    + '<div class="tk-layout" style="margin-left:auto;">' + [['list', 'Список'], ['board', 'Доска']].map(function(v) { return '<button data-layout="' + v[0] + '"' + (tk.layout === v[0] ? ' class="on"' : '') + '>' + v[1] + '</button>'; }).join('') + '</div>'
+    + window.crmTaskLayoutSwitch(tk.layout)
     + '</div><div class="tk-list" data-tk-list></div>';
   tkRenderList();
 }

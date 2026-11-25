@@ -740,6 +740,7 @@ async function markRead(conv) {
     });
     conv.unread = 0;
     conv.lastReadAt = new Date().toISOString();
+    window.crmRefreshMenuBadges?.();
   } catch (e) {}
 }
 

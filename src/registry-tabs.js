@@ -446,7 +446,7 @@ if (!document.getElementById('cm-notif-style')) {
     [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-green { background: #e5f1ea; border-color: #b9d9c5; color: #2f7d4f; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-gold { background: #f6eedb; border-color: #e8d3a6; color: #8a5a00; }
     [data-uid="ozazmpm4o4v"] .ant-table-tbody .ant-tag-red { background: #f9e6e6; border-color: #e7b9b9; color: #c23b3b; }
-    .cm-tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; margin-left: 6px; background: #8a5a00; color: #fff; font-size: 11px; font-weight: 600; text-align: center; vertical-align: 1px; }
+    .cm-tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; margin-left: 6px; background: #c23b3b; color: #fff; font-size: 11px; font-weight: 600; text-align: center; vertical-align: 1px; }
   `;
   document.head.appendChild(nst);
 }

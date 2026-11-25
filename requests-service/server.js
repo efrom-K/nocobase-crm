@@ -14,7 +14,7 @@ const path = require('path');
 const R = require('./rules');
 const { validContractPdf, contractPdf, parseContractPdf, MAX_CONTRACT_PDF_BYTES, MAX_CONTRACT_PDF_METADATA_BYTES } = require('./contract-pdf');
 const {objectRoute, RouteError} = require('./routes');
-const {createPayments, PaymentError, MAX_FILE: MAX_PAYMENT_FILE, STATUS: PAYMENT_STATUS, FILE_LABELS: PAYMENT_FILES} = require('./payments');
+const {createPayments, paymentManagementPosition, PaymentError, MAX_FILE: MAX_PAYMENT_FILE, STATUS: PAYMENT_STATUS, FILE_LABELS: PAYMENT_FILES} = require('./payments');
 const {createKnowledge, KnowledgeError, topics, audiences} = require('./knowledge');
 let knowledge;
 const OBJECT_MAP_HTML = fs.readFileSync(path.join(__dirname, 'object-map.html'));
@@ -77,7 +77,7 @@ async function whoami(token) {
   } catch (e) { u = null; }
   if (!u || !u.id) { tokenCache.delete(token); return null; }
   const roles = (u.roles || []).map(x => x.name);
-  const v = { id: u.id, name: u.nickname || u.username || '#' + u.id, knowledgeAudiences: roles, isAho: roles.includes('aho'), isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), readOnly: roles.includes('crm_readonly'), exp: Date.now() + 60000 };
+  const v = { id: u.id, name: u.nickname || u.username || '#' + u.id, knowledgeAudiences: roles, isAdmin: roles.includes('admin') || roles.includes('root'), isCtl: roles.includes(CTL_ROLE), readOnly: roles.includes('crm_readonly'), exp: Date.now() + 60000 };
   tokenCache.set(token, v);
   if (tokenCache.size > 500) for (const [k, x] of tokenCache) if (x.exp < Date.now()) tokenCache.delete(k);
   return v;
@@ -89,11 +89,24 @@ async function refs() {
   if (Date.now() - ref.at < 60000) return ref;
   const [users, emps, cfgRows] = await Promise.all([
     list('users', '&fields=' + ['id', 'nickname', 'username'].join(',') + '&appends=' + ['roles'].join(',')),
-    list('crm_employees', '&fields=' + ['user_id', 'department', 'fired_on'].join(',')),
+    list('crm_employees', '&fields=' + ['user_id', 'department', 'fired_on', 'status', 'position', 'full_name'].join(',')),
     list('crm_config', '&filter=' + q({ key: { $in: ['requests.urgency', 'requests.deptDays', 'requests.kinds'] } }))
   ]);
   ref.names = {}; ref.ctl = [];
   (users || []).forEach(u => { ref.names[u.id] = u.nickname || u.username; if ((u.roles || []).some(x => x.name === CTL_ROLE)) ref.ctl.push(u.id); });
+  const rolesByUser = new Map((users || []).map(u => [u.id,new Set((u.roles || []).map(role => role.name))]));
+  ref.paymentManagers = new Set();
+  const paymentObservers = new Map();
+  for (const employee of emps || []) {
+    const id = Number(employee.user_id), roles = rolesByUser.get(id);
+    if (!id || employee.fired_on || employee.status === 'fired') continue;
+    if (paymentManagementPosition(employee.position)) ref.paymentManagers.add(id);
+    if (employee.full_name && roles && !roles.has('crm_readonly') &&
+      (ref.paymentManagers.has(id) || roles.has(CTL_ROLE) || roles.has('admin') || roles.has('root'))) {
+      paymentObservers.set(id,{id,name:employee.full_name});
+    }
+  }
+  ref.paymentObservers = [...paymentObservers.values()].sort((a,b) => a.name.localeCompare(b.name,'ru'));
   ref.depts = {};   // user_id → [отделы]
   ref.deptUsers = {};   // отдел → [user_id]
   (emps || []).forEach(e => {
@@ -560,38 +573,40 @@ http.createServer(async (req, res) => {
     const paymentPath = p.match(/^\/payments(?:\/([1-9]\d*)(?:\/files\/([1-9]\d*))?)?$/);
     if (paymentPath && ['GET', 'POST'].includes(req.method)) {
       if (user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам на оплату');
+      const rf = await refs();
+      const actor = {...user,isPaymentManager:rf.paymentManagers.has(user.id)};
       const id = Number(paymentPath[1]), fileId = Number(paymentPath[2]);
       if (req.method === 'GET') {
         if (fileId) {
-          const file = paymentStore().file(id,fileId,user);
+          const file = paymentStore().file(id,fileId,actor);
           res.writeHead(200, {'Content-Type':'application/octet-stream', 'X-Content-Type-Options':'nosniff',
             'Content-Disposition':"attachment; filename*=UTF-8''" + encodeURIComponent(file.name), 'Cache-Control':'no-store'});
           return res.end(file.bytes);
         }
         if (id) {
-          const {observerExclusions, ...record} = paymentStore().detail(id,user);
-          const rf = await refs();
+          const {observerExclusions, ...record} = paymentStore().detail(id,actor);
           return send(res, 200, { record:{...record, awaiting:record.awaiting.map(x => ({...x,name:rf.names[x.id] || '—'})),
             subscribers:record.subscribers.map(id => ({id,name:rf.names[id] || 'Сотрудник № ' + id}))},
-            statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES, employees:record.canWatch ? await paymentEmployees() : [], observerExclusions }, origin);
+            statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES, employees:record.canManage ? await paymentEmployees() : [],
+            watchEmployees:record.canWatch ? rf.paymentObservers : [], observerExclusions }, origin);
         }
-        return send(res, 200, {rows:paymentStore().browse(user), statuses:PAYMENT_STATUS, canEditRoutes:!!user.isAdmin}, origin);
+        return send(res, 200, {rows:paymentStore().browse(actor), statuses:PAYMENT_STATUS, canEditRoutes:!!user.isAdmin}, origin);
       }
       if (!id || fileId) throw new ApiError(404, 'Заявка не найдена');
       limit('payment-action:' + user.id, 30, 600000);
       const input = await readJson(req, 2 * Math.ceil(MAX_PAYMENT_FILE / 3) * 4 + 16384);
       if (['message','watch-add','watch-remove'].includes(input?.action)) {
         if (input.action !== 'message' && !user.isAdmin) throw new ApiError(403,'Наблюдающих меняет администратор');
-        const result = paymentStore().discuss(user,id,input,input.action.startsWith('watch-') ? await paymentEmployees() : []);
+        const result = paymentStore().discuss(actor,id,input,rf.paymentObservers);
         await paymentNotice(result.pending,id,result.message,user.id);
         return send(res,200,{id,status:result.status},origin);
       }
       if (input?.action && !user.isAdmin) throw new ApiError(403,'Управлять заявкой может администратор');
-      const result = input?.action ? paymentStore().manage(user,id,input,input.action === 'assign' ? await paymentEmployees() : [])
-        : paymentStore().act(user,id,input);
+      const result = input?.action ? paymentStore().manage(actor,id,input,input.action === 'assign' ? await paymentEmployees() : [])
+        : paymentStore().act(actor,id,input);
       await paymentNotice(result.pending, id, result.message || PAYMENT_STATUS[result.status], user.id);
       if (result.status === 6) await paymentNotice([result.authorId], id, PAYMENT_STATUS[6], user.id);
-      return send(res, 200, {id,status:result.status}, origin);
+      return send(res, 200, {id,status:result.status,canRead:result.canRead}, origin);
     }
     if (p === '/object-route' && req.method === 'POST') {
       const route = await objectRoute(user, await readJson(req), async ids => {

@@ -1195,8 +1195,9 @@
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-label','Заявка на оплату № ' + id);
     const close = m.close;
+    const register = trigger?.closest('.crm-pay-register');
     m.close = () => {
-      const updated = trigger && (trigger.isConnected ? trigger : document.querySelector('[data-pay-id="'+id+'"]'));
+      const updated = trigger && (trigger.isConnected ? trigger : register?.querySelector('[data-pay-id="'+id+'"]') || register?.querySelector('[data-pay-filter]'));
       close();
       updated?.focus();
     };
@@ -1227,7 +1228,8 @@
         const observers = (r.subscribers || []).map(person => '<span class="tk-tag">' + e(person.name) + (r.canWatch
           ? ' <button type="button" class="tk-reset" data-pay-remove="' + Number(person.id) + '" aria-label="' + e('Удалить наблюдающего ' + person.name) + '">×</button>' : '') + '</span>').join(' ');
         const watch = r.canWatch ? '<form class="tk-f" data-pay-watch><label>Добавить наблюдающего</label>'
-          + taskPersonPicker(employees.filter(([id]) => !data.observerExclusions.includes(Number(id))),
+          + taskPersonPicker((data.watchEmployees || []).filter(person => !data.observerExclusions.includes(person.id))
+            .map(person => [String(person.id),person.name]),
             'name="user"','Добавить наблюдающего','','Выберите сотрудника')
           + '<button type="submit" class="tk-btn" data-observer-add>Добавить</button></form>' : '';
         const awaiting = r.awaiting.map(x => x.name).join(', ');
@@ -1374,10 +1376,15 @@
           if (submit.disabled) return;
           submit.disabled = true;
           try {
-            await paymentApi('payments/' + id, {status:r.status, targetStatus:transition?.nextStatus, comment:form.querySelector('textarea').value,
+            const result = await paymentApi('payments/' + id, {status:r.status, targetStatus:transition?.nextStatus, comment:form.querySelector('textarea').value,
               file:await paymentFile(form.querySelector('[name=bill]')?.files[0]), extra:await paymentFile(form.querySelector('[name=extra]')?.files[0])});
             transition = undefined;
             refreshPaymentCount();
+            if (result.canRead === false) {
+              await onChange?.();
+              m.close();
+              return;
+            }
             if (onChange) onChange();
             await render();
             const feedback = body.querySelector('[data-pay-status]');

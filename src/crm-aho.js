@@ -1142,7 +1142,8 @@ function aAttStatus(p, day, evs) {
   if (r.first) {
     r.st = p.emp && aMin(r.first) > aMin(sc.start) + grace ? (mk && mk.excused ? 'excused' : 'late') : 'came'; r.lateMin = aMin(r.first) - aMin(sc.start); return r;
   }
-  if (p.emp && aOnVac(p.emp.id, day)) { r.st = 'vac'; r.vac = aOnVac(p.emp.id, day); return r; }
+  r.vac = p.emp ? aOnVac(p.emp.id, day) : null;
+  if (r.vac) { r.st = 'vac'; return r; }
   if (sc.workDays.indexOf(wd) === -1) { r.st = 'off'; return r; }
   if (sc.remoteAll || sc.remoteDays.indexOf(wd) !== -1) { r.st = 'remote'; return r; }
   r.st = !p.emp ? 'off' : mk && mk.excused ? 'excused' : 'absent';
@@ -1170,6 +1171,17 @@ function aAttShift(n) {
   aRenderAtt();
 }
 const A_ATT_ST = { came: ['вовремя', 'green'], late: ['опоздание', 'red'], excused: ['уважительная причина', 'blue'], absent: ['нет прохода', 'orange'], vac: ['в отпуске', 'blue'], remote: ['удалённо', 'grey'], off: ['выходной', 'grey'] };
+const A_ATT_VAC_KINDS = cfg('hr.vacKinds');
+const A_ATT_VAC_CODES = new Map([
+  [A_ATT_VAC_KINDS[0], 'ОТ'], [A_ATT_VAC_KINDS[1], 'БС'], ['Учебный', 'УЧ'],
+  ['По беременности и родам', 'БР'], ['По уходу за ребёнком', 'УР']
+]);
+function aAttLabel(c) { return c.vac?.kind || (A_ATT_ST[c.st] || [''])[0]; }
+function aAttCode(c) {
+  if (c.st === 'vac') return A_ATT_VAC_CODES.get(c.vac?.kind) || 'О';
+  return { remote: 'У', absent: '—', excused: 'УП' }[c.st] || '';
+}
+const A_ATT_VAC_LEGEND = Array.from(A_ATT_VAC_CODES, function(entry) { return entry[1] + ' — ' + entry[0]; }).join(', ') + ', О — другой отпуск или вид не указан';
 async function aRenderAtt() {
   const a = ah.att;
   a.day = a.day || hToday();
@@ -1201,7 +1213,7 @@ async function aRenderAtt() {
         const s = x.s, st = A_ATT_ST[s.st];
         return aCoHead(rows, ri, function(r) { return r.p; }, 8) + '<tr><td>' + hEsc(x.p.name) + (x.p.emp ? (x.p.noCard ? ' <span class="hr-chip grey" title="Нет карты СКУД — приход можно отметить вручную">без карты</span> <button class="hr-btn sm" data-act="atthide" data-emp="' + x.p.emp.id + '" title="Не показывать в «Приходах» (сотрудник в CRM остаётся)">убрать</button>' : '') : ' <span class="hr-chip orange" title="Карта не сопоставлена с сотрудником CRM — вкладка «Карты»">не сопоставлен</span>') + '</td>'
           + '<td>' + hEsc(x.p.emp ? x.p.emp.position || '' : '') + '</td><td>' + (x.p.emp ? '<input type="time" class="att-start" data-start-emp="' + x.p.emp.id + '" value="' + hEsc(s.start) + '" title="Изменить начало дня — сохраняется в «График работы» сотрудника">' : '') + '</td><td>' + aArrCell(x.p, s) + '</td><td>' + hEsc(s.n > 1 ? s.last.slice(0, 5) : '') + '</td>'
-          + '<td class="n">' + (s.n || '') + '</td><td><span class="hr-chip ' + st[1] + '">' + st[0] + (s.st === 'late' || (s.st === 'excused' && s.lateMin > 0) ? ' ' + s.lateMin + ' мин' : '') + '</span>'
+          + '<td class="n">' + (s.n || '') + '</td><td><span class="hr-chip ' + st[1] + '">' + hEsc(aAttLabel(s)) + (s.st === 'late' || (s.st === 'excused' && s.lateMin > 0) ? ' ' + s.lateMin + ' мин' : '') + '</span>'
           + (x.p.emp && (s.mark && s.mark.excused || s.st === 'late' || s.st === 'absent') ? ' <label class="att-exc" title="Опоздание или отсутствие по уважительной причине — не считается"><input type="checkbox" data-mark-exc="' + x.p.emp.id + '"' + (s.mark && s.mark.excused ? ' checked' : '') + '> уважительная</label>' : '') + '</td>'
           + '<td>' + (x.p.emp ? '<input class="att-cmt" data-mark-cmt="' + x.p.emp.id + '" value="' + hEsc((s.mark && s.mark.comment) || '') + '" placeholder="' + (s.st === 'late' ? A_NO_REASON : s.st === 'absent' ? 'почему…' : '') + '">' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>'
@@ -1214,8 +1226,8 @@ function aOpenAttMark(empId, day) {
   const skud = c.skudFirst ? c.skudFirst.slice(0, 5) : '', was = (mk.time || '').slice(0, 5);
   const row = function(l, v) { return '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;"><label style="width:120px;flex:none;color:#5b6478;">' + l + '</label><div style="flex:1;">' + v + '</div></div>'; };
   const m = hModal('<div class="hr-box-h"><div class="hr-box-t">' + hEsc(p.name) + ' · ' + day.slice(8) + '.' + day.slice(5, 7) + '.' + day.slice(0, 4) + '</div><button class="hr-x">✕</button></div><div class="hr-box-b">'
-    + '<div style="margin-bottom:14px;"><span class="hr-chip ' + st[1] + '">' + st[0] + (c.lateMin > 0 && (c.st === 'late' || c.st === 'excused') ? ' ' + c.lateMin + ' мин' : '') + '</span>'
-    + ' <span class="hr-hint" style="margin:0;">по СКУД: ' + (skud ? 'приход ' + skud + (c.n > 1 ? ', последний вход ' + c.last.slice(0, 5) : '') + ', проходов ' + c.n : 'нет прохода') + (c.vac ? ' · в отпуске' : '') + '</span></div>'
+    + '<div style="margin-bottom:14px;"><span class="hr-chip ' + st[1] + '">' + hEsc(aAttLabel(c)) + (c.lateMin > 0 && (c.st === 'late' || c.st === 'excused') ? ' ' + c.lateMin + ' мин' : '') + '</span>'
+    + ' <span class="hr-hint" style="margin:0;">по СКУД: ' + (skud ? 'приход ' + skud + (c.n > 1 ? ', последний вход ' + c.last.slice(0, 5) : '') + ', проходов ' + c.n : 'нет прохода') + '</span></div>'
     + row('Приход', '<input type="time" class="att-start" data-t value="' + hEsc(was || skud) + '"' + (mk.remote ? ' disabled' : '') + '> <span class="hr-hint" style="margin:0 0 0 6px;">очистить — вернуть время по СКУД</span>')
     + row('Начало дня', '<input type="time" class="att-start" data-s value="' + hEsc(c.start) + '"> <span class="hr-hint" style="margin:0 0 0 6px;">меняет «График работы» сотрудника на все дни</span>')
     + row('', '<label class="att-exc" style="margin:0 16px 0 0;"><input type="checkbox" data-r' + (mk.remote ? ' checked' : '') + '> удалённо</label>'
@@ -1257,10 +1269,10 @@ function aRenderAttMonth(head) {
     const mk = c.mark, note = (mk && mk.time ? 'приход исправлен (по СКУД ' + (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') + '); ' : '') + (mk && mk.excused ? 'уважительная причина; ' : '') + aCmt(c);
     const mark = mk && (mk.comment || mk.time) ? '<sup style="color:#1c2d58;">*</sup>' : '';
     if (c.first) return '<td class="n"' + click + ' style="' + (click ? 'cursor:pointer;' : '') + (c.st === 'late' ? 'color:#c23b3b;font-weight:600;' : c.st === 'excused' ? 'color:#2f4a8a;' : '') + (we ? 'background:#f3f5f9;' : '') + '" title="' + hEsc((c.st === 'late' || c.st === 'excused' ? 'опоздание ' + c.lateMin + ' мин, ' : '') + 'проходов ' + c.n + (c.n > 1 ? ', последний ' + c.last.slice(0, 5) : '') + (note ? '\n' + note : '')) + '">' + c.first.slice(0, 5) + mark + '</td>';
-    const txt = { vac: 'О', remote: 'У', absent: '—', excused: 'УП' }[c.st] || '';
-    return '<td class="n"' + click + ' style="' + (click ? 'cursor:pointer;' : '') + (we || c.st === 'off' || c.st === 'future' ? 'background:#f3f5f9;' : '') + (c.st === 'absent' ? 'color:#8a5a00;' : c.st === 'excused' ? 'color:#2f4a8a;' : 'color:#5b6478;') + '"' + (note ? ' title="' + hEsc(note) + '"' : '') + '>' + txt + mark + '</td>';
+    const txt = aAttCode(c), detail = [c.vac ? aAttLabel(c) : '', note].filter(Boolean).join('\n');
+    return '<td class="n"' + click + ' style="' + (click ? 'cursor:pointer;' : '') + (we || c.st === 'off' || c.st === 'future' ? 'background:#f3f5f9;' : '') + (c.st === 'absent' ? 'color:#8a5a00;' : c.st === 'excused' ? 'color:#2f4a8a;' : 'color:#5b6478;') + '"' + (detail ? ' title="' + hEsc(detail) + '"' : '') + '>' + txt + mark + '</td>';
   };
-  aBody().innerHTML = head + '<div class="hr-hint" style="margin-bottom:8px;">О — отпуск, У — удалённый день, — — рабочий день без прохода, УП — отсутствие по уважительной причине; красным — опоздание, синим — опоздание по уважительной причине; * — есть комментарий или исправленное время. Наведите на ячейку — подробности. Нажмите на ячейку — настроить день: приход, удалённо, уважительная причина, комментарий, начало дня.</div>'
+  aBody().innerHTML = head + '<div class="hr-hint" style="margin-bottom:8px;">' + hEsc(A_ATT_VAC_LEGEND) + ', У — удалённый день, — — рабочий день без прохода, УП — отсутствие по уважительной причине; красным — опоздание, синим — опоздание по уважительной причине; * — есть комментарий или исправленное время. Наведите на ячейку — подробности. Нажмите на ячейку — настроить день: приход, удалённо, уважительная причина, комментарий, начало дня.</div>'
     + '<div class="hr-card hr-plan att-month"><table><thead><tr><th>Сотрудник</th>' + md.days.map(function(d) { return '<th class="n' + ([0, 6].indexOf(new Date(d + 'T00:00:00').getDay()) !== -1 ? ' we' : '') + '">' + Number(d.slice(8)) + '</th>'; }).join('')
     + '<th class="n">Дней</th><th class="n">Опозд.</th><th class="n" title="Без прохода">Без пр.</th></tr></thead><tbody>'
     + md.rows.map(function(r, ri) { return aCoHead(md.rows, ri, function(x) { return x.p; }, md.days.length + 4) + '<tr><td>' + hEsc(r.p.name) + '</td>' + r.cells.map(function(c, i) { return cell(c, md.days[i], r); }).join('') + '<td class="n"><b>' + r.came + '</b></td><td class="n"' + (r.late ? ' style="color:#c23b3b;"' : '') + '>' + r.late + '</td><td class="n">' + r.absent + '</td></tr>'; }).join('')
@@ -1290,7 +1302,7 @@ async function aAttXlsx(kind) {
     if (c.st === 'future' || (c.st === 'off' && !c.first)) return;
     const mk = c.mark || {};
     det.push([days[i], r.p.name].concat(all ? [r.p.grp || 'Карты без владельца'] : [], [r.p.emp ? r.p.emp.position || '' : '', r.p.emp ? c.start || '' : '', paint(c, (c.first || '').slice(0, 5)), mk.time ? (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') : '',
-      c.n > 1 ? c.last.slice(0, 5) : '', c.n || 0, paint(c, (A_ATT_ST[c.st] || [''])[0]), c.st === 'late' || (c.st === 'excused' && c.lateMin > 0) ? paint(c, c.lateMin) : null, aCmt(c)]));
+      c.n > 1 ? c.last.slice(0, 5) : '', c.n || 0, paint(c, aAttLabel(c)), c.st === 'late' || (c.st === 'excused' && c.lateMin > 0) ? paint(c, c.lateMin) : null, aCmt(c)]));
   }); });
   const cos = aAttCos();
   det.sort(function(x, y) { return x[0].localeCompare(y[0]) || (all ? cos.indexOf(x[2]) - cos.indexOf(y[2]) : 0) || x[1].localeCompare(y[1], 'ru'); });
@@ -1301,7 +1313,7 @@ async function aAttXlsx(kind) {
     rows: md.rows.map(function(r) {
       const notes = r.cells.map(function(c, i) { const mk = c.mark || {}; if (!(mk.comment || mk.time || mk.excused || c.st === 'late')) return '';
         return days[i].slice(8) + '.' + days[i].slice(5, 7) + ' — ' + [aCmt(c), mk.excused ? 'уважительная причина' : '', mk.time ? 'приход исправлен (по СКУД ' + (c.skudFirst ? c.skudFirst.slice(0, 5) : 'нет прохода') + ')' : ''].filter(Boolean).join('; '); }).filter(Boolean);
-      return [r.p.name].concat(all ? [r.p.grp || 'Карты без владельца'] : [], r.cells.map(function(c) { return paint(c, c.first ? c.first.slice(0, 5) + (c.st === 'late' ? ' оп.' : c.st === 'excused' ? ' ув.' : '') + (c.mark && c.mark.comment ? ' *' : '') : ({ vac: 'О', remote: 'У', absent: '—', excused: 'УП' }[c.st] || '')); }), [r.came, r.late, r.absent, notes.join('\n')]);
+      return [r.p.name].concat(all ? [r.p.grp || 'Карты без владельца'] : [], r.cells.map(function(c) { return paint(c, c.first ? c.first.slice(0, 5) + (c.st === 'late' ? ' оп.' : c.st === 'excused' ? ' ув.' : '') + (c.mark && c.mark.comment ? ' *' : '') : aAttCode(c)); }), [r.came, r.late, r.absent, notes.join('\n')]);
     }) });
   sheets.push({ name: 'Подробно', title: 'Приходы по СКУД — ' + coName + ', ' + per, total: true, freezeCols: 2,
     cols: [{ h: 'Дата', t: 'date', total: 'Итого' }, { h: 'Сотрудник', w: 28 }].concat(all ? [{ h: 'Компания', w: 14 }] : [], [{ h: 'Должность', w: 28 }, { h: 'Начало дня' }, { h: 'Приход' }, { h: 'По СКУД (если исправлено)' },
@@ -1310,7 +1322,7 @@ async function aAttXlsx(kind) {
   crmXlsx(file, {
     title: 'Приходы по СКУД — ' + coName + ', ' + per, filters: [['Компания', coName], ['Период', per], ['Данные СКУД', aSkudAge()]],
     notes: [['Приход', 'Первый проход по карте за день или время, исправленное АХО (тогда рядом — время по СКУД)'], ['Последний вход', 'Последний проход по карте за день (например, после обеда) — не уход: выход по кнопке СКУД не видит'],
-      ['Табель', 'Время прихода; «оп.» — опоздание, «ув.» — опоздание по уважительной причине, * — есть комментарий (в последней колонке); О — отпуск, У — удалённый день, — — рабочий день без прохода, УП — отсутствие по уважительной причине'],
+      ['Табель', 'Время прихода; «оп.» — опоздание, «ув.» — опоздание по уважительной причине, * — есть комментарий (в последней колонке); ' + A_ATT_VAC_LEGEND + ', У — удалённый день, — — рабочий день без прохода, УП — отсутствие по уважительной причине'],
       ['Цвет', 'Красный — опоздание, синий — уважительная причина, оранжевый — рабочий день без прохода'],
       ['Начало дня', 'Из «Графика работы» в карточке сотрудника, иначе ' + (ah.d.skud.skud_work_start || '09:00') + '; опоздание — больше ' + (ah.d.skud.skud_grace_min || '10') + ' мин']],
     sheets: sheets

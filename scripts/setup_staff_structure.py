@@ -7,7 +7,7 @@
       crm_employees — рабочие поля (ФИО, должность, отдел, объект, юрлицо, рабочий телефон и почта, график, учётка);
                       без даты рождения, дат приёма/увольнения, ставки, типа занятости, сроков договора, заметок HR;
       crm_departments — все поля, только просмотр; crm_legal_entities — название и руководитель;
-      crm_vacations — только даты (без вида отпуска: «за свой счёт», декрет и т. п. — личное);
+      crm_vacations — даты и статус; вид отпуска доступен только АХО для табеля СКУД;
       охрана труда, СОУТ, ЛНА, программы мотивации, мероприятия с бюджетами — закрыты (как уже закрыты паспорт, воинский учёт, подбор).
   Повторный запуск безопасен (создаёт или обновляет).
 
@@ -46,6 +46,22 @@ EDIT = {'aho': {'crm_employees': [['work_schedule']]}}
 DENY = ['crm_safety', 'crm_sout', 'crm_lna', 'crm_hr_programs', 'crm_hr_events',
         'crm_hr_private', 'crm_hr_files', 'crm_candidates', 'crm_vacancies', 'crm_staff_positions']
 
+if sys.argv[1:] == ['--aho-vacation-kind']:
+    base = 'roles/aho/resources'
+    rows, = call(base + ':list?paginate=false&filter=' + q({'name': 'crm_vacations'}))['data']
+    suffix = '?filterByTk=' + str(rows['id'])
+    current = call(base + ':get' + suffix + '&appends=actions')['data']
+    view, = [a for a in current['actions'] if a['name'] == 'view']
+    if 'kind' not in view['fields']:
+        actions = [{key: a[key] for key in ('id', 'name', 'fields', 'scopeId') if key in a}
+                   for a in current['actions']]
+        next(a for a in actions if a['name'] == 'view')['fields'] = view['fields'] + ['kind']
+        result = call(base + ':update' + suffix, {
+            'name': current['name'], 'usingActionsConfig': current['usingActionsConfig'], 'actions': actions})
+        if 'data' not in result:
+            sys.exit(str(ok(result)))
+    sys.exit(0)
+
 # 2. права по ролям
 roles = [r['name'] for r in call('roles:list?paginate=false').get('data', []) if r['name'] not in FULL | SKIP]
 for role in roles:
@@ -55,7 +71,7 @@ for role in roles:
         r = call('roles/%s/resources:update?filterByTk=%s' % (role, have[name]['id']), body) if name in have else call('roles/%s/resources:create' % role, body)
         return ok(r)
     for coll, flds in VIEW_ONLY.items():
-        acts = [{'name': 'view', 'fields': flds}] + [{'name': 'update', 'fields': f} for f in EDIT.get(role, {}).get(coll, [])]
+        acts = [{'name': 'view', 'fields': flds + (['kind'] if role == 'aho' and coll == 'crm_vacations' else [])}] + [{'name': 'update', 'fields': f} for f in EDIT.get(role, {}).get(coll, [])]
         print(role, coll, 'view' + (' + update' if len(acts) > 1 else ''), put(coll, acts))
     for coll in DENY:
         print(role, coll, 'deny', put(coll, []))

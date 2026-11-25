@@ -1,4 +1,5 @@
 // @include src/_crm-room-card.js
+// @include src/_crm-bell.js
 // @include src/_crm-profile.js
 // «Объекты» → вкладка «Планы и помещения» (/admin/j3a32zo1jzo/tab/objplantab1, блок objplanblk01): планы объектов и помещения с ID.
 // Слева объекты, в центре план (SVG, метры), справа карточка помещения; под планом — таблица помещений (сдано / свободно по ссылке на договор).

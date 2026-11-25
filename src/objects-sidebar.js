@@ -1,3 +1,4 @@
+// @include src/_crm-bell.js
 // @include src/_crm-profile.js
 // @include src/_crm-objects.js
 

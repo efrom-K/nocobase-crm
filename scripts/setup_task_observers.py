@@ -17,8 +17,8 @@ TASK = 'crm_tasks'
 EVENT = 'crm_task_events'
 ASSIGNMENT = {'author_id', 'author_name', 'executor_id', 'executor_name',
               'controller_id', 'controller_name', 'observers'}
-OPERATORS = {'admin', 'hr', 'aho'}
-SCOPED = {'crm_test', 'member', 'legal_dept', 'rental_dept', 'accounting_dept'}
+OPERATORS = {'admin', 'aho'}
+SCOPED = {'hr', 'crm_test', 'member', 'legal_dept', 'rental_dept', 'accounting_dept'}
 
 
 def api(path, values=None):
@@ -77,10 +77,36 @@ def action(name, fields, scope_id=None):
     return values
 
 
+def restrict_hr():
+    for collection, scopes in (
+        (TASK, {'view': 'Участники задачи и наблюдатели', 'update': 'Участники задачи без наблюдателей',
+                'destroy': 'Участники задачи без наблюдателей', 'export': 'Участники задачи и наблюдатели'}),
+        (EVENT, {'view': 'История доступных задач'}),
+    ):
+        resource = 'roles/hr/resources'
+        row, = query(resource, {'name': collection})
+        current = api(resource + ':get?filterByTk=' + str(row['id']) + '&appends=actions')
+        actions = []
+        for item in current['actions']:
+            values = {key: item[key] for key in ('name', 'fields', 'scopeId') if key in item}
+            if item['name'] in scopes:
+                saved, = query('dataSourcesRolesResourcesScopes', {
+                    'dataSourceKey': 'main', 'resourceName': collection, 'name': scopes[item['name']],
+                })
+                values['scopeId'] = saved['id']
+            actions.append(values)
+        acl('hr', collection, actions)
+    print('HR task and task history scopes installed.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prepare', action='store_true', help='install fields and service permissions only')
+    parser.add_argument('--hr-only', action='store_true', help='restrict existing HR task and history permissions only')
     args = parser.parse_args()
+    if args.hr_only:
+        restrict_hr()
+        return
     # NocoBase appends new fields to each explicit action list. Its field hook
     # rejects legacy null lists, which otherwise mean all existing fields.
     for collection in (TASK, EVENT):

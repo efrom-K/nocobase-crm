@@ -632,11 +632,25 @@ function dashExportXlsx() {
   const contractCols = [{ h: 'Объект' }, { h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Вид' }, { h: 'Статус' }, { h: 'Причина статуса', t: 'long', w: 34, total: false },
     { h: 'Площадь', t: 'area' }, { h: 'Аренда в месяц', t: 'money' }, { h: 'Эксплуатационный сбор в месяц', t: 'money' }, { h: 'Итого в месяц', t: 'money' }, { h: 'Обеспечительный платёж', t: 'money' },
     { h: 'Дата заключения', t: 'date' }, { h: 'Дата расторжения', t: 'date' }];
+  const contracts = d.active.slice().sort(function(a, b) { return objOf(a).localeCompare(objOf(b), 'ru') || String(a.contract_number || '').localeCompare(String(b.contract_number || ''), 'ru'); });
+  const periods = new Map();
+  (d.periods || []).forEach(function(p) {
+    if (p.contract_type !== 'active') return;
+    const id = String(p.contract_ref_id);
+    if (!periods.has(id)) periods.set(id, []);
+    periods.get(id).push(p);
+  });
+  const extraCols = contractCols.concat([{ h: 'Доп. расчёты и комментарии', t: 'long', w: 70, total: false }]);
+  const extraRow = function(r) {
+    const per = periods.get(String(r.id));
+    return contractRow(r).concat(per ? [{ v: planExtraTxt(per), paint: 'orange' }] : ['']);
+  };
   const terms = d.active.map(function(r) { return { r: r, t: termInfo(r) }; }).filter(function(x) { return x.t; }).sort(function(a, b) { return a.t.days - b.t.days; });
   crmXlsx('Дашборд — объекты аренды', {
     title: 'Объекты аренды — сводка', filters: [['Вид объектов', kindLbl]],
     notes: [['Площадь', 'В м²; складываются помещения (и договоры без вида), при фильтре «Земельные участки» — участки'], ['Итого в месяц', 'Аренда + эксплуатационный сбор по договору'],
-      ['Занятость, %', 'Сдано / общая площадь объекта'], ['Статус', 'Статус договора в реестре; «Требуют внимания» — все, кроме «В порядке»']],
+      ['Занятость, %', 'Сдано / общая площадь объекта'], ['Статус', 'Статус договора в реестре; «Требуют внимания» — все, кроме «В порядке»'],
+      ['Доп. расчёты', 'Все внесённые периоды действующего договора, включая завершённые и будущие. Приведены суммы, единицы расчёта и комментарии. Денежные колонки основного договора показывают базовые суммы без этих корректировок.']],
     sheets: [
       { name: 'Сводка', title: 'Объекты аренды — главные цифры', cols: [{ h: 'Показатель', w: 34 }, { h: 'Значение', w: 22 }, { h: 'Комментарий', t: 'long', w: 60 }],
         rows: [
@@ -659,13 +673,18 @@ function dashExportXlsx() {
             .concat(DASH_STATUS.map(function(x) { return cnt(o.active, x.v); })).concat(DASH_KINDS.map(function(k) { return o.active.filter(function(r) { return kindOf(r) === k.v; }).length; }));
         }) },
       { name: 'Действующие договоры', title: 'Действующие договоры', total: true, freezeCols: 1, cols: contractCols,
-        rows: d.active.slice().sort(function(a, b) { return objOf(a).localeCompare(objOf(b), 'ru') || String(a.contract_number || '').localeCompare(String(b.contract_number || ''), 'ru'); }).map(contractRow) },
+        rows: contracts.map(contractRow) },
+      { name: 'Договоры с доп. расчётами', title: 'Действующие договоры с дополнительными расчётами по всем объектам',
+        freezeCols: 3, cols: extraCols, rows: contracts.filter(function(r) { return periods.has(String(r.id)); }).map(extraRow) },
       { name: 'Требуют внимания', title: 'Договоры, требующие внимания', total: true, freezeCols: 1, cols: contractCols,
         rows: attention.slice().sort(function(a, b) { return String(a.contract_status || '').localeCompare(String(b.contract_status || '')); }).map(contractRow) },
       { name: 'Ближайшие расторжения', title: 'Расторжения в ближайшие 90 дней (и уже прошедшие у действующих)',
         cols: [{ h: 'Дата расторжения', t: 'date' }, { h: 'Через, дней', t: 'int' }, { h: 'Объект' }, { h: 'Номер договора' }, { h: 'Арендатор', w: 34 }, { h: 'Площадь', t: 'area' }, { h: 'Итого в месяц', t: 'money' }],
         rows: terms.map(function(x) { return [x.r.termination_date, x.t.days, objOf(x.r), x.r.contract_number || '', x.r.tenant_name || '', rub(dKop(x.r.area_sqm)), rub(monthlyKop(x.r))]; }) }
-    ]
+    ].concat(stats.map(function(o) {
+      return { name: o.name, title: o.name + ' — действующие договоры', total: true, freezeCols: 3,
+        cols: extraCols, rows: contracts.filter(function(r) { return objOf(r) === o.name; }).map(extraRow) };
+    }))
   });
 }
 

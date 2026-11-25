@@ -89,7 +89,7 @@ function crmXlsxBlob(spec) {
   const sheets = (spec.sheets || []).filter(function(s) { return s && s.cols && s.cols.length; }).slice();
   const about = [['Отчёт', spec.title || ''], ['Выгружено', stamp]].concat(who ? [['Кто выгрузил', who]] : []).concat(filt.map(function(f) { return [f[0], String(f[1])]; }))
     .concat([['Листы', sheets.map(function(s) { return s.name + ' — ' + (s.rows || []).length + ' строк'; }).join('; ')]]);
-  const usedNames = {};
+  const usedNames = new Set(['о выгрузке']);
   const sheetXml = function(sh) {
     const cols = sh.cols, n = cols.length, rows = sh.rows || [], last = col(n - 1);
     const H = 4, first = H + 1, end = H + rows.length;
@@ -158,9 +158,13 @@ function crmXlsxBlob(spec) {
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="30" customWidth="1"/><col min="2" max="2" width="90" customWidth="1"/></cols><sheetData>' + out + '</sheetData></worksheet>';
   };
   const all = sheets.map(function(s) {
-    let nm = String(s.name || 'Лист').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31);
-    while (usedNames[nm]) nm = nm.slice(0, 28) + ' ' + (Object.keys(usedNames).length + 1);
-    usedNames[nm] = 1;
+    const base = (String(s.name || 'Лист').replace(/[\\/?*[\]:]/g, ' ').trim().replace(/^'+|'+$/g, '') || 'Лист');
+    let nm = base.slice(0, 31).replace(/'+$/g, '');
+    for (let i = 2; usedNames.has(nm.toLowerCase()); i++) {
+      const suffix = ' ' + i;
+      nm = base.slice(0, 31 - suffix.length) + suffix;
+    }
+    usedNames.add(nm.toLowerCase());
     return { name: nm, xml: sheetXml(s) };
   }).concat([{ name: 'О выгрузке', xml: aboutXml() }]);
 

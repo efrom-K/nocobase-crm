@@ -948,11 +948,11 @@
       headers: {Authorization:'Bearer ' + (token || ''), 'Content-Type':'application/json'},
       body: input && JSON.stringify(input)
     });
-    if (response.status === 401) throw new Error('Войдите в CRM и повторите действие');
+    if (response.status === 401) throw Object.assign(new Error('Войдите в CRM и повторите действие'), {status:401});
     if (response.status === 413) throw new Error('Файл слишком большой');
     if (response.ok && path.includes('/files/')) return response.blob();
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Сервис заявок недоступен');
+    if (!response.ok) throw Object.assign(new Error(result.error || 'Сервис заявок недоступен'), {status:response.status});
     return result;
   }
   async function paymentFile(file) {
@@ -1280,6 +1280,7 @@
             try {
               await paymentApi('payments/' + id, {action:field('action'), status:r.status, revision:r.revision, comment:field('comment'),
                 role:field('role'), userId, due:field('due'), stage:Number(field('stage'))});
+              refreshPaymentCount();
               if (onChange) onChange();
               await render();
               const feedback = body.querySelector('[data-pay-status]');
@@ -1296,6 +1297,7 @@
             await paymentApi('payments/' + id, {status:r.status, targetStatus:transition?.nextStatus, comment:form.querySelector('textarea').value,
               file:await paymentFile(form.querySelector('[name=bill]')?.files[0]), extra:await paymentFile(form.querySelector('[name=extra]')?.files[0])});
             transition = undefined;
+            refreshPaymentCount();
             if (onChange) onChange();
             await render();
             const feedback = body.querySelector('[data-pay-status]');
@@ -1588,26 +1590,51 @@
     }
   }
   let taskCount = 0, taskBadge = null, taskCountRequest = 0;
-  function paintTaskCount() {
-    if (!taskCount) {
-      if (taskBadge) taskBadge.remove();
-      taskBadge = null;
-      return;
+  let paymentCount = 0, paymentBadge = null, paymentCountRequest = 0;
+  function paintMenuCount(count, badge, findItem, label) {
+    if (!count) {
+      badge?.remove();
+      return null;
     }
-    if (!taskBadge || !taskBadge.isConnected) {
-      const item = Array.from(document.querySelectorAll('.ant-menu-item')).find(function (node) {
-        return node.querySelector('a[href="/admin/tskpage01"]') || (node.innerText || '').trim() === 'Задачи';
-      });
-      if (!item) return;
-      taskBadge = document.createElement('span');
-      taskBadge.className = 'crmp-task-count';
+    if (!badge?.isConnected) {
+      const item = findItem();
+      if (!item) return null;
+      badge = document.createElement('span');
+      badge.className = 'crmp-task-count';
       item.style.position = 'relative';
-      item.appendChild(taskBadge);
+      item.appendChild(badge);
     }
-    const label = 'Новых задач: ' + taskCount;
-    taskBadge.title = label;
-    taskBadge.setAttribute('aria-label', label);
-    taskBadge.textContent = taskCount > 99 ? '99+' : String(taskCount);
+    badge.title = label + ': ' + count;
+    badge.setAttribute('aria-label', badge.title);
+    badge.textContent = count > 99 ? '99+' : String(count);
+    return badge;
+  }
+  function paintTaskCount() {
+    taskBadge = paintMenuCount(taskCount, taskBadge, () =>
+      Array.from(document.querySelectorAll('.ant-menu-item')).find(node =>
+        node.querySelector('a[href="/admin/tskpage01"]') || (node.innerText || '').trim() === 'Задачи'),
+    'Новых задач');
+  }
+  function paymentMenuItem() {
+    return document.querySelector('.ant-menu-item a[href="/admin/payreqpage1"]')?.closest('.ant-menu-item');
+  }
+  function paintPaymentCount() {
+    paymentBadge = paintMenuCount(paymentCount, paymentBadge, paymentMenuItem, 'Заявок на оплату ждут вашего действия');
+  }
+  async function refreshPaymentCount() {
+    if (!P.me || document.hidden || !location.pathname.startsWith('/admin') || !paymentMenuItem()) return;
+    const request = ++paymentCountRequest;
+    try {
+      const {rows} = await paymentApi('payments');
+      if (request !== paymentCountRequest) return;
+      paymentCount = rows.filter(row => row.needsAction === true).length;
+      paintPaymentCount();
+    } catch (error) {
+      if (request === paymentCountRequest && [401,403].includes(error.status)) {
+        paymentCount = 0;
+        paintPaymentCount();
+      }
+    }
   }
   async function refreshTaskCount() {
     if (!P.me || document.hidden || !location.pathname.startsWith('/admin')) return;
@@ -1628,10 +1655,15 @@
     }
   }
   window.crmRefreshTaskCount = refreshTaskCount;
+  function refreshMenuCounts() {
+    refreshTaskCount();
+    refreshPaymentCount();
+  }
   function decorate(force) {
     const btn = document.querySelector('[data-testid=user-center-button]');
     paintMayDay(btn);
-    if (taskCount && (!taskBadge || !taskBadge.isConnected)) paintTaskCount();
+    if (taskCount && !taskBadge?.isConnected) paintTaskCount();
+    if (paymentCount && !paymentBadge?.isConnected) paintPaymentCount();
     const me = P.me && (P.byId[P.me.id] || P.me);
     if (!me) return;
     const s = active(me);
@@ -1703,7 +1735,7 @@
   }
   load().then(function () {
     decorate(true);
-    refreshTaskCount();
+    refreshMenuCounts();
     const deepLink = location.search.match(/[?&]knowledge=(open|[1-9]\d*)(?:&|$)/);
     if (deepLink) openKnowledge(Number(deepLink[1]) || undefined);
     if (/[?&]payment=open(?:&|$)/.test(location.search)) openPayment();
@@ -1715,8 +1747,8 @@
   });
   setInterval(decorate, 600);
   setInterval(load, 60000);
-  setInterval(refreshTaskCount, 20000);
-  document.addEventListener('visibilitychange', refreshTaskCount);
+  setInterval(refreshMenuCounts, 20000);
+  document.addEventListener('visibilitychange', refreshMenuCounts);
   document.addEventListener('click', function (ev) {
     const link = ev.target.closest && ev.target.closest('a[href="/rqsvc/payment-request"]');
     if (!link || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;

@@ -686,6 +686,7 @@
       .kb-article { padding:18px 16px; }
     }
     .crmp-dlg.kp-dialog { width:650px; }
+    .crmp-dlg.pay-route-dialog { animation-name:crmpFade; }
     .kp-dialog form { padding:20px 24px; }
     .kp-dialog .kb-fields { margin:0; }
     .kp-dialog .kb-tools { justify-content:flex-end; margin:14px 0 0; }
@@ -976,7 +977,7 @@
   const paymentRoleLabels = {senior:'Старший управляющий',approver:'Главный согласующий',chief:'Главный бухгалтер',accountant:'Бухгалтер объекта'};
   async function openPaymentRoutes(trigger) {
     if (document.querySelector('[data-pay-routes]')) return;
-    const m = workDialog('Ответственные по заявкам на оплату','payment-routes','kp-dialog tk',
+    const m = workDialog('Ответственные по заявкам на оплату','payment-routes','kp-dialog pay-route-dialog tk',
       '<form data-pay-routes hidden><p>Настройка применяется к новым заявкам по выбранному объекту.</p>'
       + '<label>Объект <select name="object"></select></label><div class="tk-form" data-route-roles></div>'
       + '<div class="kb-tools"><button type="submit" class="tk-btn pri">Сохранить</button></div></form>'
@@ -984,13 +985,16 @@
     const form = m.querySelector('form'), status = m.querySelector('[role="status"]');
     const dialog = form.closest('[role="dialog"]');
     function fitMenu(input, menu) {
-      const field = input.parentElement.getBoundingClientRect(), bounds = dialog.getBoundingClientRect();
-      const below = Math.min(window.innerHeight,bounds.bottom) - field.bottom - 8;
-      const above = field.top - Math.max(0,bounds.top) - 8;
+      const field = input.parentElement.getBoundingClientRect();
+      const below = window.innerHeight - field.bottom - 8;
+      const above = field.top - 8;
       const openAbove = below < 230 && above > below;
-      menu.style.top = openAbove ? 'auto' : '';
-      menu.style.bottom = openAbove ? 'calc(100% + 4px)' : '';
-      menu.style.maxHeight = Math.max(0,Math.min(230,openAbove ? above : below)) + 'px';
+      Object.assign(menu.style,{
+        position:'fixed', left:field.left + 'px', right:'auto', width:field.width + 'px',
+        top:openAbove ? 'auto' : (field.bottom + 4) + 'px',
+        bottom:openAbove ? (window.innerHeight - field.top + 4) + 'px' : 'auto',
+        maxHeight:Math.max(0,Math.min(230,openAbove ? above : below)) + 'px'
+      });
     }
     function fitOpenMenu() {
       const input = form.querySelector('[aria-expanded="true"]');

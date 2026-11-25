@@ -52,14 +52,14 @@ def emp_url(e): return PAGE + '?open=emp:%s' % e['id']
 def name(e): return e['full_name'] or e['last_name']
 def les_of(e): return {x for x in [e['legal_entity_id']] + list(e['extra_le_ids'] or []) if x}
 
-# охрана труда: последняя запись по сотруднику, виду и компании (обучение ответственного идёт отдельно по каждому юрлицу)
+# Охрана труда: последняя запись по сотруднику и виду; «Документ» — комментарий.
 last = {}
-for s in rows("select * from crm_safety order by done_on nulls first"):
-    last[(s['employee_id'], s['kind'], (s['doc'] or '').split(' · ')[0])] = s
-for (eid, kind, comp), s in last.items():
+for s in rows("select * from crm_safety order by done_on nulls first, id"):
+    last[(s['employee_id'], s['kind'])] = s
+for (eid, kind), s in last.items():
     e = emps.get(eid) if eid else None
     if not s['next_on'] or (eid and (not e or e['status'] == 'fired')): continue
-    n, who = days(s['next_on']), (name(e) if e else 'общее мероприятие') + (' (%s)' % comp if comp else '')
+    n, who = days(s['next_on']), name(e) if e else 'общее мероприятие'
     if n < 0: add('safety:%s:late' % s['id'], 'Охрана труда: просрочено', '%s — %s (нужно было до %s)' % (kind, who, fmt(d(s['next_on']))), emp_url(e) if e else PAGE + '?sec=safety')
     elif n <= 30: add('safety:%s:30' % s['id'], 'Охрана труда: скоро срок', '%s — %s, до %s' % (kind, who, fmt(d(s['next_on']))), emp_url(e) if e else PAGE + '?sec=safety')
 

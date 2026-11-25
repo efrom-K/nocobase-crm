@@ -507,20 +507,16 @@ function hVacBalance(e, asOf) {
 function hN2(n) { return (hR2(n) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); }
 // ponytail: остаток = норма за год − запланированное в этом году; перенос с прошлых лет и начисление пропорционально стажу не считаются
 function hVacLeft(e, year) { return (Number(e.vacation_days) || 28) - hVacUsed(e, year); }
-// последняя запись по каждой компании (обучение ответственного идёт отдельно по юрлицу; компания — начало поля «Документ»)
-function hSafetyRecs(empId, kind, from, to) {
-  const by = {};
+// Последняя запись по сотруднику и виду обучения. Поле «Документ» — комментарий.
+function hSafetyLast(empId, kind, from, to) {
+  let last = null;
   hr.d.safety.forEach(function(s) {
     if (Number(s.employee_id || 0) !== Number(empId || 0) || s.kind !== kind) return;
-    if (from && to) { const done = hD(s.done_on), next = hD(s.next_on); if (!((done && done >= from && done <= to) || (next && next >= from && next <= to))) return; }
-    const c = String(s.doc || '').split(' · ')[0];
-    if (!by[c] || hD(s.done_on) >= hD(by[c].done_on)) by[c] = s;
+    const done = hD(s.done_on), next = hD(s.next_on);
+    if (from && to && !((done && done >= from && done <= to) || (next && next >= from && next <= to))) return;
+    if (!last || done > hD(last.done_on) || (done === hD(last.done_on) && Number(s.id) > Number(last.id))) last = s;
   });
-  return Object.keys(by).map(function(c) { return by[c]; });
-}
-// для статуса — самая срочная из них
-function hSafetyLast(empId, kind) {
-  return hSafetyRecs(empId, kind).sort(function(a, b) { return String(a.next_on || '9').localeCompare(String(b.next_on || '9')) || hD(b.done_on).localeCompare(hD(a.done_on)); })[0] || null;
+  return last;
 }
 // состояние записи: none | ok | soon (≤30 дней) | late
 function hDue(next) {
@@ -866,12 +862,11 @@ function hAlerts() {
   // охрана труда: последние записи с датой следующего
   staff.forEach(function(e) {
     HR_SAFETY.forEach(function(k) {
-      hSafetyRecs(e.id, k[0]).forEach(function(r) {
-        if (!r.next_on) return;
-        const s = hDue(r.next_on), comp = String(r.doc || '').split(' · ')[0];
-        if (s === 'late') add(0, k[3] + ': просрочено — ' + e.full_name + (comp ? ' (' + comp + ')' : ''), 'нужно было до ' + hDate(r.next_on), { emp: e.id }, r.next_on);
-        else if (s === 'soon') add(1, k[3] + ': ' + e.full_name + (comp ? ' (' + comp + ')' : '') + ' до ' + hDate(r.next_on), '', { emp: e.id }, r.next_on);
-      });
+      const r = hSafetyLast(e.id, k[0]);
+      if (!r || !r.next_on) return;
+      const s = hDue(r.next_on);
+      if (s === 'late') add(0, k[3] + ': просрочено — ' + e.full_name, 'нужно было до ' + hDate(r.next_on), { emp: e.id }, r.next_on);
+      else if (s === 'soon') add(1, k[3] + ': ' + e.full_name + ' до ' + hDate(r.next_on), '', { emp: e.id }, r.next_on);
     });
   });
   HR_SAFETY.slice(0, 2).forEach(function(k) {
@@ -1189,8 +1184,7 @@ function hXlsAuto(e, asOf, year, period) {
     const overlaps = function(a, b) { a = hD(a); b = hD(b); return !!(a || b) && (!a || a <= period.to) && (!b || b >= period.from); };
     const lna = hr.d.lna.filter(function(l) { return l.need_ack && (!l.legal_entity_id || hInLe(e, l.legal_entity_id)) && (!period || overlaps(l.approved_on, l.review_on)) && !(l.acks || {})[e.id]; });
     const safety = (e.employment_type || 'staff') === 'staff' ? HR_SAFETY.map(function(k) {
-      const recs = period ? hSafetyRecs(e.id, k[0], period.from, period.to) : [hSafetyLast(e.id, k[0])];
-      const r = recs.filter(Boolean).sort(function(a, b) { return String(a.next_on || '9').localeCompare(String(b.next_on || '9')) || hD(b.done_on).localeCompare(hD(a.done_on)); })[0];
+      const r = period ? hSafetyLast(e.id, k[0], period.from, period.to) : hSafetyLast(e.id, k[0]);
       return r && r.next_on ? hDays(period ? period.to : asOf, r.next_on) : null;
     }) : [];
     out.push(trial, trial ? hDays(asOf, trial) : null, docs.length - missing.length, missing.length, missing.map(function(d) { return d.doc; }).join(', '),
@@ -1399,7 +1393,7 @@ function hXlsSpec(o, leIds) {
   const has = function(p) { return o.parts.indexOf(p) !== -1; };
   const otSt = { none: 'нет записи', ok: 'в порядке', soon: 'скоро', late: 'просрочено' };
   const safetyInPeriod = function(r) { return inPeriod(r.done_on) || inPeriod(r.next_on); };
-  const otOf = function(e) { return HR_SAFETY.map(function(k) { const r = hSafetyRecs(e.id, k[0], from, to).sort(function(a, b) { return String(a.next_on || '9').localeCompare(String(b.next_on || '9')) || hD(b.done_on).localeCompare(hD(a.done_on)); })[0] || null; return { k: k[0], r: r, st: r ? hDue(r.next_on) : 'none' }; }); };
+  const otOf = function(e) { return HR_SAFETY.map(function(k) { const r = hSafetyLast(e.id, k[0], from, to); return { k: k[0], r: r, st: r ? hDue(r.next_on) : 'none' }; }); };
   const posOf = function(id) { return d.pos.filter(function(p) { return Number(p.legal_entity_id || 0) === id; }); };
   const liable = function(e) { const p = hPriv(e.id); return !!(p && p.mil_status === 'liable'); };
   const vacancyInPeriod = function(v) { return overlapsPeriod(v.opened_on, v.closed_on || ((v.status === 'open' || v.status === 'paused') ? asOf : v.due_on)) || inPeriod(v.due_on); };

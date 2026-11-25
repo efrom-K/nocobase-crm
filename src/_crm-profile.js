@@ -269,7 +269,7 @@
       }).join('') + '</div><div class="tk-person-empty" role="status" hidden>Сотрудники не найдены</div></div></div>';
   }
   function taskPersonKey(input) { return input.getAttribute('data-person-key') || ''; }
-  function bindTaskPeople(root) {
+  function bindTaskPeople(root, fitMenu) {
     root.querySelectorAll('[data-person-picker]').forEach(function(picker) {
       const input = picker.querySelector('input'), menu = picker.querySelector('.tk-person-list');
       const empty = menu.querySelector('[role="status"]'), options = Array.from(menu.querySelectorAll('[data-key]'));
@@ -296,6 +296,7 @@
         empty.hidden = !!visible.length;
         input.setAttribute('aria-expanded', 'true');
         menu.hidden = false;
+        fitMenu?.(input,menu);
       }
       function close() {
         highlight(-1);
@@ -685,6 +686,7 @@
       .kb-article { padding:18px 16px; }
     }
     .crmp-dlg.kp-dialog { width:650px; }
+    .crmp-dlg.pay-route-dialog { animation-name:crmpFade; }
     .kp-dialog form { padding:20px 24px; }
     .kp-dialog .kb-fields { margin:0; }
     .kp-dialog .kb-tools { justify-content:flex-end; margin:14px 0 0; }
@@ -975,12 +977,33 @@
   const paymentRoleLabels = {senior:'Старший управляющий',approver:'Главный согласующий',chief:'Главный бухгалтер',accountant:'Бухгалтер объекта'};
   async function openPaymentRoutes(trigger) {
     if (document.querySelector('[data-pay-routes]')) return;
-    const m = workDialog('Ответственные по заявкам на оплату','payment-routes','kp-dialog tk',
+    const m = workDialog('Ответственные по заявкам на оплату','payment-routes','kp-dialog pay-route-dialog tk',
       '<form data-pay-routes hidden><p>Настройка применяется к новым заявкам по выбранному объекту.</p>'
       + '<label>Объект <select name="object"></select></label><div class="tk-form" data-route-roles></div>'
       + '<div class="kb-tools"><button type="submit" class="tk-btn pri">Сохранить</button></div></form>'
       + '<div class="kb-status" role="status">Загрузка…</div>',trigger);
     const form = m.querySelector('form'), status = m.querySelector('[role="status"]');
+    const dialog = form.closest('[role="dialog"]');
+    function fitMenu(input, menu) {
+      const field = input.parentElement.getBoundingClientRect();
+      const below = window.innerHeight - field.bottom - 8;
+      const above = field.top - 8;
+      const openAbove = below < 230 && above > below;
+      Object.assign(menu.style,{
+        position:'fixed', left:field.left + 'px', right:'auto', width:field.width + 'px',
+        top:openAbove ? 'auto' : (field.bottom + 4) + 'px',
+        bottom:openAbove ? (window.innerHeight - field.top + 4) + 'px' : 'auto',
+        maxHeight:Math.max(0,Math.min(230,openAbove ? above : below)) + 'px'
+      });
+    }
+    function fitOpenMenu() {
+      const input = form.querySelector('[aria-expanded="true"]');
+      if (input) fitMenu(input,input.parentElement.querySelector('.tk-person-list'));
+    }
+    dialog.addEventListener('scroll',fitOpenMenu);
+    window.addEventListener('resize',fitOpenMenu);
+    const close = m.close;
+    m.close = () => { window.removeEventListener('resize',fitOpenMenu); close(); };
     try {
       const {routes,employees} = await paymentApi('payment-routes');
       if (!routes.length) { status.textContent = 'Нет объектов с маршрутом оплаты'; return; }
@@ -995,7 +1018,7 @@
           const choices = people.some(person => person[0] === current) ? people : [[current,'Текущий сотрудник № ' + current],...people];
           return '<div><div>' + label + '</div>' + taskPersonPicker(choices,'name="' + role + '"',label,current,'Выберите сотрудника') + '</div>';
         }).join('');
-        bindTaskPeople(fields);
+        bindTaskPeople(fields,fitMenu);
       }
       render();
       status.textContent = '';

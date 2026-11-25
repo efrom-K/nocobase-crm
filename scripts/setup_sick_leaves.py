@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 import urllib.parse
 import urllib.request
 
@@ -43,6 +44,8 @@ def permissions(role):
         fields = [field[0] for field in FIELDS]
         actions = [{'name': name, 'fields': (['id'] + fields) if name in {'view', 'destroy'} else fields}
                    for name in ('view', 'create', 'update', 'destroy')]
+    elif role == 'aho':
+        actions = [{'name': 'view', 'fields': ['employee_id', 'start_date', 'end_date']}]
     values = {'name': COLLECTION, 'usingActionsConfig': True, 'actions': actions}
     if existing:
         target = '?filterByTk=' + str(existing[0]['id'])
@@ -57,6 +60,9 @@ def permissions(role):
 
 
 def main():
+    if sys.argv[1:] == ['--aho-only']:
+        permissions('aho')
+        return
     if not rows('collections', COLLECTION):
         fields = [{'name': name, 'type': kind, 'interface': interface,
                    'uiSchema': {'title': title, 'x-component': component}}

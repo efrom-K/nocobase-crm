@@ -342,6 +342,12 @@
   window.crmTaskPersonKey = taskPersonKey;
   window.crmBindTaskPeople = bindTaskPeople;
 
+  window.crmTaskLayoutSwitch = function (layout) {
+    return '<div class="tk-layout" style="margin-left:auto;">' + [['list','Список'], ['board','Доска']].map(([value,label]) =>
+      '<button type="button" data-layout="' + value + '" aria-pressed="' + (layout === value) + '"'
+      + (layout === value ? ' class="on"' : '') + '>' + label + '</button>').join('') + '</div>';
+  };
+
   window.crmTaskStyles = function () {
     if (!document.getElementById('crm-controls-style')) {
       const st = document.createElement('style');
@@ -687,6 +693,8 @@
     .kp-dialog input[type=file] { padding:6px; }
     .kp-dialog small { color:#5b6478; font-weight:400; }
     .crm-pay-register { min-width:0; }
+    .crm-pay-register .tk-row { color:inherit; text-decoration:none; }
+    .crm-pay-register .tk-row-meta span { white-space:normal; overflow-wrap:anywhere; }
     .crm-pay-register .kb-card { display:block; color:inherit; text-decoration:none; cursor:pointer; }
     .crm-pay-register .kb-card[draggable=true] { cursor:grab; }
     .crm-pay-register .kb-card[draggable=true]:active { cursor:grabbing; }
@@ -968,27 +976,67 @@
     window.crmTaskStyles();
     workDialogStyles();
     panel.classList.add('tk','crm-pay-register');
-    let filter = '', rows = [], statuses = {};
+    const layoutKey = 'crm-payments-layout';
+    let layout = 'list', filter = '', rows = [], statuses = {};
+    try { if (localStorage.getItem(layoutKey) === 'board') layout = 'board'; } catch (error) { /* список по умолчанию */ }
+    function renderList(items) {
+      return '<div class="tk-list">' + (items.length ? items.map(x => {
+        const color = paymentColors[x.status] || '#5b6478';
+        return '<a class="tk-row" style="--c:' + color + '" draggable="false" data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
+          + Number(x.id) + '"><div style="min-width:0"><div class="tk-row-title">'
+          + (x.needsAction ? '<span class="tk-urg">Ждёт вашего действия · </span>' : '') + e(x.purpose || 'Заявка на оплату')
+          + '</div><div class="tk-row-meta"><span>' + e(x.counterparty || '—') + '</span><span>📅 ' + e(paymentDate(x.due))
+          + '</span><span>' + e(paymentAmount(x.amount)) + '</span>' + (x.object ? '<span class="tk-tag">' + e(x.object) + '</span>' : '')
+          + '</div></div><div class="tk-row-side"><span class="tk-pill" style="color:' + color + ';border-color:' + color + '55;background:' + color + '10;">'
+          + e(statuses[x.status] || '—') + '</span><div class="tk-hint">№' + Number(x.id) + '</div></div></a>';
+      }).join('') : '<div class="tk-empty"><b>' + (filter ? 'Под фильтр ничего не попало' : 'Заявок пока нет') + '</b></div>') + '</div>';
+    }
     function render() {
       const stages = Object.entries(statuses).filter(([id]) => id !== '0' || rows.some(x => x.status === 0));
+      const items = filter ? rows.filter(x => String(x.status) === filter) : rows;
       const columns = stages.filter(([id]) => !filter || id === filter);
       const scroll = panel.querySelector('.kb')?.scrollLeft || 0;
       panel.innerHTML = '<div class="tk-filters"><select aria-label="Статус" data-pay-filter><option value="">Все статусы</option>'
         + stages.map(([id,name]) => '<option value="' + id + '"' + (id === filter ? ' selected' : '') + '>' + e(name) + '</option>').join('')
-        + '</select><button type="button" class="tk-btn" data-pay-refresh>Обновить</button></div>'
-        + '<div class="kb" style="--n:'+columns.length+'" tabindex="0" role="region" aria-label="Канбан заявок">'
+        + '</select><button type="button" class="tk-btn" data-pay-refresh>Обновить</button>'
+        + window.crmTaskLayoutSwitch(layout) + '</div>'
+        + (layout === 'list' ? renderList(items) : '<div class="kb" style="--n:'+columns.length+'" tabindex="0" role="region" aria-label="Канбан заявок">'
         + columns.map(([status,name]) => {
-          const items = rows.filter(x => String(x.status) === status);
-          return '<section class="kb-col" data-pay-stage="'+status+'"><div class="kb-col-h" style="--c:'+paymentColors[status]+'"><i></i>' + e(name) + '<b>' + items.length + '</b></div><div class="kb-col-b">'
-            + items.map(x => '<a class="kb-card" style="--c:'+paymentColors[status]+'" draggable="'
+          const cards = items.filter(x => String(x.status) === status);
+          return '<section class="kb-col" data-pay-stage="'+status+'"><div class="kb-col-h" style="--c:'+paymentColors[status]+'"><i></i>' + e(name) + '<b>' + cards.length + '</b></div><div class="kb-col-b">'
+            + cards.map(x => '<a class="kb-card" style="--c:'+paymentColors[status]+'" draggable="'
               + String(!filter && x.nextStatus != null && x.nextStatus !== x.status) + '" data-pay-id="' + Number(x.id) + '" href="/admin/payreqpage1?payments='
               + Number(x.id) + '"><div class="kb-t">' + e(x.purpose || 'Заявка на оплату') + '</div><div class="kb-s">№' + Number(x.id)
               + ' · ' + e(x.object || '—') + '</div><div class="kb-s">' + e(x.counterparty || '—') + '</div><div class="kb-s">'
               + e(paymentAmount(x.amount)) + ' · до ' + e(paymentDate(x.due)) + '</div>'
               + (x.needsAction ? '<div class="kb-s tk-urg">Ждёт вашего действия</div>' : '') + '</a>').join('')
-            + (items.length ? '' : '<div class="kb-empty">Пусто</div>') + '</div></section>';
-        }).join('') + '</div>';
+            + (cards.length ? '' : '<div class="kb-empty">Пусто</div>') + '</div></section>';
+        }).join('') + '</div>');
       const board = panel.querySelector('.kb');
+      if (board) bindBoard(board, scroll);
+      panel.querySelector('[data-pay-filter]').onchange = event => {
+        filter = event.target.value;
+        render();
+        panel.querySelector('[data-pay-filter]').focus();
+      };
+      panel.querySelector('[data-pay-refresh]').onclick = refresh;
+      panel.querySelectorAll('[data-layout]').forEach(button => {
+        button.onclick = () => {
+          layout = button.dataset.layout;
+          try { localStorage.setItem(layoutKey, layout); } catch (error) { /* выбор действует до закрытия */ }
+          render();
+          panel.querySelector('[data-layout="' + layout + '"]').focus();
+        };
+      });
+      panel.querySelectorAll('[data-pay-id]').forEach(link => {
+        link.onclick = event => {
+          if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          openPaymentCard(Number(link.dataset.payId),link,refresh);
+        };
+      });
+    }
+    function bindBoard(board, scroll) {
       let dragged;
       function clearDrag() {
         dragged = null;
@@ -1029,19 +1077,6 @@
       };
       board.scrollLeft = scroll;
       fitPaymentBoards();
-      panel.querySelector('[data-pay-filter]').onchange = event => {
-        filter = event.target.value;
-        render();
-        panel.querySelector('[data-pay-filter]').focus();
-      };
-      panel.querySelector('[data-pay-refresh]').onclick = refresh;
-      panel.querySelectorAll('[data-pay-id]').forEach(link => {
-        link.onclick = event => {
-          if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-          event.preventDefault();
-          openPaymentCard(Number(link.getAttribute('data-pay-id')),link,refresh);
-        };
-      });
     }
     async function refresh() {
       try {

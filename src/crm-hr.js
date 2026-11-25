@@ -555,9 +555,10 @@ async function hLoad() {
     L('crm_vacancies', { sort: ['-opened_on'] }).catch(function() { return []; }),
     L('crm_candidates', { sort: ['interview_on', 'interview_time'] }).catch(function() { return []; }),
     L('users', { fields: ['id', 'username'] }).catch(function() { return []; }),
-    L('crm_le_owners', { sort: ['legal_entity_id', '-share_pct'] }).catch(function() { return []; })   // учредители — только admin и hr
+    L('crm_le_owners', { sort: ['legal_entity_id', '-share_pct'] }).catch(function() { return []; }),
+    HR_MODE === 'hr' ? L('crm_sick_leaves', { sort: ['start_date'] }).catch(function() { return null; }) : null   // учредители — только admin и hr
   ]);
-  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], files: r[10], objects: r[11], tasks: r[12], pos: r[13], vacancies: r[14], cands: r[15], users: r[16], owners: r[17] };
+  hr.d = { emps: r[0], depts: r[1], les: r[2], vacs: r[3], safety: r[4], sout: r[5], lna: r[6], progs: r[7], events: r[8], priv: r[9], files: r[10], objects: r[11], tasks: r[12], pos: r[13], vacancies: r[14], cands: r[15], users: r[16], owners: r[17], sick: r[18] };
   hr.myEmp = hr.d.emps.find(function(e) { return hr.me && Number(e.user_id) === Number(hr.me.id); }) || null;
 }
 
@@ -1023,7 +1024,7 @@ hRoot().addEventListener('input', function(e) {
 });
 hStart();
 
-const HR_SECTIONS = { staff: 'Сотрудники', hire: 'Подбор и штат', vac: 'Отпуска', safety: 'Охрана труда и СОУТ', mil: 'Воинский учёт', docs: 'Документы и мероприятия', own: 'Юрлица и учредители' };
+const HR_SECTIONS = { staff: 'Сотрудники', hire: 'Подбор и штат', vac: 'Отпуска', sick: 'Больничные', safety: 'Охрана труда и СОУТ', mil: 'Воинский учёт', docs: 'Документы и мероприятия', own: 'Юрлица и учредители' };
 function hRender() {
   let head;
   if (HR_MODE === 'staff') {   // общий раздел: три вкладки
@@ -1038,7 +1039,7 @@ function hRender() {
         + (hr.tab === 'staff' ? '<button class="hr-new" data-act="newemp"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Сотрудник</button>' : '') + '</div>';
   }
   hRoot().innerHTML = head + '<div data-hr-body></div>';
-  ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs, hire: hRenderHire, own: hRenderOwn })[hr.tab]();
+  ({ home: hRenderHome, staff: hRenderStaff, org: hRenderStaff, vac: hRenderVac, sick: function() { hRenderVacCalendar(hBody(), true); }, safety: hRenderSafety, mil: hRenderMil, docs: hRenderDocs, hire: hRenderHire, own: hRenderOwn })[hr.tab]();
 }
 function hGo(go) {
   if (go.emp) return hOpenEmp(go.emp);
@@ -1554,7 +1555,9 @@ function hOnClick(e) {
   if (a === 'sv') { hr.staffView = act.getAttribute('data-v'); hRenderStaff(); return; }
   if (a === 'newdep') return hEditDept(null, hDepTop(), function(x) { if (x) hOpenDept(x.id); });
   if (a === 'newle') return hOpenLe(null);
-  if (a === 'year') { hr.year += Number(act.getAttribute('data-d')); (hr.tab === 'hire' ? hRenderHire : hRenderVac)(); return; }
+  if (a === 'year') { hr.year += Number(act.getAttribute('data-d')); (hr.tab === 'hire' ? hRenderHire : hr.tab === 'sick' ? hRender : hRenderVac)(); return; }
+  if (a === 'newsick') return hOpenSick(null, {});
+  if (a === 'sickxlsx') return hSickXlsx();
   if (a === 'newvac') return hOpenVac(null, {});
   if (a === 'vac1c') return hVacImport1c();
   if (a === 'newpb') return hOpenSafety(null, { kind: HR_PB_COMMON[0][0] });
@@ -1575,12 +1578,15 @@ function hOnClick(e) {
   if (le) return hOpenLe(hLe(le.getAttribute('data-le')));
   const vdc = c('[data-vdays]');
   if (vdc) return hEditVacDays(hEmp(vdc.getAttribute('data-vdays')));
+  const sb = c('[data-sick]');
+  if (sb) { e.stopPropagation(); return hOpenSick(hr.d.sick.find(function(v) { return v.id === Number(sb.getAttribute('data-sick')); })); }
   const vb = c('[data-vac]');
   if (vb) { e.stopPropagation(); return hOpenVac(hr.d.vacs.find(function(v) { return v.id === Number(vb.getAttribute('data-vac')); })); }
   const tr = c('[data-track]');
   if (tr) {   // клик по пустому месту шкалы — новый отпуск с этой даты
     const r = tr.getBoundingClientRect(), y = hr.year, diy = hDays(y + '-01-01', (y + 1) + '-01-01');
     const s = new Date(y, 0, 1 + Math.floor((e.clientX - r.left) / r.width * diy));
+    if (hr.tab === 'sick') return hOpenSick(null, { employee_id: Number(tr.getAttribute('data-track')), start_date: hIso(s), end_date: hIso(s) });
     const en = new Date(s); en.setDate(en.getDate() + 13);
     return hOpenVac(null, { employee_id: Number(tr.getAttribute('data-track')), start_date: hIso(s), end_date: hIso(en) });
   }
@@ -1636,6 +1642,7 @@ function hRenderHome() {
         'кандидатов в работе ' + d.cands.filter(function(c) { return ['new', 'interview', 'offer'].indexOf(c.stage) !== -1; }).length
         + ' · собеседований на неделе ' + d.cands.filter(function(c) { return c.stage === 'interview' && c.interview_on && hDays(t, c.interview_on) >= 0 && hDays(t, c.interview_on) <= 7; }).length
         + ' · свободно ставок ' + d.pos.reduce(function(n, p) { return n + Math.max(0, hPosFree(p)); }, 0))
+    + tile('sick', (hr.d.sick || []).filter(function(v) { return hD(v.start_date) <= t && hD(v.end_date) >= t; }).length, 'на больничном')
     + tile('vac', onVac.length + ' <small style="font-size:13px;font-weight:400;">в отпуске</small>', soon.length ? 'в ближайший месяц уходят ' + soon.length : 'в ближайший месяц никто не уходит')
     + tile('safety', lateSafety ? '<span style="color:#c23b3b;">' + lateSafety + '</span> <small style="font-size:13px;font-weight:400;">просрочено</small>' : '✓', 'обучение, инструктажи, пожарная безопасность, СОУТ · ' + d.sout.length + ' раб. мест')
     + tile('mil', liable + ' <small style="font-size:13px;font-weight:400;">на учёте</small>', 'организации: сверки и планы; военнообязанные')
@@ -2327,27 +2334,61 @@ function hRenderVacPdfs(box) {
   hFilterVacPdfs();
 }
 
-function hRenderVacCalendar(box) {
+function hSickDays(v) { return hDays(v.start_date, v.end_date) + 1; }
+function hSickYear(y) {
+  return (hr.d.sick || []).filter(function(v) { return hD(v.start_date) <= y + '-12-31' && hD(v.end_date) >= y + '-01-01'; });
+}
+function hOpenSick(v, preset) {
+  if (!hCan() || !hr.d.sick) return;
+  hEdit({ coll: 'crm_sick_leaves', rec: v, preset: preset, title: v ? 'Больничный: ' + ((hEmp(v.employee_id) || {}).full_name || '') : 'Новый больничный',
+    spec: [['employee_id', 'Сотрудник', 'select', hEmpOpts, 1], ['start_date', 'С', 'date', null, 1], ['end_date', 'По (включительно)', 'date', null, 1],
+      ['document_no', 'Номер больничного', 'text'], ['note', 'Заметки', 'textarea']],
+    prepare: function(vals) {
+      if (vals.end_date < vals.start_date) return 'Окончание раньше начала';
+      const clash = hr.d.sick.find(function(x) { return Number(x.employee_id) === Number(vals.employee_id) && (!v || x.id !== v.id) && hD(x.start_date) <= vals.end_date && hD(x.end_date) >= vals.start_date; });
+      if (clash) return 'Пересекается с больничным ' + hDate(clash.start_date) + ' – ' + hDate(clash.end_date);
+      return vals;
+    } });
+}
+function hSickXlsx() {
+  if (!hCan() || !hr.d.sick) return;
+  crmXlsx('Больничные ' + hr.year, { sheets: [{ name: 'Больничные', title: 'Больничные за ' + hr.year + ' год',
+    cols: [{ h: 'Сотрудник', w: 30 }, { h: 'Отдел', w: 22 }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Номер больничного', w: 22 }, { h: 'Заметки', w: 36 }],
+    rows: hSickYear(hr.year).map(function(v) { const e = hEmp(v.employee_id) || {}; return [e.full_name || '', e.department || '', hD(v.start_date), hD(v.end_date), hSickDays(v), v.document_no || '', v.note || '']; })
+  }] });
+}
+function hRenderVacCalendar(box, sick) {
+  if (sick && (!hCan() || !hr.d.sick)) { box.innerHTML = '<div class="hr-empty">Больничные недоступны</div>'; return; }
   const y = hr.year, diy = hDays(y + '-01-01', (y + 1) + '-01-01'), t = hToday(), can = hCan();
   const mw = HR_MONTHS.map(function(x, i) { return hDays(hIso(new Date(y, i, 1)), hIso(new Date(y, i + 1, 1))) / diy * 100; });
   const bg = mw.map(function(w, i) { return '<i style="width:' + w + '%;"' + (i % 2 ? ' class="odd"' : '') + '></i>'; }).join('');
   const people = hStaff().sort(function(a, b) { return String(a.department || 'я').localeCompare(String(b.department || 'я'), 'ru') || String(a.full_name).localeCompare(String(b.full_name), 'ru'); });
   const ys = y + '-01-01', ye = y + '-12-31';
   const holidays = hRuHolidays(y).map(function(h) { return '<i class="hr-holiday" title="' + hEsc(h.name + ' — ' + hDate(h.date)) + '" style="left:' + (hDays(ys, h.date) / diy * 100) + '%;width:' + (100 / diy) + '%;"></i>'; }).join('');
+  const records = sick ? hSickYear(y) : hr.d.vacs;
   let lastDept = null;
   const rows = people.map(function(e) {
-    const bars = hr.d.vacs.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.start_date) <= ye && hD(v.end_date) >= ys; }).map(function(v) {
+    const bars = records.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.start_date) <= ye && hD(v.end_date) >= ys; }).map(function(v) {
       const s = Math.max(0, hDays(ys, v.start_date)), en = Math.min(diy - 1, hDays(ys, v.end_date));
+      if (sick) return '<span class="hr-vb other" data-sick="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + hSickDays(v) + ' календ. дн.') + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? hSickDays(v) : '') + '</span>';
       const demo = String(v.note || '').indexOf('ДЕМО') === 0, cls = hVacCls(v) + (v.status === 'plan' ? ' draft' : '') + (demo ? ' demo' : '');
       return '<span class="hr-vb ' + cls + '" data-vac="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + hVacDays(v) + ' дн. к списанию · ' + HR_VAC_CLS[hVacCls(v)] + (hVacCls(v) === 'other' ? ' (' + v.kind + ')' : '') + ' · ' + (HR_VAC_ST[v.status] || '') + (demo ? ' · ДЕМО' : '')) + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? hVacDays(v) : '') + '</span>';
     }).join('');
     const now = t.slice(0, 4) === String(y) ? '<span class="hr-now" style="left:' + (hDays(ys, t) / diy * 100) + '%;"></span>' : '';
-    const left = hVacLeft(e, y);
+    const left = sick ? 0 : hVacLeft(e, y);
     const grp = e.department !== lastDept ? '<tr><td colspan="3" style="font-weight:600;padding-top:12px;">' + hEsc(e.department || 'Без отдела') + '</td></tr>' : '';
     lastDept = e.department;
     return grp + '<tr><td class="nm" data-emp="' + e.id + '">' + hEsc(e.full_name) + '</td><td><div class="hr-track"' + (can ? ' data-track="' + e.id + '"' : '') + '>' + bg + holidays + bars + now + '</div></td>'
-      + '<td class="rest' + (left < 0 ? ' hr-late' : left > 0 && y <= new Date().getFullYear() ? '' : ' hr-ok') + '"' + (can ? ' data-vdays="' + e.id + '" style="cursor:pointer;"' : '') + ' title="осталось из ' + (e.vacation_days || 28) + (can ? ' — нажмите, чтобы изменить норму' : '') + '">' + left + ' <span class="hr-hint">из ' + (e.vacation_days || 28) + '</span></td></tr>';
+      + (sick ? '<td class="rest">' + records.filter(function(v) { return Number(v.employee_id) === e.id; }).reduce(function(n, v) { return n + hDays(hD(v.start_date) < ys ? ys : hD(v.start_date), hD(v.end_date) > ye ? ye : hD(v.end_date)) + 1; }, 0) + '</td>' : '<td class="rest' + (left < 0 ? ' hr-late' : left > 0 && y <= new Date().getFullYear() ? '' : ' hr-ok') + '"' + (can ? ' data-vdays="' + e.id + '" style="cursor:pointer;"' : '') + ' title="осталось из ' + (e.vacation_days || 28) + (can ? ' — нажмите, чтобы изменить норму' : '') + '">' + left + ' <span class="hr-hint">из ' + (e.vacation_days || 28) + '</span></td>') + '</tr>';
   }).join('');
+  if (sick) {
+    box.innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1">‹ ' + (y - 1) + '</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">' + (y + 1) + ' ›</button>'
+      + '<button class="hr-btn" data-act="sickxlsx" style="margin-left:auto;">⬇ Выгрузить в Excel</button><button class="hr-new" data-act="newsick">＋ Больничный</button></div>'
+      + '<div class="hr-hint">Нажмите на шкалу, чтобы добавить больничный с выбранной даты, или на полоску, чтобы изменить запись.</div>'
+      + '<div class="hr-card"><table class="hr-tl"><thead><tr><td class="nm"></td><td><div class="hr-months">' + HR_MONTHS.map(function(x, i) { return '<i style="width:' + mw[i] + '%;">' + x + '</i>'; }).join('') + '</div></td><td class="rest hr-hint">дней за год</td></tr></thead><tbody>'
+      + (rows || '<tr><td colspan="3" class="hr-hint">Нет штатных сотрудников</td></tr>') + '</tbody></table></div>';
+    return;
+  }
   box.innerHTML = '<div class="hr-bar"><button class="hr-btn" data-act="year" data-d="-1" title="Отпуска прошлого года">‹ ' + (y - 1) + '</button><b style="font-size:16px;">' + y + '</b><button class="hr-btn" data-act="year" data-d="1">' + (y + 1) + ' ›</button>'
     + '<div class="hr-legend" style="margin-left:12px;">' + ['sched', 'unsched', 'unpaid', 'other'].map(function(k) { return '<span><i class="hr-vb ' + k + '" style="position:static;display:inline-block;height:10px;"></i>' + HR_VAC_CLS[k] + '</span>'; }).join('')
       + '<span><i class="hr-holiday-legend"></i>праздничный день</span><span><i class="hr-vb sched draft" style="position:static;display:inline-block;height:10px;"></i>бледная — оформление «—» (приказа пока нет)</span><span><i style="background:#c23b3b;width:2px;"></i>сегодня</span></div>'

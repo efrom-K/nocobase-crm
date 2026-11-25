@@ -96,10 +96,12 @@ async function refs() {
   (users || []).forEach(u => { ref.names[u.id] = u.nickname || u.username; if ((u.roles || []).some(x => x.name === CTL_ROLE)) ref.ctl.push(u.id); });
   const rolesByUser = new Map((users || []).map(u => [u.id,new Set((u.roles || []).map(role => role.name))]));
   ref.paymentManagers = new Set();
+  ref.activeEmployeeIds = new Set();
   const paymentObservers = new Map();
   for (const employee of emps || []) {
     const id = Number(employee.user_id), roles = rolesByUser.get(id);
     if (!id || employee.fired_on || employee.status === 'fired') continue;
+    ref.activeEmployeeIds.add(id);
     if (paymentManagementPosition(employee.position)) ref.paymentManagers.add(id);
     if (employee.full_name && roles && !roles.has('crm_readonly') &&
       (ref.paymentManagers.has(id) || roles.has(CTL_ROLE) || roles.has('admin') || roles.has('root'))) {
@@ -468,7 +470,7 @@ http.createServer(async (req, res) => {
       return res.end();
     }
     if (p === '/payment-request' && req.method === 'GET') {
-      res.writeHead(302, {Location:'/admin/dashpage01?payment=open', 'Cache-Control':'no-store'});
+      res.writeHead(302, {Location:'/admin/payreqpage1?payment=open', 'Cache-Control':'no-store'});
       return res.end();
     }
     // Generic isolated renderer: object data arrives from its authenticated CRM parent, never from this endpoint.
@@ -590,7 +592,8 @@ http.createServer(async (req, res) => {
             statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES, employees:record.canManage ? await paymentEmployees() : [],
             watchEmployees:record.canWatch ? rf.paymentObservers : [], observerExclusions }, origin);
         }
-        return send(res, 200, {rows:paymentStore().browse(actor), statuses:PAYMENT_STATUS, canEditRoutes:!!user.isAdmin}, origin);
+        return send(res, 200, {rows:paymentStore().browse(actor), statuses:PAYMENT_STATUS,
+          canEditRoutes:!!user.isAdmin, canSubmit:!!user.isAdmin || rf.activeEmployeeIds.has(user.id)}, origin);
       }
       if (!id || fileId) throw new ApiError(404, 'Заявка не найдена');
       limit('payment-action:' + user.id, 30, 600000);

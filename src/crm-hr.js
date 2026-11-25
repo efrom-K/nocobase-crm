@@ -2342,11 +2342,63 @@ function hSickDays(v) { return hDays(v.start_date, v.end_date) + 1; }
 function hSickYear(y) {
   return (hr.d.sick || []).filter(function(v) { return hD(v.start_date) <= y + '-12-31' && hD(v.end_date) >= y + '-01-01'; });
 }
+const HR_SICK_TYPES = { official: 'Официальный', unofficial: 'Неофициальный' };
+const HR_SICK_FILE_LIMIT = 4 * 1024 * 1024;
+function hWireSickFiles(m, record) {
+  const input = m.querySelector('[data-sick-upload]'), list = m.querySelector('[data-sick-files]');
+  const files = ctx.api.resource('crm_sick_leave_files'), browser = document.defaultView;
+  const load = async function() {
+    const rows = hRows(await files.list({ paginate: false, filter: { sick_leave_id: record.id }, fields: ['id', 'name'] }));
+    list.innerHTML = rows.map(function(f) {
+      return '<div><button type="button" class="hr-btn sm" data-sick-download="' + f.id + '">' + hEsc(f.name) + '</button>'
+        + '<button type="button" class="hr-fdel" data-sick-remove="' + f.id + '" aria-label="Удалить вложение">✕</button></div>';
+    }).join('') || '<div class="hr-hint">Файлов нет</div>';
+  };
+  load().catch(function() { list.textContent = 'Не удалось загрузить список файлов'; });
+  input.addEventListener('change', async function() {
+    const selected = Array.from(input.files || []);
+    input.value = ''; input.disabled = true;
+    try {
+      for (const file of selected) {
+        if (!file.size || file.size > HR_SICK_FILE_LIMIT) { hToast('Файл должен быть не больше 4 МБ: ' + file.name); continue; }
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+        await files.create({ values: { sick_leave_id: record.id, name: file.name, content: browser.btoa(binary) } });
+      }
+    } catch (e) { hToast('Не удалось прикрепить файл'); }
+    finally {
+      input.disabled = false;
+      await load().catch(function() { list.textContent = 'Не удалось обновить список файлов'; });
+    }
+  });
+  list.addEventListener('click', async function(e) {
+    const button = e.target.closest('button');
+    if (!button) return;
+    const id = Number(button.dataset.sickDownload || button.dataset.sickRemove);
+    if (!id) return;
+    try {
+      if (button.dataset.sickRemove) {
+        if (!button.dataset.sure) { button.dataset.sure = '1'; button.textContent = 'Удалить?'; return; }
+        await files.destroy({ filterByTk: id }); await load(); return;
+      }
+      const file = hRows(await files.get({ filterByTk: id, fields: ['name', 'content'] }))[0];
+      const bytes = Uint8Array.from(browser.atob(file.content), function(c) { return c.charCodeAt(0); });
+      const link = document.createElement('a'), url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+      link.href = url; link.download = file.name;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+    } catch (err) { hToast('Не удалось выполнить действие с файлом'); }
+  });
+}
 function hOpenSick(v, preset) {
   if (!hCan() || !hr.d.sick) return;
   hEdit({ coll: 'crm_sick_leaves', rec: v, preset: preset, title: v ? 'Больничный: ' + ((hEmp(v.employee_id) || {}).full_name || '') : 'Новый больничный',
-    spec: [['employee_id', 'Сотрудник', 'select', hEmpOpts, 1], ['start_date', 'С', 'date', null, 1], ['end_date', 'По (включительно)', 'date', null, 1],
+    spec: [['employee_id', 'Сотрудник', 'select', hEmpOpts, 1], ['leave_type', 'Вид больничного', 'select', HR_SICK_TYPES, 1], ['start_date', 'С', 'date', null, 1], ['end_date', 'По (включительно)', 'date', null, 1],
       ['document_no', 'Номер больничного', 'text'], ['note', 'Заметки', 'textarea']],
+    extra: function() { return v ? '<div class="hr-files"><div class="hr-files-h"><b>Вложения</b><label class="hr-btn sm">Прикрепить<input type="file" multiple data-sick-upload hidden></label></div><div class="hr-lines" data-sick-files></div><div class="hr-hint">Необязательно, до 4 МБ на файл</div></div>' : '<div class="hr-hint">После сохранения можно прикрепить файлы.</div>'; },
+    wire: function(m) { if (v) hWireSickFiles(m, v); },
+    after: function(saved) { if (!v && saved) hOpenSick(saved); },
     prepare: function(vals) {
       if (vals.end_date < vals.start_date) return 'Окончание раньше начала';
       const clash = hr.d.sick.find(function(x) { return Number(x.employee_id) === Number(vals.employee_id) && (!v || x.id !== v.id) && hD(x.start_date) <= vals.end_date && hD(x.end_date) >= vals.start_date; });
@@ -2357,8 +2409,8 @@ function hOpenSick(v, preset) {
 function hSickXlsx() {
   if (!hCan() || !hr.d.sick) return;
   crmXlsx('Больничные ' + hr.year, { sheets: [{ name: 'Больничные', title: 'Больничные за ' + hr.year + ' год',
-    cols: [{ h: 'Сотрудник', w: 30 }, { h: 'Отдел', w: 22 }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Номер больничного', w: 22 }, { h: 'Заметки', w: 36 }],
-    rows: hSickYear(hr.year).map(function(v) { const e = hEmp(v.employee_id) || {}; return [e.full_name || '', e.department || '', hD(v.start_date), hD(v.end_date), hSickDays(v), v.document_no || '', v.note || '']; })
+    cols: [{ h: 'Сотрудник', w: 30 }, { h: 'Отдел', w: 22 }, { h: 'С', t: 'date' }, { h: 'По', t: 'date' }, { h: 'Дней', t: 'int' }, { h: 'Вид', w: 18 }, { h: 'Номер больничного', w: 22 }, { h: 'Заметки', w: 36 }],
+    rows: hSickYear(hr.year).map(function(v) { const e = hEmp(v.employee_id) || {}; return [e.full_name || '', e.department || '', hD(v.start_date), hD(v.end_date), hSickDays(v), HR_SICK_TYPES[v.leave_type] || '', v.document_no || '', v.note || '']; })
   }] });
 }
 function hRenderVacCalendar(box, sick) {
@@ -2374,7 +2426,7 @@ function hRenderVacCalendar(box, sick) {
   const rows = people.map(function(e) {
     const bars = records.filter(function(v) { return Number(v.employee_id) === e.id && hD(v.start_date) <= ye && hD(v.end_date) >= ys; }).map(function(v) {
       const s = Math.max(0, hDays(ys, v.start_date)), en = Math.min(diy - 1, hDays(ys, v.end_date));
-      if (sick) return '<span class="hr-vb other" data-sick="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + hSickDays(v) + ' календ. дн.') + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? hSickDays(v) : '') + '</span>';
+      if (sick) return '<span class="hr-vb other" data-sick="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + hSickDays(v) + ' календ. дн. · ' + (HR_SICK_TYPES[v.leave_type] || 'Вид не указан')) + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? hSickDays(v) : '') + '</span>';
       const demo = String(v.note || '').indexOf('ДЕМО') === 0, cls = hVacCls(v) + (v.status === 'plan' ? ' draft' : '') + (demo ? ' demo' : '');
       return '<span class="hr-vb ' + cls + '" data-vac="' + v.id + '" title="' + hEsc(hDate(v.start_date) + ' – ' + hDate(v.end_date) + ', ' + hVacDays(v) + ' дн. к списанию · ' + HR_VAC_CLS[hVacCls(v)] + (hVacCls(v) === 'other' ? ' (' + v.kind + ')' : '') + ' · ' + (HR_VAC_ST[v.status] || '') + (demo ? ' · ДЕМО' : '')) + '" style="left:' + (s / diy * 100) + '%;width:' + ((en - s + 1) / diy * 100) + '%;">' + (en - s >= 6 ? hVacDays(v) : '') + '</span>';
     }).join('');

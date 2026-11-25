@@ -39,24 +39,7 @@ if (!document.getElementById('cm-hide-ai-chat')) {
   aiSt.textContent = '[role="button"][aria-label="Открыть ИИ-чат"], [role="button"][aria-label="Open AI chat"] { display: none !important; }';
   document.head.appendChild(aiSt);
 }
-// колокольчик: без вкладок «Все / Непрочитанные / Прочитано», всегда фильтр «Непрочитанные»
-// (при этом фильтре штатный список сразу убирает сообщение после прочтения, без перезагрузки страницы)
-if (!document.getElementById('nb-bell-tabs-style')) {
-  const bellTabsStyle = document.createElement('style');
-  bellTabsStyle.id = 'nb-bell-tabs-style';
-  bellTabsStyle.textContent = '.ant-tabs:has(> .ant-tabs-nav [data-node-key="unread"]):has(> .ant-tabs-nav [data-node-key="read"]) > .ant-tabs-nav { display: none !important; }';
-  document.head.appendChild(bellTabsStyle);
-}
-if (!window.__nbBellUnreadTimer) {
-  // MutationObserver в песочнице блоков недоступен, поэтому обычный опрос
-  window.__nbBellUnreadTimer = setInterval(function() {
-    const allTab = document.querySelector('.ant-tabs-tab-active[data-node-key="all"]');
-    if (!allTab) return;
-    const tabs = allTab.closest('.ant-tabs');
-    const unreadBtn = tabs && tabs.querySelector('.ant-tabs-tab[data-node-key="unread"] .ant-tabs-tab-btn');
-    if (unreadBtn && tabs.querySelector('.ant-tabs-tab[data-node-key="read"]')) unreadBtn.click();
-  }, 250);
-}
+// @include src/_crm-bell.js
 ctx.render('');
 
 function esc(v) {

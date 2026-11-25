@@ -1,3 +1,4 @@
+// @include src/_crm-bell.js
 // ===== Профили — общий фрагмент: подключается во все блоки CRM =====
 // Данные — поля users (фото avatar, status_emoji, status_text, status_until, about) + nickname/phone/email; сохраняет родной
 // users:updateProfile (принимает только поля из формы «Редактировать профиль», см. scripts/setup_profiles.py; username обязателен).

@@ -1,3 +1,4 @@
+// @include src/_crm-bell.js
 // @include src/_crm-profile.js
 // «Пароли» (/admin/vaultpage01, блок vaultblock01) — Vaultwarden внутри CRM: /vault/ на том же домене.
 // Caddy (svc /opt/crm-gateway/caddy/Caddyfile) пускает на /vault/ только роль admin NocoBase, панель /vault/admin закрыта.

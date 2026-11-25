@@ -7,6 +7,7 @@
 // @include src/_crm-department-links.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-bell.js
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 // @include src/_crm-plan.js

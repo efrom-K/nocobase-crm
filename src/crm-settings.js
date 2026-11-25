@@ -4,6 +4,7 @@
 // @include src/_crm-config.js
 // @include src/_crm-settings-ui.js
 // @include src/_crm-calls.js
+// @include src/_crm-bell.js
 // @include src/_crm-profile.js
 // @include src/_crm-mobile.js
 ctx.render('<div class="cs-empty" style="padding:40px;text-align:center;color:#5b6478;">Настройки CRM открываются из шестерёнки NocoBase в верхней панели → «Настройки CRM».<br><button class="cs-btn pri" style="margin-top:14px;" data-crm-settings-open>Открыть настройки</button></div>');

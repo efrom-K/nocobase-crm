@@ -269,7 +269,7 @@
       }).join('') + '</div><div class="tk-person-empty" role="status" hidden>Сотрудники не найдены</div></div></div>';
   }
   function taskPersonKey(input) { return input.getAttribute('data-person-key') || ''; }
-  function bindTaskPeople(root) {
+  function bindTaskPeople(root, fitMenu) {
     root.querySelectorAll('[data-person-picker]').forEach(function(picker) {
       const input = picker.querySelector('input'), menu = picker.querySelector('.tk-person-list');
       const empty = menu.querySelector('[role="status"]'), options = Array.from(menu.querySelectorAll('[data-key]'));
@@ -296,6 +296,7 @@
         empty.hidden = !!visible.length;
         input.setAttribute('aria-expanded', 'true');
         menu.hidden = false;
+        fitMenu?.(input,menu);
       }
       function close() {
         highlight(-1);
@@ -981,6 +982,24 @@
       + '<div class="kb-tools"><button type="submit" class="tk-btn pri">Сохранить</button></div></form>'
       + '<div class="kb-status" role="status">Загрузка…</div>',trigger);
     const form = m.querySelector('form'), status = m.querySelector('[role="status"]');
+    const dialog = form.closest('[role="dialog"]');
+    function fitMenu(input, menu) {
+      const field = input.parentElement.getBoundingClientRect(), bounds = dialog.getBoundingClientRect();
+      const below = Math.min(window.innerHeight,bounds.bottom) - field.bottom - 8;
+      const above = field.top - Math.max(0,bounds.top) - 8;
+      const openAbove = below < 230 && above > below;
+      menu.style.top = openAbove ? 'auto' : '';
+      menu.style.bottom = openAbove ? 'calc(100% + 4px)' : '';
+      menu.style.maxHeight = Math.max(0,Math.min(230,openAbove ? above : below)) + 'px';
+    }
+    function fitOpenMenu() {
+      const input = form.querySelector('[aria-expanded="true"]');
+      if (input) fitMenu(input,input.parentElement.querySelector('.tk-person-list'));
+    }
+    dialog.addEventListener('scroll',fitOpenMenu);
+    window.addEventListener('resize',fitOpenMenu);
+    const close = m.close;
+    m.close = () => { window.removeEventListener('resize',fitOpenMenu); close(); };
     try {
       const {routes,employees} = await paymentApi('payment-routes');
       if (!routes.length) { status.textContent = 'Нет объектов с маршрутом оплаты'; return; }
@@ -995,7 +1014,7 @@
           const choices = people.some(person => person[0] === current) ? people : [[current,'Текущий сотрудник № ' + current],...people];
           return '<div><div>' + label + '</div>' + taskPersonPicker(choices,'name="' + role + '"',label,current,'Выберите сотрудника') + '</div>';
         }).join('');
-        bindTaskPeople(fields);
+        bindTaskPeople(fields,fitMenu);
       }
       render();
       status.textContent = '';

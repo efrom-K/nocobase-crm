@@ -11,6 +11,17 @@ const STATUS = {
   6: 'Оплачено / Закрыто'
 };
 const ROUTE_ROLES = ['senior','approver','chief','accountant'];
+const MANAGEMENT_POSITIONS = new Set([
+  'директор управляющей компании, главный управляющий',
+  'операционный директор',
+  'операционный управляющий',
+  'старший управляющий',
+  'старший управляющий объектов',
+  'управляющий объекта'
+]);
+function paymentManagementPosition(position) {
+  return MANAGEMENT_POSITIONS.has(String(position ?? '').trim().toLowerCase().replace(/\s+/g,' '));
+}
 const FILE_LABELS = { 11: 'Счёт', 19: 'Платёжное поручение', 21: 'Акт / накладная / счёт-фактура', 22: 'Дополнения', 23: 'Вложение к сообщению' };
 class PaymentError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -41,7 +52,8 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
   const read = db.prepare('SELECT id,record FROM payments WHERE id=?');
   const unpack = row => row && { ...JSON.parse(row.record), id: row.id };
   const isParticipant = (r, user) => r.authorId === user.id || r.subscribers?.includes(user.id) || Object.values(r.route).some(id => id === user.id);
-  const canRead = (r, user) => !user.readOnly && (user.isAdmin || user.isAho || isParticipant(r, user));
+  const canRead = (r, user) => !user.readOnly && (user.isAdmin || user.isCtl || user.isPaymentManager
+    || r.authorId === user.id || allowed(r,user).length > 0);
   const get = (id, user) => {
     const r = unpack(read.get(id));
     if (!r || !canRead(r, user)) throw new PaymentError(404, 'Заявка не найдена');
@@ -158,7 +170,7 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
         text:action[oldStatus] + (details.length ? ': ' + details.join(' · ') : '')});
       db.prepare('UPDATE payments SET record=? WHERE id=?').run(JSON.stringify(r),id);
       const next = r.status === oldStatus ? [] : pending(r).map(([,person]) => person);
-      return {id, status:r.status, pending:next, authorId:r.authorId};
+      return {id, status:r.status, pending:next, authorId:r.authorId, canRead:canRead(r,user)};
     });
   }
   const canManage = (r,user) => user.isAdmin && !user.readOnly && r.status >= 2 && r.status <= 5;
@@ -202,7 +214,7 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
       return {id,status:r.status,pending:recipients,message:event};
     });
   }
-  function discuss(user,id,input,employees) {
+  function discuss(user,id,input,observers) {
     return transaction(() => {
       const r = get(id,user);
       const subscribers = new Set(r.subscribers || []);
@@ -212,11 +224,12 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
         const file = input.file && attachment(input.file,23);
         const fileId = file && Number(insertFile.run(id,file.kind,file.name,file.bytes).lastInsertRowid);
         event = {kind:'message', authorId:user.id, text:message, fileId};
-        recipients = [r.authorId, ...subscribers, ...pending(r).map(([,person]) => person)];
+        recipients = [r.authorId, ...observers.filter(person => subscribers.has(person.id)).map(person => person.id),
+          ...pending(r).map(([,person]) => person)];
       } else if (['watch-add','watch-remove'].includes(input.action)) {
         if (!user.isAdmin) throw new PaymentError(403,'Наблюдающих меняет администратор');
         const adding = input.action === 'watch-add';
-        const employee = employees.find(x => x.id === input.userId);
+        const employee = observers.find(x => x.id === input.userId);
         if (!Number.isSafeInteger(input.userId) || input.userId <= 0 || adding === subscribers.has(input.userId)
             || (adding && (!employee || isParticipant(r,{id:input.userId})))) {
           throw new PaymentError(400,'Выберите сотрудника для изменения списка наблюдающих');
@@ -281,4 +294,4 @@ function createPayments(filename, { clock = () => new Date().toISOString() } = {
       .filter(r => canRead(r,user)).sort((a,b) => String(b.created || '').localeCompare(String(a.created || '')) || b.id - a.id)
       .map(r => summary(r,user)); } };
 }
-module.exports = { createPayments, PaymentError, MAX_FILE, STATUS, FILE_LABELS };
+module.exports = { createPayments, paymentManagementPosition, PaymentError, MAX_FILE, STATUS, FILE_LABELS };

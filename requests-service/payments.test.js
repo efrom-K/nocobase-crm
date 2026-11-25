@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createPayments } = require('./payments');
+const { createPayments, paymentManagementPosition } = require('./payments');
 
 const route = {id:19,name:'Тестовый объект',senior:2,chief:3,approver:4,accountant:5};
 const user = id => ({id,name:'Сотрудник ' + id});
@@ -17,16 +17,16 @@ test('local payment uses the assigned workflow, parallel approvals, files and sc
   const {id,pending} = db.submit(user(1),input);
   assert.deepEqual(pending,[2]);
   assert.equal(db.browse(user(99)).length,0);
-  assert.equal(db.browse({...user(7),isAho:true}).length,1);
+  assert.equal(db.browse({...user(7),isPaymentManager:true}).length,1);
   assert.equal(db.browse({...user(1),readOnly:true}).length,0);
   const f = db.detail(id,user(1)).files[0];
   assert.deepEqual(Buffer.from(db.file(id,f.id,user(2)).bytes),bytes);
   assert.throws(() => db.file(id,f.id,user(99)),{status:404});
   assert.throws(() => act(db,id,1,2),{status:403});
   assert.deepEqual(act(db,id,2,2).pending,[4,3]);
-  assert.throws(() => act(db,id,2,2),{status:409});
+  assert.throws(() => act(db,id,2,2),{status:404});
   assert.equal(act(db,id,4,3).status,3);
-  assert.throws(() => act(db,id,4,3),{status:403});
+  assert.throws(() => act(db,id,4,3),{status:404});
   assert.deepEqual(act(db,id,3,3).pending,[5]);
   assert.equal(act(db,id,5,4,{file}).status,5);
   assert.throws(() => act(db,id,5,5,{file,extra:{...file,data:'eA=='}}),{status:400});
@@ -44,7 +44,7 @@ test('import retains IDs, attachments and an already approved parallel branch wi
   assert.equal(r.legacyId,99);
   assert.equal(db.loadSnapshot([route],[{...legacy,legacyVersion:'2'}]).updated,1);
   assert.equal(db.detail(r.id,user(3)).needsAction,true);
-  assert.equal(db.detail(r.id,user(4)).needsAction,false);
+  assert.throws(() => db.detail(r.id,user(4)),{status:404});
   assert.equal(act(db,r.id,3,3).status,4);
   assert.throws(() => db.loadSnapshot([route],[{...legacy,legacyVersion:'3'}]),/changed in both systems/);
   assert.equal(db.detail(r.id,user(1)).status,4);
@@ -82,23 +82,26 @@ test('payment discussion retains documents and observer access without granting 
   db.loadSnapshot([route],[]);
   const admin = {...user(10),isAdmin:true};
   const {id} = db.submit(user(1),input);
-  const change = (actor,action,userId) => db.discuss(actor,id,{action,userId},[user(7)]);
+  const observer = {...user(7),isPaymentManager:true};
+  const change = (actor,action,userId) => db.discuss(actor,id,{action,userId},[observer]);
   assert.throws(() => change(user(1),'watch-add',7),{status:403});
   assert.throws(() => change(admin,'watch-add',99),{status:400});
   assert.deepEqual(change(admin,'watch-add',7).pending,[7]);
-  assert.equal(db.detail(id,user(7)).needsAction,false);
-  assert.throws(() => act(db,id,7,2),{status:403});
-  assert.throws(() => db.discuss(user(7),id,{action:'message',comment:'   '}),{status:400});
-  assert.throws(() => db.discuss(user(7),id,{action:'message',file:{...file,data:'eA=='}}),{status:400});
-  assert.deepEqual(db.discuss(user(7),id,{action:'message',comment:'Документ',file}).pending,[1,7,2]);
+  assert.equal(db.detail(id,observer).needsAction,false);
+  assert.throws(() => db.detail(id,user(7)),{status:404});
+  assert.throws(() => db.act(observer,id,{status:2}),{status:403});
+  assert.throws(() => db.discuss(observer,id,{action:'message',comment:'   '},[]),{status:400});
+  assert.throws(() => db.discuss(observer,id,{action:'message',file:{...file,data:'eA=='}},[]),{status:400});
+  assert.deepEqual(db.discuss(observer,id,{action:'message',comment:'Документ',file},[observer]).pending,[1,7,2]);
   const record = db.detail(id,user(1));
   assert.equal(record.status,2);
   assert.equal(record.history.length,3);
+  assert.deepEqual(db.discuss(user(1),id,{action:'message',comment:'Ответ'},[]).pending,[1,2]);
   const entry = record.history.at(-1);
   assert.equal(entry.kind,'message');
   assert.equal(entry.authorId,7);
   assert.equal(entry.text,'Документ');
-  assert.deepEqual(Buffer.from(db.file(id,entry.fileId,user(7)).bytes),bytes);
+  assert.deepEqual(Buffer.from(db.file(id,entry.fileId,observer).bytes),bytes);
   change(admin,'watch-remove',7);
   assert.throws(() => db.file(id,entry.fileId,user(7)),{status:404});
   assert.equal(db.detail(id,user(1)).files.length,2);
@@ -107,17 +110,17 @@ test('board targets and document types follow the current assignee, including pa
   const db = createPayments(':memory:');
   db.loadSnapshot([route],[]);
   const author = user(1), senior = user(2), chief = user(3), approver = user(4), accountant = user(5);
-  const aho = {...user(6),isAho:true}, observer = user(7), admin = {...user(8),isAdmin:true};
+  const aho = {...user(6),isAho:true}, observer = {...user(7),isPaymentManager:true}, admin = {...user(8),isAdmin:true};
   const outsider = user(9), readOnly = {...senior,readOnly:true};
   assert.throws(() => db.submit(author,{...input,file:undefined}),{status:400});
   const {id} = db.submit(author,input);
   const advance = (actor,status,targetStatus,docs) => db.act(actor,id,{status,targetStatus,...docs});
   db.discuss(admin,id,{action:'watch-add',userId:observer.id},[observer]);
-  for (const actor of [author,chief,approver,accountant,aho,observer]) {
+  for (const actor of [author,observer]) {
     assert.equal(db.browse(actor)[0].nextStatus,null);
     assert.throws(() => advance(actor,2,3,{file}),{status:403});
   }
-  for (const actor of [outsider,readOnly]) {
+  for (const actor of [outsider,readOnly,aho,chief,approver,accountant]) {
     assert.equal(db.browse(actor).length,0);
     assert.throws(() => db.discuss(actor,id,{action:'message',file}),{status:404});
     assert.throws(() => advance(actor,2,3,{file}),{status:404});
@@ -130,13 +133,13 @@ test('board targets and document types follow the current assignee, including pa
   assert.equal(db.browse(chief)[0].nextStatus,3);
   assert.throws(() => advance(approver,3,4),{status:409});
   assert.equal(advance(approver,3).status,3);
-  assert.equal(db.browse(approver)[0].nextStatus,null);
+  assert.equal(db.browse(approver).length,0);
   assert.equal(db.browse(chief)[0].nextStatus,4);
   assert.deepEqual(advance(chief,3,4).pending,[5]);
-  assert.throws(() => advance(chief,4,5,{file}),{status:403});
+  assert.throws(() => advance(chief,4,5,{file}),{status:404});
   assert.throws(() => advance(accountant,4,5,{file,extra:file}),{status:400});
   assert.deepEqual(db.detail(id,author).files.map(f=>f.kind),[11]);
-  const receipt = db.discuss(observer,id,{action:'message',file});
+  const receipt = db.discuss(observer,id,{action:'message',file},[observer]);
   assert.equal(receipt.status,4);
   assert.deepEqual(db.detail(id,author).files.map(f=>f.kind),[11,23]);
   assert.deepEqual(advance(accountant,4,5,{file}).pending,[5]);
@@ -191,4 +194,42 @@ test('administrator can act through every stage without changing personal action
   const audit = record().history.filter(event => event.text.includes('действие администратора'));
   assert.equal(audit.length,4);
   assert.ok(audit.every(event => event.authorId === admin.id));
+});
+
+test('authors retain their own conversation, and assigned staff read only their pending stages', () => {
+  const db = createPayments(':memory:');
+  db.loadSnapshot([route],[]);
+  const author = user(1), senior = user(2), approver = user(4), chief = user(3), accountant = user(5);
+  const manager = {...user(10),isPaymentManager:true}, director = {...user(11),isCtl:true};
+  const {id} = db.submit(author,input);
+  const other = db.submit(user(9),input);
+  const docs = db.detail(id,author).files;
+  assert.deepEqual(db.browse(author).map(row => row.id),[id]);
+  assert.equal(db.browse(manager).length,2);
+  assert.equal(db.browse(director).length,2);
+  assert.equal(db.detail(id,director).nextStatus,null);
+  assert.throws(() => db.detail(other.id,author),{status:404});
+  assert.throws(() => db.discuss(author,other.id,{action:'message',comment:'Тест'},[]),{status:404});
+  assert.throws(() => db.file(id,docs[0].id,approver),{status:404});
+  assert.equal(db.act(senior,id,{status:2}).canRead,false);
+  assert.throws(() => db.detail(id,senior),{status:404});
+  assert.deepEqual(db.browse(approver).map(row => row.id),[id]);
+  assert.equal(db.act(approver,id,{status:3}).canRead,false);
+  assert.equal(db.browse(approver).length,0);
+  assert.equal(db.act(chief,id,{status:3}).canRead,false);
+  assert.deepEqual(db.browse(accountant).map(row => row.id),[id]);
+  assert.equal(db.act(accountant,id,{status:4}).canRead,true);
+  assert.equal(db.act(accountant,id,{status:5}).canRead,false);
+  assert.equal(db.detail(id,author).status,6);
+  db.discuss(author,id,{action:'message',comment:'Получено'},[]);
+  assert.equal(db.detail(id,author).history.at(-1).text,'Получено');
+  assert.throws(() => db.file(id,docs[0].id,accountant),{status:404});
+});
+
+test('only designated management job titles grant wide payment visibility', () => {
+  assert.equal(paymentManagementPosition(' ОПЕРАЦИОННЫЙ   ДИРЕКТОР '),true);
+  assert.equal(paymentManagementPosition('Старший управляющий объектов'),true);
+  for (const position of [null,'Бухгалтер','Помощник управляющего','Менеджер по сдаче']) {
+    assert.equal(paymentManagementPosition(position),false);
+  }
 });

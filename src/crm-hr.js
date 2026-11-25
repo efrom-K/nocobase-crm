@@ -293,7 +293,9 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-tile-v { color:#1f2433; font-size:24px; }
     .hr-tile-n, .hr-hint, .hr-al-s, .hr-card-t small, .hr-grp span { color:#3a4256; }
     .hr-tile-go { font-weight:600; }
-    .hr-tiles-home { grid-template-columns:repeat(var(--tiles, 6), minmax(0, 1fr)); }
+    .hr-home-groups { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-bottom:14px; }
+    .hr-home-groups h2 { margin:0 0 8px; font-size:15px; font-weight:600; }
+    .hr-tiles-home { grid-template-columns:repeat(2, minmax(0, 1fr)); margin-bottom:0; }
     .hr-own-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:14px; align-items:start; }
     .hr-own-grid .hr-card { margin:0; }
     .hr-own-c .hr-card-t { display:flex; align-items:flex-start; gap:8px; flex-wrap:nowrap; }
@@ -308,8 +310,7 @@ if (!document.getElementById('crm-hr-style')) {
     .hr-own-bar { grid-column:1 / -1; height:6px; background:#e9edf5; border-radius:3px; overflow:hidden; }
     .hr-own-bar i { display:block; height:100%; background:#1c2d58; border-radius:3px; }
     .hr-own-sum { border-top:2px solid #c3cad8; margin-top:4px; padding-top:7px; font-size:14px; text-align:right; }
-    @media (max-width: 1200px) { .hr-tiles-home { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
-    @media (max-width: 640px) { .hr-tiles-home { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 1100px) { .hr-home-groups { grid-template-columns:1fr; } }
     .hr-card { border-color:#dfe3ec; padding:14px 16px; }
     .hr-card-t { font-size:15px; font-weight:700; color:#1f2433; margin-bottom:10px; }
     .hr-al { color:#1f2433; border-bottom-color:#dfe3ec; }
@@ -1636,23 +1637,26 @@ function hRenderHome() {
     const n = function(k) { return l.filter(function(e) { return (e.employment_type || 'staff') === k; }).length; };
     return '<tr data-go="' + hEsc(JSON.stringify({ tab: 'staff', le: x[0] === '' ? '-' : String(x[0]), type: '' })) + '" style="cursor:pointer;"><td>' + hEsc(x[1]) + '</td><td class="n">' + n('staff') + '</td><td class="n">' + n('external') + '</td><td class="n">' + n('self') + '</td><td class="n"><b>' + l.length + '</b></td></tr>';
   }).join('');
-  hBody().innerHTML = '<a class="hr-att-jump" href="#hr-attention" data-att-jump>К требованиям внимания (' + al.length + ') ↓</a><div class="hr-tiles hr-tiles-home" style="--tiles:7;">'
+  hBody().innerHTML = '<a class="hr-att-jump" href="#hr-attention" data-att-jump>К требованиям внимания (' + al.length + ') ↓</a><div class="hr-home-groups"><section><h2>Команда</h2><div class="hr-tiles hr-tiles-home">'
     + tile('staff', act.length, 'штат ' + byType('staff') + ' · внештатные ' + byType('external') + ' · самозанятые ' + byType('self'))
     + tile('hire', d.vacancies.filter(function(v) { return v.status === 'open'; }).length + ' <small style="font-size:13px;font-weight:400;">вакансий</small>',
         'кандидатов в работе ' + d.cands.filter(function(c) { return ['new', 'interview', 'offer'].indexOf(c.stage) !== -1; }).length
         + ' · собеседований на неделе ' + d.cands.filter(function(c) { return c.stage === 'interview' && c.interview_on && hDays(t, c.interview_on) >= 0 && hDays(t, c.interview_on) <= 7; }).length
         + ' · свободно ставок ' + d.pos.reduce(function(n, p) { return n + Math.max(0, hPosFree(p)); }, 0))
-    + tile('sick', (hr.d.sick || []).filter(function(v) { return hD(v.start_date) <= t && hD(v.end_date) >= t; }).length, 'на больничном')
+    + '</div></section><section><h2>Отсутствия</h2><div class="hr-tiles hr-tiles-home">'
     + tile('vac', onVac.length + ' <small style="font-size:13px;font-weight:400;">в отпуске</small>', soon.length ? 'в ближайший месяц уходят ' + soon.length : 'в ближайший месяц никто не уходит')
+    + tile('sick', (d.sick || []).filter(function(v) { return hD(v.start_date) <= t && hD(v.end_date) >= t; }).length, 'на больничном')
+    + '</div></section><section><h2>Безопасность и учёт</h2><div class="hr-tiles hr-tiles-home">'
     + tile('safety', lateSafety ? '<span style="color:#c23b3b;">' + lateSafety + '</span> <small style="font-size:13px;font-weight:400;">просрочено</small>' : '✓', 'обучение, инструктажи, пожарная безопасность, СОУТ · ' + d.sout.length + ' раб. мест')
     + tile('mil', liable + ' <small style="font-size:13px;font-weight:400;">на учёте</small>', 'организации: сверки и планы; военнообязанные')
+    + '</div></section><section><h2>Документы и юрлица</h2><div class="hr-tiles hr-tiles-home">'
     + tile('docs', d.lna.length + ' <small style="font-size:13px;font-weight:400;">ЛНА</small>', (noAck ? 'не ознакомлены: ' + noAck + ' · ' : '') + (nextEv ? 'ближайшее мероприятие ' + hDate(nextEv.event_date).slice(0, 5) : 'мероприятий не запланировано'))
     + (function() {
         const withOwn = d.les.filter(function(l) { return hOwnersOf(l.id).length; }).length, owners = {};
         (d.owners || []).filter(hOwnNow).forEach(function(o) { owners[hOwnKey(o)] = 1; });
         return tile('own', withOwn + ' <small style="font-size:13px;font-weight:400;">из ' + d.les.length + ' юрлиц</small>', 'учредители указаны · учредителей ' + Object.keys(owners).length);
       })()
-    + '</div><div class="hr-cols"><div>'
+    + '</div></section></div><div class="hr-cols"><div>'
     + '<div class="hr-card" id="hr-attention"><div class="hr-card-t">Требует внимания <small>' + al.length + '</small></div>'
     + (al.length ? al.map(function(x) {
         return '<div class="hr-al" data-go="' + hEsc(JSON.stringify(x.go)) + '"><span class="hr-dot" style="background:' + lvlC[x.lvl] + ';"></span><div class="hr-al-t">' + hEsc(x.text) + (x.sub ? '<div class="hr-al-s">' + hEsc(x.sub) + '</div>' : '') + '</div></div>';

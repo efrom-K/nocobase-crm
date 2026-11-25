@@ -113,7 +113,7 @@ test('board targets and document types follow the current assignee, including pa
   const {id} = db.submit(author,input);
   const advance = (actor,status,targetStatus,docs) => db.act(actor,id,{status,targetStatus,...docs});
   db.discuss(admin,id,{action:'watch-add',userId:observer.id},[observer]);
-  for (const actor of [author,chief,approver,accountant,aho,observer,admin]) {
+  for (const actor of [author,chief,approver,accountant,aho,observer]) {
     assert.equal(db.browse(actor)[0].nextStatus,null);
     assert.throws(() => advance(actor,2,3,{file}),{status:403});
   }
@@ -146,4 +146,49 @@ test('board targets and document types follow the current assignee, including pa
   assert.deepEqual(record.files.map(f=>f.kind),[11,23,19,21,22]);
   for (const f of record.files) assert.deepEqual(Buffer.from(db.file(id,f.id,observer).bytes),bytes);
   assert.throws(() => db.file(id,record.files[0].id,outsider),{status:404});
+});
+
+test('route settings are admin-only, validate staff, and affect only new payments', () => {
+  const db = createPayments(':memory:');
+  db.loadSnapshot([route],[]);
+  const admin = {...user(10),isAdmin:true}, readOnly = {...admin,readOnly:true}, employee = user(7);
+  const old = db.submit(user(1),input);
+  const [current] = db.routes(admin);
+  for (const actor of [user(2),readOnly]) {
+    assert.throws(() => db.routes(actor),{status:403});
+    assert.throws(() => db.saveRoute(actor,current,[employee]),{status:403});
+  }
+  assert.throws(() => db.saveRoute(admin,{...current,senior:99},[employee]),{status:400});
+  const updated = db.saveRoute(admin,{...current,senior:7},[employee]);
+  assert.equal(updated.senior,7);
+  assert.throws(() => db.saveRoute(admin,current,[employee]),{status:409});
+  assert.equal(db.detail(old.id,user(2)).needsAction,true);
+  assert.equal(db.submit(user(1),input).pending[0],7);
+  db.loadSnapshot([route],[]);
+  assert.equal(db.routes(admin)[0].senior,7);
+  assert.equal(db.submit(user(1),input).pending[0],7);
+});
+
+test('administrator can act through every stage without changing personal action counts', () => {
+  const db = createPayments(':memory:');
+  db.loadSnapshot([route],[]);
+  const admin = {...user(10),isAdmin:true};
+  const {id} = db.submit(user(1),input);
+  const advance = (status,targetStatus,docs) => db.act(admin,id,{status,targetStatus,...docs});
+  const record = () => db.detail(id,admin);
+  assert.equal(record().needsAction,false);
+  assert.equal(record().actsAsAdmin,true);
+  assert.throws(() => db.act({...admin,readOnly:true},id,{status:2}),{status:404});
+  assert.throws(() => advance(2,4),{status:409});
+  assert.deepEqual(advance(2,3).pending,[4,3]);
+  assert.equal(act(db,id,4,3).status,3);
+  assert.deepEqual(advance(3,4).pending,[5]);
+  assert.equal(advance(4,5,{file}).status,5);
+  assert.equal(advance(5,6,{file,extra:file}).status,6);
+  assert.equal(record().nextStatus,null);
+  assert.throws(() => advance(6),{status:403});
+  assert.deepEqual(record().files.map(file => file.kind),[11,19,21,22]);
+  const audit = record().history.filter(event => event.text.includes('действие администратора'));
+  assert.equal(audit.length,4);
+  assert.ok(audit.every(event => event.authorId === admin.id));
 });

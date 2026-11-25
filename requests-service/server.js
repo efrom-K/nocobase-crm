@@ -547,6 +547,16 @@ http.createServer(async (req, res) => {
       }
       return [...people.values()].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
     }
+    if (p === '/payment-routes' && ['GET','POST'].includes(req.method)) {
+      if (!user.isAdmin || user.readOnly) throw new ApiError(403,'Ответственных настраивает администратор');
+      if (req.method === 'GET') {
+        return send(res,200,{routes:paymentStore().routes(user),employees:await paymentEmployees()},origin);
+      }
+      const input = await readJson(req,4096);
+      const route = paymentStore().saveRoute(user,input,await paymentEmployees());
+      console.info('payment route updated', {object:route.id,actor:user.id});
+      return send(res,200,{route},origin);
+    }
     const paymentPath = p.match(/^\/payments(?:\/([1-9]\d*)(?:\/files\/([1-9]\d*))?)?$/);
     if (paymentPath && ['GET', 'POST'].includes(req.method)) {
       if (user.readOnly) throw new ApiError(403, 'Нет доступа к заявкам на оплату');
@@ -565,7 +575,7 @@ http.createServer(async (req, res) => {
             subscribers:record.subscribers.map(id => ({id,name:rf.names[id] || 'Сотрудник № ' + id}))},
             statuses:PAYMENT_STATUS, fileLabels:PAYMENT_FILES, employees:record.canWatch ? await paymentEmployees() : [], observerExclusions }, origin);
         }
-        return send(res, 200, {rows:paymentStore().browse(user), statuses:PAYMENT_STATUS}, origin);
+        return send(res, 200, {rows:paymentStore().browse(user), statuses:PAYMENT_STATUS, canEditRoutes:!!user.isAdmin}, origin);
       }
       if (!id || fileId) throw new ApiError(404, 'Заявка не найдена');
       limit('payment-action:' + user.id, 30, 600000);

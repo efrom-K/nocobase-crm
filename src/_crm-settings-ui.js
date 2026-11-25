@@ -174,7 +174,10 @@ const CS_LINKS = [
 ];
 const CS_GEAR_SVG = '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h7M12 4h2M2 8h2M7 8h7M2 12h9M14 12h0"/><circle cx="10.5" cy="4" r="1.5"/><circle cx="5.5" cy="8" r="1.5"/><circle cx="12.5" cy="12" r="1.5"/></svg>';
 // кнопка ⚙ для шапки модуля: видна только администратору (класс crm-admin), клик ловит общий обработчик ниже
-function crmSettingsGear(mod) { return '<button type="button" class="crm-gear" data-crm-settings="' + String(mod).replace(/"/g, '&quot;') + '" title="Настройки модуля «' + String(mod).replace(/"/g, '&quot;') + '»">' + CS_GEAR_SVG + '</button>'; }
+function crmSettingsGear(mod, attr = 'data-crm-settings') {
+  const label = String(mod).replace(/"/g, '&quot;');
+  return '<button type="button" class="crm-gear" ' + attr + '="' + label + '" title="Настройки модуля «' + label + '»">' + CS_GEAR_SVG + '</button>';
+}
 
 const crmS = { tab: 'users', d: null, me: null, mod: '', q: '', showFired: false, group: 'dept', el: null };
 function csEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

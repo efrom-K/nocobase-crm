@@ -972,11 +972,65 @@
   const paymentAmount = v => Number.isFinite(v) ? v.toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₽' : '—';
   const paymentDate = v => v ? String(v).slice(0,10).split('-').reverse().join('.') : '—';
   const paymentColors = {0:'#5b6478',2:'#1c2d58',3:'#2f4a8a',4:'#8a5a00',5:'#5b6478',6:'#2f7d4f'};
+  const paymentRoleLabels = {senior:'Старший управляющий',approver:'Главный согласующий',chief:'Главный бухгалтер',accountant:'Бухгалтер объекта'};
+  async function openPaymentRoutes(trigger) {
+    if (document.querySelector('[data-pay-routes]')) return;
+    const m = workDialog('Ответственные по заявкам на оплату','payment-routes','kp-dialog tk',
+      '<form data-pay-routes hidden><p>Настройка применяется к новым заявкам по выбранному объекту.</p>'
+      + '<label>Объект <select name="object"></select></label><div class="tk-form" data-route-roles></div>'
+      + '<div class="kb-tools"><button type="submit" class="tk-btn pri">Сохранить</button></div></form>'
+      + '<div class="kb-status" role="status">Загрузка…</div>',trigger);
+    const form = m.querySelector('form'), status = m.querySelector('[role="status"]');
+    try {
+      const {routes,employees} = await paymentApi('payment-routes');
+      if (!routes.length) { status.textContent = 'Нет объектов с маршрутом оплаты'; return; }
+      const people = employees.map(person => [String(person.id),person.name]);
+      const select = form.elements.object, fields = form.querySelector('[data-route-roles]');
+      select.innerHTML = routes.map(route => '<option value="' + Number(route.id) + '">' + e(route.name) + '</option>').join('');
+      const selected = () => routes.find(route => route.id === Number(select.value));
+      function render() {
+        const route = selected();
+        fields.innerHTML = Object.entries(paymentRoleLabels).map(([role,label]) => {
+          const current = String(route[role]);
+          const choices = people.some(person => person[0] === current) ? people : [[current,'Текущий сотрудник № ' + current],...people];
+          return '<div><div>' + label + '</div>' + taskPersonPicker(choices,'name="' + role + '"',label,current,'Выберите сотрудника') + '</div>';
+        }).join('');
+        bindTaskPeople(fields);
+      }
+      render();
+      status.textContent = '';
+      form.hidden = false;
+      select.onchange = () => { render(); status.textContent = ''; };
+      form.onsubmit = async event => {
+        event.preventDefault();
+        const button = form.querySelector('[type=submit]');
+        if (button.disabled) return;
+        const current = selected();
+        const input = {id:current.id,revision:current.revision};
+        for (const role of Object.keys(paymentRoleLabels)) {
+          input[role] = Number(taskPersonKey(form.elements[role]));
+          if (!input[role]) { form.elements[role].focus(); status.textContent = 'Выберите сотрудника из списка'; return; }
+        }
+        form.querySelectorAll('input,select,button').forEach(control => { control.disabled = true; });
+        try {
+          const {route} = await paymentApi('payment-routes',input);
+          Object.assign(current,route);
+          status.textContent = 'Ответственные сохранены';
+        } catch (error) { status.textContent = error.message; }
+        finally { form.querySelectorAll('input,select,button').forEach(control => { control.disabled = false; }); }
+      };
+    } catch (error) { status.textContent = error.message; }
+  }
   function paymentRegister(panel) {
     window.crmTaskStyles();
     workDialogStyles();
     panel.classList.add('tk','crm-pay-register');
     const layoutKey = 'crm-payments-layout';
+    const settings = panel.closest('#crm-payments-page')?.querySelector('[data-pay-route-settings]');
+    if (settings) {
+      const gear = settings.querySelector('button');
+      gear.onclick = () => openPaymentRoutes(gear);
+    }
     let layout = 'list', filter = '', rows = [], statuses = {};
     try { if (localStorage.getItem(layoutKey) === 'board') layout = 'board'; } catch (error) { /* список по умолчанию */ }
     function renderList(items) {
@@ -1080,10 +1134,13 @@
     }
     async function refresh() {
       try {
-        ({rows,statuses} = await paymentApi('payments'));
+        const data = await paymentApi('payments');
+        ({rows,statuses} = data);
+        if (settings) settings.hidden = !data.canEditRoutes;
         if (filter === '0' && !rows.some(x => x.status === 0)) filter = '';
         render();
       } catch (error) {
+        if (settings) settings.hidden = true;
         panel.textContent = error.message;
       }
     }
@@ -1128,14 +1185,13 @@
         const values = [['Объект',r.object],['Сумма',paymentAmount(r.amount)],['Оплатить до',paymentDate(r.due)],
           ['Контрагент',r.counterparty],['Контактное лицо',r.contact],['Телефон',r.phone],['Эл. почта',r.email],['Исходный номер',r.legacyId]];
         const fileInput = (label, key) => '<label>' + label + '<input type="file" name="' + key + '" accept=".pdf,.jpg,.jpeg,.png"></label>';
-        const roleLabels = {senior:'Старший управляющий',approver:'Главный согласующий',chief:'Главный бухгалтер',accountant:'Бухгалтер объекта'};
         const employees = (data.employees || []).map(person => [String(person.id), person.name]);
         const returnStages = [2,3].filter(id => r.status < 5 && id < r.status);
         const manage = r.canManage ? '<details><summary>Управление заявкой</summary><form class="tk-f" data-pay-manage>'
           + '<label>Действие<select name="action"><option value="assign">Передать сотруднику</option><option value="due">Перенести срок оплаты</option>'
           + (returnStages.length ? '<option value="return">Вернуть на этап согласования</option>' : '') + '</select></label>'
           + '<div data-pay-adjust="assign"><label>Чью роль передать<select name="role">'
-          + r.awaiting.map(x=>'<option value="'+e(x.role)+'">'+e(roleLabels[x.role]+' · '+x.name)+'</option>').join('')
+          + r.awaiting.map(x=>'<option value="'+e(x.role)+'">'+e(paymentRoleLabels[x.role]+' · '+x.name)+'</option>').join('')
           + '</select></label><label>Кому передать</label>'
           + taskPersonPicker(employees,'name="user"','Кому передать','','Выберите сотрудника') + '</div>'
           + '<div data-pay-adjust="due" hidden><label>Новый срок оплаты<input type="date" name="due" value="'+e(r.due)+'"></label></div>'
@@ -1168,7 +1224,8 @@
           + '<div class="tk-next"><div class="tk-next-t">' + (r.needsAction ? 'Заявка ждёт вашего действия' : e(data.statuses[r.status])) + '</div>'
           + (awaiting ? '<div class="tk-next-s">' + e(awaiting) + '</div>' : '')
           + (transition ? '<div class="tk-next-s">' + e(canConfirm ? 'Перенос в «' + data.statuses[transition.nextStatus] + '» после подтверждения' : 'Этап изменился. Закройте карточку и обновите доску') + '</div>' : '')
-          + (r.needsAction && canConfirm ? '<form class="tk-f" data-pay-advance><label>Комментарий к решению<textarea name="comment" maxlength="2000"></textarea></label>'
+          + (r.actsAsAdmin ? '<div class="tk-next-s">Подтверждение от имени администратора</div>' : '')
+          + (r.nextStatus != null && canConfirm ? '<form class="tk-f" data-pay-advance><label>Комментарий к решению<textarea name="comment" maxlength="2000"></textarea></label>'
             + (r.status === 4 ? fileInput('Платёжное поручение','bill') : r.status === 5 ? fileInput('Акт / накладная / счёт-фактура','bill') + fileInput('Дополнения','extra') : '')
             + '<div class="tk-actions"><button type="submit" class="tk-btn ok">'+action+'</button></div></form>' : '')
           + '</div><section class="tk-card-section"><h3>Участники</h3><div class="tk-meta"><div><div class="l">Подал заявку</div>'

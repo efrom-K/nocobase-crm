@@ -15,6 +15,13 @@ FIELDS = [
     ('end_date', 'dateOnly', 'date', 'По', 'DatePicker'),
     ('document_no', 'string', 'input', 'Номер больничного', 'Input'),
     ('note', 'text', 'textarea', 'Заметки', 'Input.TextArea'),
+    ('leave_type', 'string', 'input', 'Вид больничного', 'Input'),
+]
+
+FILES = [
+    ('sick_leave_id', 'bigInt', 'integer', 'Больничный', 'InputNumber'),
+    ('name', 'string', 'input', 'Имя файла', 'Input'),
+    ('content', 'text', 'textarea', 'Файл', 'Input.TextArea'),
 ]
 
 
@@ -35,15 +42,17 @@ def rows(path, name=None):
     return api(path + ':list?' + urllib.parse.urlencode(params))
 
 
-def permissions(role):
+def permissions(role, collection, spec):
     path = f'roles/{role}/resources'
-    existing = rows(path, COLLECTION)
+    existing = rows(path, collection)
     actions = []
     if role in {'hr', 'admin'}:
-        fields = [field[0] for field in FIELDS]
+        fields = [field[0] for field in spec]
         actions = [{'name': name, 'fields': (['id'] + fields) if name in {'view', 'destroy'} else fields}
                    for name in ('view', 'create', 'update', 'destroy')]
-    values = {'name': COLLECTION, 'usingActionsConfig': True, 'actions': actions}
+    elif role == 'aho' and collection == COLLECTION:
+        actions = [{'name': 'view', 'fields': ['employee_id', 'start_date', 'end_date']}]
+    values = {'name': collection, 'usingActionsConfig': True, 'actions': actions}
     if existing:
         target = '?filterByTk=' + str(existing[0]['id'])
         previous = api(path + ':get' + target + '&appends=actions')
@@ -56,16 +65,28 @@ def permissions(role):
         api(path + ':create', values)
 
 
+def collection(name, title, spec):
+    fields = [{'name': key, 'type': kind, 'interface': interface,
+               'uiSchema': {'title': label, 'x-component': component}}
+              for key, kind, interface, label, component in spec]
+    if not rows('collections', name):
+        api('collections:create', {'name': name, 'title': title, 'autoGenId': True,
+                                   'createdAt': True, 'updatedAt': True, 'fields': fields})
+        return
+    path = 'collections/' + name + '/fields'
+    existing = {field['name'] for field in rows(path)}
+    for field in fields:
+        if field['name'] not in existing:
+            api(path + ':create', field)
+
+
 def main():
-    if not rows('collections', COLLECTION):
-        fields = [{'name': name, 'type': kind, 'interface': interface,
-                   'uiSchema': {'title': title, 'x-component': component}}
-                  for name, kind, interface, title, component in FIELDS]
-        api('collections:create', {'name': COLLECTION, 'title': 'Больничные',
-                                   'autoGenId': True, 'createdAt': True, 'updatedAt': True, 'fields': fields})
+    collection(COLLECTION, 'Больничные', FIELDS)
+    collection('crm_sick_leave_files', 'Вложения больничных', FILES)
     roles = [role['name'] for role in rows('roles') if role['name'] != 'root']
     for role in sorted(roles, key=lambda name: name in {'hr', 'admin'}):
-        permissions(role)
+        permissions(role, COLLECTION, FIELDS)
+        permissions(role, 'crm_sick_leave_files', FILES)
     sql = """
 BEGIN;
 ALTER TABLE crm_sick_leaves
@@ -78,6 +99,16 @@ BEGIN
     ALTER TABLE crm_sick_leaves ADD CONSTRAINT crm_sick_leaves_period CHECK (start_date <= end_date);
     ALTER TABLE crm_sick_leaves ADD CONSTRAINT crm_sick_leaves_no_overlap EXCLUDE USING gist
       (int8range(employee_id, employee_id, '[]') WITH &&, daterange(start_date, end_date, '[]') WITH &&);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'crm_sick_leaves_type' AND conrelid = 'crm_sick_leaves'::regclass) THEN
+    ALTER TABLE crm_sick_leaves ADD CONSTRAINT crm_sick_leaves_type CHECK (leave_type IN ('official', 'unofficial'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'crm_sick_leave_files_parent' AND conrelid = 'crm_sick_leave_files'::regclass) THEN
+    ALTER TABLE crm_sick_leave_files
+      ALTER COLUMN sick_leave_id SET NOT NULL, ALTER COLUMN name SET NOT NULL, ALTER COLUMN content SET NOT NULL,
+      ADD CONSTRAINT crm_sick_leave_files_parent FOREIGN KEY (sick_leave_id) REFERENCES crm_sick_leaves(id) ON DELETE CASCADE,
+      ADD CONSTRAINT crm_sick_leave_files_content CHECK (length(content) BETWEEN 4 AND 5592408);
+    CREATE INDEX crm_sick_leave_files_sick_leave_id ON crm_sick_leave_files(sick_leave_id);
   END IF;
 END $$;
 COMMIT;

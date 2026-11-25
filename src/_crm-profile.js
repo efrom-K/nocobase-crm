@@ -1049,7 +1049,11 @@
     workDialogStyles();
     panel.classList.add('tk','crm-pay-register');
     const layoutKey = 'crm-payments-layout';
-    const settings = panel.closest('#crm-payments-page')?.querySelector('[data-pay-route-settings]');
+    const page = panel.closest('#crm-payments-page');
+    const settings = page?.querySelector('[data-pay-route-settings]');
+    const submit = page?.querySelector('[data-pay-submit]');
+    let openForm = !!submit && /[?&]payment=open(?:&|$)/.test(location.search);
+    if (submit) submit.onclick = () => openPayment(submit,refresh);
     if (settings) {
       const gear = settings.querySelector('button');
       gear.onclick = () => openPaymentRoutes(gear);
@@ -1160,10 +1164,16 @@
         const data = await paymentApi('payments');
         ({rows,statuses} = data);
         if (settings) settings.hidden = !data.canEditRoutes;
+        if (submit) {
+          submit.hidden = !data.canSubmit;
+          if (openForm && data.canSubmit) openPayment(submit,refresh);
+          openForm = false;
+        }
         if (filter === '0' && !rows.some(x => x.status === 0)) filter = '';
         render();
       } catch (error) {
         if (settings) settings.hidden = true;
+        if (submit) submit.hidden = true;
         panel.textContent = error.message;
       }
     }
@@ -1398,7 +1408,7 @@
     }
     render();
   }
-  function openPayment(trigger) {
+  function openPayment(trigger,onSubmit) {
     window.crmTaskStyles();
     if (document.querySelector('.kp-dialog')) return;
     const m = workDialog('Заявка на оплату','kp','kp-dialog',
@@ -1453,6 +1463,7 @@
           });
           form.hidden = true;
           status.textContent = 'Заявка № ' + result.id + ' отправлена на согласование.';
+          onSubmit?.();
         } catch (error) {
           status.textContent = error instanceof TypeError && sending
             ? 'Связь прервалась. Уточните в АХО, появилась ли заявка, прежде чем отправлять её повторно'
@@ -1781,18 +1792,11 @@
         li.parentNode.insertBefore(set, li.nextSibling);
       }
       set.innerHTML = '<span class="ant-dropdown-menu-title-content">' + ICON.smile + (s ? 'Изменить статус' : 'Установить статус') + '</span>';
-      if (!li.parentNode.querySelector('.crmp-li-payment')) {
-        const payment = document.createElement('li');
-        payment.className = 'ant-dropdown-menu-item crmp-li-payment';
-        payment.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/rqsvc/payment-request">Подать заявку на оплату</a>';
-        li.parentNode.insertBefore(payment, set.nextSibling);
-      }
       if (!li.parentNode.querySelector('.crmp-li-pay-register')) {
         const register = document.createElement('li');
         register.className = 'ant-dropdown-menu-item crmp-li-pay-register';
         register.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/admin/payreqpage1">Заявки на оплату</a>';
-        const payment = li.parentNode.querySelector('.crmp-li-payment');
-        li.parentNode.insertBefore(register,payment.nextSibling);
+        li.parentNode.insertBefore(register,set.nextSibling);
       }
       if (!li.parentNode.querySelector('.crmp-li-knowledge')) {
         const knowledge = document.createElement('li');
@@ -1804,8 +1808,8 @@
           li.closest('.ant-dropdown')?.classList.add('ant-dropdown-hidden');
           openKnowledge();
         };
-        const payment = li.parentNode.querySelector('.crmp-li-payment');
-        li.parentNode.insertBefore(knowledge, payment.nextSibling);
+        const register = li.parentNode.querySelector('.crmp-li-pay-register');
+        li.parentNode.insertBefore(knowledge, register.nextSibling);
       }
       // одна форма профиля: стандартный пункт «Редактировать профиль» открывает редактор выше (стандартная форма остаётся
       // служебной — по ней users:updateProfile решает, какие поля можно сохранять)
@@ -1825,7 +1829,7 @@
     refreshMenuCounts();
     const deepLink = location.search.match(/[?&]knowledge=(open|[1-9]\d*)(?:&|$)/);
     if (deepLink) openKnowledge(Number(deepLink[1]) || undefined);
-    if (/[?&]payment=open(?:&|$)/.test(location.search)) openPayment();
+    if (location.pathname !== '/admin/payreqpage1' && /[?&]payment=open(?:&|$)/.test(location.search)) openPayment();
     const paymentLink = location.search.match(/[?&]payments=(open|[1-9]\d*)(?:&|$)/);
     if (paymentLink) {
       if (paymentLink[1] === 'open') openPaymentRegister();
@@ -1836,15 +1840,6 @@
   setInterval(load, 60000);
   setInterval(refreshMenuCounts, 20000);
   document.addEventListener('visibilitychange', refreshMenuCounts);
-  document.addEventListener('click', function (ev) {
-    const link = ev.target.closest && ev.target.closest('a[href="/rqsvc/payment-request"]');
-    if (!link || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    const menu = link.closest('.ant-dropdown');
-    if (menu) menu.classList.add('ant-dropdown-hidden');
-    openPayment(menu ? document.querySelector('[data-testid=user-center-button]') : link);
-  }, true);
   // аватар с data-crmp-card (crmAvatar(id, size, label, true)) открывает карточку человека
   document.addEventListener('click', function (ev) {
     const a = ev.target.closest && ev.target.closest('[data-crmp-card]');

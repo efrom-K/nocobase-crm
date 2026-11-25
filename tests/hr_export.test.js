@@ -5,7 +5,7 @@ const src = fs.readFileSync('src/crm-hr.js', 'utf8');
 const cfg = k => ({ 'hr.empType': { staff: 'Штат', self: 'Самозанятый' }, 'hr.vacKinds': ['Ежегодный', 'За свой счёт'], 'hr.fileDocs': ['Document A','Document B'], 'hr.fileDocsSelf': ['Self document'] }[k] || {});
 const c = vm.createContext({ cfg, console, hDate: v => String(v).split('-').reverse().join('.'), hToday: () => '2026-11-06', hD: v => String(v || '').slice(0, 10),
   hDays: (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000),
-  hVacLeft: () => 28, hSafetyLast: () => null, hDue: () => 'ok', hPosFree: p => p.units,
+  hVacLeft: () => 28, hDue: () => 'ok', hPosFree: p => p.units,
   hVacCls: () => 'sched', hOwnSheets: () => [], hOwnersOf: () => [], hOwnSum: () => 0,
   hOwnSharesTxt: () => '', hPct: v => String(v) });
 function load(a, b) { vm.runInContext(src.slice(src.indexOf(a), src.indexOf(b, src.indexOf(a))), c); }
@@ -23,7 +23,7 @@ load('const hLeOpts', '// ---------- «требует внимания»');
 load('const HR_OWN_KIND', 'function hOwnNow(');
 load('const HR_RU_HOLIDAYS', 'function hEditVacDays(');
 load('function hXlsYears(', 'function hOpenExport(');
-load('function hSafetyRecs(', '// для статуса');
+load('function hSafetyLast(', '// состояние записи');
 load('function hXlsSpec(', 'function hOnClick(');
 const run = js => vm.runInContext(js, c);
 assert.equal(run(`HR_RU_HOLIDAYS.length`), 14);
@@ -105,7 +105,7 @@ assert.equal(cell('Сводка', 'Отпуск 2022: норма, дн.'), 56);
 assert.equal(cell('Сотрудники', 'Осталось запланировать отпусков 2022, дней'), null);
 run(`hr.d.safety = [
   {employee_id:1,kind:'Вводный инструктаж (журнал)',doc:'Организация',done_on:'2025-12-31',next_on:'2026-01-01'},
-  {employee_id:1,kind:'Вводный инструктаж (журнал)',doc:'Организация',done_on:'2027-01-01',next_on:'2027-12-31'}
+  {employee_id:1,kind:'Вводный инструктаж (журнал)',doc:'',done_on:'2027-01-01',next_on:'2027-12-31'}
 ];
 hr.d.sout = [{id:20,legal_entity_id:1,assessed_on:'2024-01-01',next_on:'2026-12-31'},{id:21,legal_entity_id:1,assessed_on:'2018-01-01',next_on:'2020-12-31'}];
 hr.d.lna.push({id:22,title:'In range',legal_entity_id:1,approved_on:'2024-01-01',review_on:'2026-12-31'},{id:23,title:'Out',legal_entity_id:1,approved_on:'2018-01-01',review_on:'2020-12-31'});
@@ -121,7 +121,8 @@ assert.equal(run(`spec.sheets.find(s=>s.name==='Мероприятия').rows.le
 assert.equal(run(`spec.sheets.find(s=>s.name==='Вакансии подробно').rows.length`), 1);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Кандидаты').rows.length`), 1);
 assert.equal(run(`spec.sheets.find(s=>s.name==='Обучение подробно').rows.length`), 1);
-assert.equal(run(`hSafetyRecs(1,'Вводный инструктаж (журнал)','2022-01-01','2026-12-31').length`), 1);
+assert.equal(run(`hSafetyLast(1,'Вводный инструктаж (журнал)','2022-01-01','2026-12-31').next_on`), '2026-01-01');
+assert.equal(run(`hSafetyLast(1,'Вводный инструктаж (журнал)').next_on`), '2027-12-31');
 run(`var preview = hXlsPreview({name:'<unsafe>',cols:[{h:'A & B'},{h:'Date',t:'date'},{h:'Number',t:'int'}],rows:Array.from({length:7},()=>['<img onerror=bad>', '2026-11-06', 0])});`);
 assert.match(run('preview'), /&lt;img onerror=bad&gt;/);
 assert.doesNotMatch(run('preview'), /<img/);
@@ -141,7 +142,7 @@ vm.runInContext('var hr = { d: { vacs: [] } };', vc);
 vacLoad('function hIso(', 'function hDate(');
 vacLoad('function hD(', 'function hDays(');
 vacLoad('function hDays(', 'function hNoun(');
-vacLoad('function hVacDeducts(', '// последняя запись');
+vacLoad('function hVacDeducts(', '// Последняя запись');
 vacLoad('const HR_RU_HOLIDAYS', 'function hEditVacDays(');
 const vr = js => vm.runInContext(js, vc);
 vr("var e = {id:1,hired_on:'2025-01-01',vacation_days:28};");

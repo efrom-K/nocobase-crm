@@ -90,7 +90,7 @@ async function cLoad() {
   (poa || []).forEach(function(x) { if (x.status !== 'revoked') add('aho', x.valid_until, 'Кончается доверенность: ' + x.to_whom, P_AHO + '?open=poa:' + x.id, { sub: x.purpose }); });
   (fire || []).forEach(function(x) { if (!x.fixed_on) add('aho', x.deadline_on, 'Пожарка: ' + (x.tenant || ''), P_AHO + '?open=fire:' + x.id, { sub: x.object_name }); });
   (mail || []).forEach(function(x) { if (x.status !== 'done') add('aho', x.due_on, 'Ответ на письмо: ' + (x.subject || ''), P_AHO + '?open=mail:' + x.id); });
-  (fines || []).forEach(function(x) { if (!x.paid_on) add('aho', x.discount_until, 'Штраф: скидка 50% до этого дня', P_AHO + '?open=fine:' + x.id, { canLate: false }); });
+  (fines || []).forEach(function(x) { if (!x.paid_on) add('aho', x.discount_until, 'Штраф: скидка до этого дня', P_AHO + '?open=fine:' + x.id, { canLate: false }); });
   if (vacs || safety || events) avail.hr = 1;
   (emps || []).forEach(function(e) {
     if (e.status === 'fired') return;

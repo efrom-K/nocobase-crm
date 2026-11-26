@@ -242,7 +242,7 @@ function ceoAlerts(c) {
   p(c.vacOver.length, 'вакансий не закрыто в срок', CEO_URL.hr + '?sec=hire');
   p(c.poaEnd.filter(function(x) { return cDays(x.valid_until) < 0; }).length, 'доверенностей истекло, не отозваны', CEO_URL.aho + '?sec=poa');
   p(c.contractEnd.filter(function(e) { return cDays(e.contract_until) < 0; }).length, 'трудовых договоров истекло', CEO_URL.hr + '?sec=staff');
-  p(c.finesOpen.length, 'штрафов не оплачено', CEO_URL.aho + '?sec=cars');
+  p(c.finesOpen.length, 'штрафов без подтверждения оплаты', CEO_URL.aho + '?sec=cars');
   if (c.expApproval.length) a.push(cChip(' счетов ждут согласования — ' + cMoney(c.expSum(c.expApproval)), '#8a5a00', c.expApproval.length, CEO_URL.aho + '?sec=money'));
   return a.length ? '<div class="c-alerts"><div class="c-alerts-t">Требует внимания</div><div class="c-al">' + a.join('') + '</div></div>'
     : '<div class="c-alerts ok">Всё в порядке: просроченного и горящего нет</div>';
@@ -296,7 +296,7 @@ function ceoRender() {
     + cTile('Регулярные платежи ≤ 30 дн.', c.subs30.length, cMoney(c.expSum(c.subs30)), c.subs30.length ? '' : 'zero', CEO_URL.aho + '?sec=money')
     + cTile('Пожарные требования', c.fireOpen.length, 'не устранено' + (c.fireOver.length ? ', <span class="c-bad">просрочено ' + c.fireOver.length + '</span>' : ''), c.fireOpen.length ? '' : 'zero', CEO_URL.aho + '?sec=fire')
     + cTile('Доверенности ≤ 30 дн.', c.poaEnd.length, 'истекают', c.poaEnd.length ? 'c-warn' : 'zero', CEO_URL.aho + '?sec=poa')
-    + cTile('Штрафы', c.finesOpen.length, 'не оплачено ' + cMoney(c.expSum(c.finesOpen)), c.finesOpen.length ? 'c-bad' : 'zero', CEO_URL.aho + '?sec=cars') + '</div>'
+    + cTile('Штрафы', c.finesOpen.length, 'оплата не подтверждена на ' + cMoney(c.expSum(c.finesOpen)), c.finesOpen.length ? 'c-bad' : 'zero', CEO_URL.aho + '?sec=cars') + '</div>'
     + cRows(c.expApproval.map(function(x) { return { l: cEsc(x.title || x.supplier || 'Счёт') + (x.supplier && x.title ? ' <span class="c-sub">· ' + cEsc(x.supplier) + '</span>' : ''), r: cKop(x.amount) !== null ? cMoney(cKop(x.amount)) : '', go: CEO_URL.aho + '?open=exp:' + x.id }; }), 5));
   // загрузка людей: задачи + заявки
   const names = {};

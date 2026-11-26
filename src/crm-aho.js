@@ -659,7 +659,7 @@ function aRenderHome() {
     + tile('poa', poaAct.length + sm('действуют'), 'по ' + (new Set(poaAct.map(function(p) { return p.legal_entity_id; }))).size + ' юрлицам')
     + tile('fire', fireOpen.length ? '<span style="color:#c23b3b;">' + fireOpen.length + '</span>' + sm('не устранено') : '✓', 'требований всего ' + d.fire.length)
     + tile('mail', mailOpen.length + sm('в работе'), 'входящие, исходящие, служебные записки')
-    + tile('cars', d.cars.filter(function(c) { return c.active !== false; }).length + sm('машин'), finesOpen.length ? 'неоплаченных штрафов ' + finesOpen.length : 'неоплаченных штрафов нет')
+    + tile('cars', d.cars.filter(function(c) { return c.active !== false; }).length + sm('машин'), finesOpen.length ? 'оплата не подтверждена: ' + finesOpen.length : 'нет штрафов без подтверждения оплаты')
     + tile('att', (function() { const s = aAttDay(hToday(), ah.d.evToday); return s.came + sm('пришли сегодня'); })(),
         (function() { const s = aAttDay(hToday(), ah.d.evToday); return 'опозданий ' + s.late + ' · данные СКУД ' + aSkudAge(); })())
     + tile('mailing', '✉', 'адреса арендаторов по объектам')
@@ -1002,7 +1002,7 @@ function aOpenMail(x) { aEdit({ coll: 'crm_aho_mail', rec: x, preset: { kind: ah
 // ---------- машины и штрафы ----------
 function aRenderCars() {
   const fines = ah.d.fines;
-  aBody().innerHTML = '<div class="hr-cols"><div><div class="hr-card"><div class="hr-card-t">Штрафы <small>не оплачено ' + fines.filter(function(f) { return !f.paid_on; }).length + '</small><button class="hr-btn sm" data-act="newfine"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Штраф</button></div>'
+  aBody().innerHTML = '<div class="hr-cols"><div><div class="hr-card"><div class="hr-card-t">Штрафы <small>оплата не подтверждена: ' + fines.filter(function(f) { return !f.paid_on; }).length + '</small><button class="hr-btn sm" data-act="newfine"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Штраф</button></div>'
     + (fines.length ? '<table><thead><tr><th>Машина</th><th>Дата</th><th class="n">Сумма</th><th>Скидка до</th><th>Оплата</th></tr></thead><tbody>' + fines.map(function(f) {
       const c = aCar(f.car_id);
       return '<tr data-rec="fine:' + f.id + '"><td>' + hEsc(c ? c.name : '') + '</td><td>' + hEsc(hDate(f.issued_on)) + '</td><td class="n">' + hMoney(f.amount) + '</td><td>' + (f.paid_on ? hEsc(hDate(f.discount_until)) : aDueChip(f.discount_until, 5)) + '</td>'
@@ -1360,7 +1360,7 @@ function aExportXlsx() {
     rows: d.fire.slice().sort(function(a, b) { return String(a.object_name || '').localeCompare(String(b.object_name || ''), 'ru'); })
       .map(function(f) { return [f.object_name || '', f.tenant || '', dt(f.issued_on), dt(f.deadline_on), A_FIRE_ST[f.status] || '', dt(f.fixed_on), f.issues || '']; }) });
   if (d.cars.length) sheets.push({ name: 'Машины', title: 'Машины', freezeCols: 1,
-    cols: [{ h: 'Машина', w: 28 }, { h: 'Госномер' }, { h: 'Собственник', w: 26 }, { h: 'Кто ездит', w: 26 }, { h: 'Неоплаченных штрафов', t: 'int' }, { h: 'Используется' }],
+    cols: [{ h: 'Машина', w: 28 }, { h: 'Госномер' }, { h: 'Собственник', w: 26 }, { h: 'Кто ездит', w: 26 }, { h: 'Штрафов без подтверждения оплаты', t: 'int' }, { h: 'Используется' }],
     rows: d.cars.map(function(c) { return [c.name || '', c.plate || '', c.owner || '', c.driver || '', d.fines.filter(function(f) { return Number(f.car_id) === c.id && !f.paid_on; }).length, c.active === false ? 'нет' : 'да']; }) });
   if (d.fines.length) sheets.push({ name: 'Штрафы', title: 'Штрафы', total: true, freezeCols: 1,
     cols: [{ h: 'Машина', w: 28, total: 'Итого' }, { h: 'Дата', t: 'date' }, { h: 'Сумма', t: 'money' }, { h: 'Скидка до', t: 'date' }, { h: 'Оплачен', t: 'date' }],
@@ -1369,7 +1369,7 @@ function aExportXlsx() {
   crmXlsx('Дашборд АХО', {
     title: 'Дашборд АХО', filters: [],
     notes: [['Счета и расходы', 'Все счета, по сроку оплаты; сумма — в рублях'], ['Регулярные дела', 'Следующий срок считается по периоду после отметки «Сделано»'], ['Доверенности', '«Скоро истекает» — меньше 30 дней до конца срока'],
-      ['Пожарная безопасность', 'Требования арендаторам по объектам'], ['Машины и штрафы', 'Штраф без оплаты считается неоплаченным']],
+      ['Пожарная безопасность', 'Требования арендаторам по объектам'], ['Машины и штрафы', 'Дата оплаты отображается после подтверждения']],
     sheets: sheets
   });
 }

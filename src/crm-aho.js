@@ -531,7 +531,7 @@ const A_MAIL = [['kind', 'Вид', 'select', A_MAIL_KIND, 1], ['reg_on', 'Дат
   ['track', 'Трек-номер', 'text'], ['status', 'Статус', 'select', A_MAIL_ST, 1], ['due_on', 'Ответить / сделать до', 'date'], ['note', 'Заметки', 'textarea']];
 const A_CAR = [['name', 'Машина', 'text', null, 1], ['plate', 'Госномер', 'text'], ['owner', 'Собственник', 'text'], ['driver', 'Кто ездит', 'text'], ['active', 'Используется', 'check'], ['note', 'Заметки', 'textarea']];
 const A_FINE = [['car_id', 'Машина', 'select', aCarOpts, 1], ['issued_on', 'Дата постановления', 'date', null, 1], ['amount', 'Сумма, ₽', 'num', null, 1],
-  ['uin', 'УИН / номер постановления', 'text'], ['discount_until', 'Скидка 50% до (20 дней с постановления)', 'date'], ['paid_on', 'Оплачен', 'date'], ['note', 'Заметки', 'textarea']];
+  ['uin', 'УИН / номер постановления', 'text'], ['discount_until', 'Скидка до', 'date'], ['paid_on', 'Оплачен', 'date'], ['note', 'Заметки', 'textarea']];
 
 // ---------- лента «Требует внимания» ----------
 function aAlerts() {
@@ -587,7 +587,7 @@ function aAlerts() {
   sec = 'cars';
   d.fines.filter(function(f) { return !f.paid_on; }).forEach(function(f) {
     const c = aCar(f.car_id), s = f.discount_until ? aDue(f.discount_until, 5) : 'ok';
-    add(s === 'late' ? 1 : s === 'ok' ? 2 : 0, 'Штраф не оплачен: ' + (c ? c.name : '') + ' — ' + hMoney(f.amount), f.discount_until ? (s === 'late' ? 'скидка 50% закончилась ' : 'скидка 50% до ') + hDate(f.discount_until) : '', { fine: f.id }, f.discount_until);
+    add(s === 'late' ? 1 : s === 'ok' ? 2 : 0, 'Оплата штрафа не подтверждена: ' + (c ? c.name : '') + ' — ' + hMoney(f.amount), f.discount_until ? (s === 'late' ? 'скидка закончилась ' : 'скидка до ') + hDate(f.discount_until) : '', { fine: f.id }, f.discount_until);
   });
   return out.sort(function(a, b) { return a.lvl - b.lvl || String(a.date || '9').localeCompare(String(b.date || '9')); });
 }
@@ -1003,10 +1003,10 @@ function aOpenMail(x) { aEdit({ coll: 'crm_aho_mail', rec: x, preset: { kind: ah
 function aRenderCars() {
   const fines = ah.d.fines;
   aBody().innerHTML = '<div class="hr-cols"><div><div class="hr-card"><div class="hr-card-t">Штрафы <small>не оплачено ' + fines.filter(function(f) { return !f.paid_on; }).length + '</small><button class="hr-btn sm" data-act="newfine"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Штраф</button></div>'
-    + (fines.length ? '<table><thead><tr><th>Машина</th><th>Дата</th><th class="n">Сумма</th><th>Скидка 50% до</th><th>Оплачен</th></tr></thead><tbody>' + fines.map(function(f) {
+    + (fines.length ? '<table><thead><tr><th>Машина</th><th>Дата</th><th class="n">Сумма</th><th>Скидка до</th><th>Оплата</th></tr></thead><tbody>' + fines.map(function(f) {
       const c = aCar(f.car_id);
       return '<tr data-rec="fine:' + f.id + '"><td>' + hEsc(c ? c.name : '') + '</td><td>' + hEsc(hDate(f.issued_on)) + '</td><td class="n">' + hMoney(f.amount) + '</td><td>' + (f.paid_on ? hEsc(hDate(f.discount_until)) : aDueChip(f.discount_until, 5)) + '</td>'
-        + '<td>' + (f.paid_on ? '<span class="hr-ok">' + hDate(f.paid_on) + '</span>' : '<span class="hr-chip red">нет</span>') + '</td></tr>';
+        + '<td>' + (f.paid_on ? '<span class="hr-ok">' + hDate(f.paid_on) + '</span>' : '<span class="hr-chip red">Не подтверждена</span>') + '</td></tr>';
     }).join('') + '</tbody></table>' : '<div class="hr-hint">Штрафов нет</div>') + '</div></div><div>'
     + '<div class="hr-card"><div class="hr-card-t">Машины <small>' + ah.d.cars.length + '</small><button class="hr-btn sm" data-act="newcar"><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Машина</button></div>'
     + (ah.d.cars.length ? '<div class="hr-lines">' + ah.d.cars.map(function(c) {
@@ -1017,8 +1017,7 @@ function aRenderCars() {
 }
 function aOpenCar(c) { aEdit({ coll: 'crm_aho_cars', rec: c, preset: { active: true }, spec: A_CAR, title: c ? c.name : 'Новая машина', files: 'car' }); }
 function aOpenFine(f) {
-  aEdit({ coll: 'crm_aho_fines', rec: f, preset: {}, spec: A_FINE, title: f ? 'Штраф ' + hMoney(f.amount) : 'Новый штраф', files: 'fine',
-    prepare: function(v) { if (!v.discount_until && v.issued_on) { const d = new Date(v.issued_on + 'T00:00:00'); d.setDate(d.getDate() + 20); v.discount_until = hIso(d); } return v; } });
+  aEdit({ coll: 'crm_aho_fines', rec: f, preset: {}, spec: A_FINE, title: f ? 'Штраф ' + hMoney(f.amount) : 'Новый штраф', files: 'fine' });
 }
 
 // ---------- рассылки арендаторам: адреса из контактов действующих договоров ----------
@@ -1360,7 +1359,7 @@ function aExportXlsx() {
     cols: [{ h: 'Машина', w: 28 }, { h: 'Госномер' }, { h: 'Собственник', w: 26 }, { h: 'Кто ездит', w: 26 }, { h: 'Неоплаченных штрафов', t: 'int' }, { h: 'Используется' }],
     rows: d.cars.map(function(c) { return [c.name || '', c.plate || '', c.owner || '', c.driver || '', d.fines.filter(function(f) { return Number(f.car_id) === c.id && !f.paid_on; }).length, c.active === false ? 'нет' : 'да']; }) });
   if (d.fines.length) sheets.push({ name: 'Штрафы', title: 'Штрафы', total: true, freezeCols: 1,
-    cols: [{ h: 'Машина', w: 28, total: 'Итого' }, { h: 'Дата', t: 'date' }, { h: 'Сумма', t: 'money' }, { h: 'Скидка 50% до', t: 'date' }, { h: 'Оплачен', t: 'date' }],
+    cols: [{ h: 'Машина', w: 28, total: 'Итого' }, { h: 'Дата', t: 'date' }, { h: 'Сумма', t: 'money' }, { h: 'Скидка до', t: 'date' }, { h: 'Оплачен', t: 'date' }],
     rows: d.fines.map(function(f) { const c = aCar(f.car_id); return [c ? c.name : '', dt(f.issued_on), Number(f.amount) || 0, dt(f.discount_until), dt(f.paid_on)]; }) });
   if (!sheets.length) return;
   crmXlsx('Дашборд АХО', {

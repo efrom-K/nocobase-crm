@@ -9,7 +9,7 @@
   - доверенности: за 30 дней, за 7 дней и в день окончания;
   - требования по пожарной безопасности: в день срока устранения;
   - корреспонденция: в день срока ответа;
-  - штрафы: за 3 дня до конца скидки 50%.
+  - штрафы: за 3 дня до конца скидки.
 О согласовании/отклонении счёта уведомление приходит сразу из дашборда (очередь task_notifications), здесь не дублируется.
 
 cron на svc:  0 9 * * 1-5 /usr/bin/python3 /home/ubuntu/nb_bik/aho_reminders.py >> /home/ubuntu/nb_bik/aho.log 2>&1
@@ -77,8 +77,8 @@ for x in rows("select * from crm_aho_mail where coalesce(status, '') not in ('do
         add('mail:%s:%s' % (x['id'], x['due_on']), 'Срок по письму сегодня', x['subject'], PAGE + '?open=mail:%s' % x['id'])
 
 for f in rows("select f.*, c.name car from crm_aho_fines f left join crm_aho_cars c on c.id = f.car_id where f.paid_on is null and f.discount_until is not null"):
-    if days(f['discount_until']) == 3:
-        add('fine:%s:disc' % f['id'], 'Штраф: скидка 50% заканчивается %s' % fmt(f['discount_until']), '%s — %s' % (f['car'] or '', money(f['amount'])), PAGE + '?open=fine:%s' % f['id'])
+    if 0 <= days(f['discount_until']) <= 3:
+        add('fine:%s:disc' % f['id'], 'Штраф: скидка заканчивается %s' % fmt(f['discount_until']), '%s — %s' % (f['car'] or '', money(f['amount'])), PAGE + '?open=fine:%s' % f['id'])
 
 stmts = []
 for key, title, text, url, to in out:

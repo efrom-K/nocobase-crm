@@ -74,7 +74,7 @@ collection('crm_aho_mail', 'АХО: корреспонденция и служе
                                                                       S('method', 'Как'), S('track', 'Трек-номер'), S('status', 'Статус'), D('due_on', 'Ответить / сделать до'), T('note', 'Заметки')])
 collection('crm_aho_cars', 'АХО: машины', [S('name', 'Машина'), S('plate', 'Госномер'), S('owner', 'Собственник'), S('driver', 'Кто ездит'), B('active', 'Используется'), T('note', 'Заметки')])
 collection('crm_aho_fines', 'АХО: штрафы', [I('car_id', 'Машина'), D('issued_on', 'Дата постановления'), S('uin', 'УИН / номер постановления'), N('amount', 'Сумма, ₽'),
-                                           D('discount_until', 'Скидка 50% до'), D('paid_on', 'Оплачен'), T('note', 'Заметки')])
+                                           D('discount_until', 'Скидка до'), D('paid_on', 'Оплачен'), T('note', 'Заметки')])
 collection('crm_aho_files', 'АХО: документы', [S('entity', 'К чему'), I('record_id', 'Запись'), S('doc', 'Какой документ'), I('file_id', 'Файл'), T('note', 'Заметки')])
 print('crm_aho_files.file', ok(call('collections/crm_aho_files/fields:create', {'name': 'file', 'type': 'belongsTo', 'target': 'attachments', 'foreignKey': 'file_id',
       'interface': 'm2o', 'uiSchema': {'title': 'Файл', 'x-component': 'AssociationField'}})))

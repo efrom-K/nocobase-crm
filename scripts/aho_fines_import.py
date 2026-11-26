@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Import individual fine notices. Dry run by default. IMAP settings are supplied in the environment."""
 import argparse
+import base64
 import datetime as dt
 import email
 from email import policy
@@ -11,6 +12,7 @@ import re
 import ssl
 import subprocess
 from pathlib import Path
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 MONTHS = 'января февраля марта апреля мая июня июля августа сентября октября ноября декабря'.split()
 PLATE_LETTERS = str.maketrans('АВЕКМНОРСТУХ', 'ABEKMHOPCTYX')
@@ -53,6 +55,27 @@ def parse_notice(subject, body):
     return uin, car, date, amount, until, note
 
 
+def payment_link(body, number):
+    link = re.search(r'Перейти к оплате\s*\((https://smtp\.gibdd-pay\.ru/ru/go1_link_tracker\?[^\s)]+)\)', body)
+    if not link:
+        return None
+    try:
+        encoded = parse_qs(urlsplit(link[1]).query)['url'][0].replace('~', '=')
+        target = urlsplit(base64.urlsafe_b64decode(encoded + '===').decode())
+        if (target.scheme, target.netloc, target.path) != ('https', 'bip.ru', '/shtrafy/'):
+            return None
+        certificate = parse_qs(target.query)['vehicleCertificateNumber'][0]
+        if not re.fullmatch(r'[0-9A-Za-zА-Яа-я]{10}', certificate):
+            return None
+    except (ValueError, KeyError):
+        return None
+    cyrillic = str.maketrans('ABEKMHOPCTYX', 'АВЕКМНОРСТУХ')
+    return 'https://bip.ru/shtrafy/?' + urlencode({
+        'vehicleCertificateNumber': certificate,
+        'vehiclePlateNumber': number.translate(cyrillic),
+    })
+
+
 def psql(sql):
     command = ['sudo', '-n', 'docker', 'exec', '-i', 'nocobase-postgres-1', 'psql',
                '-U', 'nocobase', '-d', 'nocobase', '-At', '-v', 'ON_ERROR_STOP=1']
@@ -72,7 +95,7 @@ def main():
     for car in json.loads(psql('select coalesce(json_agg(t), \'[]\') from (select id, plate from crm_aho_cars) t')):
         cars.setdefault(plate(car['plate']), []).append(car['id'])
     existing = set(psql("select trim(uin) from crm_aho_fines where uin is not null").splitlines())
-    counts = dict(new=0, existing=0, skipped=0, review=0)
+    counts = dict(new=0, existing=0, links=0, skipped=0, review=0)
     statements = []
     review = []
     with imaplib.IMAP4_SSL(config['host'], ssl_context=ssl.create_default_context(), timeout=30) as mailbox:
@@ -100,13 +123,25 @@ def main():
             except (ValueError, TypeError, AttributeError):
                 review.append((uid.decode(), 'не распознаны поля письма'))
                 continue
+            url = payment_link(body, number)
+            link_note = f'Оплата: {url}' if url else None
             if uin in existing:
+                if url:
+                    statements.append(f"""
+                        update crm_aho_fines
+                        set note = concat_ws(chr(10), nullif(note, ''), {literal(link_note)}), "updatedAt" = now()
+                        where trim(uin) = {literal(uin)}
+                          and strpos(coalesce(note, ''), 'Оплата: https://bip.ru/shtrafy/?') = 0
+                        returning id;
+                    """)
                 counts['existing'] += 1
                 continue
             matches = cars.get(number, [])
             if len(matches) != 1:
                 review.append((uid.decode(), f'{number}: совпадений в справочнике {len(matches)}'))
                 continue
+            if link_note:
+                note = '\n'.join(filter(None, (note, link_note)))
             existing.add(uin)
             counts['new'] += 1
             values = ', '.join(map(literal, (matches[0], issued, uin, amount, until, note)))
@@ -116,7 +151,8 @@ def main():
                 where not exists (select 1 from crm_aho_fines where trim(uin) = {literal(uin)});
             """)
     if args.apply and statements:
-        psql('begin; lock table crm_aho_fines in share row exclusive mode;\n' + '\n'.join(statements) + '\ncommit;')
+        result = psql('begin; lock table crm_aho_fines in share row exclusive mode;\n' + '\n'.join(statements) + '\ncommit;')
+        counts['links'] = sum(line.isdigit() for line in result.splitlines())
     counts['review'] = len(review)
     for uid, reason in review:
         print(f'IMAP UID {uid}: {reason}')

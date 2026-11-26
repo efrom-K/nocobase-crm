@@ -19,3 +19,15 @@ except ValueError:
     pass
 else:
     raise AssertionError('mismatched UIN accepted')
+
+from base64 import urlsafe_b64encode
+from aho_fines_import import payment_link
+
+def cta(url):
+    encoded = urlsafe_b64encode(url.encode()).decode().replace('=', '~')
+    return f'Перейти к оплате (https://smtp.gibdd-pay.ru/ru/go1_link_tracker?url={encoded})'
+
+target = 'https://bip.ru/shtrafy/?vehicleCertificateNumber=1234567890&vehiclePlateNumber='
+assert payment_link(cta(target), 'X123XM799').startswith(target + '%')
+assert payment_link(cta(target.replace('bip.ru', 'example.org')), 'X123XM799') is None
+assert payment_link('Перейти к оплате (javascript:alert(1))', 'X123XM799') is None

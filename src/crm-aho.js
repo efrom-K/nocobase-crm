@@ -1017,7 +1017,11 @@ function aRenderCars() {
 }
 function aOpenCar(c) { aEdit({ coll: 'crm_aho_cars', rec: c, preset: { active: true }, spec: A_CAR, title: c ? c.name : 'Новая машина', files: 'car' }); }
 function aOpenFine(f) {
-  aEdit({ coll: 'crm_aho_fines', rec: f, preset: {}, spec: A_FINE, title: f ? 'Штраф ' + hMoney(f.amount) : 'Новый штраф', files: 'fine' });
+  aEdit({ coll: 'crm_aho_fines', rec: f, preset: {}, spec: A_FINE, title: f ? 'Штраф ' + hMoney(f.amount) : 'Новый штраф', files: 'fine',
+    top: function(rec) {
+      const match = rec && !rec.paid_on && String(rec.note || '').match(/^Оплата: (https:\/\/bip\.ru\/shtrafy\/\?vehicleCertificateNumber=[A-Za-z0-9%]+&vehiclePlateNumber=[A-Za-z0-9%]+)$/m);
+      return match ? '<p><a class="hr-flink" href="' + hEsc(match[1]) + '" target="_blank" rel="noopener noreferrer">Перейти к оплате на БИП</a></p>' : '';
+    } });
 }
 
 // ---------- рассылки арендаторам: адреса из контактов действующих договоров ----------

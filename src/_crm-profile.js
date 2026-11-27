@@ -894,7 +894,7 @@
             for (const r of revisions) {
               const details=node('details',null,panel);
               node('summary','Версия '+r.version+' · '+new Date(r.updated).toLocaleString('ru')+' · '+r.editor,details);
-              body(r.body,details);
+              body(r.body,details,r.id);
               if (r.version!==article.version) btn(details,'Взять за основу',()=>edit({...r,version:article.version,state:'draft'}));
             }
           } catch (error) { report(error); }

@@ -2119,6 +2119,11 @@ function hRenderEmp(m, id) {
           + lines(list.map(vacLine), '');
       }).join('') : lines([], 'Отпусков нет'))
     + (can ? '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newvac><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Отпуск</button></div>' : '');
+  const sick = can && hr.d.sick;
+  const sickView = sick ? lines(sick.filter(function(v) { return Number(v.employee_id) === e.id; }).reverse().map(function(v) {
+    return '<div data-rec="sick:' + v.id + '"><span>' + hDate(v.start_date) + ' – ' + hDate(v.end_date) + ' · ' + hSickDays(v) + ' дн.</span><span class="hr-chip">' + hEsc(HR_SICK_TYPES[v.leave_type] || 'Вид не указан') + '</span></div>';
+  }), 'Больничных нет')
+    + '<div class="hr-actions" style="margin-top:8px;"><button class="hr-btn sm" data-newsick><svg class=nb-plus viewBox=0,0,12,12 width=.75em height=.75em style=vertical-align:-.04em;margin-right:.4em;flex:none aria-hidden=true><path d=M6,1.5V10.5M1.5,6H10.5 stroke=currentColor stroke-width=1.8 stroke-linecap=round /></svg>Больничный</button></div>' : '';
   // охрана труда
   const so = hSout(e.sout_id);
   const otView = (staff ? lines(HR_SAFETY.map(function(k) {
@@ -2174,6 +2179,7 @@ function hRenderEmp(m, id) {
     + (HR_MODE !== 'hr' && hHasHr() ? '<div class="hr-sec full" style="background:#e9edf5;border-color:#dde5f3;">Кадровые данные (отпуска, охрана труда, воинский учёт, личное дело) — <a href="' + HR_DASH_PAGE + '?open=emp:' + e.id + '" style="color:#1c2d58;">открыть в дашборде HR →</a></div>' : '')
     + sec('main', HR_MODE === 'hr' ? 'Основное' : 'Контакты и работа', H_MAIN, e, false, mainView)
     + sec('vac', 'Отпуска', null, null, false, vacView)
+    + (sick ? sec('sick', 'Больничные', null, null, false, sickView) : '')
     + (can ? sec('mot', 'Мотивация', H_MOT, p, false, motView) : '')
     + (can ? sec('wp', 'Рабочий профиль <span class="hr-lock">🔒 видят HR и администратор</span>', H_WP, p, true, wpView) : '')
     + (HR_MODE === 'hr' ? sec('ot', 'Охрана труда и СОУТ', null, null, false, otView) : '')
@@ -2185,6 +2191,9 @@ function hRenderEmp(m, id) {
     + sec('tasks', 'Задачи', null, null, true, taskView)
     + '</div></div>';
   // события карточки
+  const back = function() { if (document.body.contains(m)) hRenderEmp(m, id); };
+  const ns = box.querySelector('[data-newsick]');
+  if (ns) ns.addEventListener('click', function() { hOpenSick(null, { employee_id: e.id }, back); });
   box.querySelectorAll('.hr-box-h [data-emp]').forEach(function(a) { a.addEventListener('click', function() { m.remove(); hOpenEmp(Number(a.getAttribute('data-emp'))); }); });
   box.querySelectorAll('.hr-box-h [data-dep]').forEach(function(a) { a.addEventListener('click', function() { m.remove(); hOpenDept(Number(a.getAttribute('data-dep'))); }); });
   box.querySelectorAll('[data-edit]').forEach(function(b) { b.addEventListener('click', function() { m.__edit = b.getAttribute('data-edit'); hRenderEmp(m, id); }); });
@@ -2218,8 +2227,8 @@ function hRenderEmp(m, id) {
   box.querySelectorAll('[data-rec]').forEach(function(r) {
     r.addEventListener('click', function() {
       const k = r.getAttribute('data-rec'), i = k.indexOf(':'), typ = k.slice(0, i), val = k.slice(i + 1);
-      const back = function() { if (document.body.contains(m)) hRenderEmp(m, id); };
       if (typ === 'vac') { if (can) hOpenVac(hr.d.vacs.find(function(x) { return x.id === Number(val); }), null, back); }
+      else if (typ === 'sick' && sick) hOpenSick(sick.find(function(x) { return x.id === Number(val); }), null, back);
       else if (typ === 'cell') { if (can) hOpenSafetyCell(id, val, back); }
       else if (typ === 'ev') { if (can) hOpenEvent(hr.d.events.find(function(x) { return x.id === Number(val); }), back); }
       else if (typ === 'own') { if (can) hOpenOwn(hr.d.owners.find(function(x) { return x.id === Number(val); }), null, back); }
@@ -2391,14 +2400,14 @@ function hWireSickFiles(m, record) {
     } catch (err) { hToast('Не удалось выполнить действие с файлом'); }
   });
 }
-function hOpenSick(v, preset) {
+function hOpenSick(v, preset, after) {
   if (!hCan() || !hr.d.sick) return;
   hEdit({ coll: 'crm_sick_leaves', rec: v, preset: preset, title: v ? 'Больничный: ' + ((hEmp(v.employee_id) || {}).full_name || '') : 'Новый больничный',
     spec: [['employee_id', 'Сотрудник', 'select', hEmpOpts, 1], ['leave_type', 'Вид больничного', 'select', HR_SICK_TYPES, 1], ['start_date', 'С', 'date', null, 1], ['end_date', 'По (включительно)', 'date', null, 1],
       ['document_no', 'Номер больничного', 'text'], ['note', 'Заметки', 'textarea']],
     extra: function() { return v ? '<div class="hr-files"><div class="hr-files-h"><b>Вложения</b><label class="hr-btn sm">Прикрепить<input type="file" multiple data-sick-upload hidden></label></div><div class="hr-lines" data-sick-files></div><div class="hr-hint">Необязательно, до 4 МБ на файл</div></div>' : '<div class="hr-hint">После сохранения можно прикрепить файлы.</div>'; },
     wire: function(m) { if (v) hWireSickFiles(m, v); },
-    after: function(saved) { if (!v && saved) hOpenSick(saved); },
+    after: function(saved) { if (after) after(); if (!v && saved) hOpenSick(saved, null, after); },
     prepare: function(vals) {
       if (vals.end_date < vals.start_date) return 'Окончание раньше начала';
       const clash = hr.d.sick.find(function(x) { return Number(x.employee_id) === Number(vals.employee_id) && (!v || x.id !== v.id) && hD(x.start_date) <= vals.end_date && hD(x.end_date) >= vals.start_date; });

@@ -1819,12 +1819,6 @@
         li.parentNode.insertBefore(set, li.nextSibling);
       }
       set.innerHTML = '<span class="ant-dropdown-menu-title-content">' + ICON.smile + (s ? 'Изменить статус' : 'Установить статус') + '</span>';
-      if (!li.parentNode.querySelector('.crmp-li-pay-register')) {
-        const register = document.createElement('li');
-        register.className = 'ant-dropdown-menu-item crmp-li-pay-register';
-        register.innerHTML = '<a class="ant-dropdown-menu-title-content" href="/admin/payreqpage1">Заявки на оплату</a>';
-        li.parentNode.insertBefore(register,set.nextSibling);
-      }
       if (!li.parentNode.querySelector('.crmp-li-knowledge')) {
         const knowledge = document.createElement('li');
         knowledge.className = 'ant-dropdown-menu-item crmp-li-knowledge';
@@ -1835,8 +1829,7 @@
           li.closest('.ant-dropdown')?.classList.add('ant-dropdown-hidden');
           openKnowledge();
         };
-        const register = li.parentNode.querySelector('.crmp-li-pay-register');
-        li.parentNode.insertBefore(knowledge, register.nextSibling);
+        li.parentNode.insertBefore(knowledge, set.nextSibling);
       }
       // одна форма профиля: стандартный пункт «Редактировать профиль» открывает редактор выше (стандартная форма остаётся
       // служебной — по ней users:updateProfile решает, какие поля можно сохранять)

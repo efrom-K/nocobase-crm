@@ -526,6 +526,18 @@ http.createServer(async (req, res) => {
       const id = Number(params.get('id'));
       if (params.has('id')) {
         if (!Number.isSafeInteger(id) || id < 1) throw new ApiError(404, 'Статья не найдена');
+        if (params.has('image')) {
+          knowledge.read(reader,id);
+          const filename = params.get('image');
+          if (!/^[a-z0-9-]{1,64}\.png$/.test(filename)) throw new ApiError(404,'Скриншот не найден');
+          const directory = path.dirname(env.KNOWLEDGE_DB || '/app/knowledge/knowledge.sqlite');
+          const bytes = await fs.promises.readFile(path.join(directory,'screenshots',String(id),filename)).catch(error => {
+            if (error.code === 'ENOENT') throw new ApiError(404,'Скриншот не найден');
+            throw error;
+          });
+          res.writeHead(200, {'Content-Type':'image/png','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});
+          return res.end(bytes);
+        }
         return send(res, 200, params.has('history') ? knowledge.history(reader,id) : knowledge.read(reader,id), origin);
       }
       return send(res, 200, {articles:knowledge.browse(reader,(params.get('q') || '').slice(0,200)), topics, audiences, canEdit}, origin);

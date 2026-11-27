@@ -760,7 +760,12 @@
       + '<article class="kb-article" data-kb="article"><p>Загрузка…</p></article></div>',
       document.querySelector('[data-testid=user-center-button]'));
     const close=m.close;
-    m.close=()=>{clearTimeout(searchTimer);close();};
+    const images = new Set();
+    function releaseImages() {
+      for (const url of images) URL.revokeObjectURL(url);
+      images.clear();
+    }
+    m.close=()=>{clearTimeout(searchTimer);releaseImages();close();};
     const el = id => m.querySelector('[data-kb='+id+']');
     const status = el('status'), panel = el('article'), nav = el('topics'), search = el('search');
     const labels = {all:'Все сотрудники',managers:'Управляющие',accounting_dept:'Бухгалтерия',legal_dept:'Юристы',
@@ -823,9 +828,30 @@
       }
       node('span',text.slice(cursor),target);
     }
-    function body(text,target) {
+    function screenshot(alt, filename, parent, id) {
+      const caption = node('p','Скриншот — '+alt,parent);
+      fetch('/rqsvc/knowledge/api?id='+id+'&image='+filename, {
+        headers:{Authorization:'Bearer '+(localStorage.getItem('NOCOBASE_TOKEN') || '')}
+      }).then(response => {
+        if (!response.ok || response.headers.get('Content-Type') !== 'image/png') throw Error();
+        return response.blob();
+      }).then(blob => {
+        if (!caption.isConnected) return;
+        const url = URL.createObjectURL(blob);
+        images.add(url);
+        const link = node('a',null,caption);
+        link.href=url; link.target='_blank'; link.rel='noopener noreferrer';
+        const image = node('img',null,link);
+        image.alt=alt;
+        image.src=url;
+        image.style.cssText='display:block;max-width:100%;height:auto;margin-top:4px';
+      }).catch(() => { caption.textContent += ' · Не удалось загрузить'; });
+    }
+    function body(text,target,id) {
       let list = null;
       for (const line of text.split('\n')) {
+        const image = /^!\[([^\]]+)\]\(([a-z0-9-]{1,64}\.png)\)$/.exec(line);
+        if (image) { list = null; screenshot(image[1],image[2],target,id); continue; }
         const heading = /^(#{1,3})\s+(.*)$/.exec(line);
         const item = /^[-*]\s+(.*)$/.exec(line);
         if (item) { list ||= node('ul',null,target); inline(item[1],node('li',null,list)); continue; }
@@ -835,13 +861,14 @@
       }
     }
     function show(article) {
+      releaseImages();
       panel.textContent='';
       node('p',article.topic,panel).className='kb-meta';
       node('h2',article.title,panel);
       node('p',[article.owner && 'Ответственный: '+article.owner,article.review && 'Пересмотр: '+article.review,
         model.canEdit && labels[article.state]].filter(Boolean).join(' · '),panel).className='kb-meta';
       const content=node('div',null,panel); content.className='kb-content';
-      body(article.body,content);
+      body(article.body,content,article.id);
       const tools=node('div',null,panel); tools.className='kb-tools';
       btn(tools,'Скопировать ссылку', async () => {
         const path='/rqsvc/knowledge?id='+article.id;
